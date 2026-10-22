@@ -18,12 +18,12 @@ Current phase: **Phase 1**
 - [x] Notebook > Section > Page sidebar (folders and files)
 - [x] TipTap block editor with slash menu, no visible Markdown, saved as Markdown
 - [x] Editor document model on Yjs from the start (co-editing ready, single user for now)
-- [ ] Daily notebook: one page per day, linking into project notebooks
+- [x] Daily notebook: one page per day, linking into project notebooks
 - [x] Paste screenshots, drag in files, autosave
 - [ ] Sample notebook created on first launch
 - [x] YAML frontmatter with stable UUIDs
 - [x] Wikilinks, backlinks, tags
-- [ ] Templates and daily note
+- [x] Templates and daily note
 - [x] SQLite index with FTS5 full-text search
 - [ ] Local snapshots for recovery
 - [x] Spike: pen canvas prototype (pressure, palm rejection) to test ink latency (Go: see spikes/ink/RESULTS.md)

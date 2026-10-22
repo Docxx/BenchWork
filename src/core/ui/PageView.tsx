@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { dayOfPath } from '../pages/daily';
 import type { OpenPage, SaveState } from '../state/pageSlice';
 import { useApp } from './AppStoreContext';
 import { Backlinks } from './Backlinks';
@@ -36,6 +37,7 @@ export function PageView() {
           <header className="page-header">
             {/* Keyed by path so a rename elsewhere resets the field. */}
             <TitleField key={page.path} page={page} />
+            {dayOfPath(page.path) !== null && <DayArrows />}
             <SaveStatus />
           </header>
           <ConflictBanner />
@@ -83,6 +85,40 @@ function TitleField({ page }: { page: OpenPage }) {
         }
       }}
     />
+  );
+}
+
+/** Previous and next daily page, skipping days without one. */
+function DayArrows() {
+  const { previous, next } = useApp((s) => s.dayNeighbours);
+  const openPage = useApp((s) => s.openPage);
+  return (
+    <span className="day-arrows">
+      <button
+        type="button"
+        className="quiet"
+        aria-label="Previous day"
+        title="Previous day"
+        disabled={previous === null}
+        onClick={() => {
+          if (previous !== null) void openPage(previous);
+        }}
+      >
+        ‹
+      </button>
+      <button
+        type="button"
+        className="quiet"
+        aria-label="Next day"
+        title="Next day"
+        disabled={next === null}
+        onClick={() => {
+          if (next !== null) void openPage(next);
+        }}
+      >
+        ›
+      </button>
+    </span>
   );
 }
 

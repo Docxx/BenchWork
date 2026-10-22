@@ -1103,3 +1103,74 @@ pre.raw-block {
     padding: 0.7rem 0.8rem;
   }
 }
+
+.today {
+  font-weight: 600;
+}
+
+.day-arrows {
+  display: inline-flex;
+  gap: 0.1rem;
+}
+
+.day-arrows button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.template-picker {
+  position: fixed;
+  top: 20vh;
+  left: 50%;
+  z-index: 20;
+  width: min(22rem, calc(100vw - 2rem));
+  transform: translateX(-50%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.template-picker .field input {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.template-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.template-list button {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.template-list button:hover,
+.template-list button:focus-visible {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.template-settings {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+}
+
+.template-settings li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.template-settings li span {
+  flex: 1;
+}

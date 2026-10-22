@@ -97,7 +97,15 @@ describe('NotebookTree', () => {
       within(menu)
         .getAllByRole('menuitem')
         .map((b) => b.textContent),
-    ).toEqual(expect.arrayContaining(['New page', 'New section', 'Rename', 'Move to Recycle Bin']));
+    ).toEqual(
+      expect.arrayContaining([
+        'New page',
+        'New page from template…',
+        'New section',
+        'Rename',
+        'Move to Recycle Bin',
+      ]),
+    );
     expect(within(menu).getByRole('menuitem', { name: 'Colour teal' })).toBeDefined();
     fireEvent.keyDown(menu, { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();
@@ -107,7 +115,7 @@ describe('NotebookTree', () => {
       within(screen.getByRole('menu'))
         .getAllByRole('menuitem')
         .map((b) => b.textContent),
-    ).toEqual(['Rename', 'Move to Recycle Bin']);
+    ).toEqual(['Rename', 'Save as template', 'Move to Recycle Bin']);
   });
 
   it('adds a page from the menu and starts renaming it', async () => {

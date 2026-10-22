@@ -20,12 +20,21 @@ export function Sidebar({ vault }: { vault: OpenVault }) {
   const notice = useApp((s) => s.sidebarNotice);
   const dismissNotice = useApp((s) => s.dismissSidebarNotice);
   const results = useApp((s) => s.searchResults);
+  const openToday = useApp((s) => s.openToday);
 
   return (
     <nav className="sidebar" aria-label="Vault">
       <header className="sidebar-header">
         <h1 title={vault.root}>{vaultName(vault.root)}</h1>
         <div className="sidebar-tools">
+          <button
+            type="button"
+            className="quiet today"
+            title="Today's page (Ctrl+Shift+D)"
+            onClick={() => void openToday()}
+          >
+            Today
+          </button>
           <button
             type="button"
             className="quiet"

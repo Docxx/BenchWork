@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
 import type { Theme } from '../settings/appSettings';
 import { LINK_THRESHOLD_RANGE } from '../state/appStore';
 import type { OpenVault } from '../vault/vaultService';
@@ -190,8 +190,75 @@ function VaultSettings({ vault }: { vault: OpenVault }) {
         </p>
       </div>
 
+      <TemplateSettings />
       <SearchIndexSettings />
     </>
+  );
+}
+
+function TemplateSettings() {
+  const templates = useApp((s) => s.templates);
+  const loadTemplates = useApp((s) => s.loadTemplates);
+  const openPage = useApp((s) => s.openPage);
+  const showView = useApp((s) => s.showView);
+  const recycleItem = useApp((s) => s.recycleItem);
+  const [confirming, setConfirming] = useState<string | null>(null);
+
+  useEffect(() => {
+    void loadTemplates();
+  }, [loadTemplates]);
+
+  return (
+    <div className="field">
+      <span className="label">Templates</span>
+      {templates.length === 0 ? (
+        <p className="hint">
+          None yet. Choose Save as template from a page&apos;s menu to make one.
+        </p>
+      ) : (
+        <ul className="template-settings" aria-label="Templates">
+          {templates.map((t) => (
+            <li key={t.path}>
+              <span>{t.title}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  showView('files');
+                  void openPage(t.path);
+                }}
+              >
+                Open
+              </button>
+              {confirming === t.path ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirming(null);
+                    void recycleItem(t.path).then(() => loadTemplates());
+                  }}
+                >
+                  Confirm
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="quiet"
+                  onClick={() => {
+                    setConfirming(t.path);
+                  }}
+                >
+                  Move to Recycle Bin
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="hint">
+        Templates are pages in the templates folder. A template called Daily is used for new daily
+        pages. Placeholders: {'{{title}}'}, {'{{date}}'}, {'{{time}}'}, {'{{weekday}}'}.
+      </p>
+    </div>
   );
 }
 

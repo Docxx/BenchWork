@@ -14,6 +14,9 @@ export interface SlashItem {
   run: (editor: Editor, range: Range) => void;
 }
 
+/** The item that inserts a template; the editor asks which one. */
+export const TEMPLATE_ITEM = 'template';
+
 const chain = (editor: Editor, range: Range) => editor.chain().focus().deleteRange(range);
 
 export const SLASH_ITEMS: SlashItem[] = [
@@ -78,6 +81,13 @@ export const SLASH_ITEMS: SlashItem[] = [
     run: (e, r) => chain(e, r).setCodeBlock().run(),
   },
   {
+    id: TEMPLATE_ITEM,
+    label: 'Template',
+    keywords: ['protocol', 'insert', 'snippet'],
+    // Handled by the editor: it asks which template, then inserts it.
+    run: (e, r) => chain(e, r).run(),
+  },
+  {
     id: 'divider',
     label: 'Divider',
     keywords: ['hr', 'rule', 'line', 'separator'],
@@ -111,17 +121,19 @@ export interface SlashMenuState {
 
 export interface SlashOptions {
   onChange: (state: SlashMenuState | null) => void;
+  /** Called with where to insert, when Template is chosen. */
+  onTemplate: (pos: number) => void;
 }
 
 export const SlashCommands = Extension.create<SlashOptions>({
   name: 'slashCommands',
 
   addOptions() {
-    return { onChange: () => undefined };
+    return { onChange: () => undefined, onTemplate: () => undefined };
   },
 
   addProseMirrorPlugins() {
-    const { onChange } = this.options;
+    const { onChange, onTemplate } = this.options;
     let current: { props: SuggestionProps<SlashItem, SlashItem>; index: number } | null = null;
 
     const emit = () => {
@@ -149,6 +161,7 @@ export const SlashCommands = Extension.create<SlashOptions>({
         items: ({ query }) => filterSlashItems(query),
         command: ({ editor, range, props }) => {
           props.run(editor, range);
+          if (props.id === TEMPLATE_ITEM) onTemplate(range.from);
         },
         render: () => ({
           onStart: (props) => {

@@ -9,20 +9,26 @@ import { Sidebar } from './Sidebar';
 export function Shell({ vault }: { vault: OpenVault }) {
   const view = useApp((s) => s.view);
   const focusSearch = useApp((s) => s.focusSearch);
+  const openToday = useApp((s) => s.openToday);
 
-  // Ctrl+E searches, as in OneNote.
+  // Ctrl+E searches, as in OneNote; Ctrl+Shift+D opens today's page.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'e') {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const key = e.key.toLowerCase();
+      if (!e.shiftKey && key === 'e') {
         e.preventDefault();
         focusSearch();
+      } else if (e.shiftKey && key === 'd') {
+        e.preventDefault();
+        void openToday();
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [focusSearch]);
+  }, [focusSearch, openToday]);
 
   return (
     <div className="shell">

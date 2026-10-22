@@ -3,11 +3,13 @@ import { EditorContent, useEditor } from '@tiptap/react';
 import { useEffect, useState } from 'react';
 import { baseExtensions } from '../editor/extensions';
 import { FileInput } from '../editor/fileInput';
+import { blocksFromMarkdown } from '../editor/markdown/markdown';
 import { PageLinks, pageLinksKey, type LinkMenuState } from '../editor/pageLinks';
 import { SlashCommands, type SlashMenuState } from '../editor/slashCommands';
 import { FRAGMENT } from '../editor/yjsDoc';
 import type { OpenPage } from '../state/pageSlice';
 import { useApp } from './AppStoreContext';
+import { TemplatePicker } from './TemplatePicker';
 
 /** The editor for one open page, bound to the page's Yjs document. */
 export function PageEditor({ page }: { page: OpenPage }) {
@@ -19,8 +21,11 @@ export function PageEditor({ page }: { page: OpenPage }) {
   const followLink = useApp((s) => s.followLink);
   const setSearchQuery = useApp((s) => s.setSearchQuery);
   const suggestLinks = useApp((s) => s.suggestLinks);
+  const templateBodyFor = useApp((s) => s.templateBodyFor);
   const [slash, setSlash] = useState<SlashMenuState | null>(null);
   const [linkMenu, setLinkMenu] = useState<LinkMenuState | null>(null);
+  /** Where to insert a template, while choosing one. */
+  const [templateAt, setTemplateAt] = useState<number | null>(null);
 
   const editor = useEditor(
     {
@@ -30,7 +35,7 @@ export function PageEditor({ page }: { page: OpenPage }) {
           image: (src) => assetUrl(src, false),
         }),
         Collaboration.configure({ document: page.ydoc, field: FRAGMENT }),
-        SlashCommands.configure({ onChange: setSlash }),
+        SlashCommands.configure({ onChange: setSlash, onTemplate: setTemplateAt }),
         FileInput.configure({ onFiles: addFiles }),
         PageLinks.configure({
           suggest: suggestLinks,
@@ -62,6 +67,25 @@ export function PageEditor({ page }: { page: OpenPage }) {
       <EditorContent editor={editor} className="page-content" />
       {slash !== null && <SlashMenu state={slash} />}
       {linkMenu !== null && <LinkMenu state={linkMenu} />}
+      {templateAt !== null && (
+        <TemplatePicker
+          mode="insert"
+          onClose={() => {
+            setTemplateAt(null);
+            editor.commands.focus();
+          }}
+          onChoose={(template) => {
+            const at = templateAt;
+            setTemplateAt(null);
+            void templateBodyFor(template).then((body) => {
+              if (body === null || editor.isDestroyed) return;
+              // The page may have changed while the template was read.
+              const pos = Math.min(at, editor.state.doc.content.size);
+              editor.chain().focus().insertContentAt(pos, blocksFromMarkdown(body)).run();
+            });
+          }}
+        />
+      )}
     </>
   );
 }

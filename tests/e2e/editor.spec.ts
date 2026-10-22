@@ -133,7 +133,7 @@ test('a clash with an outside change asks, and keeps both versions', async ({ pa
 
 test('a new page opens ready to write in', async ({ page }) => {
   await tree(page).getByRole('treeitem', { name: 'Lab' }).click({ button: 'right' });
-  await page.getByRole('menuitem', { name: 'New page' }).click();
+  await page.getByRole('menuitem', { name: 'New page', exact: true }).click();
   await page.keyboard.press('Escape'); // keep the default name
   await expect(page.getByRole('textbox', { name: 'Page title' })).toHaveValue('Untitled page');
   await editor(page).click();

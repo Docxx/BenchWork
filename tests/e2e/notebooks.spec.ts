@@ -44,7 +44,7 @@ test('creates and names a notebook, then a page in it', async ({ page }) => {
   await expect(row(page, 'Immunofly project')).toBeVisible();
 
   await row(page, 'Immunofly project').click({ button: 'right' });
-  await page.getByRole('menuitem', { name: 'New page' }).click();
+  await page.getByRole('menuitem', { name: 'New page', exact: true }).click();
   await page.getByRole('textbox', { name: 'Name' }).fill('Day 1 crosses');
   await page.keyboard.press('Enter');
   await expect(row(page, 'Day 1 crosses')).toBeVisible();

@@ -17,6 +17,7 @@ import { SECTION_COLOURS } from '../notebooks/sectionMeta';
 import { parentVaultPath } from '../platform';
 import { useApp } from './AppStoreContext';
 import { Menu, type MenuItem } from './Menu';
+import { TemplatePicker } from './TemplatePicker';
 
 type NodeRow = Extract<NotebookRow, { kind: 'node' }>;
 type DropPlace = 'before' | 'after' | 'into';
@@ -51,6 +52,8 @@ export function NotebookTree() {
   const setFolderColour = useApp((s) => s.setFolderColour);
   const recycleItem = useApp((s) => s.recycleItem);
   const openPage = useApp((s) => s.openPage);
+  const saveAsTemplate = useApp((s) => s.saveAsTemplate);
+  const createFromTemplate = useApp((s) => s.createFromTemplate);
 
   const options = useMemo(() => ({ showAllFiles }), [showAllFiles]);
   const rows = useMemo(() => notebookRows(tree, options), [tree, options]);
@@ -63,6 +66,8 @@ export function NotebookTree() {
     null,
   );
   const [confirming, setConfirming] = useState<NotebookNode | null>(null);
+  /** The folder a new page from a template goes in, while choosing one. */
+  const [templateFolder, setTemplateFolder] = useState<string | null>(null);
   const [drop, setDrop] = useState<{ path: string; place: DropPlace } | null>(null);
   const dragging = useRef<string | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -126,9 +131,22 @@ export function NotebookTree() {
         },
       },
     ];
-    if (!node.isDir) return common;
+    if (!node.isDir) {
+      if (node.kind !== 'page') return common;
+      return [
+        ...common.slice(0, -1),
+        { label: 'Save as template', onSelect: () => void saveAsTemplate(node.path) },
+        ...common.slice(-1),
+      ];
+    }
     return [
       { label: 'New page', onSelect: () => void createThenRename(createPage(node.path)) },
+      {
+        label: 'New page from template…',
+        onSelect: () => {
+          setTemplateFolder(node.path);
+        },
+      },
       { label: 'New section', onSelect: () => void createThenRename(createSection(node.path)) },
       ...common,
     ];
@@ -279,6 +297,19 @@ export function NotebookTree() {
 
   return (
     <>
+      {templateFolder !== null && (
+        <TemplatePicker
+          mode="new"
+          onClose={() => {
+            setTemplateFolder(null);
+          }}
+          onChoose={(template, title) => {
+            const folder = templateFolder;
+            setTemplateFolder(null);
+            void createFromTemplate(folder, template, title);
+          }}
+        />
+      )}
       {confirming !== null && (
         <ConfirmRecycle
           node={confirming}
