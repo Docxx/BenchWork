@@ -5,7 +5,7 @@ Current phase: **Phase 0**
 ## Phase 0: Skeleton
 
 - [x] Tauri 2 + React + TypeScript project scaffold (pnpm, ESLint, Prettier, Vitest)
-- [ ] Open or create a vault folder; remember last vault
+- [x] Open or create a vault folder; remember last vault
 - [ ] File tree sidebar
 - [ ] Settings page (theme, vault options)
 - [ ] Module registry, manifest format and src/core/api stub
