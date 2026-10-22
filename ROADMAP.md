@@ -19,9 +19,9 @@ Current phase: **Phase 1**
 - [x] TipTap block editor with slash menu, no visible Markdown, saved as Markdown
 - [x] Editor document model on Yjs from the start (co-editing ready, single user for now)
 - [ ] Daily notebook: one page per day, linking into project notebooks
-- [ ] Paste screenshots, drag in files, autosave
+- [x] Paste screenshots, drag in files, autosave
 - [ ] Sample notebook created on first launch
-- [ ] YAML frontmatter with stable UUIDs
+- [x] YAML frontmatter with stable UUIDs
 - [ ] Wikilinks, backlinks, tags
 - [ ] Templates and daily note
 - [ ] SQLite index with FTS5 full-text search

@@ -1,6 +1,8 @@
 // @vitest-environment node
+import { embedContent } from '../editor/fileInput';
 import { loadPage } from '../editor/markdown/markdown';
 import { setYDocContent, yDocToPage } from '../editor/yjsDoc';
+import type { IncomingFile } from '../pages/attachments';
 import { MemoryAdapter, type MemoryFolderContents } from '../platform/memory';
 import { createAppStore } from './appStore';
 import { AUTOSAVE_MS } from './pageSlice';
@@ -237,5 +239,72 @@ describe('the sidebar and the open page', () => {
     await state().recycleItem('Lab');
     expect(state().page).toBeNull();
     expect(platform.trashed()).toEqual(['Lab']);
+  });
+});
+
+function incoming(name: string, content: string, size?: number): IncomingFile {
+  const bytes = new TextEncoder().encode(content);
+  return { name, type: '', size: size ?? bytes.length, bytes: () => Promise.resolve(bytes) };
+}
+
+describe('adding files', () => {
+  it('copies them into attachments/ and saves them in the page as embeds and links', async () => {
+    const { platform, state } = await openVault();
+    await state().openPage('Lab/Plan.md');
+    const added = await state().addFiles(
+      [incoming('plot.png', 'PNG'), incoming('data.csv', 'a,b')],
+      'drop',
+    );
+    expect(added).toEqual([
+      { path: 'attachments/plot.png', image: true },
+      { path: 'attachments/data.csv', image: false },
+    ]);
+    expect(platform.snapshot()['attachments/data.csv']).toBe('a,b');
+
+    // The editor inserts these nodes where the files were dropped.
+    const page = state().page;
+    if (!page) throw new Error('no open page');
+    const current = yDocToPage(page.ydoc);
+    setYDocContent(page.ydoc, {
+      type: 'doc',
+      content: [...(current.content ?? []), { type: 'paragraph', content: embedContent(added) }],
+    });
+    await state().savePageNow();
+    expect(platform.snapshot()['Lab/Plan.md']).toContain(
+      '\n![[attachments/plot.png]] [[attachments/data.csv]]\n',
+    );
+  });
+
+  it('lists files over the size limit in the notice and adds the rest', async () => {
+    const { platform, state } = await openVault({
+      '.benchwork/config.json': '{"version":1,"attachments":{"linkThresholdMB":1}}',
+    });
+    await state().openPage('Lab/Plan.md');
+    const added = await state().addFiles(
+      [incoming('stack.tif', '', 2 * 1024 * 1024), incoming('note.txt', 'hi')],
+      'drop',
+    );
+    expect(added.map((a) => a.path)).toEqual(['attachments/note.txt']);
+    expect(state().pageNotice).toContain('stack.tif is over 1 MB');
+    expect(platform.snapshot()['attachments/stack.tif']).toBeUndefined();
+  });
+
+  it('adds nothing without an open page', async () => {
+    const { platform, state } = await openVault();
+    expect(await state().addFiles([incoming('plot.png', 'PNG')], 'paste')).toEqual([]);
+    expect(platform.snapshot()['attachments/plot.png']).toBeUndefined();
+  });
+
+  it('finds images for embeds and for Markdown images next to the page', async () => {
+    const { state } = await openVault({
+      'attachments/plot.png': 'PNG',
+      'Lab/figure.png': 'PNG',
+    });
+    await state().openPage('Lab/Plan.md');
+    expect(state().assetUrl('attachments/plot.png', true)).not.toBeNull();
+    expect(state().assetUrl('plot.png', true)).not.toBeNull();
+    expect(state().assetUrl('figure.png', false)).not.toBeNull();
+    expect(state().assetUrl('missing.png', true)).toBeNull();
+    expect(state().assetUrl('https://example.org/a.png', false)).toBeNull();
   });
 });

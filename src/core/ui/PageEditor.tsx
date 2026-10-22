@@ -2,6 +2,7 @@ import { Collaboration } from '@tiptap/extension-collaboration';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { useState } from 'react';
 import { baseExtensions } from '../editor/extensions';
+import { FileInput } from '../editor/fileInput';
 import { SlashCommands, type SlashMenuState } from '../editor/slashCommands';
 import { FRAGMENT } from '../editor/yjsDoc';
 import type { OpenPage } from '../state/pageSlice';
@@ -10,14 +11,20 @@ import { useApp } from './AppStoreContext';
 /** The editor for one open page, bound to the page's Yjs document. */
 export function PageEditor({ page }: { page: OpenPage }) {
   const savePageNow = useApp((s) => s.savePageNow);
+  const addFiles = useApp((s) => s.addFiles);
+  const assetUrl = useApp((s) => s.assetUrl);
   const [slash, setSlash] = useState<SlashMenuState | null>(null);
 
   const editor = useEditor(
     {
       extensions: [
-        ...baseExtensions(),
+        ...baseExtensions({
+          embed: (target) => assetUrl(target, true),
+          image: (src) => assetUrl(src, false),
+        }),
         Collaboration.configure({ document: page.ydoc, field: FRAGMENT }),
         SlashCommands.configure({ onChange: setSlash }),
+        FileInput.configure({ onFiles: addFiles }),
       ],
       editorProps: {
         attributes: { class: 'page-editor', 'aria-label': `Page: ${page.title}` },
