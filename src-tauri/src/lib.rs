@@ -250,23 +250,37 @@ fn percent_decode(value: &str) -> Option<String> {
     String::from_utf8(out).ok()
 }
 
-/// Writes binary data, sent as the raw request body so images are not
-/// turned into JSON. The vault path is in the `x-vault-path` header.
+/// The bytes of a `write_bytes` request. They normally come as the raw
+/// body. If the webview could not use Tauri's IPC protocol, Tauri falls back
+/// to sending them as a JSON list of numbers, which is accepted too.
+fn body_bytes(body: &tauri::ipc::InvokeBody) -> Option<std::borrow::Cow<'_, [u8]>> {
+    match body {
+        tauri::ipc::InvokeBody::Raw(data) => Some(std::borrow::Cow::Borrowed(data)),
+        tauri::ipc::InvokeBody::Json(serde_json::Value::Array(items)) => items
+            .iter()
+            .map(|v| v.as_u64().and_then(|n| u8::try_from(n).ok()))
+            .collect::<Option<Vec<u8>>>()
+            .map(std::borrow::Cow::Owned),
+        tauri::ipc::InvokeBody::Json(_) => None,
+    }
+}
+
+/// Writes binary data, sent as the request body so images are not turned
+/// into text. The vault path is in the `x-vault-path` header.
 #[tauri::command]
 async fn write_bytes(
     request: tauri::ipc::Request<'_>,
     state: State<'_, VaultState>,
 ) -> VaultResult<()> {
-    let tauri::ipc::InvokeBody::Raw(data) = request.body() else {
-        return Err(VaultError::new(ErrorKind::Io, "Expected raw bytes"));
-    };
+    let data = body_bytes(request.body())
+        .ok_or_else(|| VaultError::new(ErrorKind::Io, "The file's data did not arrive"))?;
     let path = request
         .headers()
         .get("x-vault-path")
         .and_then(|v| v.to_str().ok())
         .and_then(percent_decode)
         .ok_or_else(|| VaultError::new(ErrorKind::InvalidPath, "Missing x-vault-path header"))?;
-    vault_fs::write_bytes_atomic(&state.root()?, &path, data)
+    vault_fs::write_bytes_atomic(&state.root()?, &path, &data)
 }
 
 const APP_SETTINGS_FILE: &str = "settings.json";
@@ -343,7 +357,23 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::percent_decode;
+    use super::{body_bytes, percent_decode};
+    use tauri::ipc::InvokeBody;
+
+    #[test]
+    fn accepts_bytes_raw_or_as_a_json_list() {
+        let raw = InvokeBody::Raw(vec![137, 80, 78, 71]);
+        assert_eq!(body_bytes(&raw).as_deref(), Some(&[137u8, 80, 78, 71][..]));
+        let json = InvokeBody::Json(serde_json::json!([137, 80, 78, 71]));
+        assert_eq!(body_bytes(&json).as_deref(), Some(&[137u8, 80, 78, 71][..]));
+        for bad in [
+            serde_json::json!([256]),
+            serde_json::json!([-1]),
+            serde_json::json!({"a": 1}),
+        ] {
+            assert!(body_bytes(&InvokeBody::Json(bad)).is_none());
+        }
+    }
 
     #[test]
     fn decodes_paths_from_encode_uri_component() {
