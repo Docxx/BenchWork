@@ -3,6 +3,7 @@ import { dayOfPath } from '../pages/daily';
 import type { OpenPage, SaveState } from '../state/pageSlice';
 import { useApp } from './AppStoreContext';
 import { Backlinks } from './Backlinks';
+import { HistoryPanel } from './HistoryPanel';
 import { PageEditor } from './PageEditor';
 
 const SAVE_LABELS: Record<SaveState, string> = {
@@ -17,6 +18,7 @@ export function PageView() {
   const page = useApp((s) => s.page);
   const notice = useApp((s) => s.pageNotice);
   const dismissNotice = useApp((s) => s.dismissPageNotice);
+  const [showHistory, setShowHistory] = useState(false);
 
   return (
     <article className="page-view" aria-label={page ? page.title : 'No page open'}>
@@ -39,8 +41,25 @@ export function PageView() {
             <TitleField key={page.path} page={page} />
             {dayOfPath(page.path) !== null && <DayArrows />}
             <SaveStatus />
+            <button
+              type="button"
+              className="quiet history-button"
+              onClick={() => {
+                setShowHistory(true);
+              }}
+            >
+              History
+            </button>
           </header>
           <ConflictBanner />
+          {showHistory && (
+            <HistoryPanel
+              key={page.path}
+              onClose={() => {
+                setShowHistory(false);
+              }}
+            />
+          )}
           {/* A new document after a reload from disk starts a fresh editor. */}
           <PageEditor key={page.ydoc.guid} page={page} />
           <Backlinks />

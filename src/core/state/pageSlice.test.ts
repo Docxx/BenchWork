@@ -308,3 +308,54 @@ describe('adding files', () => {
     expect(state().assetUrl('https://example.org/a.png', false)).toBeNull();
   });
 });
+
+describe('automatic snapshots', () => {
+  const snapshotsOf = (platform: MemoryAdapter) =>
+    Object.entries(platform.snapshot())
+      .filter(([p]) => p.startsWith('.benchwork/snapshots/p1/'))
+      .map(([, text]) => text);
+
+  it('keep the version a save replaces, at most every ten minutes', async () => {
+    const { platform, state } = await openVault();
+    await state().openPage('Lab/Plan.md');
+    edit(state, 'One.\n');
+    await state().savePageNow();
+    expect(snapshotsOf(platform)).toEqual([PAGE]);
+
+    edit(state, 'Two.\n');
+    await state().savePageNow();
+    expect(snapshotsOf(platform)).toHaveLength(1);
+
+    const later = Date.now() + 11 * 60 * 1000;
+    vi.spyOn(Date, 'now').mockReturnValue(later);
+    edit(state, 'Three.\n');
+    await state().savePageNow();
+    expect(snapshotsOf(platform)).toHaveLength(2);
+    expect(snapshotsOf(platform).some((t) => t?.includes('Two.'))).toBe(true);
+    vi.restoreAllMocks();
+  });
+
+  it('keep the open version when a change from elsewhere replaces it', async () => {
+    const { platform, state } = await openVault();
+    await state().openPage('Lab/Plan.md');
+    await platform.externalWrite('Lab/Plan.md', PAGE.replace('First line.', 'Synced line.'));
+    await wait(20);
+    expect(snapshotsOf(platform)).toEqual([PAGE]);
+  });
+
+  it('can be restored, keeping the version they replace', async () => {
+    const { platform, state } = await openVault();
+    await state().openPage('Lab/Plan.md');
+    edit(state, 'Mistake.\n');
+    await state().savePageNow();
+    const [first] = await state().pageHistory();
+    if (!first) throw new Error('no snapshot');
+    expect(await state().readSnapshot(first.path)).toBe(PAGE);
+
+    await state().restoreSnapshot(first.path);
+    expect(platform.snapshot()['Lab/Plan.md']).toBe(PAGE);
+    expect(yDocToPage(state().page?.ydoc as import('yjs').Doc).content).toHaveLength(3);
+    expect(snapshotsOf(platform).some((t) => t?.includes('Mistake.'))).toBe(true);
+    expect(state().pageNotice).toContain('Restored an earlier version');
+  });
+});

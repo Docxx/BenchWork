@@ -323,6 +323,22 @@ export class MemoryAdapter implements PlatformAdapter {
     });
   }
 
+  /** Same rules as `remove_snapshot` in src-tauri/src/vault_fs.rs. */
+  removeSnapshot(path: string): Promise<void> {
+    return this.run(() => {
+      const nodes = this.vault();
+      const file = normaliseVaultPath(path);
+      if (!file.startsWith('.benchwork/snapshots/')) {
+        throw new PlatformError('InvalidPath', `'${file}' is not a snapshot`);
+      }
+      const node = nodes.get(file);
+      if (!node) throw new PlatformError('NotFound', `'${file}' does not exist`);
+      if (node.kind !== 'file') throw new PlatformError('NotAFile', `'${file}' is not a file`);
+      nodes.delete(file);
+      this.changed(file);
+    });
+  }
+
   trash(path: string): Promise<void> {
     return this.run(() => {
       const nodes = this.vault();

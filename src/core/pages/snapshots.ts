@@ -47,3 +47,69 @@ export async function saveSnapshot(
   }
   throw new Error('Could not find a free name for the snapshot');
 }
+
+/** Automatic snapshots of a page are at least this far apart. */
+export const SNAPSHOT_INTERVAL_MS = 10 * 60 * 1000;
+/** Snapshots kept per page at most. */
+export const KEEP_LATEST = 50;
+/** Snapshots older than this are dropped... */
+export const KEEP_DAYS = 60;
+/** ...except the newest few, which are always kept. */
+export const ALWAYS_KEEP = 5;
+
+export interface SnapshotRef {
+  path: string;
+  /** When it was taken, read from its name. */
+  time: Date;
+}
+
+/** Reads the time from a snapshot's name, such as `2026-10-22 103005 2.md`. */
+export function parseStamp(name: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2})(\d{2})(\d{2})(?: \d+)?\.md$/.exec(name);
+  if (!m) return null;
+  const [, y, mo, d, h, mi, s] = m.map(Number);
+  return new Date(y ?? 0, (mo ?? 1) - 1, d ?? 1, h ?? 0, mi ?? 0, s ?? 0);
+}
+
+async function listFolder(platform: PlatformAdapter, folder: string): Promise<SnapshotRef[]> {
+  if (!(await platform.exists(folder))) return [];
+  const refs: SnapshotRef[] = [];
+  for (const entry of await platform.listDir(folder)) {
+    const time = entry.isDir ? null : parseStamp(entry.name);
+    if (time !== null) refs.push({ path: entry.path, time });
+  }
+  return refs;
+}
+
+/**
+ * A page's snapshots, newest first: those under its id, and any taken
+ * under its path before it had one.
+ */
+export async function listSnapshots(
+  platform: PlatformAdapter,
+  pagePath: string,
+  pageId: string | null,
+): Promise<SnapshotRef[]> {
+  const folders = new Set([snapshotFolder(pagePath, pageId), snapshotFolder(pagePath, null)]);
+  const all = (await Promise.all([...folders].map((f) => listFolder(platform, f)))).flat();
+  return all.sort((a, b) => b.time.getTime() - a.time.getTime() || (a.path < b.path ? 1 : -1));
+}
+
+/** Which snapshots to drop: beyond the newest KEEP_LATEST, or older than KEEP_DAYS, but never the newest ALWAYS_KEEP. */
+export function snapshotsToDrop(newestFirst: readonly SnapshotRef[], now: Date): SnapshotRef[] {
+  const oldest = now.getTime() - KEEP_DAYS * 24 * 60 * 60 * 1000;
+  return newestFirst.filter(
+    (s, i) => i >= ALWAYS_KEEP && (i >= KEEP_LATEST || s.time.getTime() < oldest),
+  );
+}
+
+/** Drops old snapshots of a page. Failures are ignored: keeping too many is harmless. */
+export async function pruneSnapshots(
+  platform: PlatformAdapter,
+  pagePath: string,
+  pageId: string | null,
+  now: Date = new Date(),
+): Promise<void> {
+  const drop = snapshotsToDrop(await listSnapshots(platform, pagePath, pageId), now);
+  for (const s of drop) await platform.removeSnapshot(s.path).catch(() => undefined);
+}

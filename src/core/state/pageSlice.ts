@@ -13,7 +13,14 @@ import {
   type IncomingFile,
 } from '../pages/attachments';
 import { ensureId, localTimestamp, updateMeta, type ParsedPage } from '../pages/frontmatter';
-import { saveSnapshot } from '../pages/snapshots';
+import {
+  listSnapshots,
+  pruneSnapshots,
+  saveSnapshot,
+  snapshotFolder,
+  SNAPSHOT_INTERVAL_MS,
+  type SnapshotRef,
+} from '../pages/snapshots';
 import { baseName, PlatformError } from '../platform';
 import type { StoreContext } from './context';
 import { rebasePath } from './treeSlice';
@@ -52,6 +59,12 @@ export interface PageSlice {
   savePageNow: () => Promise<void>;
   /** In a conflict: save the editor's version; the disk version becomes a snapshot. */
   keepMyVersion: () => Promise<void>;
+  /** Earlier versions of the open page, newest first. */
+  pageHistory: () => Promise<SnapshotRef[]>;
+  /** A snapshot's text, for previewing it. */
+  readSnapshot: (path: string) => Promise<string>;
+  /** Puts a snapshot back as the open page; the current version becomes a snapshot. */
+  restoreSnapshot: (path: string) => Promise<void>;
   /** In a conflict: load the disk version; the editor's version becomes a snapshot. */
   loadDiskVersion: () => Promise<void>;
   /** After a rename or move in the sidebar, keeps the open page pointing at its file. */
@@ -95,6 +108,32 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
   let saves: Promise<void> = Promise.resolve();
   let openToken = 0;
   let stopWatching: (() => void) | null = null;
+  /** When each page (by snapshot folder) last had an automatic snapshot, this session. */
+  const lastSnapshot = new Map<string, number>();
+
+  /**
+   * Keeps `previous`, the version about to be replaced, as a snapshot: the
+   * first time a page changes in a session, then at most every
+   * SNAPSHOT_INTERVAL_MS. A snapshot that fails never stops a save.
+   */
+  async function autoSnapshot(path: string, id: string | null, previous: string): Promise<void> {
+    if (previous === '') return;
+    const key = snapshotFolder(path, id);
+    const last = lastSnapshot.get(key);
+    if (last !== undefined && Date.now() - last < SNAPSHOT_INTERVAL_MS) return;
+    try {
+      await keepSnapshot(path, id, previous);
+      await pruneSnapshots(platform, path, id);
+    } catch (err) {
+      console.warn('Could not keep a snapshot', err);
+    }
+  }
+
+  /** Saves a snapshot now; it counts as the page's latest for automatic ones. */
+  async function keepSnapshot(path: string, id: string | null, text: string): Promise<void> {
+    lastSnapshot.set(snapshotFolder(path, id), Date.now());
+    await saveSnapshot(platform, path, id, text);
+  }
 
   function titleOf(path: string): string {
     return pageTitle(baseName(path));
@@ -168,6 +207,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
     }
     if (session === s) set({ saveState: 'saving' });
     const previous = s.lastText;
+    await autoSnapshot(s.path, page.meta.id, previous);
     s.lastText = text;
     try {
       await platform.writeTextAtomic(s.path, text);
@@ -205,7 +245,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
       await queueSave(s);
     } else if (s.dirty) {
       // Closing with a conflict unresolved: keep the edits as a snapshot, never lose them.
-      await saveSnapshot(platform, s.path, s.page.meta.id, render(s).text).catch(() => undefined);
+      await keepSnapshot(s.path, s.page.meta.id, render(s).text).catch(() => undefined);
     }
     s.stopObserving();
     s.ydoc.destroy();
@@ -249,7 +289,9 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
     if (s.dirty || s.timer !== null) {
       set({ pageConflict: { diskText: text } });
     } else {
-      reload(s, text);
+      // Changed elsewhere, such as by sync: keep what was here first.
+      await autoSnapshot(s.path, s.page.meta.id, s.lastText);
+      if (session === s && !editedSince(s)) reload(s, text);
     }
   }
 
@@ -325,7 +367,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
       const conflict = get().pageConflict;
       if (!s || !conflict) return;
       if (conflict.diskText !== null) {
-        await saveSnapshot(platform, s.path, s.page.meta.id, conflict.diskText);
+        await keepSnapshot(s.path, s.page.meta.id, conflict.diskText);
       }
       // Whatever is on disk now is what our save replaces.
       s.lastText = conflict.diskText ?? '';
@@ -339,7 +381,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
       const conflict = get().pageConflict;
       if (!s || !conflict) return;
       const mine = render(s).text;
-      await saveSnapshot(platform, s.path, s.page.meta.id, mine);
+      await keepSnapshot(s.path, s.page.meta.id, mine);
       set({ pageConflict: null });
       if (conflict.diskText === null) {
         closeWithNotice(
@@ -387,6 +429,38 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
       if (ctx.session() !== token) return [];
       set({ pageNotice: problems.length > 0 ? problems.join(' ') : null });
       return added;
+    },
+
+    pageHistory: async () => {
+      const s = session;
+      if (!s) return [];
+      return listSnapshots(platform, s.path, s.page.meta.id).catch(() => []);
+    },
+
+    readSnapshot: (path) => platform.readText(path),
+
+    restoreSnapshot: async (path) => {
+      const s = session;
+      if (!s || get().pageConflict !== null) return;
+      try {
+        const text = await platform.readText(path);
+        await queueSave(s);
+        if (session !== s) return;
+        const current = s.lastText;
+        if (current === text) return;
+        // The version being replaced is kept, so a restore can be undone.
+        await keepSnapshot(s.path, s.page.meta.id, current);
+        s.lastText = text;
+        await platform.writeTextAtomic(s.path, text);
+        reload(s, text);
+        set({
+          pageNotice: 'Restored an earlier version. The version before it is kept in History.',
+        });
+      } catch (err) {
+        set({
+          pageNotice: `That version could not be restored. ${PlatformError.from(err).message}`,
+        });
+      }
     },
 
     assetUrl: (src, embed) => {

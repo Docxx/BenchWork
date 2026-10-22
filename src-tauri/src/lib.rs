@@ -215,6 +215,11 @@ async fn trash(path: String, state: State<'_, VaultState>) -> VaultResult<()> {
     vault_fs::trash(&state.root()?, &path)
 }
 
+#[tauri::command]
+async fn remove_snapshot(path: String, state: State<'_, VaultState>) -> VaultResult<()> {
+    vault_fs::remove_snapshot(&state.root()?, &path)
+}
+
 /// `external` is a full path outside the vault, from a file the user dropped.
 #[tauri::command]
 async fn copy_in(
@@ -316,6 +321,7 @@ pub fn run() {
             create_new,
             rename,
             trash,
+            remove_snapshot,
             copy_in,
             write_bytes,
             load_app_settings,

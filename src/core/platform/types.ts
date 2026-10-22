@@ -48,6 +48,11 @@ export interface PlatformAdapter {
   /** Moves a file or folder to the Recycle Bin. Nothing deletes permanently. */
   trash(path: string): Promise<void>;
   /**
+   * Deletes one of BenchWork's own snapshot files, to keep only recent ones.
+   * Refuses anything that is not a file in `.benchwork/snapshots/`.
+   */
+  removeSnapshot(path: string): Promise<void>;
+  /**
    * Calls `listener` with paths that changed in the open vault, from any
    * source, BenchWork included. Returns a function that stops listening.
    */

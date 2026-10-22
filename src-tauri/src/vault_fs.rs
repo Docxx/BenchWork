@@ -1,5 +1,6 @@
 //! File operations inside an open vault. Every path goes through
-//! `path_guard::resolve`. There is deliberately no delete operation.
+//! `path_guard::resolve`. There is deliberately no delete operation for
+//! user files: only `remove_snapshot`, for BenchWork's own snapshot files.
 
 use std::fs;
 use std::io::Write;
@@ -330,6 +331,35 @@ pub fn exists(root: &Path, rel: &str) -> VaultResult<bool> {
     Ok(fs::symlink_metadata(path).is_ok())
 }
 
+/// Where BenchWork keeps its recovery copies of pages.
+pub const SNAPSHOT_DIR: &str = ".benchwork/snapshots";
+
+/// Deletes one of BenchWork's own snapshot files, for keeping only recent
+/// ones. The only delete there is: it refuses anything that is not a file
+/// inside `.benchwork/snapshots/`, so it can never reach a user's files.
+pub fn remove_snapshot(root: &Path, rel: &str) -> VaultResult<()> {
+    let normal = normalise(rel)?;
+    let inside = normal
+        .strip_prefix(SNAPSHOT_DIR)
+        .is_some_and(|rest| rest.starts_with('/') && rest.len() > 1);
+    if !inside {
+        return Err(VaultError::new(
+            ErrorKind::InvalidPath,
+            format!("'{normal}' is not a snapshot"),
+        ));
+    }
+    let path = resolve(root, &normal)?;
+    let meta =
+        fs::symlink_metadata(&path).map_err(|e| VaultError::io("Cannot find snapshot", &e))?;
+    if !meta.is_file() {
+        return Err(VaultError::new(
+            ErrorKind::NotAFile,
+            format!("'{normal}' is not a file"),
+        ));
+    }
+    fs::remove_file(&path).map_err(|e| VaultError::io("Cannot remove snapshot", &e))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -624,5 +654,33 @@ mod phase1_tests {
         write_text_atomic(&root, "benchwork-trash-test.md", "x").unwrap();
         trash(&root, "benchwork-trash-test.md").unwrap();
         assert!(!exists(&root, "benchwork-trash-test.md").unwrap());
+    }
+
+    #[test]
+    fn removes_only_snapshot_files() {
+        let (_dir, root) = vault();
+        ensure_dir(&root, ".benchwork/snapshots/p1").unwrap();
+        write_text_atomic(&root, ".benchwork/snapshots/p1/2026-10-22 103005.md", "old").unwrap();
+        write_text_atomic(&root, "Page.md", "mine").unwrap();
+        write_text_atomic(&root, ".benchwork/config.json", "{}").unwrap();
+
+        remove_snapshot(&root, ".benchwork/snapshots/p1/2026-10-22 103005.md").unwrap();
+        assert!(!exists(&root, ".benchwork/snapshots/p1/2026-10-22 103005.md").unwrap());
+
+        for refused in [
+            "Page.md",
+            ".benchwork/config.json",
+            ".benchwork/snapshots",
+            ".benchwork/snapshots/p1",
+            ".benchwork/snapshotsX/a.md",
+            ".benchwork/snapshots/../config.json",
+        ] {
+            assert!(
+                remove_snapshot(&root, refused).is_err(),
+                "{refused} was removed"
+            );
+        }
+        assert!(exists(&root, "Page.md").unwrap());
+        assert!(exists(&root, ".benchwork/config.json").unwrap());
     }
 }

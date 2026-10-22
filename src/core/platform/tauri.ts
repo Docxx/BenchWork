@@ -136,6 +136,10 @@ export class TauriAdapter implements PlatformAdapter {
     return call('trash', () => ({ path: normaliseVaultPath(path) }));
   }
 
+  removeSnapshot(path: string): Promise<void> {
+    return call('remove_snapshot', () => ({ path: normaliseVaultPath(path) }));
+  }
+
   watch(listener: (change: VaultChange) => void): () => void {
     let stopped = false;
     let unlisten: (() => void) | null = null;
