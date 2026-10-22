@@ -11,7 +11,7 @@ Current phase: **Phase 0**
 - [x] Module registry, manifest format and src/core/api stub
 - [x] Modules panel with on/off toggles, saved to .benchwork/config.json
 - [x] Dummy module proving toggle on/off without touching vault files
-- [ ] Exit check: app builds on desktop, dummy module toggles cleanly
+- [x] Exit check: app builds on desktop, dummy module toggles cleanly
 
 ## Phase 1: Notes core
 
