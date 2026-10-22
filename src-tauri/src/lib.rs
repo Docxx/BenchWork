@@ -2,6 +2,7 @@ mod error;
 mod path_guard;
 mod vault_fs;
 mod vault_root;
+mod watcher;
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -11,29 +12,56 @@ use tauri::{AppHandle, Manager, State};
 use error::{ErrorKind, VaultError, VaultResult};
 use vault_fs::DirEntry;
 
-/// The canonical root of the open vault. File commands fail until it is set.
+/// The open vault: its canonical root, and the watcher reporting changes in
+/// it. File commands fail until a root is set.
 #[derive(Default)]
-struct VaultState(Mutex<Option<PathBuf>>);
+struct VaultState {
+    root: Mutex<Option<PathBuf>>,
+    watcher: Mutex<Option<watcher::VaultWatcher>>,
+}
+
+fn unavailable() -> VaultError {
+    VaultError::new(ErrorKind::Io, "Vault state is unavailable")
+}
 
 impl VaultState {
     fn root(&self) -> VaultResult<PathBuf> {
-        self.0
+        self.root
             .lock()
-            .map_err(|_| VaultError::new(ErrorKind::Io, "Vault state is unavailable"))?
+            .map_err(|_| unavailable())?
             .clone()
             .ok_or_else(|| VaultError::new(ErrorKind::NoVault, "No vault is open"))
     }
 }
 
 /// Opens a folder as the vault root and returns its full path for display.
+/// Also lets pages show the vault's images, and starts watching for changes.
 #[tauri::command]
-async fn set_vault_root(root: String, state: State<'_, VaultState>) -> VaultResult<String> {
+async fn set_vault_root(
+    root: String,
+    app: AppHandle,
+    state: State<'_, VaultState>,
+) -> VaultResult<String> {
     let canon = path_guard::canonical_root(Path::new(&root))?;
     let display = path_guard::display_path(&canon);
-    *state
-        .0
-        .lock()
-        .map_err(|_| VaultError::new(ErrorKind::Io, "Vault state is unavailable"))? = Some(canon);
+
+    // The asset protocol serves files for <img> tags. Vaults opened earlier
+    // in the session stay allowed; Tauri has no way to withdraw a directory
+    // without blocking it for good.
+    app.asset_protocol_scope()
+        .allow_directory(Path::new(&display), true)
+        .map_err(|e| VaultError::new(ErrorKind::Io, format!("Cannot allow vault images: {e}")))?;
+
+    // Replacing the old watcher drops it, which stops it.
+    let new_watcher = match watcher::start(app.clone(), canon.clone(), display.clone()) {
+        Ok(w) => Some(w),
+        Err(e) => {
+            eprintln!("Not watching {display} for changes: {e}");
+            None
+        }
+    };
+    *state.watcher.lock().map_err(|_| unavailable())? = new_watcher;
+    *state.root.lock().map_err(|_| unavailable())? = Some(canon);
     Ok(display)
 }
 
