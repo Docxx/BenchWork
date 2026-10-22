@@ -33,11 +33,19 @@ export function pageKeys(path: string): string[] {
   return full === name ? [full] : [full, name];
 }
 
+/** Where tags are in a piece of text: start of the `#`, length, and tag. */
+export function tagRanges(text: string): { index: number; length: number; tag: string }[] {
+  return [...text.matchAll(TAG)]
+    .map((m) => {
+      const tag = (m[1] ?? '').replace(/\/+$/, '');
+      return { index: m.index, length: tag.length + 1, tag };
+    })
+    .filter((r) => r.tag !== '');
+}
+
 /** Tags in a piece of text, without the `#`. */
 export function inlineTags(text: string): string[] {
-  return [...text.matchAll(TAG)]
-    .map((m) => (m[1] ?? '').replace(/\/+$/, ''))
-    .filter((t) => t !== '');
+  return tagRanges(text).map((r) => r.tag);
 }
 
 interface Found {
