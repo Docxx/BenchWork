@@ -306,6 +306,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
       set({ pageNotice: null, backlinks: [] });
       startSession(path, text, 0);
       void get().loadBacklinks(path);
+      void get().loadDayNeighbours(path);
     },
 
     closePage: async () => {
