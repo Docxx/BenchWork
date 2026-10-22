@@ -65,3 +65,26 @@ describe('search', () => {
     expect(locationOf('Top.md')).toBe('');
   });
 });
+
+describe('tag search', () => {
+  it('lists pages with a tag, including nested tags', async () => {
+    const platform = new MemoryAdapter({
+      folders: {
+        'C:/Vault': {
+          '.benchwork/config.json': '{"version":1}',
+          'Lab/Dose.md': '---\ntags: [LPS]\n---\nDose.\n',
+          'Lab/Diet.md': 'Food #lps/high today.\n',
+          'Lab/Other.md': 'About lps but no tag.\n',
+        },
+      },
+    });
+    const store = createAppStore(platform);
+    platform.queuePick('C:/Vault');
+    await store.getState().chooseFolder('open');
+    const state = () => store.getState();
+    await state().indexIdle();
+    state().setSearchQuery('#lps');
+    await settle(state);
+    expect(state().searchResults?.map((r) => r.title)).toEqual(['Diet', 'Dose']);
+  });
+});

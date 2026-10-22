@@ -8,6 +8,9 @@ export const SEARCH_LIMIT = 50;
 /** Wait after typing before searching. */
 export const SEARCH_DELAY_MS = 120;
 
+/** A search for one tag, such as `#lps` or `#lab/flies`. */
+const TAG_QUERY = /^#([^\s#]+)$/;
+
 export interface SearchResult extends SearchHit {
   /** Where the page lives, such as `LPS model > Experiments`; empty at the top. */
   location: string;
@@ -51,7 +54,12 @@ export function createSearchSlice(ctx: StoreContext): SearchSlice {
     }
     let hits: SearchHit[];
     try {
-      hits = await service.search(query, SEARCH_LIMIT);
+      // `#tag` on its own lists the pages with that tag.
+      const tag = TAG_QUERY.exec(query.trim())?.[1];
+      hits =
+        tag === undefined
+          ? await service.search(query, SEARCH_LIMIT)
+          : await service.tagged(tag, SEARCH_LIMIT);
     } catch {
       hits = [];
     }
@@ -74,7 +82,9 @@ export function createSearchSlice(ctx: StoreContext): SearchSlice {
           if (service === current) set({ indexProgress });
         },
         updated: () => {
-          if (service === current && get().searchQuery.trim() !== '') scheduleSearch();
+          if (service !== current) return;
+          get().refreshLinks();
+          if (get().searchQuery.trim() !== '') scheduleSearch();
         },
       });
       service = current;

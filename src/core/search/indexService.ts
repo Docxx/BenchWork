@@ -126,6 +126,12 @@ export class IndexService {
     return this.platform.index.search(query, limit);
   }
 
+  /** Pages with a tag, or a tag nested under it. */
+  tagged(tag: string, limit: number): Promise<SearchHit[]> {
+    if (!this.opened) return Promise.resolve([]);
+    return this.platform.index.tagged(tag, limit);
+  }
+
   private enqueue(task: () => Promise<void>): Promise<void> {
     const run = this.queue.then(async () => {
       if (this.stopped) return;

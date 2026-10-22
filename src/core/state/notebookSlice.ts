@@ -10,6 +10,7 @@ import {
 import { folderNodes } from '../notebooks/notebookTree';
 import { parentVaultPath, PlatformError } from '../platform';
 import type { StoreContext } from './context';
+import type { RelinkPlan } from './linksSlice';
 import { rebasePath } from './treeSlice';
 
 export interface NotebookSlice {
@@ -88,6 +89,26 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
     }
   }
 
+  /**
+   * Before a rename or move: saves the open page, so its latest text is
+   * what gets updated, and notes the links pointing into `path`.
+   */
+  async function beforeMove(path: string): Promise<RelinkPlan | null> {
+    await get().savePageNow();
+    return get().planRelink(path);
+  }
+
+  /** After a rename or move: updates links to it in other pages, and says so. */
+  async function afterMove(plan: RelinkPlan | null, to: string): Promise<void> {
+    if (plan === null) return;
+    const pages = await get().applyRelink(plan, to);
+    if (pages > 0) {
+      set({
+        sidebarNotice: `Updated links in ${String(pages)} ${pages === 1 ? 'page' : 'pages'}.`,
+      });
+    }
+  }
+
   ctx.onVault({
     closed: () => {
       set({ sidebarNotice: null, renaming: null });
@@ -128,8 +149,12 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
 
     renameItem: (path, title) =>
       attempt(async () => {
+        const relink = await beforeMove(path);
         const target = await renameItem(platform, path, title);
-        if (target !== path) await followMove(path, target);
+        if (target !== path) {
+          await followMove(path, target);
+          await afterMove(relink, target);
+        }
         return target;
       }),
 
@@ -140,9 +165,14 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
           (n) => n.name,
         );
         const placement = index === undefined ? undefined : { index, siblings };
+        const relink = await beforeMove(path);
         const target = await moveItem(platform, path, folder, placement);
-        if (target !== path) await followMove(path, target);
-        else await get().reloadFolders([folder]);
+        if (target !== path) {
+          await followMove(path, target);
+          await afterMove(relink, target);
+        } else {
+          await get().reloadFolders([folder]);
+        }
         get().selectEntry(target);
         return target;
       }),

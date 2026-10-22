@@ -302,8 +302,10 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
         return;
       }
       if (token !== openToken || get().status.kind !== 'open') return;
-      set({ pageNotice: null });
+      // The last page's backlinks go straight away; this page's follow.
+      set({ pageNotice: null, backlinks: [] });
       startSession(path, text, 0);
+      void get().loadBacklinks(path);
     },
 
     closePage: async () => {
