@@ -7,6 +7,8 @@ import { Placeholder } from '@tiptap/extensions';
 import type { Schema } from '@tiptap/pm/model';
 import { StarterKit } from '@tiptap/starter-kit';
 import { isImage } from '../pages/attachments';
+import { joinLabel, splitLabel } from './imageSize';
+import { imageView } from './imageView';
 import { RAW_BLOCK, RAW_INLINE, SOURCE_ATTR, WIKI_LINK } from './markdown/model';
 
 /**
@@ -126,24 +128,12 @@ function chipElement(target: string, alias: string | null, embed: boolean): HTML
   return chip;
 }
 
-/** An image that turns into a "missing" chip if its file cannot be loaded. */
-function imageElement(url: string | null, label: string, title: string | null): HTMLElement {
-  const missing = () => {
-    const chip = chipElement(label, null, true);
-    chip.classList.add('missing');
-    chip.title = `Not found: ${label}`;
-    return chip;
-  };
-  if (url === null) return missing();
-  const img = document.createElement('img');
-  img.src = url;
-  img.alt = label;
-  img.className = 'page-image';
-  if (title) img.title = title;
-  img.addEventListener('error', () => {
-    img.replaceWith(missing());
-  });
-  return img;
+/** The crossed-out chip shown for an image whose file cannot be loaded. */
+function missingChip(label: string): HTMLElement {
+  const chip = chipElement(label, null, true);
+  chip.classList.add('missing');
+  chip.title = `Not found: ${label}`;
+  return chip;
 }
 
 /** `[[Page]]`, `[[Page|shown text]]` or an embed `![[file]]`, shown as a chip. */
@@ -152,22 +142,32 @@ export const WikiLink = Node.create<AssetOptions>({
   addOptions() {
     return { assets: null };
   },
-  // Image embeds show the image; everything else is a chip, as renderHTML.
+  // Image embeds show the image, resizable; everything else is a chip, as renderHTML.
   addNodeView() {
     const assets = this.options.assets;
     if (assets === null) return null;
-    return ({ node }) => {
+    return ({ node, editor, getPos }) => {
       const target = String(node.attrs['target'] ?? '');
       const alias = node.attrs['alias'] as string | null;
       const embed = node.attrs['embed'] === true;
-      const dom =
-        embed && isImage(target)
-          ? imageElement(assets.embed(target), target, alias)
-          : chipElement(target, alias, embed);
-      // An image that fails swaps itself for a chip, so wrap it to keep one node.
+      if (embed && isImage(target)) {
+        // `![[plot.png|300]]`: the alias holds the size, and maybe a caption.
+        const { caption, size } = splitLabel(alias);
+        return imageView(
+          { node, editor, getPos },
+          {
+            url: assets.embed(target),
+            label: caption || target,
+            title: caption || null,
+            size,
+            withSize: (next) => ({ ...node.attrs, alias: joinLabel(caption, next) }),
+            missing: () => missingChip(target),
+          },
+        );
+      }
       const wrapper = document.createElement('span');
       wrapper.className = 'wiki-link-view';
-      wrapper.append(dom);
+      wrapper.append(chipElement(target, alias, embed));
       return {
         dom: wrapper,
         update: (next) => next.type === node.type && next.attrs === node.attrs,
@@ -178,6 +178,8 @@ export const WikiLink = Node.create<AssetOptions>({
   inline: true,
   atom: true,
   selectable: true,
+  // Links and images can be dragged to another place in the page.
+  draggable: true,
   addAttributes() {
     return {
       target: { default: '', parseHTML: (el) => el.getAttribute('data-target') ?? '' },
@@ -212,20 +214,25 @@ const PageImage = Image.extend<ImageOptions & AssetOptions>({
   addOptions() {
     return { ...(this.parent?.() as ImageOptions), assets: null };
   },
+  draggable: true,
   addNodeView() {
     const assets = this.options.assets;
     if (assets === null) return null;
-    return ({ node }) => {
+    return ({ node, editor, getPos }) => {
       const src = String(node.attrs['src'] ?? '');
-      const alt = (node.attrs['alt'] as string | null) ?? '';
-      const title = node.attrs['title'] as string | null;
-      const wrapper = document.createElement('span');
-      wrapper.className = 'page-image-view';
-      wrapper.append(imageElement(assets.image(src), alt || src, title));
-      return {
-        dom: wrapper,
-        update: (next) => next.type === node.type && next.attrs === node.attrs,
-      };
+      // `![graph|300](plot.png)`: the alt text holds the size after its caption.
+      const { caption, size } = splitLabel(node.attrs['alt'] as string | null);
+      return imageView(
+        { node, editor, getPos },
+        {
+          url: assets.image(src),
+          label: caption || src,
+          title: node.attrs['title'] as string | null,
+          size,
+          withSize: (next) => ({ ...node.attrs, alt: joinLabel(caption, next) }),
+          missing: () => missingChip(caption || src),
+        },
+      );
     };
   },
 });

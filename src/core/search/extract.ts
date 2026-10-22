@@ -1,3 +1,4 @@
+import { splitLabel } from '../editor/imageSize';
 import { parseBody } from '../editor/markdown/markdown';
 import { RAW_BLOCK, RAW_INLINE, WIKI_LINK, type PMNode } from '../editor/markdown/model';
 import { pageTitle } from '../notebooks/notebookTree';
@@ -72,12 +73,14 @@ function plain(node: PMNode, found: Found, inCode: boolean): string {
     }
     case WIKI_LINK: {
       const target = attr(node, 'target');
-      const alias = attr(node, 'alias');
-      found.links.push({ target, key: linkKey(target), embed: node.attrs?.['embed'] === true });
+      const embed = node.attrs?.['embed'] === true;
+      found.links.push({ target, key: linkKey(target), embed });
+      // An embed's alias may be just a size, such as `|300`: not text to search.
+      const alias = embed ? splitLabel(attr(node, 'alias')).caption : attr(node, 'alias');
       return alias !== '' ? alias : target;
     }
     case 'image':
-      return attr(node, 'alt');
+      return splitLabel(attr(node, 'alt')).caption;
     case 'hardBreak':
       return '\n';
     case RAW_BLOCK:

@@ -97,3 +97,11 @@ describe('link keys', () => {
     expect(pageKeys('Plan.md')).toEqual(['plan']);
   });
 });
+
+describe('sized images', () => {
+  it('leave their size out of the text', () => {
+    const text = '![[plot.png|300]] ![[blot.png|Western blot|250]] ![graph|400](g.png)\n';
+    const page = extractPage('A.md', text, FILE);
+    expect(page.body).toBe('plot.png Western blot graph');
+  });
+});
