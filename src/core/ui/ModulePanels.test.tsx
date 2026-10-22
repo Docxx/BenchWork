@@ -83,6 +83,6 @@ describe('module panels in the sidebar', () => {
     expect(screen.getByRole('region', { name: 'Bad panel' }).textContent).toContain(
       'This panel could not be shown.',
     );
-    expect(screen.getByRole('tree', { name: 'Files' })).toBeDefined();
+    expect(screen.getByRole('tree', { name: 'Notebooks' })).toBeDefined();
   });
 });

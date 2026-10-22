@@ -4,6 +4,7 @@ import { ModuleRegistry } from '../modules/registry';
 import type { PlatformAdapter } from '../platform';
 import { createStoreContext } from './context';
 import { createModulesSlice, type ModulesSlice } from './modulesSlice';
+import { createNotebookSlice, type NotebookSlice } from './notebookSlice';
 import { createSettingsSlice, type SettingsSlice } from './settingsSlice';
 import { createTreeSlice, type TreeSlice } from './treeSlice';
 import { createVaultSlice, type VaultSlice } from './vaultSlice';
@@ -14,7 +15,7 @@ export { LINK_THRESHOLD_RANGE, type View } from './settingsSlice';
 export type { PickMode, VaultStatus } from './vaultSlice';
 
 /** The whole app state: one slice per area, sharing a StoreContext. */
-export type AppState = VaultSlice & TreeSlice & SettingsSlice & ModulesSlice;
+export type AppState = VaultSlice & TreeSlice & NotebookSlice & SettingsSlice & ModulesSlice;
 
 export type AppStore = StoreApi<AppState>;
 
@@ -37,6 +38,7 @@ export function createAppStore(
     return {
       ...createVaultSlice(ctx),
       ...createTreeSlice(ctx),
+      ...createNotebookSlice(ctx),
       ...createSettingsSlice(ctx),
       ...createModulesSlice(ctx),
     };

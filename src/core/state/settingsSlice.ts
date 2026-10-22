@@ -15,6 +15,8 @@ export interface SettingsSlice {
   showView: (view: View) => void;
   /** Per-device; saved in the app settings, not the vault. */
   setTheme: (theme: Theme) => Promise<void>;
+  /** Per-device: show every file in the sidebar, not just pages. */
+  setShowAllFiles: (show: boolean) => Promise<void>;
   /** Per-vault; saved in .benchwork/config.json. */
   setLinkThreshold: (mb: number) => Promise<void>;
 }
@@ -46,6 +48,16 @@ export function createSettingsSlice(ctx: StoreContext): SettingsSlice {
         await saveAppSettings(platform, settings);
       } catch (err) {
         set({ settingsError: `The theme could not be saved. ${describeError(err)}` });
+      }
+    },
+
+    setShowAllFiles: async (showAllFiles) => {
+      const settings = { ...get().settings, showAllFiles };
+      set({ settings, settingsError: null });
+      try {
+        await saveAppSettings(platform, settings);
+      } catch (err) {
+        set({ settingsError: `The setting could not be saved. ${describeError(err)}` });
       }
     },
 

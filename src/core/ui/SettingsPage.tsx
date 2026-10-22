@@ -76,7 +76,12 @@ export function SettingsPage({ vault }: { vault: OpenVault }) {
         id={`settings-panel-${tab}`}
         aria-labelledby={`settings-tab-${tab}`}
       >
-        {tab === 'general' && <GeneralSettings />}
+        {tab === 'general' && (
+          <>
+            <GeneralSettings />
+            <SidebarSettings />
+          </>
+        )}
         {tab === 'vault' && <VaultSettings vault={vault} />}
         {tab === 'modules' && <ModulesPanel />}
       </div>
@@ -109,6 +114,26 @@ function GeneralSettings() {
           {t.label}
         </label>
       ))}
+      <p className="hint">Saved on this device only.</p>
+    </fieldset>
+  );
+}
+
+function SidebarSettings() {
+  const showAllFiles = useApp((s) => s.settings.showAllFiles);
+  const setShowAllFiles = useApp((s) => s.setShowAllFiles);
+
+  return (
+    <fieldset className="field">
+      <legend>Sidebar</legend>
+      <label className="choice">
+        <input
+          type="checkbox"
+          checked={showAllFiles}
+          onChange={(e) => void setShowAllFiles(e.target.checked)}
+        />
+        Show all files, not just pages
+      </label>
       <p className="hint">Saved on this device only.</p>
     </fieldset>
   );

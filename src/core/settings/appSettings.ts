@@ -11,15 +11,17 @@ export interface AppSettings {
   /** Full path of the last vault opened on this device. */
   lastVault: string | null;
   theme: Theme;
+  /** Show every file in the sidebar, not just pages. */
+  showAllFiles: boolean;
   /** Keys this version does not know about, kept on save. */
   extra: Record<string, unknown>;
 }
 
 const THEMES: readonly Theme[] = ['system', 'light', 'dark'];
-const KNOWN_KEYS = new Set(['version', 'lastVault', 'theme']);
+const KNOWN_KEYS = new Set(['version', 'lastVault', 'theme', 'showAllFiles']);
 
 export function defaultAppSettings(): AppSettings {
-  return { version: 1, lastVault: null, theme: 'system', extra: {} };
+  return { version: 1, lastVault: null, theme: 'system', showAllFiles: false, extra: {} };
 }
 
 /** Never throws: anything unreadable falls back to the default. */
@@ -35,6 +37,8 @@ export function parseAppSettings(data: unknown): AppSettings {
   if (typeof theme === 'string' && (THEMES as readonly string[]).includes(theme)) {
     settings.theme = theme as Theme;
   }
+
+  if (typeof record['showAllFiles'] === 'boolean') settings.showAllFiles = record['showAllFiles'];
 
   for (const [key, value] of Object.entries(record)) {
     if (!KNOWN_KEYS.has(key)) settings.extra[key] = value;

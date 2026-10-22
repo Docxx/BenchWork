@@ -49,7 +49,7 @@ test.beforeEach(async ({ page }) => {
     memory.queuePick('C:/Vault');
   }, VAULT_FILES);
   await page.getByRole('button', { name: 'Open vault' }).click();
-  await expect(page.getByRole('tree', { name: 'Files' })).toBeVisible();
+  await expect(page.getByRole('tree', { name: 'Notebooks' })).toBeVisible();
 });
 
 test('Hello is listed, off by default, and adds a sidebar panel when switched on', async ({

@@ -1,9 +1,17 @@
+import type { SectionMeta } from '../notebooks/sectionMeta';
 import type { DirEntry } from '../platform';
 
 /** Load state of one folder in the tree. */
 export type FolderState =
+  | {
+      status: 'loaded';
+      entries: DirEntry[];
+      /** This folder's own `_section.yaml`, if it has one. */
+      meta?: SectionMeta;
+      /** Colours of the folders inside, from their `_section.yaml`, by path. */
+      childColours?: Record<string, string>;
+    }
   | { status: 'loading' }
-  | { status: 'loaded'; entries: DirEntry[] }
   | { status: 'error'; message: string };
 
 export interface TreeState {

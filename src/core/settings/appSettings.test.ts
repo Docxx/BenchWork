@@ -16,7 +16,13 @@ describe('app settings', () => {
   });
 
   it('reads known values and keeps unknown keys', () => {
-    const stored = { version: 1, lastVault: 'C:\\Vault', theme: 'dark', window: { w: 900 } };
+    const stored = {
+      version: 1,
+      lastVault: 'C:\\Vault',
+      theme: 'dark',
+      showAllFiles: true,
+      window: { w: 900 },
+    };
     const settings = parseAppSettings(stored);
     expect(settings.lastVault).toBe('C:\\Vault');
     expect(settings.theme).toBe('dark');
