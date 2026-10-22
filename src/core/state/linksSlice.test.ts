@@ -123,6 +123,16 @@ describe('renaming and moving', () => {
     expect(file('Home/List.md')).toBe(VAULT['Home/List.md']);
   });
 
+  it('updates links even straight after the vault opens, before the page list loads', async () => {
+    const platform = new MemoryAdapter({ folders: { 'C:/Vault': VAULT } });
+    const store = createAppStore(platform);
+    platform.queuePick('C:/Vault');
+    await store.getState().chooseFolder('open');
+    // No waiting for indexing or the page list.
+    await store.getState().renameItem('Home/Plan.md', 'Shopping plan');
+    expect(platform.snapshot()['Home/List.md']).toBe('Shopping: [[Shopping plan]]\n');
+  });
+
   it('saves the open page first, so its edits are kept', async () => {
     const { state, file, platform } = await openVault();
     await state().openPage('Home/List.md');

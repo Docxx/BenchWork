@@ -93,19 +93,24 @@ export class IndexService {
     for (const path of paths) this.pending.add(path);
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
-      this.timer = null;
-      const batch = [...this.pending];
-      this.pending.clear();
-      void this.enqueue(() => this.update(batch));
+      this.flush();
     }, CHANGE_DELAY_MS);
   }
 
-  /** Resolves once everything queued so far has been indexed. */
+  /** Resolves once everything reported so far has been indexed, without waiting out the delay. */
   async idle(): Promise<void> {
-    while (this.timer !== null || this.pending.size > 0) {
-      await new Promise((resolve) => setTimeout(resolve, CHANGE_DELAY_MS));
-    }
+    this.flush();
     await this.queue;
+  }
+
+  /** Queues the collected changes for indexing now. */
+  private flush(): void {
+    if (this.timer !== null) clearTimeout(this.timer);
+    this.timer = null;
+    if (this.pending.size === 0) return;
+    const batch = [...this.pending];
+    this.pending.clear();
+    void this.enqueue(() => this.update(batch));
   }
 
   /** Stops indexing, waits for the current batch, and closes the index. */

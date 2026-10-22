@@ -37,8 +37,11 @@ export interface LinksSlice {
   loadBacklinks: (path: string | null) => Promise<void>;
   /** What to write in `[[...]]` to link to `path`. */
   linkTargetFor: (path: string) => string;
-  /** Pages for the `[[` menu, then a choice to create one that is not there. */
-  suggestLinks: (query: string) => LinkChoice[];
+  /**
+   * Pages for the `[[` menu, then a choice to create one that is not there.
+   * Waits for the page list if it has not loaded since the vault opened.
+   */
+  suggestLinks: (query: string) => Promise<LinkChoice[]>;
   /** Whether a link in the open page points at an existing page. */
   linkResolves: (target: string) => boolean;
   /** Opens the page a link in the open page means, creating it if it does not exist. */
@@ -75,6 +78,8 @@ export function createLinksSlice(ctx: StoreContext): LinksSlice {
   const { platform, set, get } = ctx;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let backlinksToken = 0;
+  /** Whether the page list has loaded since the vault opened. */
+  let loaded = false;
 
   async function reload(): Promise<void> {
     if (get().status.kind !== 'open') return;
@@ -87,6 +92,7 @@ export function createLinksSlice(ctx: StoreContext): LinksSlice {
     }
     if (token !== ctx.session()) return;
     set({ pageRefs });
+    loaded = true;
     await get().loadBacklinks(get().page?.path ?? null);
   }
 
@@ -95,6 +101,7 @@ export function createLinksSlice(ctx: StoreContext): LinksSlice {
       if (timer !== null) clearTimeout(timer);
       timer = null;
       backlinksToken += 1;
+      loaded = false;
       set({ pageRefs: [], backlinks: [] });
     },
   });
@@ -151,7 +158,11 @@ export function createLinksSlice(ctx: StoreContext): LinksSlice {
 
     linkTargetFor: (path) => linkTargetFor(path, get().pageRefs),
 
-    suggestLinks: (query) => {
+    suggestLinks: async (query) => {
+      if (!loaded) {
+        await get().indexIdle();
+        await reload();
+      }
       const pages = get().pageRefs;
       const choices: LinkChoice[] = suggestPages(query, pages).map((p) => ({
         id: p.path,
@@ -190,11 +201,14 @@ export function createLinksSlice(ctx: StoreContext): LinksSlice {
     },
 
     planRelink: async (path) => {
-      const before = get().pageRefs;
-      const moving = before.filter((p) => under(p.path, path));
-      if (moving.length === 0) return null;
-      const keys = [...new Set(moving.flatMap((p) => suffixKeys(p.path)))];
       try {
+        // Let indexing catch up and read the pages afresh, so a rename made
+        // just after opening a vault still finds every link.
+        await get().indexIdle();
+        const before = await platform.index.pages();
+        const moving = before.filter((p) => under(p.path, path));
+        if (moving.length === 0) return null;
+        const keys = [...new Set(moving.flatMap((p) => suffixKeys(p.path)))];
         return { from: path, before, links: await platform.index.backlinks(keys) };
       } catch {
         return null;

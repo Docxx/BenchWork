@@ -34,7 +34,7 @@ export interface LinkMenuState {
 
 export interface PageLinksOptions {
   /** Pages for the `[[` menu, best first; may end with a "create" choice. */
-  suggest: (query: string) => LinkChoice[];
+  suggest: (query: string) => Promise<LinkChoice[]>;
   resolves: (target: string) => boolean;
   openLink: (target: string) => void;
   openTag: (tag: string) => void;
@@ -93,7 +93,7 @@ export const PageLinks = Extension.create<PageLinksOptions>({
 
   addOptions() {
     return {
-      suggest: () => [],
+      suggest: () => Promise.resolve([]),
       resolves: () => true,
       openLink: () => undefined,
       openTag: () => undefined,
