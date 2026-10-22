@@ -1,0 +1,39 @@
+{
+  "description": "Shared vault path rules. Read by both the TypeScript and Rust tests so the two sides never drift.",
+  "valid": [
+    ["", ""],
+    [".", ""],
+    ["Notes", "Notes"],
+    ["Notes/Day 1.md", "Notes/Day 1.md"],
+    ["./Notes//Day 1.md/", "Notes/Day 1.md"],
+    [".benchwork/config.json", ".benchwork/config.json"],
+    ["a/./b", "a/b"],
+    ["Données/été.md", "Données/été.md"],
+    ["file.with.dots.md", "file.with.dots.md"],
+    ["CONSOLE.md", "CONSOLE.md"]
+  ],
+  "invalid": [
+    ["..", "OutsideVault"],
+    ["../outside.md", "OutsideVault"],
+    ["Notes/../../outside.md", "OutsideVault"],
+    ["Notes/..", "OutsideVault"],
+    ["/etc/passwd", "InvalidPath"],
+    ["C:/Windows", "InvalidPath"],
+    ["C:", "InvalidPath"],
+    ["Notes\\page.md", "InvalidPath"],
+    ["page.md:stream", "InvalidPath"],
+    ["what?.md", "InvalidPath"],
+    ["a<b.md", "InvalidPath"],
+    ["pipe|.md", "InvalidPath"],
+    ["quote\".md", "InvalidPath"],
+    ["star*.md", "InvalidPath"],
+    ["tab\there.md", "InvalidPath"],
+    ["ends with dot.", "InvalidPath"],
+    ["ends with space ", "InvalidPath"],
+    ["CON", "InvalidPath"],
+    ["con.md", "InvalidPath"],
+    ["Notes/NUL.txt", "InvalidPath"],
+    ["COM1", "InvalidPath"],
+    ["lpt9.log", "InvalidPath"]
+  ]
+}
