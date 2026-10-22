@@ -1,0 +1,140 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+  font-size: 15px;
+  color: #1f2937;
+  background: #f3f4f6;
+}
+
+body {
+  margin: 0;
+}
+
+.spike {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.controls {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  max-height: 100vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 16px;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+}
+
+.controls h1 {
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+
+.controls fieldset {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+}
+
+.controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.buttons button {
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+.stats {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 12px;
+}
+
+.stats th,
+.stats td {
+  text-align: right;
+  padding: 2px 4px;
+}
+
+.stats th[scope='row'] {
+  text-align: left;
+  font-weight: normal;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.facts dt {
+  color: #6b7280;
+}
+
+.facts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.page {
+  max-width: 900px;
+  padding: 24px 32px;
+}
+
+.ink-area {
+  position: relative;
+  height: 1200px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ink-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.filler {
+  height: 800px;
+}
+
+@media (max-width: 800px) {
+  .spike {
+    grid-template-columns: 1fr;
+  }
+
+  .controls {
+    position: static;
+    max-height: none;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .page {
+    padding: 16px;
+  }
+}
