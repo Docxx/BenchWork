@@ -6,7 +6,7 @@ import {
   PlatformError,
   type PlatformAdapter,
 } from '../platform';
-import { isPage, PAGE_EXTENSION } from './notebookTree';
+import { isPage, PAGE_EXTENSION, pageTitle } from './notebookTree';
 import {
   parseSectionMeta,
   placeInOrder,
@@ -126,6 +126,8 @@ export interface NewPageOptions {
   title?: string;
   /** The page's Markdown after the frontmatter. */
   body?: string;
+  /** The whole file, such as from a template, given the new id, created time and title. */
+  text?: (id: string, created: string, title: string) => string;
   newId?: () => string;
   now?: () => string;
 }
@@ -143,7 +145,9 @@ export async function createPage(
   const path = joinVaultPath(folder, name);
   const id = (options.newId ?? (() => crypto.randomUUID()))();
   const created = (options.now ?? localTimestamp)();
-  const text = `---\nid: ${id}\ncreated: ${created}\n---\n${options.body ?? ''}`;
+  const text =
+    options.text?.(id, created, pageTitle(name)) ??
+    `---\nid: ${id}\ncreated: ${created}\n---\n${options.body ?? ''}`;
   try {
     await platform.createNew(path, text);
   } catch (err) {

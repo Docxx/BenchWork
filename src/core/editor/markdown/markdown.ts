@@ -125,3 +125,14 @@ export function savePage(page: ParsedPage, doc: PMNode, source: BodySource): str
   const body = serialiseBody(doc, source);
   return serialisePage({ ...page, body: page.eol === '\r\n' ? body.replace(/\n/g, '\r\n') : body });
 }
+
+/**
+ * Markdown as new blocks for inserting into a page, such as a template.
+ * They carry no remembered Markdown, so they save in BenchWork's style.
+ */
+export function blocksFromMarkdown(markdown: string): PMNode[] {
+  return (parseBody(markdown).doc.content ?? []).map((block) => ({
+    ...block,
+    attrs: Object.fromEntries(Object.entries(block.attrs ?? {}).filter(([k]) => k !== SOURCE_ATTR)),
+  }));
+}
