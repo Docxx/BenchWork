@@ -1,4 +1,5 @@
 mod error;
+mod index;
 mod path_guard;
 mod vault_fs;
 mod vault_root;
@@ -12,12 +13,13 @@ use tauri::{AppHandle, Manager, State};
 use error::{ErrorKind, VaultError, VaultResult};
 use vault_fs::DirEntry;
 
-/// The open vault: its canonical root, and the watcher reporting changes in
-/// it. File commands fail until a root is set.
+/// The open vault: its canonical root, the watcher reporting changes in it,
+/// and its search index once opened. File commands fail until a root is set.
 #[derive(Default)]
 struct VaultState {
     root: Mutex<Option<PathBuf>>,
     watcher: Mutex<Option<watcher::VaultWatcher>>,
+    index: Mutex<Option<index::SearchIndex>>,
 }
 
 fn unavailable() -> VaultError {
@@ -61,8 +63,74 @@ async fn set_vault_root(
         }
     };
     *state.watcher.lock().map_err(|_| unavailable())? = new_watcher;
+    // The previous vault's index closes; the front end opens the new one.
+    *state.index.lock().map_err(|_| unavailable())? = None;
     *state.root.lock().map_err(|_| unavailable())? = Some(canon);
     Ok(display)
+}
+
+/// Runs `f` with the open vault's search index.
+fn with_index<T>(
+    state: &VaultState,
+    f: impl FnOnce(&mut index::SearchIndex) -> VaultResult<T>,
+) -> VaultResult<T> {
+    let mut guard = state.index.lock().map_err(|_| unavailable())?;
+    let index = guard
+        .as_mut()
+        .ok_or_else(|| VaultError::new(ErrorKind::NoVault, "The search index is not open"))?;
+    f(index)
+}
+
+/// Opens `.benchwork/index.sqlite` in the open vault, creating it if needed.
+#[tauri::command]
+async fn index_open(state: State<'_, VaultState>) -> VaultResult<index::OpenInfo> {
+    let root = state.root()?;
+    let file = root.join(".benchwork").join("index.sqlite");
+    let (opened, info) = index::SearchIndex::open(&file)?;
+    *state.index.lock().map_err(|_| unavailable())? = Some(opened);
+    Ok(info)
+}
+
+#[tauri::command]
+async fn index_close(state: State<'_, VaultState>) -> VaultResult<()> {
+    *state.index.lock().map_err(|_| unavailable())? = None;
+    Ok(())
+}
+
+#[tauri::command]
+async fn index_entries(state: State<'_, VaultState>) -> VaultResult<Vec<index::IndexEntry>> {
+    with_index(&state, |i| i.entries())
+}
+
+#[tauri::command]
+async fn index_apply(
+    upserts: Vec<index::IndexedPage>,
+    removes: Vec<String>,
+    state: State<'_, VaultState>,
+) -> VaultResult<()> {
+    with_index(&state, |i| i.apply(&upserts, &removes))
+}
+
+#[tauri::command]
+async fn index_clear(state: State<'_, VaultState>) -> VaultResult<()> {
+    with_index(&state, |i| i.clear())
+}
+
+#[tauri::command]
+async fn index_search(
+    query: String,
+    limit: usize,
+    state: State<'_, VaultState>,
+) -> VaultResult<Vec<index::SearchHit>> {
+    with_index(&state, |i| i.search(&query, limit.min(200)))
+}
+
+#[tauri::command]
+async fn index_backlinks(
+    keys: Vec<String>,
+    state: State<'_, VaultState>,
+) -> VaultResult<Vec<String>> {
+    with_index(&state, |i| i.backlinks(&keys))
 }
 
 #[derive(serde::Serialize)]
@@ -233,6 +301,13 @@ pub fn run() {
             write_bytes,
             load_app_settings,
             save_app_settings,
+            index_open,
+            index_close,
+            index_entries,
+            index_apply,
+            index_clear,
+            index_search,
+            index_backlinks,
         ])
         .run(tauri::generate_context!())
         .expect("error while running BenchWork");
