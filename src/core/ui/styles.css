@@ -85,31 +85,129 @@ button:disabled {
   word-break: break-all;
 }
 
+button.quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  padding: 0.25rem 0.5rem;
+}
+
+button.quiet:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
 .shell {
   display: flex;
-  flex-direction: column;
   height: 100vh;
-}
-
-.shell-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 1rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.shell-header h1 {
-  font-size: 1rem;
-  margin: 0;
-}
-
-.shell-header button {
-  background: var(--surface);
-  border-color: var(--border);
-  color: var(--text);
 }
 
 .shell-main {
   flex: 1;
+  min-width: 0;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 260px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 0.5rem 0.5rem 1rem;
+}
+
+.sidebar-header h1 {
+  font-size: 1rem;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.sidebar-footer {
+  padding: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.file-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 1rem;
+  font-size: 0.9rem;
+}
+
+.tree-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+  padding-right: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.tree-item:hover {
+  background: var(--border);
+}
+
+.tree-item[aria-selected='true'] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.tree-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.twisty {
+  display: inline-block;
+  width: 1rem;
+  text-align: center;
+  color: var(--muted);
+}
+
+.tree-item[aria-selected='true'] .twisty {
+  color: inherit;
+}
+
+.tree-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-status {
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.tree-status.error {
+  color: var(--warn-text);
+  font-style: normal;
+}
+
+/* Bigger touch targets on tablets. */
+@media (pointer: coarse) {
+  .tree-item,
+  .tree-status {
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+  }
 }

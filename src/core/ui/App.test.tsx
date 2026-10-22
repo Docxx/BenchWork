@@ -3,7 +3,7 @@ import { MemoryAdapter } from '../platform/memory';
 import { createAppStore } from '../state/appStore';
 import { App } from './App';
 import { AppStoreProvider } from './AppStoreContext';
-import { vaultName } from './Shell';
+import { vaultName } from './Sidebar';
 
 async function renderApp(platform: MemoryAdapter) {
   const store = createAppStore(platform);

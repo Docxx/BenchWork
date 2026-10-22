@@ -6,7 +6,7 @@ Current phase: **Phase 0**
 
 - [x] Tauri 2 + React + TypeScript project scaffold (pnpm, ESLint, Prettier, Vitest)
 - [x] Open or create a vault folder; remember last vault
-- [ ] File tree sidebar
+- [x] File tree sidebar
 - [ ] Settings page (theme, vault options)
 - [ ] Module registry, manifest format and src/core/api stub
 - [ ] Modules panel with on/off toggles, saved to .benchwork/config.json

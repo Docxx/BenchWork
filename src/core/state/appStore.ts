@@ -6,6 +6,7 @@ import {
   saveAppSettings,
   type AppSettings,
 } from '../settings/appSettings';
+import { emptyTree, visibleEntries, type FolderState, type TreeState } from '../vault/fileTree';
 import { VaultConfigError } from '../vault/vaultConfig';
 import {
   checkFolder,
@@ -30,6 +31,8 @@ export interface AppState {
   busy: boolean;
   /** A message for the vault picker, such as why a folder could not open. */
   notice: string | null;
+  /** The file tree of the open vault. Folders load when first opened. */
+  tree: TreeState;
 
   start: () => Promise<void>;
   chooseFolder: (mode: PickMode) => Promise<void>;
@@ -37,6 +40,12 @@ export interface AppState {
   cancelFolder: () => void;
   /** Closes the vault and returns to the picker. The last vault is still remembered. */
   closeVault: () => void;
+
+  /** Opens or closes a folder in the tree, loading it the first time. */
+  toggleFolder: (path: string) => Promise<void>;
+  selectEntry: (path: string) => void;
+  /** Reloads the root and every open folder from disk. */
+  refreshTree: () => Promise<void>;
 }
 
 export type AppStore = StoreApi<AppState>;
@@ -62,6 +71,47 @@ export function describeError(err: unknown): string {
 
 export function createAppStore(platform: PlatformAdapter): AppStore {
   return createStore<AppState>()((set, get) => {
+    /**
+     * Bumped whenever a vault opens or closes, so a folder listing that
+     * finishes after the user has switched vault is thrown away.
+     */
+    let session = 0;
+
+    function setTree(update: (tree: TreeState) => TreeState): void {
+      set({ tree: update(get().tree) });
+    }
+
+    function setFolder(path: string, state: FolderState): void {
+      setTree((t) => ({ ...t, folders: { ...t.folders, [path]: state } }));
+    }
+
+    async function loadFolder(path: string): Promise<void> {
+      const token = session;
+      // Keep showing old contents while refreshing, to avoid a flash.
+      if (get().tree.folders[path]?.status !== 'loaded') setFolder(path, { status: 'loading' });
+
+      let next: FolderState | 'gone';
+      try {
+        next = { status: 'loaded', entries: visibleEntries(await platform.listDir(path)) };
+      } catch (err) {
+        const e = PlatformError.from(err);
+        next =
+          path !== '' && (e.kind === 'NotFound' || e.kind === 'NotADirectory')
+            ? 'gone'
+            : { status: 'error', message: `This folder could not be opened. ${e.message}` };
+      }
+      if (token !== session) return;
+
+      if (next === 'gone') {
+        setTree((t) => {
+          const folders = Object.fromEntries(Object.entries(t.folders).filter(([p]) => p !== path));
+          return { ...t, folders, expanded: t.expanded.filter((p) => p !== path) };
+        });
+      } else {
+        setFolder(path, next);
+      }
+    }
+
     /** Runs a vault action unless one is already running. */
     async function guarded(action: () => Promise<void>): Promise<void> {
       if (get().busy) return;
@@ -79,7 +129,9 @@ export function createAppStore(platform: PlatformAdapter): AppStore {
     async function openCurrent(root: string): Promise<void> {
       await initialiseVault(platform);
       const config = await loadVaultConfig(platform);
-      set({ status: { kind: 'open', vault: { root, config } }, notice: null });
+      session += 1;
+      set({ status: { kind: 'open', vault: { root, config } }, notice: null, tree: emptyTree() });
+      await loadFolder('');
 
       const settings = { ...get().settings, lastVault: root };
       set({ settings });
@@ -95,6 +147,7 @@ export function createAppStore(platform: PlatformAdapter): AppStore {
       settings: defaultAppSettings(),
       busy: false,
       notice: null,
+      tree: emptyTree(),
 
       start: () =>
         guarded(async () => {
@@ -149,7 +202,36 @@ export function createAppStore(platform: PlatformAdapter): AppStore {
       },
 
       closeVault: () => {
-        if (get().status.kind === 'open') set({ status: { kind: 'no-vault' }, notice: null });
+        if (get().status.kind !== 'open') return;
+        session += 1;
+        set({ status: { kind: 'no-vault' }, notice: null, tree: emptyTree() });
+      },
+
+      toggleFolder: async (path) => {
+        if (get().status.kind !== 'open') return;
+        if (get().tree.expanded.includes(path)) {
+          setTree((t) => ({ ...t, expanded: t.expanded.filter((p) => p !== path) }));
+          return;
+        }
+        setTree((t) => ({ ...t, expanded: [...t.expanded, path] }));
+        if (get().tree.folders[path]?.status !== 'loaded') await loadFolder(path);
+      },
+
+      selectEntry: (path) => {
+        setTree((t) => ({ ...t, selected: path }));
+      },
+
+      refreshTree: async () => {
+        if (get().status.kind !== 'open') return;
+        await Promise.all(['', ...get().tree.expanded].map(loadFolder));
+        // Clear the selection if the selected item has gone.
+        setTree((t) => {
+          if (t.selected === null) return t;
+          const listed = Object.values(t.folders).some(
+            (f) => f.status === 'loaded' && f.entries.some((e) => e.path === t.selected),
+          );
+          return listed ? t : { ...t, selected: null };
+        });
       },
     };
   });
