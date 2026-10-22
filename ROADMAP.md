@@ -26,7 +26,7 @@ Current phase: **Phase 1**
 - [ ] Templates and daily note
 - [ ] SQLite index with FTS5 full-text search
 - [ ] Local snapshots for recovery
-- [ ] Spike: pen canvas prototype (pressure, palm rejection) to test ink latency
+- [x] Spike: pen canvas prototype (pressure, palm rejection) to test ink latency (Go: see spikes/ink/RESULTS.md)
 - [ ] Exit check: lab notes written and searched on desktop
 
 ## Phase 2: Research core

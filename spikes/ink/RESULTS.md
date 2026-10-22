@@ -5,7 +5,7 @@ Galaxy Tab S10, or does ink need a native view? The answer decides how
 Phase 4 builds ink. This page is a test bench, not app code; nothing here
 ships.
 
-**Status:** waiting for tablet measurements.
+**Status:** done. **Go:** web ink for Phase 4. See [Decision](#decision).
 
 ## What the page does
 
@@ -149,4 +149,21 @@ Windows (WebView2): input to drawn median ___ ms, feel ___
 
 ## Decision
 
-_To be filled in after measuring._
+**Go.** Decided 22 Oct 2026 by Ray after writing with the S Pen on the
+Galaxy Tab S10 in Chrome: "It works very well."
+
+Phase 4 builds ink on pointer events and canvas in the web view, as SPEC.md
+plans. No native ink view or Flutter fallback is needed.
+
+The decision rests on hands-on use. The tables above were not filled in,
+so there are no recorded timings, video measurements or palm counts to
+compare against later.
+
+Still to check in Phase 4:
+
+- **Tauri Android build:** confirm the feel is the same in Android's web
+  view as in Chrome, since they draw to the screen slightly differently.
+- **Baseline numbers:** export results for setup A once, so later changes
+  to the ink code can be checked against them.
+- **Palm rejection:** test the three rules properly when ink blocks go into
+  document pages.
