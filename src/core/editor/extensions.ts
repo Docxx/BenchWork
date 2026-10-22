@@ -1,11 +1,12 @@
 import { Extension, getSchema, mergeAttributes, Node, type AnyExtension } from '@tiptap/core';
-import { Image } from '@tiptap/extension-image';
+import { Image, type ImageOptions } from '@tiptap/extension-image';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { TaskItem } from '@tiptap/extension-task-item';
 import { TaskList } from '@tiptap/extension-task-list';
 import { Placeholder } from '@tiptap/extensions';
 import type { Schema } from '@tiptap/pm/model';
 import { StarterKit } from '@tiptap/starter-kit';
+import { isImage } from '../pages/attachments';
 import { RAW_BLOCK, RAW_INLINE, SOURCE_ATTR, WIKI_LINK } from './markdown/model';
 
 /**
@@ -97,9 +98,82 @@ const RawInline = Node.create({
   },
 });
 
+/**
+ * Turns image sources into URLs the page can load. The editor gets one for
+ * the open page; without one, images show as chips and plain `<img>`s.
+ */
+export interface AssetResolver {
+  /** For `![[target]]` embeds. */
+  embed(target: string): string | null;
+  /** For Markdown images, `![](src)`. */
+  image(src: string): string | null;
+}
+
+interface AssetOptions {
+  assets: AssetResolver | null;
+}
+
+/** The chip for a link or a non-image embed. */
+function chipElement(target: string, alias: string | null, embed: boolean): HTMLElement {
+  const chip = document.createElement('span');
+  chip.dataset['wikiLink'] = '';
+  chip.dataset['target'] = target;
+  if (alias) chip.dataset['alias'] = alias;
+  if (embed) chip.dataset['embed'] = '';
+  chip.className = embed ? 'wiki-link embed' : 'wiki-link';
+  chip.title = target;
+  chip.textContent = alias ?? target;
+  return chip;
+}
+
+/** An image that turns into a "missing" chip if its file cannot be loaded. */
+function imageElement(url: string | null, label: string, title: string | null): HTMLElement {
+  const missing = () => {
+    const chip = chipElement(label, null, true);
+    chip.classList.add('missing');
+    chip.title = `Not found: ${label}`;
+    return chip;
+  };
+  if (url === null) return missing();
+  const img = document.createElement('img');
+  img.src = url;
+  img.alt = label;
+  img.className = 'page-image';
+  if (title) img.title = title;
+  img.addEventListener('error', () => {
+    img.replaceWith(missing());
+  });
+  return img;
+}
+
 /** `[[Page]]`, `[[Page|shown text]]` or an embed `![[file]]`, shown as a chip. */
-export const WikiLink = Node.create({
+export const WikiLink = Node.create<AssetOptions>({
   name: WIKI_LINK,
+  addOptions() {
+    return { assets: null };
+  },
+  // Image embeds show the image; everything else is a chip, as renderHTML.
+  addNodeView() {
+    const assets = this.options.assets;
+    if (assets === null) return null;
+    return ({ node }) => {
+      const target = String(node.attrs['target'] ?? '');
+      const alias = node.attrs['alias'] as string | null;
+      const embed = node.attrs['embed'] === true;
+      const dom =
+        embed && isImage(target)
+          ? imageElement(assets.embed(target), target, alias)
+          : chipElement(target, alias, embed);
+      // An image that fails swaps itself for a chip, so wrap it to keep one node.
+      const wrapper = document.createElement('span');
+      wrapper.className = 'wiki-link-view';
+      wrapper.append(dom);
+      return {
+        dom: wrapper,
+        update: (next) => next.type === node.type && next.attrs === node.attrs,
+      };
+    };
+  },
   group: 'inline',
   inline: true,
   atom: true,
@@ -133,10 +207,36 @@ export const WikiLink = Node.create({
   },
 });
 
+/** Markdown images, with their source read from the page's folder. */
+const PageImage = Image.extend<ImageOptions & AssetOptions>({
+  addOptions() {
+    return { ...(this.parent?.() as ImageOptions), assets: null };
+  },
+  addNodeView() {
+    const assets = this.options.assets;
+    if (assets === null) return null;
+    return ({ node }) => {
+      const src = String(node.attrs['src'] ?? '');
+      const alt = (node.attrs['alt'] as string | null) ?? '';
+      const title = node.attrs['title'] as string | null;
+      const wrapper = document.createElement('span');
+      wrapper.className = 'page-image-view';
+      wrapper.append(imageElement(assets.image(src), alt || src, title));
+      return {
+        dom: wrapper,
+        update: (next) => next.type === node.type && next.attrs === node.attrs,
+      };
+    };
+  },
+});
+
 export const PLACEHOLDER = 'Type / for headings, lists, tables and more';
 
-/** Everything except collaboration, which needs the page's Yjs document. */
-export function baseExtensions(): AnyExtension[] {
+/**
+ * Everything except collaboration, which needs the page's Yjs document.
+ * `assets` only changes how images are shown, never the schema.
+ */
+export function baseExtensions(assets: AssetResolver | null = null): AnyExtension[] {
   return [
     StarterKit.configure({
       // Undo and redo come from the Yjs document instead.
@@ -151,12 +251,12 @@ export function baseExtensions(): AnyExtension[] {
     TableRow,
     TableHeader,
     TableCell,
-    Image.configure({ inline: true, allowBase64: false }),
+    PageImage.configure({ inline: true, allowBase64: false, assets }),
     Placeholder.configure({ placeholder: PLACEHOLDER }),
     BenchWorkAttributes,
     RawBlock,
     RawInline,
-    WikiLink,
+    WikiLink.configure({ assets }),
   ];
 }
 

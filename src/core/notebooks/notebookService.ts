@@ -45,7 +45,8 @@ export function safeName(title: string): string {
   return name;
 }
 
-async function freeName(
+/** `base` + `ext` if that name is free in `folder`, else `base 2` + `ext`, and so on. */
+export async function freeName(
   platform: PlatformAdapter,
   folder: string,
   base: string,

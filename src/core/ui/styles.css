@@ -877,6 +877,25 @@ button.row-menu:first-child {
   content: '⧉ ';
 }
 
+.wiki-link.missing {
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.page-image {
+  max-width: 100%;
+  height: auto;
+  vertical-align: bottom;
+  border-radius: 4px;
+}
+
+.ProseMirror-selectednode .page-image,
+.ProseMirror-selectednode.page-image-view .page-image,
+.ProseMirror-selectednode.wiki-link-view .page-image {
+  outline: 2px solid var(--accent);
+}
+
 .raw-block,
 .raw-inline {
   border: 1px dashed var(--border);
