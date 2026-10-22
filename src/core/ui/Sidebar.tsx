@@ -11,6 +11,8 @@ export function vaultName(root: string): string {
 export function Sidebar({ vault }: { vault: OpenVault }) {
   const refreshTree = useApp((s) => s.refreshTree);
   const closeVault = useApp((s) => s.closeVault);
+  const view = useApp((s) => s.view);
+  const showView = useApp((s) => s.showView);
 
   return (
     <nav className="sidebar" aria-label="Vault">
@@ -30,6 +32,16 @@ export function Sidebar({ vault }: { vault: OpenVault }) {
         <FileTree />
       </div>
       <footer className="sidebar-footer">
+        <button
+          type="button"
+          className="quiet"
+          aria-pressed={view === 'settings'}
+          onClick={() => {
+            showView(view === 'settings' ? 'files' : 'settings');
+          }}
+        >
+          Settings
+        </button>
         <button type="button" className="quiet" onClick={() => void closeVault()}>
           Switch vault
         </button>

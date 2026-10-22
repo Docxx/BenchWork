@@ -1,9 +1,16 @@
+import { useEffect } from 'react';
 import { useApp } from './AppStoreContext';
-import { ConfirmFolder, VaultPicker } from './VaultPicker';
 import { Shell } from './Shell';
+import { applyTheme } from './theme';
+import { ConfirmFolder, VaultPicker } from './VaultPicker';
 
 export function App() {
   const status = useApp((s) => s.status);
+  const theme = useApp((s) => s.settings.theme);
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
 
   switch (status.kind) {
     case 'starting':

@@ -7,9 +7,9 @@ Current phase: **Phase 0**
 - [x] Tauri 2 + React + TypeScript project scaffold (pnpm, ESLint, Prettier, Vitest)
 - [x] Open or create a vault folder; remember last vault
 - [x] File tree sidebar
-- [ ] Settings page (theme, vault options)
+- [x] Settings page (theme, vault options)
 - [x] Module registry, manifest format and src/core/api stub
-- [ ] Modules panel with on/off toggles, saved to .benchwork/config.json
+- [x] Modules panel with on/off toggles, saved to .benchwork/config.json
 - [ ] Dummy module proving toggle on/off without touching vault files
 - [ ] Exit check: app builds on desktop, dummy module toggles cleanly
 
