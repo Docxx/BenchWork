@@ -2,3 +2,5 @@
 *.png binary
 *.ico binary
 *.icns binary
+# Markdown test files must stay byte for byte, line endings included.
+src/core/editor/markdown/fixtures/** -text
