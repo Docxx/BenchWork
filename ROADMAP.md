@@ -1,6 +1,6 @@
 # BenchWork roadmap
 
-Current phase: **Phase 0**
+Current phase: **Phase 1**
 
 ## Phase 0: Skeleton
 
