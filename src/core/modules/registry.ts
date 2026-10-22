@@ -91,6 +91,11 @@ export class ModuleRegistry {
     }));
   }
 
+  /** What running modules have added to the UI. */
+  get contributions(): Contributions {
+    return this.deps.contributions;
+  }
+
   get(id: string): ModuleInfo | undefined {
     return this.store.getState().modules.find((m) => m.manifest.id === id);
   }

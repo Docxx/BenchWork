@@ -1,6 +1,7 @@
 import type { OpenVault } from '../vault/vaultService';
 import { useApp } from './AppStoreContext';
 import { FileTree } from './FileTree';
+import { ModulePanels } from './ModulePanels';
 
 /** Name shown for a vault: the last part of its folder path. */
 export function vaultName(root: string): string {
@@ -31,6 +32,7 @@ export function Sidebar({ vault }: { vault: OpenVault }) {
       <div className="sidebar-body">
         <FileTree />
       </div>
+      <ModulePanels />
       <footer className="sidebar-footer">
         <button
           type="button"

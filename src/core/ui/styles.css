@@ -435,3 +435,38 @@ button.switch[aria-checked='true'] .switch-knob {
     transform: translateX(1.5rem);
   }
 }
+
+/* ---- Module panels in the sidebar ---- */
+
+.module-panels {
+  max-height: 40%;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+
+.module-panel {
+  padding: 0.5rem 1rem 0.75rem;
+}
+
+.module-panel + .module-panel {
+  border-top: 1px solid var(--border);
+}
+
+.module-panel-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.module-panel-body {
+  font-size: 0.9rem;
+}
+
+.module-panel-error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--warn-text);
+}

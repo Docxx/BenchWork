@@ -1,5 +1,5 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
-import { createContributions } from '../modules/contributions';
+import { createContributions, type SidebarPanel } from '../modules/contributions';
 import { ModuleRegistry, type RegistryState } from '../modules/registry';
 import { PlatformError, type PlatformAdapter } from '../platform';
 import {
@@ -56,6 +56,8 @@ export interface AppState {
   settingsError: string | null;
   /** Every module and whether it is on, mirrored from the registry. */
   modules: RegistryState;
+  /** Sidebar panels added by modules that are on. */
+  panels: SidebarPanel[];
   pendingModuleChange: PendingModuleChange | null;
   /** Why the last module change could not be made. */
   moduleNotice: string | null;
@@ -252,6 +254,7 @@ export function createAppStore(
       view: 'files',
       settingsError: null,
       modules: registry.store.getState(),
+      panels: registry.contributions.getState().panels,
       pendingModuleChange: null,
       moduleNotice: null,
       moduleBusy: false,
@@ -414,6 +417,9 @@ export function createAppStore(
 
   registry.store.subscribe((modules) => {
     store.setState({ modules });
+  });
+  registry.contributions.subscribe(({ panels }) => {
+    store.setState({ panels });
   });
   return store;
 }

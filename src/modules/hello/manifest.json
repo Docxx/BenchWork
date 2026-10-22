@@ -1,0 +1,9 @@
+{
+  "id": "hello",
+  "name": "Hello",
+  "version": "0.1.0",
+  "description": "A sample module that adds a small panel to the sidebar",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

@@ -34,5 +34,8 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],
     setupFiles: ['./src/test/setup.ts'],
+    // Starting many jsdom workers at once on a busy Windows PC can exceed
+    // Vitest's fixed 60 s worker start-up limit; four is also the fastest here.
+    maxWorkers: 4,
   },
 });
