@@ -671,3 +671,266 @@ button.row-menu:first-child {
     padding: 0.7rem 0.8rem;
   }
 }
+
+/* ---- Page ---- */
+
+.shell-main {
+  overflow-y: auto;
+}
+
+.page-view {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 2rem 2.5rem 6rem;
+}
+
+.page-empty {
+  margin-top: 20vh;
+  text-align: center;
+  color: var(--muted);
+}
+
+.page-notice {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.page-header {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.page-title {
+  flex: 1;
+  min-width: 0;
+  padding: 0.1rem 0;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.page-title:focus {
+  outline: none;
+  border-bottom-color: var(--border);
+}
+
+.save-status {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.save-status.error {
+  color: var(--warn-text);
+  font-weight: 600;
+}
+
+.conflict {
+  margin: 0.5rem 0 1rem;
+}
+
+.page-content {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.page-editor {
+  min-height: 50vh;
+  outline: none;
+}
+
+.page-editor > * + * {
+  margin-top: 0.75em;
+}
+
+.page-editor h1,
+.page-editor h2,
+.page-editor h3 {
+  line-height: 1.3;
+  margin-top: 1.4em;
+}
+
+.page-editor p.is-empty::before,
+.page-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.page-editor p.is-empty:not(.is-editor-empty)::before {
+  content: none;
+}
+
+.page-editor ul,
+.page-editor ol {
+  padding-left: 1.5rem;
+}
+
+.page-editor ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.25rem;
+}
+
+.page-editor ul[data-type='taskList'] li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.page-editor ul[data-type='taskList'] li > label {
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+}
+
+.page-editor ul[data-type='taskList'] li > div {
+  flex: 1;
+}
+
+.page-editor ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.page-editor blockquote {
+  margin-left: 0;
+  padding-left: 1rem;
+  border-left: 3px solid var(--border);
+  color: var(--muted);
+}
+
+.page-editor code {
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  background: var(--surface);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.page-editor pre {
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  background: var(--surface);
+  overflow-x: auto;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.9rem;
+}
+
+.page-editor pre code {
+  padding: 0;
+  background: none;
+}
+
+.page-editor hr {
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.page-editor table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.page-editor th,
+.page-editor td {
+  border: 1px solid var(--border);
+  padding: 0.35rem 0.6rem;
+  vertical-align: top;
+}
+
+.page-editor th {
+  background: var(--surface);
+  font-weight: 600;
+  text-align: left;
+}
+
+.page-editor .selectedCell {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.page-editor a {
+  color: var(--accent);
+}
+
+.page-editor img {
+  max-width: 100%;
+}
+
+.wiki-link {
+  padding: 0 0.3rem;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.wiki-link.embed::before {
+  content: '⧉ ';
+}
+
+.raw-block,
+.raw-inline {
+  border: 1px dashed var(--border);
+  color: var(--muted);
+}
+
+pre.raw-block {
+  white-space: pre-wrap;
+}
+
+.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ---- Slash menu ---- */
+
+.slash-menu {
+  position: fixed;
+  z-index: 10;
+  width: 14rem;
+  max-height: 18rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 18%);
+}
+
+.slash-item {
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.slash-item.active,
+.slash-item:hover {
+  background: var(--surface);
+}
+
+.slash-empty {
+  margin: 0;
+  padding: 0.4rem 0.6rem;
+  color: var(--muted);
+}
+
+@media (pointer: coarse) {
+  .page-view {
+    padding: 1.25rem 1.25rem 6rem;
+  }
+  .slash-item {
+    padding: 0.7rem 0.8rem;
+  }
+}

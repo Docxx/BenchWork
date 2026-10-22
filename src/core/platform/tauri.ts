@@ -1,5 +1,6 @@
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open } from '@tauri-apps/plugin-dialog';
 import { PlatformError } from './errors';
 import type { DeviceKind, DirEntry, PlatformAdapter, VaultChange, VaultOwner } from './types';
@@ -132,6 +133,30 @@ export class TauriAdapter implements PlatformAdapter {
   assetUrl(path: string): string | null {
     if (this.root === null) return null;
     return convertFileSrc(fullPath(this.root, normaliseVaultPath(path)));
+  }
+
+  onExitRequested(handler: () => Promise<void>): () => void {
+    const win = getCurrentWindow();
+    let stopped = false;
+    let unlisten: (() => void) | null = null;
+    void win
+      .onCloseRequested(async (event) => {
+        // Hold the window open until the work is saved, then close it.
+        event.preventDefault();
+        try {
+          await handler();
+        } finally {
+          await win.destroy();
+        }
+      })
+      .then((fn) => {
+        if (stopped) fn();
+        else unlisten = fn;
+      });
+    return () => {
+      stopped = true;
+      unlisten?.();
+    };
   }
 
   loadAppSettings(): Promise<unknown> {

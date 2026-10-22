@@ -2,7 +2,14 @@ import { fromMarkdown } from 'mdast-util-from-markdown';
 import { gfmFromMarkdown } from 'mdast-util-gfm';
 import { gfm } from 'micromark-extension-gfm';
 import { parsePage, serialisePage, type ParsedPage } from '../../pages/frontmatter';
-import { blockSource, SOURCE_ATTR, type BlockSource, type BodySource, type PMNode } from './model';
+import {
+  blockSource,
+  encodeBlockSource,
+  SOURCE_ATTR,
+  type BlockSource,
+  type BodySource,
+  type PMNode,
+} from './model';
 import { topLevelBlock } from './toDoc';
 import { blockToMarkdown, MARKDOWN_STYLE } from './toMarkdown';
 
@@ -37,7 +44,7 @@ export function parseBody(body: string): LoadedBody {
       sep: index === 0 ? '' : text.slice(prevEnd, start),
       index,
     };
-    content.push({ ...node, attrs: { ...node.attrs, [SOURCE_ATTR]: md } });
+    content.push({ ...node, attrs: { ...node.attrs, [SOURCE_ATTR]: encodeBlockSource(md) } });
     prevEnd = end;
   });
 

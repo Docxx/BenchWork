@@ -16,8 +16,8 @@ Current phase: **Phase 1**
 ## Phase 1: Notes core
 
 - [x] Notebook > Section > Page sidebar (folders and files)
-- [ ] TipTap block editor with slash menu, no visible Markdown, saved as Markdown
-- [ ] Editor document model on Yjs from the start (co-editing ready, single user for now)
+- [x] TipTap block editor with slash menu, no visible Markdown, saved as Markdown
+- [x] Editor document model on Yjs from the start (co-editing ready, single user for now)
 - [ ] Daily notebook: one page per day, linking into project notebooks
 - [ ] Paste screenshots, drag in files, autosave
 - [ ] Sample notebook created on first launch

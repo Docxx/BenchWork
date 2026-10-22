@@ -74,6 +74,7 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
 
   /** Keeps open folders and the selection pointing at a renamed or moved item. */
   async function followMove(from: string, to: string): Promise<void> {
+    get().pageMoved(from, to);
     const { tree } = get();
     const expanded = tree.expanded.map((p) => rebasePath(p, from, to));
     const folders = Object.fromEntries(
@@ -121,6 +122,7 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
       attempt(async () => {
         const path = await createPage(platform, folder, title === undefined ? {} : { title });
         await reveal(path);
+        await get().openPage(path);
         return path;
       }),
 
@@ -154,6 +156,11 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
 
     recycleItem: async (path) => {
       const done = await attempt(async () => {
+        // Save and close the open page first if it is going, so its latest text is recycled.
+        const open = get().page?.path;
+        if (open !== undefined && (open === path || open.startsWith(`${path}/`))) {
+          await get().closePage();
+        }
         await recycleItem(platform, path);
         const { tree } = get();
         const gone = (p: string) => p === path || p.startsWith(`${path}/`);

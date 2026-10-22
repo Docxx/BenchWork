@@ -86,6 +86,7 @@ export class MemoryAdapter implements PlatformAdapter {
   private readonly pickQueue: (string | null)[] = [];
   private readonly trashBin: string[] = [];
   private readonly listeners = new Set<(change: VaultChange) => void>();
+  private readonly exitHandlers = new Set<() => Promise<void>>();
   private pendingChanges = new Set<string>();
   private root: string | null = null;
   private appSettings: unknown;
@@ -126,6 +127,11 @@ export class MemoryAdapter implements PlatformAdapter {
   /** Vault-relative paths sent to the Recycle Bin, oldest first. */
   trashed(): string[] {
     return [...this.trashBin];
+  }
+
+  /** Acts as if the user closed the app: runs and waits for the exit handlers. */
+  async requestExit(): Promise<void> {
+    for (const handler of [...this.exitHandlers]) await handler();
   }
 
   /** Changes a file as another program would, so watchers hear about it. */
@@ -349,6 +355,13 @@ export class MemoryAdapter implements PlatformAdapter {
     const ext = baseName(path).split('.').pop()?.toLowerCase() ?? '';
     const type = MIME_TYPES[ext] ?? 'application/octet-stream';
     return URL.createObjectURL(new Blob([node.bytes.slice()], { type }));
+  }
+
+  onExitRequested(handler: () => Promise<void>): () => void {
+    this.exitHandlers.add(handler);
+    return () => {
+      this.exitHandlers.delete(handler);
+    };
   }
 
   loadAppSettings(): Promise<unknown> {

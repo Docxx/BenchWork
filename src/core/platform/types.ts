@@ -54,6 +54,11 @@ export interface PlatformAdapter {
   watch(listener: (change: VaultChange) => void): () => void;
   /** A URL an <img> can load a vault file from, or null if there is none. */
   assetUrl(path: string): string | null;
+  /**
+   * Runs `handler` when the user closes the app, and waits for it before
+   * closing, so unsaved work can be saved. Returns a function that stops it.
+   */
+  onExitRequested(handler: () => Promise<void>): () => void;
 
   /** Per-device settings, stored outside the vault. Null if never saved. */
   loadAppSettings(): Promise<unknown>;

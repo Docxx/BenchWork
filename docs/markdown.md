@@ -40,6 +40,8 @@ the second one uses the other bullet (`*`), or `)` numbering.
 
 Table cells hold one line in Markdown, so line breaks in a cell are saved
 as `<br>` and separate paragraphs in a cell are joined with a space.
+Markdown tables cannot merge cells, so merged cells are saved as separate
+cells.
 
 Inline code cannot be bold or italic in the editor, so formatting around
 code is not kept if that block is edited.

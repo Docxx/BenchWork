@@ -50,13 +50,25 @@ export const WIKI_LINK = 'wikiLink';
 /** Attribute name for BlockSource on top-level blocks. */
 export const SOURCE_ATTR = 'md';
 
+/**
+ * Reads a block's BlockSource. It is stored as a JSON string, because Yjs
+ * (which holds the editor's document) keeps attributes most reliably as text.
+ */
 export function blockSource(node: PMNode): BlockSource | null {
-  const value = node.attrs?.[SOURCE_ATTR];
-  if (typeof value !== 'object' || value === null) return null;
-  const v = value as Partial<BlockSource>;
-  return typeof v.src === 'string' && typeof v.norm === 'string'
-    ? { src: v.src, norm: v.norm, sep: v.sep ?? '\n\n', index: v.index ?? -1 }
-    : null;
+  const raw = node.attrs?.[SOURCE_ATTR];
+  if (typeof raw !== 'string' || raw === '') return null;
+  try {
+    const v = JSON.parse(raw) as Partial<BlockSource>;
+    return typeof v.src === 'string' && typeof v.norm === 'string'
+      ? { src: v.src, norm: v.norm, sep: v.sep ?? '\n\n', index: v.index ?? -1 }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function encodeBlockSource(source: BlockSource): string {
+  return JSON.stringify(source);
 }
 
 export function emptyDoc(): PMNode {

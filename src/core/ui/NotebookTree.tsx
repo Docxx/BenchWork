@@ -50,6 +50,7 @@ export function NotebookTree() {
   const moveItem = useApp((s) => s.moveItem);
   const setFolderColour = useApp((s) => s.setFolderColour);
   const recycleItem = useApp((s) => s.recycleItem);
+  const openPage = useApp((s) => s.openPage);
 
   const options = useMemo(() => ({ showAllFiles }), [showAllFiles]);
   const rows = useMemo(() => notebookRows(tree, options), [tree, options]);
@@ -95,6 +96,7 @@ export function NotebookTree() {
     setFocused(row.node.path);
     selectEntry(row.node.path);
     if (row.node.isDir) void toggleFolder(row.node.path);
+    else if (row.node.kind === 'page') void openPage(row.node.path);
   }
 
   function openMenuAt(node: NotebookNode | null, x: number, y: number): void {

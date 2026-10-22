@@ -21,6 +21,8 @@ const registry = new ModuleRegistry(sources, broken, {
 });
 const store = createAppStore(platform, registry);
 void store.getState().start();
+// Closing the app saves the open page and lets modules finish first.
+platform.onExitRequested(() => store.getState().closeVault());
 
 createRoot(root).render(
   <StrictMode>
