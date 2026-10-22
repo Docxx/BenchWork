@@ -3,7 +3,14 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open } from '@tauri-apps/plugin-dialog';
 import { PlatformError } from './errors';
-import type { DeviceKind, DirEntry, PlatformAdapter, VaultChange, VaultOwner } from './types';
+import type {
+  DeviceKind,
+  DirEntry,
+  PlatformAdapter,
+  SearchIndex,
+  VaultChange,
+  VaultOwner,
+} from './types';
 import { normaliseVaultPath } from './vaultPath';
 
 /** Matches CHANGE_EVENT in src-tauri/src/watcher.rs. */
@@ -39,8 +46,20 @@ export function fullPath(root: string, path: string): string {
  * first for quick, consistent errors; the Rust path guard checks them again
  * and is the real boundary.
  */
+/** The search index commands in src-tauri/src/lib.rs. */
+const tauriIndex: SearchIndex = {
+  open: () => call('index_open'),
+  close: () => call('index_close'),
+  entries: () => call('index_entries'),
+  apply: (upserts, removes) => call('index_apply', () => ({ upserts, removes })),
+  clear: () => call('index_clear'),
+  search: (query, limit) => call('index_search', () => ({ query, limit })),
+  backlinks: (keys) => call('index_backlinks', () => ({ keys })),
+};
+
 export class TauriAdapter implements PlatformAdapter {
   readonly kind: DeviceKind = detectKind();
+  readonly index = tauriIndex;
   /** Full path of the open vault, as Rust reported it. */
   private root: string | null = null;
 

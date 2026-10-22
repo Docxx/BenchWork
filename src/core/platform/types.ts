@@ -63,6 +63,68 @@ export interface PlatformAdapter {
   /** Per-device settings, stored outside the vault. Null if never saved. */
   loadAppSettings(): Promise<unknown>;
   saveAppSettings(settings: unknown): Promise<void>;
+
+  /** The open vault's search index, in `.benchwork/index.sqlite`. */
+  readonly index: SearchIndex;
+}
+
+/**
+ * Stores what was read from pages and searches it. Disposable: it can be
+ * cleared and rebuilt from the vault at any time.
+ */
+export interface SearchIndex {
+  /** Opens the open vault's index, creating it if needed. */
+  open(): Promise<{ fresh: boolean }>;
+  close(): Promise<void>;
+  /** Every page held, with the size and time it had when read. */
+  entries(): Promise<IndexEntry[]>;
+  /** Removes `removes` (files, or folders and all in them), then adds or replaces `upserts`. */
+  apply(upserts: readonly IndexedPage[], removes: readonly string[]): Promise<void>;
+  clear(): Promise<void>;
+  /** Pages matching what someone typed, best first. */
+  search(query: string, limit: number): Promise<SearchHit[]>;
+  /** Pages linking to any of `keys` (see linkKey). */
+  backlinks(keys: readonly string[]): Promise<string[]>;
+}
+
+export interface IndexEntry {
+  path: string;
+  mtime: number | null;
+  size: number;
+}
+
+export interface IndexedLink {
+  /** As written in the page. */
+  target: string;
+  /** Lower case, without `.md` or `#heading`, for matching. */
+  key: string;
+  embed: boolean;
+}
+
+export interface IndexedPage {
+  path: string;
+  id: string | null;
+  title: string;
+  type: string;
+  created: string | null;
+  modified: string | null;
+  mtime: number | null;
+  size: number;
+  tags: string[];
+  links: IndexedLink[];
+  /** The page as plain text, without Markdown syntax. */
+  body: string;
+}
+
+/** Marks around matched words in a snippet, as sent by src-tauri/src/index.rs. */
+export const MATCH_START = '\u0002';
+export const MATCH_END = '\u0003';
+
+export interface SearchHit {
+  path: string;
+  title: string;
+  /** Text around the match, matched words between MATCH_START and MATCH_END. */
+  snippet: string;
 }
 
 export type DeviceKind = 'desktop' | 'tablet';

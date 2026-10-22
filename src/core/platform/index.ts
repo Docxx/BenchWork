@@ -4,7 +4,19 @@ import { TauriAdapter } from './tauri';
 import type { PlatformAdapter } from './types';
 
 export { PlatformError, type PlatformErrorKind } from './errors';
-export type { DeviceKind, DirEntry, PlatformAdapter, VaultChange, VaultOwner } from './types';
+export { MATCH_END, MATCH_START } from './types';
+export type {
+  DeviceKind,
+  DirEntry,
+  IndexedLink,
+  IndexedPage,
+  IndexEntry,
+  PlatformAdapter,
+  SearchHit,
+  SearchIndex,
+  VaultChange,
+  VaultOwner,
+} from './types';
 export { baseName, joinVaultPath, normaliseVaultPath, parentVaultPath } from './vaultPath';
 
 declare global {

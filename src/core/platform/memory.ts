@@ -1,4 +1,5 @@
 import { PlatformError } from './errors';
+import { MemoryIndex } from './memoryIndex';
 import type { DeviceKind, DirEntry, PlatformAdapter, VaultChange, VaultOwner } from './types';
 import { baseName, normaliseVaultPath, parentVaultPath } from './vaultPath';
 
@@ -91,6 +92,7 @@ export class MemoryAdapter implements PlatformAdapter {
   private root: string | null = null;
   private appSettings: unknown;
   private clock = 1_700_000_000_000;
+  readonly index = new MemoryIndex(() => this.root);
 
   constructor(options: MemoryAdapterOptions = {}) {
     this.kind = options.kind ?? 'desktop';
