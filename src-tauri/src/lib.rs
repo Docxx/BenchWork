@@ -37,10 +37,23 @@ async fn set_vault_root(root: String, state: State<'_, VaultState>) -> VaultResu
     Ok(display)
 }
 
+#[derive(serde::Serialize)]
+struct VaultOwnerDto {
+    root: String,
+    folder: String,
+    via: vault_root::Via,
+}
+
 /// The vault a chosen folder belongs to, or `null` if it is not in one.
 #[tauri::command]
-async fn find_vault_root(path: String) -> VaultResult<Option<String>> {
-    Ok(vault_root::find_vault_root(Path::new(&path))?.map(|p| path_guard::display_path(&p)))
+async fn find_vault_root(path: String) -> VaultResult<Option<VaultOwnerDto>> {
+    Ok(
+        vault_root::find_vault_root(Path::new(&path))?.map(|o| VaultOwnerDto {
+            root: path_guard::display_path(&o.root),
+            folder: path_guard::display_path(&o.folder),
+            via: o.via,
+        }),
+    )
 }
 
 #[tauri::command]

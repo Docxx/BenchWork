@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useApp } from './AppStoreContext';
 import { Shell } from './Shell';
 import { applyTheme } from './theme';
-import { ConfirmFolder, VaultPicker } from './VaultPicker';
+import { ConfirmFolder, ConfirmNested, VaultPicker } from './VaultPicker';
 
 export function App() {
   const status = useApp((s) => s.status);
@@ -19,6 +19,8 @@ export function App() {
       return <VaultPicker />;
     case 'confirm-folder':
       return <ConfirmFolder root={status.root} />;
+    case 'confirm-nested':
+      return <ConfirmNested folder={status.folder} owner={status.owner} />;
     case 'open':
       return <Shell vault={status.vault} />;
   }

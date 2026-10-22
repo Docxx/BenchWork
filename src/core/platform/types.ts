@@ -17,7 +17,7 @@ export interface PlatformAdapter {
    * a `.benchwork` folder, skipping `.benchwork` folders themselves. Null if
    * it is not inside a vault.
    */
-  findVaultRoot(path: string): Promise<string | null>;
+  findVaultRoot(path: string): Promise<VaultOwner | null>;
 
   /** Opens a folder as the vault. Resolves to its full path for display. */
   setVaultRoot(root: string): Promise<string>;
@@ -36,6 +36,21 @@ export interface PlatformAdapter {
 }
 
 export type DeviceKind = 'desktop' | 'tablet';
+
+export interface VaultOwner {
+  /** Full path of the vault folder. */
+  root: string;
+  /** Full path of the folder that was asked about. */
+  folder: string;
+  /**
+   * - `selfVault`: the folder is a vault itself
+   * - `benchwork`: it is a `.benchwork` folder or inside one, so it always
+   *   belongs to the vault above
+   * - `ancestor`: an ordinary folder inside a vault; it could open that
+   *   vault or become a separate one
+   */
+  via: 'selfVault' | 'benchwork' | 'ancestor';
+}
 
 export interface DirEntry {
   name: string;

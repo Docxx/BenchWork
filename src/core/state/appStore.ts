@@ -24,6 +24,8 @@ export type VaultStatus =
   | { kind: 'no-vault' }
   /** The chosen folder has other files; waiting for the user to agree. */
   | { kind: 'confirm-folder'; root: string }
+  /** The chosen folder is inside the vault `owner`; waiting for the user to choose. */
+  | { kind: 'confirm-nested'; folder: string; owner: string }
   | { kind: 'open'; vault: OpenVault };
 
 export type PickMode = 'new' | 'open';
@@ -66,6 +68,10 @@ export interface AppState {
   start: () => Promise<void>;
   chooseFolder: (mode: PickMode) => Promise<void>;
   confirmFolder: () => Promise<void>;
+  /** For confirm-nested: open the vault the chosen folder is inside. */
+  openOwnerVault: () => Promise<void>;
+  /** For confirm-nested: set the chosen folder up as a vault of its own. */
+  makeSeparateVault: () => Promise<void>;
   cancelFolder: () => void;
   /**
    * Stops all modules, closes the vault and returns to the picker. The last
@@ -281,6 +287,7 @@ export function createAppStore(
           if (check.kind === 'vault') {
             await openCurrent(check.root);
           } else {
+            // Includes 'inside-vault': it was a vault before, so ask afresh rather than guess.
             set({
               status: { kind: 'no-vault' },
               notice: `Your last vault is no longer set up as a vault: ${last}`,
@@ -295,9 +302,28 @@ export function createAppStore(
           const check = await checkFolder(platform, picked);
           if (check.kind === 'folder') {
             set({ status: { kind: 'confirm-folder', root: check.root }, notice: null });
+          } else if (check.kind === 'inside-vault') {
+            set({
+              status: { kind: 'confirm-nested', folder: check.root, owner: check.owner },
+              notice: null,
+            });
           } else {
             await openCurrent(check.root);
           }
+        }),
+
+      openOwnerVault: () =>
+        guarded(async () => {
+          const status = get().status;
+          if (status.kind !== 'confirm-nested') return;
+          await openCurrent(await platform.setVaultRoot(status.owner));
+        }),
+
+      makeSeparateVault: () =>
+        guarded(async () => {
+          const status = get().status;
+          if (status.kind !== 'confirm-nested') return;
+          await openCurrent(await platform.setVaultRoot(status.folder));
         }),
 
       confirmFolder: () =>
@@ -308,7 +334,10 @@ export function createAppStore(
         }),
 
       cancelFolder: () => {
-        if (get().status.kind === 'confirm-folder') set({ status: { kind: 'no-vault' } });
+        const kind = get().status.kind;
+        if (kind === 'confirm-folder' || kind === 'confirm-nested') {
+          set({ status: { kind: 'no-vault' } });
+        }
       },
 
       closeVault: () =>

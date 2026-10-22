@@ -122,19 +122,62 @@ describe('app store: choosing a folder', () => {
     expect(await lastVaultSaved(platform)).toBeUndefined();
   });
 
-  it('opens the owning vault, without asking, when a folder inside it is picked', async () => {
-    const vault = { '.benchwork/config.json': '{"version":1}', 'LPS model/notes.md': 'x' };
-    const { platform, state } = setup({ 'C:/Docs': vault });
-    await state().start();
-    platform.queuePick('C:/Docs/LPS model');
-    await state().chooseFolder('new');
+  describe('a folder inside another vault', () => {
+    const docs = { '.benchwork/config.json': '{"version":1}', 'Test Vault/notes.md': 'x' };
 
-    const status = state().status;
-    expect(status.kind === 'open' && status.vault.root).toBe('C:/Docs');
-    expect(platform.snapshot('C:/Docs')).toEqual({
-      '.benchwork': null,
-      ...vault,
-      'LPS model': null,
+    async function pickTestVault() {
+      const ctx = setup({ 'C:/Docs': docs });
+      await ctx.state().start();
+      ctx.platform.queuePick('C:/Docs/Test Vault');
+      await ctx.state().chooseFolder('new');
+      return ctx;
+    }
+
+    it('asks which vault is meant, without changing anything yet', async () => {
+      const { platform, state } = await pickTestVault();
+      expect(state().status).toEqual({
+        kind: 'confirm-nested',
+        folder: 'C:/Docs/Test Vault',
+        owner: 'C:/Docs',
+      });
+      expect(platform.snapshot('C:/Docs')).toEqual({
+        '.benchwork': null,
+        ...docs,
+        'Test Vault': null,
+      });
+    });
+
+    it('can open the vault around it', async () => {
+      const { platform, state } = await pickTestVault();
+      await state().openOwnerVault();
+      const status = state().status;
+      expect(status.kind === 'open' && status.vault.root).toBe('C:/Docs');
+      expect(platform.snapshot('C:/Docs/Test Vault')).toEqual({ 'notes.md': 'x' });
+    });
+
+    it('can become a separate vault, which is then reopened at start-up', async () => {
+      const { platform, state } = await pickTestVault();
+      await state().makeSeparateVault();
+      const status = state().status;
+      expect(status.kind === 'open' && status.vault.root).toBe('C:/Docs/Test Vault');
+      expect(Object.keys(platform.snapshot('C:/Docs/Test Vault'))).toEqual([
+        '.benchwork',
+        '.benchwork/config.json',
+        'notes.md',
+      ]);
+      expect(await lastVaultSaved(platform)).toBe('C:/Docs/Test Vault');
+
+      const again = createAppStore(platform);
+      await again.getState().start();
+      const reopened = again.getState().status;
+      expect(reopened.kind === 'open' && reopened.vault.root).toBe('C:/Docs/Test Vault');
+    });
+
+    it('cancel leaves everything as it was', async () => {
+      const { platform, state } = await pickTestVault();
+      state().cancelFolder();
+      expect(state().status.kind).toBe('no-vault');
+      expect(platform.snapshot('C:/Docs/Test Vault')).toEqual({ 'notes.md': 'x' });
     });
   });
 

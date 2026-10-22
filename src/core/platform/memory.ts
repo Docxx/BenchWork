@@ -1,9 +1,34 @@
 import { PlatformError } from './errors';
-import type { DeviceKind, DirEntry, PlatformAdapter } from './types';
+import type { DeviceKind, DirEntry, PlatformAdapter, VaultOwner } from './types';
 import { baseName, normaliseVaultPath, parentVaultPath } from './vaultPath';
 
 type MemoryNode =
   { kind: 'dir'; modified: number } | { kind: 'file'; text: string; modified: number };
+
+/** The parts of a Map the adapter uses, so a subfolder can stand in for a whole folder. */
+interface NodeStore extends Iterable<[string, MemoryNode]> {
+  get(path: string): MemoryNode | undefined;
+  set(path: string, node: MemoryNode): void;
+  has(path: string): boolean;
+}
+
+/** A view of `nodes` with `prefix` as its root, for a vault opened on a subfolder. */
+function prefixedNodes(nodes: Map<string, MemoryNode>, prefix: string): NodeStore {
+  const full = (path: string) => (path === '' ? prefix : `${prefix}/${path}`);
+  return {
+    get: (path) => nodes.get(full(path)),
+    set: (path, node) => {
+      nodes.set(full(path), node);
+    },
+    has: (path) => nodes.has(full(path)),
+    *[Symbol.iterator]() {
+      for (const [path, node] of nodes) {
+        if (path === prefix) yield ['', node];
+        else if (path.startsWith(`${prefix}/`)) yield [path.slice(prefix.length + 1), node];
+      }
+    },
+  };
+}
 
 /** Folder contents for seeding: vault-relative path to file text, or null for a folder. */
 export type MemoryFolderContents = Record<string, string | null>;
@@ -62,13 +87,11 @@ export class MemoryAdapter implements PlatformAdapter {
 
   /** Every file and folder in a folder (the open vault by default), sorted by path. */
   snapshot(root?: string): MemoryFolderContents {
-    const nodes = this.folders.get(root ?? this.root ?? '');
-    if (!nodes) throw new PlatformError('NotFound', `No folder '${root ?? ''}'`);
+    const nodes = this.store(root ?? this.root ?? '');
     const out: MemoryFolderContents = {};
-    for (const path of [...nodes.keys()].sort()) {
+    for (const [path, node] of [...nodes].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
       if (path === '') continue;
-      const node = nodes.get(path);
-      out[path] = node?.kind === 'file' ? node.text : null;
+      out[path] = node.kind === 'file' ? node.text : null;
     }
     return out;
   }
@@ -87,29 +110,28 @@ export class MemoryAdapter implements PlatformAdapter {
    * Like the Rust version, but only within one fake folder: `path` is a
    * folder added with addFolder, or a `/`-separated path inside one.
    */
-  findVaultRoot(path: string): Promise<string | null> {
+  findVaultRoot(path: string): Promise<VaultOwner | null> {
     return this.run(() => {
-      const root = [...this.folders.keys()]
-        .sort((a, b) => b.length - a.length)
-        .find((r) => path === r || path.startsWith(`${r}/`));
-      const nodes = root === undefined ? undefined : this.folders.get(root);
-      if (root === undefined || !nodes) throw new PlatformError('NotFound', `No folder '${path}'`);
-
-      let rel: string | null = normaliseVaultPath(path === root ? '' : path.slice(root.length + 1));
-      if (nodes.get(rel)?.kind !== 'dir')
-        throw new PlatformError('NotFound', `No folder '${path}'`);
-      for (; rel !== null; rel = parentVaultPath(rel)) {
-        if (baseName(rel).toLowerCase() === VAULT_DIR_NAME) continue;
+      const { base, nodes, prefix } = this.locate(path);
+      let throughBenchwork = false;
+      for (let rel: string | null = prefix; rel !== null; rel = parentVaultPath(rel)) {
+        if (baseName(rel).toLowerCase() === VAULT_DIR_NAME) {
+          throughBenchwork = true;
+          continue;
+        }
         const marker = rel === '' ? VAULT_DIR_NAME : `${rel}/${VAULT_DIR_NAME}`;
-        if (nodes.get(marker)?.kind === 'dir') return rel === '' ? root : `${root}/${rel}`;
+        if (nodes.get(marker)?.kind !== 'dir') continue;
+        const via = throughBenchwork ? 'benchwork' : rel === prefix ? 'selfVault' : 'ancestor';
+        return { root: rel === '' ? base : `${base}/${rel}`, folder: path, via };
       }
       return null;
     });
   }
 
+  /** Opens a fake folder, or any folder inside one, as the vault. */
   setVaultRoot(root: string): Promise<string> {
     return this.run(() => {
-      if (!this.folders.has(root)) throw new PlatformError('NotFound', `No folder '${root}'`);
+      this.locate(root);
       this.root = root;
       return root;
     });
@@ -196,19 +218,41 @@ export class MemoryAdapter implements PlatformAdapter {
     }
   }
 
-  private vault(): Map<string, MemoryNode> {
-    const nodes = this.root === null ? undefined : this.folders.get(this.root);
-    if (!nodes) throw new PlatformError('NoVault', 'No vault is open');
-    return nodes;
+  /** The open vault's files, looked up afresh so addFolder replacements show. */
+  private vault(): NodeStore {
+    if (this.root === null) throw new PlatformError('NoVault', 'No vault is open');
+    return this.store(this.root);
   }
 
-  private expectDir(nodes: Map<string, MemoryNode>, path: string): void {
+  private store(path: string): NodeStore {
+    const { nodes, prefix } = this.locate(path);
+    return prefix === '' ? nodes : prefixedNodes(nodes, prefix);
+  }
+
+  /**
+   * Finds which fake folder `path` is in (the longest match) and the
+   * folder-relative path inside it, which must be an existing folder.
+   */
+  private locate(path: string): { base: string; nodes: Map<string, MemoryNode>; prefix: string } {
+    const base = [...this.folders.keys()]
+      .sort((a, b) => b.length - a.length)
+      .find((r) => path === r || path.startsWith(`${r}/`));
+    const nodes = base === undefined ? undefined : this.folders.get(base);
+    if (base === undefined || !nodes) throw new PlatformError('NotFound', `No folder '${path}'`);
+    const prefix = normaliseVaultPath(path === base ? '' : path.slice(base.length + 1));
+    if (nodes.get(prefix)?.kind !== 'dir') {
+      throw new PlatformError('NotFound', `No folder '${path}'`);
+    }
+    return { base, nodes, prefix };
+  }
+
+  private expectDir(nodes: NodeStore, path: string): void {
     const node = nodes.get(path);
     if (!node) throw new PlatformError('NotFound', `'${path}' does not exist`);
     if (node.kind !== 'dir') throw new PlatformError('NotADirectory', `'${path}' is not a folder`);
   }
 
-  private makeDirs(nodes: Map<string, MemoryNode>, path: string): void {
+  private makeDirs(nodes: NodeStore, path: string): void {
     let current = '';
     for (const part of path === '' ? [] : path.split('/')) {
       current = current === '' ? part : `${current}/${part}`;

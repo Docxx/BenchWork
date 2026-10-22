@@ -43,8 +43,9 @@ describe('TauriAdapter', () => {
   });
 
   it('asks Rust which vault a folder belongs to', async () => {
-    const calls = record((cmd) => (cmd === 'find_vault_root' ? 'C:\\Docs' : null));
-    expect(await new TauriAdapter().findVaultRoot('C:\\Docs\\.benchwork')).toBe('C:\\Docs');
+    const answer = { root: 'C:\\Docs', folder: 'C:\\Docs\\.benchwork', via: 'benchwork' };
+    const calls = record((cmd) => (cmd === 'find_vault_root' ? answer : null));
+    expect(await new TauriAdapter().findVaultRoot('C:\\Docs\\.benchwork')).toEqual(answer);
     expect(calls).toEqual([{ cmd: 'find_vault_root', args: { path: 'C:\\Docs\\.benchwork' } }]);
   });
 

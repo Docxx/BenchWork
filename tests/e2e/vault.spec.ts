@@ -78,6 +78,32 @@ test('picking the .benchwork folder opens its vault instead of making a new one'
   });
 });
 
+test('a folder inside a vault asks, and can become a separate vault', async ({ page }) => {
+  await page.evaluate(() => {
+    const memory = window.__benchworkMemory;
+    if (!memory) throw new Error('Run Playwright with VITE_PLATFORM=memory');
+    memory.addFolder('C:/Docs', {
+      '.benchwork/config.json': '{"version":1}',
+      'Test Vault': null,
+      'other.md': '',
+    });
+    memory.queuePick('C:/Docs/Test Vault');
+  });
+  await page.getByRole('button', { name: 'New vault' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'This folder is inside another vault' });
+  await expect(dialog).toContainText('Test Vault is inside the vault Docs');
+  await expect(page.getByRole('button', { name: 'Open Docs' })).toBeVisible();
+  await page.getByRole('button', { name: 'Make Test Vault a separate vault' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Test Vault' })).toBeVisible();
+  await expect(page.getByText('This vault is empty.')).toBeVisible();
+  expect(await snapshot(page, 'C:/Docs/Test Vault')).toEqual({
+    '.benchwork': null,
+    '.benchwork/config.json': expect.stringContaining('"version": 1') as unknown,
+  });
+});
+
 test('switch vault returns to the picker', async ({ page }) => {
   await seedPick(page, 'C:/Vault', {});
   await page.getByRole('button', { name: 'New vault' }).click();

@@ -16,25 +16,26 @@ export interface OpenVault {
 
 /**
  * What a chosen folder is:
- * - `vault`: already has a `.benchwork` folder
+ * - `vault`: a vault, or a `.benchwork` folder whose vault is `root`
  * - `empty`: nothing in it, safe to set up straight away
  * - `folder`: has other files, so ask before adding `.benchwork`
+ * - `inside-vault`: an ordinary folder inside the vault `owner`, so ask
+ *   whether to open that vault or make this folder a vault of its own
  */
-export type FolderKind = 'vault' | 'empty' | 'folder';
-
-export interface FolderCheck {
-  root: string;
-  kind: FolderKind;
-}
+export type FolderCheck =
+  | { kind: 'vault' | 'empty' | 'folder'; root: string }
+  | { kind: 'inside-vault'; root: string; owner: string };
 
 /**
- * Points the platform at a folder and reports what is in it. A `.benchwork`
- * folder, or any folder inside a vault, resolves to the vault it belongs to,
- * so a vault is never set up inside another one by mistake.
+ * Reports what a chosen folder is. For every kind except `inside-vault` it
+ * also points the platform at the folder (or its vault), ready to open.
  */
 export async function checkFolder(platform: PlatformAdapter, path: string): Promise<FolderCheck> {
   const owner = await platform.findVaultRoot(path);
-  const root = await platform.setVaultRoot(owner ?? path);
+  if (owner?.via === 'ancestor') {
+    return { kind: 'inside-vault', root: owner.folder, owner: owner.root };
+  }
+  const root = await platform.setVaultRoot(owner?.root ?? path);
   if (owner !== null) return { root, kind: 'vault' };
   const entries = await platform.listDir('');
   return { root, kind: entries.length === 0 ? 'empty' : 'folder' };

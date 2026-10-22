@@ -22,24 +22,45 @@ describe('checkFolder', () => {
     });
   });
 
-  it('resolves a .benchwork folder or a folder inside a vault to that vault', async () => {
-    const vault = {
-      '.benchwork/config.json': '{"version":1}',
-      '.benchwork/.benchwork/Test': null,
-      'LPS model/Data/run1.csv': 'a,b',
-    };
-    for (const picked of [
-      'C:/Docs/.benchwork',
-      'C:/Docs/.benchwork/.benchwork/Test',
-      'C:/Docs/LPS model',
-      'C:/Docs/LPS model/Data',
-    ]) {
-      const platform = adapterWith({ 'C:/Docs': vault });
+  const docsVault = {
+    '.benchwork/config.json': '{"version":1}',
+    '.benchwork/.benchwork/Test': null,
+    'LPS model/Data/run1.csv': 'a,b',
+    'Test Vault': null,
+  };
+
+  it('resolves a .benchwork folder, or anything in it, to its vault', async () => {
+    for (const picked of ['C:/Docs/.benchwork', 'C:/Docs/.benchwork/.benchwork/Test']) {
+      const platform = adapterWith({ 'C:/Docs': docsVault });
       expect(await checkFolder(platform, picked)).toEqual({ root: 'C:/Docs', kind: 'vault' });
       expect(platform.snapshot('C:/Docs')).toEqual(
-        adapterWith({ 'C:/Docs': vault }).snapshot('C:/Docs'),
+        adapterWith({ 'C:/Docs': docsVault }).snapshot('C:/Docs'),
       );
     }
+  });
+
+  it('reports an ordinary folder inside a vault, without changing anything', async () => {
+    for (const picked of ['C:/Docs/Test Vault', 'C:/Docs/LPS model/Data']) {
+      const platform = adapterWith({ 'C:/Docs': docsVault });
+      expect(await checkFolder(platform, picked)).toEqual({
+        kind: 'inside-vault',
+        root: picked,
+        owner: 'C:/Docs',
+      });
+      expect(platform.snapshot('C:/Docs')).toEqual(
+        adapterWith({ 'C:/Docs': docsVault }).snapshot('C:/Docs'),
+      );
+    }
+  });
+
+  it('treats a separate vault inside another vault as its own vault', async () => {
+    const platform = adapterWith({
+      'C:/Docs': { ...docsVault, 'Test Vault/.benchwork/config.json': '{"version":1}' },
+    });
+    expect(await checkFolder(platform, 'C:/Docs/Test Vault')).toEqual({
+      kind: 'vault',
+      root: 'C:/Docs/Test Vault',
+    });
   });
 
   it('fails for a folder that does not exist', async () => {

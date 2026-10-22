@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { PlatformError } from './errors';
-import type { DeviceKind, DirEntry, PlatformAdapter } from './types';
+import type { DeviceKind, DirEntry, PlatformAdapter, VaultOwner } from './types';
 import { normaliseVaultPath } from './vaultPath';
 
 /**
@@ -37,7 +37,7 @@ export class TauriAdapter implements PlatformAdapter {
     }
   }
 
-  findVaultRoot(path: string): Promise<string | null> {
+  findVaultRoot(path: string): Promise<VaultOwner | null> {
     return call('find_vault_root', () => ({ path }));
   }
 

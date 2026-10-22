@@ -125,16 +125,43 @@ describe('MemoryAdapter', () => {
         'C:/Plain': { Sub: null },
       },
     });
-    expect(await adapter.findVaultRoot('C:/Docs')).toBe('C:/Docs');
-    expect(await adapter.findVaultRoot('C:/Docs/.benchwork')).toBe('C:/Docs');
-    expect(await adapter.findVaultRoot('C:/Docs/.benchwork/.benchwork/Test')).toBe('C:/Docs');
-    expect(await adapter.findVaultRoot('C:/Docs/LPS model/Data')).toBe('C:/Docs');
-    expect(await adapter.findVaultRoot('C:/Docs/LPS model/Inner/Data')).toBe(
+    const owner = async (path: string) => {
+      const found = await adapter.findVaultRoot(path);
+      return found && [found.root, found.via];
+    };
+    expect(await owner('C:/Docs')).toEqual(['C:/Docs', 'selfVault']);
+    expect(await owner('C:/Docs/.benchwork')).toEqual(['C:/Docs', 'benchwork']);
+    expect(await owner('C:/Docs/.benchwork/.benchwork/Test')).toEqual(['C:/Docs', 'benchwork']);
+    expect(await owner('C:/Docs/LPS model/Data')).toEqual(['C:/Docs', 'ancestor']);
+    expect(await owner('C:/Docs/LPS model/Inner')).toEqual([
       'C:/Docs/LPS model/Inner',
-    );
-    expect(await adapter.findVaultRoot('C:/Plain/Sub')).toBeNull();
+      'selfVault',
+    ]);
+    expect(await owner('C:/Docs/LPS model/Inner/Data')).toEqual([
+      'C:/Docs/LPS model/Inner',
+      'ancestor',
+    ]);
+    expect((await adapter.findVaultRoot('C:/Docs/LPS model'))?.folder).toBe('C:/Docs/LPS model');
+    expect(await owner('C:/Plain/Sub')).toBeNull();
     await expectKind(adapter.findVaultRoot('C:/Docs/missing'), 'NotFound');
     await expectKind(adapter.findVaultRoot('D:/Elsewhere'), 'NotFound');
+  });
+
+  it('opens a subfolder as a vault, sharing files with the folder around it', async () => {
+    const adapter = new MemoryAdapter({
+      folders: { 'C:/Docs': { '.benchwork': null, 'Test Vault/a.md': 'x' } },
+    });
+    await adapter.setVaultRoot('C:/Docs/Test Vault');
+    expect((await adapter.listDir('')).map((e) => e.path)).toEqual(['a.md']);
+    await adapter.ensureDir('.benchwork');
+    await adapter.writeTextAtomic('.benchwork/config.json', '{}');
+    expect(adapter.snapshot('C:/Docs/Test Vault')).toEqual({
+      '.benchwork': null,
+      '.benchwork/config.json': '{}',
+      'a.md': 'x',
+    });
+    expect(adapter.snapshot('C:/Docs')['Test Vault/.benchwork/config.json']).toBe('{}');
+    await expectKind(adapter.setVaultRoot('C:/Docs/Missing'), 'NotFound');
   });
 
   it('stores app settings as a copy', async () => {
