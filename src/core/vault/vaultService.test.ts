@@ -22,6 +22,26 @@ describe('checkFolder', () => {
     });
   });
 
+  it('resolves a .benchwork folder or a folder inside a vault to that vault', async () => {
+    const vault = {
+      '.benchwork/config.json': '{"version":1}',
+      '.benchwork/.benchwork/Test': null,
+      'LPS model/Data/run1.csv': 'a,b',
+    };
+    for (const picked of [
+      'C:/Docs/.benchwork',
+      'C:/Docs/.benchwork/.benchwork/Test',
+      'C:/Docs/LPS model',
+      'C:/Docs/LPS model/Data',
+    ]) {
+      const platform = adapterWith({ 'C:/Docs': vault });
+      expect(await checkFolder(platform, picked)).toEqual({ root: 'C:/Docs', kind: 'vault' });
+      expect(platform.snapshot('C:/Docs')).toEqual(
+        adapterWith({ 'C:/Docs': vault }).snapshot('C:/Docs'),
+      );
+    }
+  });
+
   it('fails for a folder that does not exist', async () => {
     await expect(checkFolder(new MemoryAdapter(), 'C:/Gone')).rejects.toMatchObject({
       kind: 'NotFound',

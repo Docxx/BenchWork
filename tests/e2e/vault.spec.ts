@@ -58,6 +58,26 @@ test('cancelling the question leaves the folder alone', async ({ page }) => {
   expect(await snapshot(page, 'C:/Thesis')).toEqual({ 'chapter 1.docx': 'draft' });
 });
 
+test('picking the .benchwork folder opens its vault instead of making a new one', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    const memory = window.__benchworkMemory;
+    if (!memory) throw new Error('Run Playwright with VITE_PLATFORM=memory');
+    memory.addFolder('C:/Docs', { '.benchwork/config.json': '{"version":1}', 'notes.md': '' });
+    memory.queuePick('C:/Docs/.benchwork');
+  });
+  await page.getByRole('button', { name: 'Open vault' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Docs' })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(await snapshot(page, 'C:/Docs')).toEqual({
+    '.benchwork': null,
+    '.benchwork/config.json': '{"version":1}',
+    'notes.md': '',
+  });
+});
+
 test('switch vault returns to the picker', async ({ page }) => {
   await seedPick(page, 'C:/Vault', {});
   await page.getByRole('button', { name: 'New vault' }).click();

@@ -112,6 +112,31 @@ describe('MemoryAdapter', () => {
     expect(adapter.snapshot()).toEqual({ 'b.md': 'two' });
   });
 
+  it('finds the vault a folder belongs to', async () => {
+    const adapter = new MemoryAdapter({
+      folders: {
+        'C:/Docs': {
+          '.benchwork/config.json': '{}',
+          '.benchwork/.benchwork/Test': null,
+          'LPS model/Data': null,
+          'LPS model/Inner/.benchwork': null,
+          'LPS model/Inner/Data': null,
+        },
+        'C:/Plain': { Sub: null },
+      },
+    });
+    expect(await adapter.findVaultRoot('C:/Docs')).toBe('C:/Docs');
+    expect(await adapter.findVaultRoot('C:/Docs/.benchwork')).toBe('C:/Docs');
+    expect(await adapter.findVaultRoot('C:/Docs/.benchwork/.benchwork/Test')).toBe('C:/Docs');
+    expect(await adapter.findVaultRoot('C:/Docs/LPS model/Data')).toBe('C:/Docs');
+    expect(await adapter.findVaultRoot('C:/Docs/LPS model/Inner/Data')).toBe(
+      'C:/Docs/LPS model/Inner',
+    );
+    expect(await adapter.findVaultRoot('C:/Plain/Sub')).toBeNull();
+    await expectKind(adapter.findVaultRoot('C:/Docs/missing'), 'NotFound');
+    await expectKind(adapter.findVaultRoot('D:/Elsewhere'), 'NotFound');
+  });
+
   it('stores app settings as a copy', async () => {
     const adapter = new MemoryAdapter();
     expect(await adapter.loadAppSettings()).toBeNull();

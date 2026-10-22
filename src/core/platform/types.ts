@@ -12,6 +12,13 @@ export interface PlatformAdapter {
   /** Shows a folder picker. Resolves to the chosen folder, or null if cancelled. */
   pickFolder(options: { title: string }): Promise<string | null>;
 
+  /**
+   * The vault a folder belongs to: the nearest folder at or above it that has
+   * a `.benchwork` folder, skipping `.benchwork` folders themselves. Null if
+   * it is not inside a vault.
+   */
+  findVaultRoot(path: string): Promise<string | null>;
+
   /** Opens a folder as the vault. Resolves to its full path for display. */
   setVaultRoot(root: string): Promise<string>;
 

@@ -36,6 +36,17 @@ describe('app store: start-up', () => {
     if (status.kind === 'open') expect(status.vault.root).toBe('C:/Vault');
   });
 
+  it('corrects a remembered .benchwork folder to the vault it belongs to', async () => {
+    const { platform, state } = setup(
+      { 'C:/Docs': { '.benchwork/config.json': '{"version":1}', '.benchwork/.benchwork': null } },
+      { lastVault: 'C:/Docs/.benchwork' },
+    );
+    await state().start();
+    const status = state().status;
+    expect(status.kind === 'open' && status.vault.root).toBe('C:/Docs');
+    expect(await lastVaultSaved(platform)).toBe('C:/Docs');
+  });
+
   it('explains when the last vault has gone', async () => {
     const { state } = setup({}, { lastVault: 'D:/USB stick/Vault' });
     await state().start();
@@ -106,6 +117,22 @@ describe('app store: choosing a folder', () => {
     expect(state().status.kind).toBe('no-vault');
     expect(platform.snapshot('C:/Thesis')).toEqual({ 'chapter 1.docx': 'draft' });
     expect(await lastVaultSaved(platform)).toBeUndefined();
+  });
+
+  it('opens the owning vault, without asking, when a folder inside it is picked', async () => {
+    const vault = { '.benchwork/config.json': '{"version":1}', 'LPS model/notes.md': 'x' };
+    const { platform, state } = setup({ 'C:/Docs': vault });
+    await state().start();
+    platform.queuePick('C:/Docs/LPS model');
+    await state().chooseFolder('new');
+
+    const status = state().status;
+    expect(status.kind === 'open' && status.vault.root).toBe('C:/Docs');
+    expect(platform.snapshot('C:/Docs')).toEqual({
+      '.benchwork': null,
+      ...vault,
+      'LPS model': null,
+    });
   });
 
   it('does nothing when the picker is cancelled', async () => {

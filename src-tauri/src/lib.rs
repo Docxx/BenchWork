@@ -1,6 +1,7 @@
 mod error;
 mod path_guard;
 mod vault_fs;
+mod vault_root;
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -34,6 +35,12 @@ async fn set_vault_root(root: String, state: State<'_, VaultState>) -> VaultResu
         .lock()
         .map_err(|_| VaultError::new(ErrorKind::Io, "Vault state is unavailable"))? = Some(canon);
     Ok(display)
+}
+
+/// The vault a chosen folder belongs to, or `null` if it is not in one.
+#[tauri::command]
+async fn find_vault_root(path: String) -> VaultResult<Option<String>> {
+    Ok(vault_root::find_vault_root(Path::new(&path))?.map(|p| path_guard::display_path(&p)))
 }
 
 #[tauri::command]
@@ -108,6 +115,7 @@ pub fn run() {
         .manage(VaultState::default())
         .invoke_handler(tauri::generate_handler![
             set_vault_root,
+            find_vault_root,
             list_dir,
             read_text,
             write_text_atomic,

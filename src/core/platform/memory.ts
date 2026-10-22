@@ -14,6 +14,10 @@ export interface MemoryAdapterOptions {
   appSettings?: unknown;
 }
 
+// Mirrors VAULT_DIR in src-tauri/src/vault_root.rs. The platform layer sits
+// below src/core/vault, so it keeps its own copy rather than importing it.
+const VAULT_DIR_NAME = '.benchwork';
+
 /** Folder returned by pickFolder when no result has been queued. */
 export const DEFAULT_MEMORY_FOLDER = 'memory://Vault';
 
@@ -76,6 +80,30 @@ export class MemoryAdapter implements PlatformAdapter {
       const next = this.pickQueue.length > 0 ? this.pickQueue.shift() : DEFAULT_MEMORY_FOLDER;
       if (next === DEFAULT_MEMORY_FOLDER && !this.folders.has(next)) this.addFolder(next);
       return next ?? null;
+    });
+  }
+
+  /**
+   * Like the Rust version, but only within one fake folder: `path` is a
+   * folder added with addFolder, or a `/`-separated path inside one.
+   */
+  findVaultRoot(path: string): Promise<string | null> {
+    return this.run(() => {
+      const root = [...this.folders.keys()]
+        .sort((a, b) => b.length - a.length)
+        .find((r) => path === r || path.startsWith(`${r}/`));
+      const nodes = root === undefined ? undefined : this.folders.get(root);
+      if (root === undefined || !nodes) throw new PlatformError('NotFound', `No folder '${path}'`);
+
+      let rel: string | null = normaliseVaultPath(path === root ? '' : path.slice(root.length + 1));
+      if (nodes.get(rel)?.kind !== 'dir')
+        throw new PlatformError('NotFound', `No folder '${path}'`);
+      for (; rel !== null; rel = parentVaultPath(rel)) {
+        if (baseName(rel).toLowerCase() === VAULT_DIR_NAME) continue;
+        const marker = rel === '' ? VAULT_DIR_NAME : `${rel}/${VAULT_DIR_NAME}`;
+        if (nodes.get(marker)?.kind === 'dir') return rel === '' ? root : `${root}/${rel}`;
+      }
+      return null;
     });
   }
 

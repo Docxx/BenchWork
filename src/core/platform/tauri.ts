@@ -37,6 +37,10 @@ export class TauriAdapter implements PlatformAdapter {
     }
   }
 
+  findVaultRoot(path: string): Promise<string | null> {
+    return call('find_vault_root', () => ({ path }));
+  }
+
   setVaultRoot(root: string): Promise<string> {
     return call('set_vault_root', () => ({ root }));
   }

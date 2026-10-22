@@ -27,10 +27,15 @@ export interface FolderCheck {
   kind: FolderKind;
 }
 
-/** Points the platform at a folder and reports what is in it. */
+/**
+ * Points the platform at a folder and reports what is in it. A `.benchwork`
+ * folder, or any folder inside a vault, resolves to the vault it belongs to,
+ * so a vault is never set up inside another one by mistake.
+ */
 export async function checkFolder(platform: PlatformAdapter, path: string): Promise<FolderCheck> {
-  const root = await platform.setVaultRoot(path);
-  if (await platform.exists(VAULT_DIR)) return { root, kind: 'vault' };
+  const owner = await platform.findVaultRoot(path);
+  const root = await platform.setVaultRoot(owner ?? path);
+  if (owner !== null) return { root, kind: 'vault' };
   const entries = await platform.listDir('');
   return { root, kind: entries.length === 0 ? 'empty' : 'folder' };
 }
