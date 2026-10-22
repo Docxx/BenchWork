@@ -1,6 +1,6 @@
 # BenchWork roadmap
 
-Current phase: **Phase 1**
+Current phase: **Phase 2**
 
 ## Phase 0: Skeleton
 
@@ -20,14 +20,14 @@ Current phase: **Phase 1**
 - [x] Editor document model on Yjs from the start (co-editing ready, single user for now)
 - [x] Daily notebook: one page per day, linking into project notebooks
 - [x] Paste screenshots, drag in files, autosave
-- [ ] Sample notebook created on first launch
+- [x] Sample notebook created on first launch
 - [x] YAML frontmatter with stable UUIDs
 - [x] Wikilinks, backlinks, tags
 - [x] Templates and daily note
 - [x] SQLite index with FTS5 full-text search
-- [ ] Local snapshots for recovery
+- [x] Local snapshots for recovery
 - [x] Spike: pen canvas prototype (pressure, palm rejection) to test ink latency (Go: see spikes/ink/RESULTS.md)
-- [ ] Exit check: lab notes written and searched on desktop
+- [x] Exit check: lab notes written and searched on desktop
 
 ## Phase 2: Research core
 
