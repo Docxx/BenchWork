@@ -1,8 +1,9 @@
 import { Collaboration } from '@tiptap/extension-collaboration';
 import { EditorContent, useEditor } from '@tiptap/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { baseExtensions } from '../editor/extensions';
 import { FileInput } from '../editor/fileInput';
+import { PageLinks, pageLinksKey, type LinkMenuState } from '../editor/pageLinks';
 import { SlashCommands, type SlashMenuState } from '../editor/slashCommands';
 import { FRAGMENT } from '../editor/yjsDoc';
 import type { OpenPage } from '../state/pageSlice';
@@ -13,7 +14,13 @@ export function PageEditor({ page }: { page: OpenPage }) {
   const savePageNow = useApp((s) => s.savePageNow);
   const addFiles = useApp((s) => s.addFiles);
   const assetUrl = useApp((s) => s.assetUrl);
+  const pageRefs = useApp((s) => s.pageRefs);
+  const linkResolves = useApp((s) => s.linkResolves);
+  const followLink = useApp((s) => s.followLink);
+  const setSearchQuery = useApp((s) => s.setSearchQuery);
+  const suggestLinks = useApp((s) => s.suggestLinks);
   const [slash, setSlash] = useState<SlashMenuState | null>(null);
+  const [linkMenu, setLinkMenu] = useState<LinkMenuState | null>(null);
 
   const editor = useEditor(
     {
@@ -25,6 +32,15 @@ export function PageEditor({ page }: { page: OpenPage }) {
         Collaboration.configure({ document: page.ydoc, field: FRAGMENT }),
         SlashCommands.configure({ onChange: setSlash }),
         FileInput.configure({ onFiles: addFiles }),
+        PageLinks.configure({
+          suggest: suggestLinks,
+          resolves: linkResolves,
+          openLink: (target) => void followLink(target),
+          openTag: (tag) => {
+            setSearchQuery(`#${tag}`);
+          },
+          onMenu: setLinkMenu,
+        }),
       ],
       editorProps: {
         attributes: { class: 'page-editor', 'aria-label': `Page: ${page.title}` },
@@ -36,11 +52,51 @@ export function PageEditor({ page }: { page: OpenPage }) {
     [page.ydoc],
   );
 
+  // When pages come and go, recheck which links point at a page.
+  useEffect(() => {
+    if (!editor.isDestroyed) editor.view.dispatch(editor.state.tr.setMeta(pageLinksKey, true));
+  }, [editor, pageRefs]);
+
   return (
     <>
       <EditorContent editor={editor} className="page-content" />
       {slash !== null && <SlashMenu state={slash} />}
+      {linkMenu !== null && <LinkMenu state={linkMenu} />}
     </>
+  );
+}
+
+function LinkMenu({ state }: { state: LinkMenuState }) {
+  if (state.items.length === 0) {
+    return (
+      <div className="slash-menu" style={position(state.rect)} role="status">
+        <p className="slash-empty">Type a page name</p>
+      </div>
+    );
+  }
+  return (
+    <ul
+      className="slash-menu"
+      role="listbox"
+      aria-label="Link to page"
+      style={position(state.rect)}
+    >
+      {state.items.map((item, i) => (
+        <li
+          key={item.id}
+          role="option"
+          aria-selected={i === state.index}
+          className={i === state.index ? 'slash-item active' : 'slash-item'}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            state.choose(i);
+          }}
+        >
+          <span>{item.label}</span>
+          {item.detail !== '' && <span className="slash-detail">{item.detail}</span>}
+        </li>
+      ))}
+    </ul>
   );
 }
 

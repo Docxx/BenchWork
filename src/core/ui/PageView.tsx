@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { OpenPage, SaveState } from '../state/pageSlice';
 import { useApp } from './AppStoreContext';
+import { Backlinks } from './Backlinks';
 import { PageEditor } from './PageEditor';
 
 const SAVE_LABELS: Record<SaveState, string> = {
@@ -40,6 +41,7 @@ export function PageView() {
           <ConflictBanner />
           {/* A new document after a reload from disk starts a fresh editor. */}
           <PageEditor key={page.ydoc.guid} page={page} />
+          <Backlinks />
         </>
       )}
     </article>

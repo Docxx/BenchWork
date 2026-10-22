@@ -22,7 +22,7 @@ Current phase: **Phase 1**
 - [x] Paste screenshots, drag in files, autosave
 - [ ] Sample notebook created on first launch
 - [x] YAML frontmatter with stable UUIDs
-- [ ] Wikilinks, backlinks, tags
+- [x] Wikilinks, backlinks, tags
 - [ ] Templates and daily note
 - [x] SQLite index with FTS5 full-text search
 - [ ] Local snapshots for recovery
