@@ -85,6 +85,70 @@ async fn exists(path: String, state: State<'_, VaultState>) -> VaultResult<bool>
     vault_fs::exists(&state.root()?, &path)
 }
 
+#[tauri::command]
+async fn create_new(path: String, text: String, state: State<'_, VaultState>) -> VaultResult<()> {
+    vault_fs::create_new(&state.root()?, &path, &text)
+}
+
+#[tauri::command]
+async fn rename(from: String, to: String, state: State<'_, VaultState>) -> VaultResult<()> {
+    vault_fs::rename(&state.root()?, &from, &to)
+}
+
+#[tauri::command]
+async fn trash(path: String, state: State<'_, VaultState>) -> VaultResult<()> {
+    vault_fs::trash(&state.root()?, &path)
+}
+
+/// `external` is a full path outside the vault, from a file the user dropped.
+#[tauri::command]
+async fn copy_in(
+    external: String,
+    to: String,
+    max_bytes: u64,
+    state: State<'_, VaultState>,
+) -> VaultResult<u64> {
+    vault_fs::copy_in(&state.root()?, Path::new(&external), &to, max_bytes)
+}
+
+/// Decodes `%XX` escapes from `encodeURIComponent`. Header values must be
+/// ASCII, so the vault path travels encoded.
+fn percent_decode(value: &str) -> Option<String> {
+    let bytes = value.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' {
+            let hex = std::str::from_utf8(bytes.get(i + 1..i + 3)?).ok()?;
+            out.push(u8::from_str_radix(hex, 16).ok()?);
+            i += 3;
+        } else {
+            out.push(bytes[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
+/// Writes binary data, sent as the raw request body so images are not
+/// turned into JSON. The vault path is in the `x-vault-path` header.
+#[tauri::command]
+async fn write_bytes(
+    request: tauri::ipc::Request<'_>,
+    state: State<'_, VaultState>,
+) -> VaultResult<()> {
+    let tauri::ipc::InvokeBody::Raw(data) = request.body() else {
+        return Err(VaultError::new(ErrorKind::Io, "Expected raw bytes"));
+    };
+    let path = request
+        .headers()
+        .get("x-vault-path")
+        .and_then(|v| v.to_str().ok())
+        .and_then(percent_decode)
+        .ok_or_else(|| VaultError::new(ErrorKind::InvalidPath, "Missing x-vault-path header"))?;
+    vault_fs::write_bytes_atomic(&state.root()?, &path, data)
+}
+
 const APP_SETTINGS_FILE: &str = "settings.json";
 
 fn app_settings_path(app: &AppHandle) -> VaultResult<PathBuf> {
@@ -118,7 +182,7 @@ async fn save_app_settings(app: AppHandle, settings: serde_json::Value) -> Vault
     }
     let text = serde_json::to_string_pretty(&settings)
         .map_err(|e| VaultError::new(ErrorKind::Io, e.to_string()))?;
-    vault_fs::write_atomic(&path, &text)
+    vault_fs::write_atomic(&path, text.as_bytes())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -134,9 +198,30 @@ pub fn run() {
             write_text_atomic,
             ensure_dir,
             exists,
+            create_new,
+            rename,
+            trash,
+            copy_in,
+            write_bytes,
             load_app_settings,
             save_app_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running BenchWork");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::percent_decode;
+
+    #[test]
+    fn decodes_paths_from_encode_uri_component() {
+        assert_eq!(
+            percent_decode("attachments%2FPasted%20image%20%C3%A9t%C3%A9.png").as_deref(),
+            Some("attachments/Pasted image été.png")
+        );
+        assert_eq!(percent_decode("plain.png").as_deref(), Some("plain.png"));
+        assert_eq!(percent_decode("bad%2"), None);
+        assert_eq!(percent_decode("bad%zz"), None);
+    }
 }

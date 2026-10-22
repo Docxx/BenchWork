@@ -3,7 +3,7 @@
 
 use std::fs;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::UNIX_EPOCH;
 
@@ -95,14 +95,39 @@ pub fn write_text_atomic(root: &Path, rel: &str, text: &str) -> VaultResult<()> 
         ));
     }
     let path = resolve(root, &normal)?;
-    write_atomic(&path, text)
+    write_atomic(&path, text.as_bytes())
+}
+
+pub fn write_bytes_atomic(root: &Path, rel: &str, data: &[u8]) -> VaultResult<()> {
+    let normal = normalise(rel)?;
+    if normal.is_empty() {
+        return Err(VaultError::new(
+            ErrorKind::NotAFile,
+            "The vault root is a folder",
+        ));
+    }
+    let path = resolve(root, &normal)?;
+    write_atomic(&path, data)
+}
+
+static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// A temporary file name beside `path`, hidden and unique to this process.
+fn temp_beside(path: &Path) -> VaultResult<PathBuf> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| VaultError::new(ErrorKind::InvalidPath, "Path has no parent folder"))?;
+    let name = path.file_name().unwrap_or_default().to_string_lossy();
+    Ok(parent.join(format!(
+        ".{name}.{}.{}.tmp",
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    )))
 }
 
 /// Writes to a temporary file beside the target, flushes it, then renames it
 /// over the target, so a crash never leaves a half-written file.
-pub fn write_atomic(path: &Path, text: &str) -> VaultResult<()> {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-
+pub fn write_atomic(path: &Path, data: &[u8]) -> VaultResult<()> {
     let parent = path
         .parent()
         .ok_or_else(|| VaultError::new(ErrorKind::InvalidPath, "Path has no parent folder"))?;
@@ -123,15 +148,10 @@ pub fn write_atomic(path: &Path, text: &str) -> VaultResult<()> {
         ));
     }
 
-    let name = path.file_name().unwrap_or_default().to_string_lossy();
-    let tmp = parent.join(format!(
-        ".{name}.{}.{}.tmp",
-        std::process::id(),
-        COUNTER.fetch_add(1, Ordering::Relaxed)
-    ));
+    let tmp = temp_beside(path)?;
     let result = (|| -> std::io::Result<()> {
         let mut file = fs::File::create(&tmp)?;
-        file.write_all(text.as_bytes())?;
+        file.write_all(data)?;
         file.sync_all()?;
         drop(file);
         fs::rename(&tmp, path)
@@ -156,6 +176,153 @@ pub fn ensure_dir(root: &Path, rel: &str) -> VaultResult<()> {
         Err(_) => {}
     }
     fs::create_dir_all(&path).map_err(|e| VaultError::io("Cannot create folder", &e))
+}
+
+fn require_parent_dir(path: &Path) -> VaultResult<()> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| VaultError::new(ErrorKind::InvalidPath, "Path has no parent folder"))?;
+    match fs::metadata(parent) {
+        Ok(m) if m.is_dir() => Ok(()),
+        Ok(_) => Err(VaultError::new(
+            ErrorKind::NotADirectory,
+            "The parent of this path is a file",
+        )),
+        Err(e) => Err(VaultError::io("Parent folder does not exist", &e)),
+    }
+}
+
+fn already_exists(rel: &str) -> VaultError {
+    VaultError::new(ErrorKind::AlreadyExists, format!("'{rel}' already exists"))
+}
+
+/// Creates a file with `text`, failing if anything is already at `rel`.
+/// Used for new pages, so an existing page is never overwritten.
+pub fn create_new(root: &Path, rel: &str, text: &str) -> VaultResult<()> {
+    let normal = normalise(rel)?;
+    if normal.is_empty() {
+        return Err(already_exists(rel));
+    }
+    let path = resolve(root, &normal)?;
+    require_parent_dir(&path)?;
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .map_err(|e| {
+            if e.kind() == std::io::ErrorKind::AlreadyExists {
+                already_exists(&normal)
+            } else {
+                VaultError::io("Cannot create file", &e)
+            }
+        })?;
+    file.write_all(text.as_bytes())
+        .and_then(|()| file.sync_all())
+        .map_err(|e| VaultError::io("Cannot write file", &e))
+}
+
+/// True when two paths name the same file, such as `page.md` and `Page.md`
+/// on Windows, where names are not case-sensitive.
+fn same_file(a: &Path, b: &Path) -> bool {
+    match (fs::canonicalize(a), fs::canonicalize(b)) {
+        (Ok(x), Ok(y)) => x == y,
+        _ => false,
+    }
+}
+
+/// Renames or moves a file or folder within the vault. Fails if `to` already
+/// exists, except for a change of case only. A folder cannot move into itself.
+pub fn rename(root: &Path, from: &str, to: &str) -> VaultResult<()> {
+    let from_rel = normalise(from)?;
+    let to_rel = normalise(to)?;
+    if from_rel.is_empty() || to_rel.is_empty() {
+        return Err(VaultError::new(
+            ErrorKind::InvalidPath,
+            "The vault itself cannot be renamed",
+        ));
+    }
+    if to_rel.starts_with(&format!("{from_rel}/")) {
+        return Err(VaultError::new(
+            ErrorKind::InvalidPath,
+            "A folder cannot be moved inside itself",
+        ));
+    }
+    let src = resolve(root, &from_rel)?;
+    let dest = resolve(root, &to_rel)?;
+    fs::symlink_metadata(&src).map_err(|e| VaultError::io("Cannot rename", &e))?;
+    require_parent_dir(&dest)?;
+    if fs::symlink_metadata(&dest).is_ok() && !same_file(&src, &dest) {
+        return Err(already_exists(&to_rel));
+    }
+    fs::rename(&src, &dest).map_err(|e| VaultError::io("Cannot rename", &e))
+}
+
+/// Copies a file from outside the vault (one the user dragged in) to `to`.
+/// Fails if `to` exists, or if the file is larger than `max_bytes`.
+/// Returns the number of bytes copied.
+pub fn copy_in(root: &Path, external: &Path, to: &str, max_bytes: u64) -> VaultResult<u64> {
+    let meta = fs::metadata(external).map_err(|e| VaultError::io("Cannot read file", &e))?;
+    if !meta.is_file() {
+        return Err(VaultError::new(
+            ErrorKind::NotAFile,
+            "Only files can be added",
+        ));
+    }
+    if meta.len() > max_bytes {
+        return Err(VaultError::new(
+            ErrorKind::TooLarge,
+            format!(
+                "The file is {} bytes, over the limit of {max_bytes}",
+                meta.len()
+            ),
+        ));
+    }
+    let to_rel = normalise(to)?;
+    let dest = resolve(root, &to_rel)?;
+    require_parent_dir(&dest)?;
+    if fs::symlink_metadata(&dest).is_ok() {
+        return Err(already_exists(&to_rel));
+    }
+    let tmp = temp_beside(&dest)?;
+    let copied = fs::copy(external, &tmp).and_then(|n| {
+        fs::OpenOptions::new().write(true).open(&tmp)?.sync_all()?;
+        Ok(n)
+    });
+    let result = copied.and_then(|n| {
+        // Re-check just before the rename, so a file that appeared meanwhile is not replaced.
+        if fs::symlink_metadata(&dest).is_ok() {
+            return Err(std::io::Error::from(std::io::ErrorKind::AlreadyExists));
+        }
+        fs::rename(&tmp, &dest).map(|()| n)
+    });
+    result.map_err(|e| {
+        let _ = fs::remove_file(&tmp);
+        if e.kind() == std::io::ErrorKind::AlreadyExists {
+            already_exists(&to_rel)
+        } else {
+            VaultError::io("Cannot copy file", &e)
+        }
+    })
+}
+
+/// Moves a file or folder to the operating system's Recycle Bin. Nothing in
+/// BenchWork deletes permanently.
+pub fn trash(root: &Path, rel: &str) -> VaultResult<()> {
+    let normal = normalise(rel)?;
+    if normal.is_empty() {
+        return Err(VaultError::new(
+            ErrorKind::InvalidPath,
+            "The vault itself cannot be moved to the Recycle Bin",
+        ));
+    }
+    let path = resolve(root, &normal)?;
+    fs::symlink_metadata(&path).map_err(|e| VaultError::io("Cannot find item", &e))?;
+    trash::delete(&path).map_err(|e| {
+        VaultError::new(
+            ErrorKind::Io,
+            format!("Cannot move to the Recycle Bin: {e}"),
+        )
+    })
 }
 
 pub fn exists(root: &Path, rel: &str) -> VaultResult<bool> {
@@ -299,5 +466,163 @@ mod tests {
                 ErrorKind::OutsideVault
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod phase1_tests {
+    use super::*;
+    use crate::path_guard::canonical_root;
+
+    fn vault() -> (tempfile::TempDir, PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let root = canonical_root(dir.path()).unwrap();
+        (dir, root)
+    }
+
+    #[test]
+    fn create_new_never_overwrites() {
+        let (_d, root) = vault();
+        create_new(&root, "Page.md", "first").unwrap();
+        assert_eq!(
+            create_new(&root, "Page.md", "second").unwrap_err().kind,
+            ErrorKind::AlreadyExists
+        );
+        assert_eq!(read_text(&root, "Page.md").unwrap(), "first");
+        assert_eq!(
+            create_new(&root, "missing/Page.md", "x").unwrap_err().kind,
+            ErrorKind::NotFound
+        );
+    }
+
+    #[test]
+    fn write_bytes_round_trips() {
+        let (_d, root) = vault();
+        let png = [0x89u8, b'P', b'N', b'G', 0, 1, 2, 255];
+        write_bytes_atomic(&root, "image.png", &png).unwrap();
+        assert_eq!(fs::read(root.join("image.png")).unwrap(), png);
+    }
+
+    #[test]
+    fn rename_moves_files_and_folders() {
+        let (_d, root) = vault();
+        ensure_dir(&root, "Notes/Archive").unwrap();
+        write_text_atomic(&root, "Notes/a.md", "a").unwrap();
+        rename(&root, "Notes/a.md", "Notes/Archive/b.md").unwrap();
+        assert_eq!(read_text(&root, "Notes/Archive/b.md").unwrap(), "a");
+        assert!(!exists(&root, "Notes/a.md").unwrap());
+
+        rename(&root, "Notes", "Lab notes").unwrap();
+        assert_eq!(read_text(&root, "Lab notes/Archive/b.md").unwrap(), "a");
+    }
+
+    #[test]
+    fn rename_refuses_to_replace_or_nest() {
+        let (_d, root) = vault();
+        ensure_dir(&root, "Notes/Inner").unwrap();
+        write_text_atomic(&root, "a.md", "a").unwrap();
+        write_text_atomic(&root, "b.md", "b").unwrap();
+        assert_eq!(
+            rename(&root, "a.md", "b.md").unwrap_err().kind,
+            ErrorKind::AlreadyExists
+        );
+        assert_eq!(read_text(&root, "b.md").unwrap(), "b");
+        assert_eq!(
+            rename(&root, "Notes", "Notes/Inner/x").unwrap_err().kind,
+            ErrorKind::InvalidPath
+        );
+        assert_eq!(
+            rename(&root, "", "x").unwrap_err().kind,
+            ErrorKind::InvalidPath
+        );
+        assert_eq!(
+            rename(&root, "gone.md", "x.md").unwrap_err().kind,
+            ErrorKind::NotFound
+        );
+        assert_eq!(
+            rename(&root, "a.md", "../a.md").unwrap_err().kind,
+            ErrorKind::OutsideVault
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn rename_allows_a_change_of_case_on_windows() {
+        let (_d, root) = vault();
+        write_text_atomic(&root, "page.md", "x").unwrap();
+        rename(&root, "page.md", "Page.md").unwrap();
+        let names: Vec<_> = list_dir(&root, "")
+            .unwrap()
+            .into_iter()
+            .map(|e| e.name)
+            .collect();
+        assert_eq!(names, vec!["Page.md"]);
+    }
+
+    #[test]
+    fn copy_in_copies_from_outside_with_limits() {
+        let (_d, root) = vault();
+        let outside = tempfile::tempdir().unwrap();
+        let src = outside.path().join("run1.csv");
+        fs::write(&src, "a,b\n1,2").unwrap();
+        ensure_dir(&root, "attachments").unwrap();
+
+        assert_eq!(
+            copy_in(&root, &src, "attachments/run1.csv", 1024).unwrap(),
+            7
+        );
+        assert_eq!(
+            read_text(&root, "attachments/run1.csv").unwrap(),
+            "a,b\n1,2"
+        );
+        assert_eq!(
+            copy_in(&root, &src, "attachments/run1.csv", 1024)
+                .unwrap_err()
+                .kind,
+            ErrorKind::AlreadyExists
+        );
+        assert_eq!(
+            copy_in(&root, &src, "attachments/big.csv", 3)
+                .unwrap_err()
+                .kind,
+            ErrorKind::TooLarge
+        );
+        assert_eq!(
+            copy_in(&root, outside.path(), "attachments/dir", 1024)
+                .unwrap_err()
+                .kind,
+            ErrorKind::NotAFile
+        );
+        let names: Vec<_> = list_dir(&root, "attachments")
+            .unwrap()
+            .into_iter()
+            .map(|e| e.name)
+            .collect();
+        assert_eq!(names, vec!["run1.csv"], "no temp files are left behind");
+    }
+
+    #[test]
+    fn trash_refuses_the_root_and_missing_items() {
+        let (_d, root) = vault();
+        assert_eq!(trash(&root, "").unwrap_err().kind, ErrorKind::InvalidPath);
+        assert_eq!(
+            trash(&root, "gone.md").unwrap_err().kind,
+            ErrorKind::NotFound
+        );
+        assert_eq!(
+            trash(&root, "../x").unwrap_err().kind,
+            ErrorKind::OutsideVault
+        );
+    }
+
+    /// Really moves a file to the Recycle Bin, so it is skipped by default.
+    /// Run with: cargo test -- --ignored trash_moves
+    #[test]
+    #[ignore]
+    fn trash_moves_a_file_to_the_recycle_bin() {
+        let (_d, root) = vault();
+        write_text_atomic(&root, "benchwork-trash-test.md", "x").unwrap();
+        trash(&root, "benchwork-trash-test.md").unwrap();
+        assert!(!exists(&root, "benchwork-trash-test.md").unwrap());
     }
 }

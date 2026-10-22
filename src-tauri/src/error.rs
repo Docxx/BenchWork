@@ -9,6 +9,10 @@ pub enum ErrorKind {
     NotFound,
     NotADirectory,
     NotAFile,
+    /// The target of a create, rename or copy is already there.
+    AlreadyExists,
+    /// A file is bigger than the caller allowed.
+    TooLarge,
     Io,
 }
 
@@ -30,6 +34,7 @@ impl VaultError {
     pub fn io(context: &str, err: &std::io::Error) -> Self {
         let kind = match err.kind() {
             std::io::ErrorKind::NotFound => ErrorKind::NotFound,
+            std::io::ErrorKind::AlreadyExists => ErrorKind::AlreadyExists,
             _ => ErrorKind::Io,
         };
         Self::new(kind, format!("{context}: {err}"))
