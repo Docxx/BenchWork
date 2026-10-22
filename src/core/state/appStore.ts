@@ -6,12 +6,14 @@ import { createStoreContext } from './context';
 import { createModulesSlice, type ModulesSlice } from './modulesSlice';
 import { createNotebookSlice, type NotebookSlice } from './notebookSlice';
 import { createPageSlice, type PageSlice } from './pageSlice';
+import { createSearchSlice, type SearchSlice } from './searchSlice';
 import { createSettingsSlice, type SettingsSlice } from './settingsSlice';
 import { createTreeSlice, type TreeSlice } from './treeSlice';
 import { createVaultSlice, type VaultSlice } from './vaultSlice';
 
 export { describeError } from './context';
 export type { PendingModuleChange } from './modulesSlice';
+export type { SearchResult } from './searchSlice';
 export { LINK_THRESHOLD_RANGE, type View } from './settingsSlice';
 export type { PickMode, VaultStatus } from './vaultSlice';
 
@@ -20,6 +22,7 @@ export type AppState = VaultSlice &
   TreeSlice &
   NotebookSlice &
   PageSlice &
+  SearchSlice &
   SettingsSlice &
   ModulesSlice;
 
@@ -46,6 +49,7 @@ export function createAppStore(
       ...createTreeSlice(ctx),
       ...createNotebookSlice(ctx),
       ...createPageSlice(ctx),
+      ...createSearchSlice(ctx),
       ...createSettingsSlice(ctx),
       ...createModulesSlice(ctx),
     };

@@ -189,6 +189,26 @@ function VaultSettings({ vault }: { vault: OpenVault }) {
           with a checksum. Saved in this vault.
         </p>
       </div>
+
+      <SearchIndexSettings />
     </>
+  );
+}
+
+function SearchIndexSettings() {
+  const rebuild = useApp((s) => s.rebuildIndex);
+  const progress = useApp((s) => s.indexProgress);
+  const busy = progress.state === 'indexing';
+
+  return (
+    <div className="field">
+      <span className="label">Search</span>
+      <button type="button" disabled={busy} onClick={() => void rebuild()}>
+        {busy ? 'Indexing…' : 'Rebuild search index'}
+      </button>
+      <p className="hint">
+        Reads every page again. Use this if search misses something. Your pages are not changed.
+      </p>
+    </div>
   );
 }

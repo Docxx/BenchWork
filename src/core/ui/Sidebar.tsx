@@ -2,6 +2,7 @@ import type { OpenVault } from '../vault/vaultService';
 import { useApp } from './AppStoreContext';
 import { ModulePanels } from './ModulePanels';
 import { NotebookTree } from './NotebookTree';
+import { SearchBox, SearchResults } from './SearchPanel';
 
 /** Name shown for a vault: the last part of its folder path. */
 export function vaultName(root: string): string {
@@ -18,6 +19,7 @@ export function Sidebar({ vault }: { vault: OpenVault }) {
   const setRenaming = useApp((s) => s.setRenaming);
   const notice = useApp((s) => s.sidebarNotice);
   const dismissNotice = useApp((s) => s.dismissSidebarNotice);
+  const results = useApp((s) => s.searchResults);
 
   return (
     <nav className="sidebar" aria-label="Vault">
@@ -56,8 +58,9 @@ export function Sidebar({ vault }: { vault: OpenVault }) {
           </button>
         </div>
       )}
+      <SearchBox />
       <div className="sidebar-body">
-        <NotebookTree />
+        {results === null ? <NotebookTree /> : <SearchResults results={results} />}
       </div>
       <ModulePanels />
       <footer className="sidebar-footer">
