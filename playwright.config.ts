@@ -9,13 +9,13 @@ export default defineConfig({
   fullyParallel: true,
   reporter: 'list',
   use: {
-    baseURL: `http://localhost:${String(PORT)}`,
+    baseURL: `http://127.0.0.1:${String(PORT)}`,
     trace: 'retain-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     command: `pnpm dev --port ${String(PORT)}`,
-    url: `http://localhost:${String(PORT)}`,
+    url: `http://127.0.0.1:${String(PORT)}`,
     reuseExistingServer: false,
     env: { VITE_PLATFORM: 'memory' },
   },

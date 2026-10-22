@@ -3,7 +3,11 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 // Tauri expects a fixed dev port and reads TAURI_ENV_* variables.
+// TAURI_DEV_HOST is set only for device builds (Android), which must reach
+// the server over Wi-Fi. Otherwise listen on loopback only, so Node never
+// accepts network connections.
 const host = process.env['TAURI_DEV_HOST'];
+const LOOPBACK = '127.0.0.1';
 
 export default defineConfig({
   plugins: [react()],
@@ -17,7 +21,7 @@ export default defineConfig({
   server: {
     port: 1420,
     strictPort: true,
-    host: host ?? false,
+    host: host ?? LOOPBACK,
     ...(host ? { hmr: { protocol: 'ws', host, port: 1421 } } : {}),
     watch: { ignored: ['**/src-tauri/**'] },
   },
