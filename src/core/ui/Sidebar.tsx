@@ -30,7 +30,7 @@ export function Sidebar({ vault }: { vault: OpenVault }) {
         <FileTree />
       </div>
       <footer className="sidebar-footer">
-        <button type="button" className="quiet" onClick={closeVault}>
+        <button type="button" className="quiet" onClick={() => void closeVault()}>
           Switch vault
         </button>
       </footer>

@@ -8,7 +8,7 @@ Current phase: **Phase 0**
 - [x] Open or create a vault folder; remember last vault
 - [x] File tree sidebar
 - [ ] Settings page (theme, vault options)
-- [ ] Module registry, manifest format and src/core/api stub
+- [x] Module registry, manifest format and src/core/api stub
 - [ ] Modules panel with on/off toggles, saved to .benchwork/config.json
 - [ ] Dummy module proving toggle on/off without touching vault files
 - [ ] Exit check: app builds on desktop, dummy module toggles cleanly

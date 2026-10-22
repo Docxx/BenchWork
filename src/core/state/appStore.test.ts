@@ -1,4 +1,7 @@
 // @vitest-environment node
+import { createContributions } from '../modules/contributions';
+import { ModuleRegistry } from '../modules/registry';
+import { fakeModule } from '../modules/testModules';
 import { MemoryAdapter } from '../platform/memory';
 import { VAULT_CONFIG_PATH } from '../vault/vaultConfig';
 import { createAppStore } from './appStore';
@@ -159,8 +162,40 @@ describe('app store: choosing a folder', () => {
     await state().start();
     platform.queuePick('C:/A');
     await state().chooseFolder('new');
-    state().closeVault();
+    await state().closeVault();
     expect(state().status.kind).toBe('no-vault');
     expect(state().settings.lastVault).toBe('C:/A');
+  });
+});
+
+describe('app store: modules', () => {
+  it('starts the modules a vault has on when it opens, and stops them on close', async () => {
+    const events: string[] = [];
+    const platform = new MemoryAdapter({
+      folders: {
+        'C:/Vault': {
+          [VAULT_CONFIG_PATH]: JSON.stringify({
+            version: 1,
+            modules: { hello: { enabled: true } },
+          }),
+          'notes.md': 'keep me',
+        },
+      },
+    });
+    const registry = new ModuleRegistry([fakeModule('hello', events)], [], {
+      platform,
+      device: 'desktop',
+      contributions: createContributions(),
+    });
+    const store = createAppStore(platform, registry);
+    await store.getState().start();
+    platform.queuePick('C:/Vault');
+    await store.getState().chooseFolder('open');
+    expect(registry.get('hello')?.status).toBe('on');
+
+    await store.getState().closeVault();
+    expect(registry.get('hello')?.status).toBe('off');
+    expect(events).toEqual(['activate hello', 'deactivate hello', 'dispose hello']);
+    expect(platform.snapshot('C:/Vault')['notes.md']).toBe('keep me');
   });
 });

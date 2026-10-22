@@ -100,7 +100,7 @@ describe('file tree state', () => {
   it('starts fresh when switching vault', async () => {
     const { state } = await openVault();
     await state().toggleFolder('LPS model');
-    state().closeVault();
+    await state().closeVault();
     expect(state().tree.expanded).toEqual([]);
     expect(state().tree.folders).toEqual({});
   });
@@ -117,9 +117,9 @@ describe('file tree state', () => {
     };
 
     const pending = state().toggleFolder('LPS model');
-    state().closeVault();
+    const closing = state().closeVault();
     release();
-    await pending;
+    await Promise.all([pending, closing]);
     expect(state().tree.folders).toEqual({});
   });
 

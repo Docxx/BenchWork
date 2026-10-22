@@ -1,4 +1,6 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
+import { createContributions } from '../modules/contributions';
+import { ModuleRegistry } from '../modules/registry';
 import { PlatformError, type PlatformAdapter } from '../platform';
 import {
   defaultAppSettings,
@@ -38,8 +40,11 @@ export interface AppState {
   chooseFolder: (mode: PickMode) => Promise<void>;
   confirmFolder: () => Promise<void>;
   cancelFolder: () => void;
-  /** Closes the vault and returns to the picker. The last vault is still remembered. */
-  closeVault: () => void;
+  /**
+   * Stops all modules, closes the vault and returns to the picker. The last
+   * vault is still remembered.
+   */
+  closeVault: () => Promise<void>;
 
   /** Opens or closes a folder in the tree, loading it the first time. */
   toggleFolder: (path: string) => Promise<void>;
@@ -69,7 +74,18 @@ export function describeError(err: unknown): string {
   }
 }
 
-export function createAppStore(platform: PlatformAdapter): AppStore {
+/**
+ * @param registry the app's modules. Tests may leave it out for a registry
+ *   with no modules.
+ */
+export function createAppStore(
+  platform: PlatformAdapter,
+  registry: ModuleRegistry = new ModuleRegistry([], [], {
+    platform,
+    device: platform.kind,
+    contributions: createContributions(),
+  }),
+): AppStore {
   return createStore<AppState>()((set, get) => {
     /**
      * Bumped whenever a vault opens or closes, so a folder listing that
@@ -132,6 +148,7 @@ export function createAppStore(platform: PlatformAdapter): AppStore {
       session += 1;
       set({ status: { kind: 'open', vault: { root, config } }, notice: null, tree: emptyTree() });
       await loadFolder('');
+      await registry.activateFromConfig(config);
 
       const settings = { ...get().settings, lastVault: root };
       set({ settings });
@@ -201,11 +218,14 @@ export function createAppStore(platform: PlatformAdapter): AppStore {
         if (get().status.kind === 'confirm-folder') set({ status: { kind: 'no-vault' } });
       },
 
-      closeVault: () => {
-        if (get().status.kind !== 'open') return;
-        session += 1;
-        set({ status: { kind: 'no-vault' }, notice: null, tree: emptyTree() });
-      },
+      closeVault: () =>
+        guarded(async () => {
+          if (get().status.kind !== 'open') return;
+          session += 1;
+          // Modules finish with this vault before the platform can point at another.
+          await registry.deactivateAll();
+          set({ status: { kind: 'no-vault' }, notice: null, tree: emptyTree() });
+        }),
 
       toggleFolder: async (path) => {
         if (get().status.kind !== 'open') return;
