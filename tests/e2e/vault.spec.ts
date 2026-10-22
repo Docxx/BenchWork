@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('button', { name: 'New vault' })).toBeVisible();
 });
 
-test('creates a new vault in an empty folder', async ({ page }) => {
+test('creates a new vault in an empty folder, with the sample notebook', async ({ page }) => {
   await seedPick(page, 'C:/Labs/LPS model', {});
   await page.getByRole('button', { name: 'New vault' }).click();
 
@@ -30,6 +30,12 @@ test('creates a new vault in an empty folder', async ({ page }) => {
   expect(Object.keys((await snapshot(page, 'C:/Labs/LPS model')) ?? {})).toEqual([
     '.benchwork',
     '.benchwork/config.json',
+    'Getting started',
+    'Getting started/Example lab notes',
+    'Getting started/Example lab notes/Example experiment.md',
+    'Getting started/Welcome.md',
+    'templates',
+    'templates/Experiment.md',
   ]);
 });
 

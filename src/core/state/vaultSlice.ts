@@ -4,6 +4,7 @@ import {
   saveAppSettings,
   type AppSettings,
 } from '../settings/appSettings';
+import { createSampleNotebook } from '../vault/sampleNotebook';
 import {
   checkFolder,
   initialiseVault,
@@ -68,9 +69,13 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
     }
   }
 
-  /** Sets up and opens the folder the platform currently points at. */
-  async function openCurrent(root: string): Promise<void> {
+  /**
+   * Sets up and opens the folder the platform currently points at. A new
+   * vault in an empty folder also gets the sample notebook.
+   */
+  async function openCurrent(root: string, empty = false): Promise<void> {
     await initialiseVault(platform);
+    if (empty) await createSampleNotebook(platform);
     const config = await loadVaultConfig(platform);
     ctx.bumpSession();
     set({ status: { kind: 'open', vault: { root, config } }, notice: null });
@@ -134,7 +139,7 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
             notice: null,
           });
         } else {
-          await openCurrent(check.root);
+          await openCurrent(check.root, check.kind === 'empty');
         }
       }),
 
