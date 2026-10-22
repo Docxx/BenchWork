@@ -1,6 +1,15 @@
-import { clearMocks, mockIPC } from '@tauri-apps/api/mocks';
+import { clearMocks, mockConvertFileSrc, mockIPC } from '@tauri-apps/api/mocks';
 import { PlatformError } from './errors';
-import { TauriAdapter } from './tauri';
+import { fullPath, TauriAdapter } from './tauri';
+
+describe('fullPath', () => {
+  it('joins with the separator the vault path uses', () => {
+    expect(fullPath('C:\\Vault', 'Notes/a.md')).toBe('C:\\Vault\\Notes\\a.md');
+    expect(fullPath('C:\\', 'a.md')).toBe('C:\\a.md');
+    expect(fullPath('/home/ray/Vault', 'Notes/a.md')).toBe('/home/ray/Vault/Notes/a.md');
+    expect(fullPath('/home/ray/Vault', '')).toBe('/home/ray/Vault');
+  });
+});
 
 interface Call {
   cmd: string;
@@ -47,6 +56,59 @@ describe('TauriAdapter', () => {
     const calls = record((cmd) => (cmd === 'find_vault_root' ? answer : null));
     expect(await new TauriAdapter().findVaultRoot('C:\\Docs\\.benchwork')).toEqual(answer);
     expect(calls).toEqual([{ cmd: 'find_vault_root', args: { path: 'C:\\Docs\\.benchwork' } }]);
+  });
+
+  it('sends the Phase 1 file commands with normalised paths', async () => {
+    const calls = record((cmd) => (cmd === 'copy_in' ? 7 : null));
+    const adapter = new TauriAdapter();
+    await adapter.createNew('./Notes//New.md', 'text');
+    await adapter.rename('Notes/a.md', 'Archive/a.md');
+    expect(await adapter.copyIn('D:\\Data\\run1.csv', 'attachments/run1.csv', 1024)).toBe(7);
+    await adapter.trash('Notes/old.md');
+    expect(calls).toEqual([
+      { cmd: 'create_new', args: { path: 'Notes/New.md', text: 'text' } },
+      { cmd: 'rename', args: { from: 'Notes/a.md', to: 'Archive/a.md' } },
+      {
+        cmd: 'copy_in',
+        args: { external: 'D:\\Data\\run1.csv', to: 'attachments/run1.csv', maxBytes: 1024 },
+      },
+      { cmd: 'trash', args: { path: 'Notes/old.md' } },
+    ]);
+  });
+
+  it('sends bytes as the raw body with the path in a header', async () => {
+    record();
+    // mockIPC does not pass request options on, so look one level lower.
+    const internals = (
+      window as unknown as {
+        __TAURI_INTERNALS__: { invoke: (cmd: string, args: unknown, options: unknown) => unknown };
+      }
+    ).__TAURI_INTERNALS__;
+    const original = internals.invoke.bind(internals);
+    let seen: { cmd: string; args: unknown; options: unknown } | null = null;
+    internals.invoke = (cmd, args, options) => {
+      seen = { cmd, args, options };
+      return original(cmd, args, options);
+    };
+
+    const data = new Uint8Array([1, 2, 3]);
+    await new TauriAdapter().writeBytes('attachments/Pasted image été.png', data);
+    expect(seen).toEqual({
+      cmd: 'write_bytes',
+      args: data,
+      options: { headers: { 'x-vault-path': 'attachments%2FPasted%20image%20%C3%A9t%C3%A9.png' } },
+    });
+  });
+
+  it('builds asset URLs from the vault path once a vault is open', async () => {
+    record((cmd) => (cmd === 'set_vault_root' ? 'C:\\Labs\\Vault' : null));
+    mockConvertFileSrc('windows');
+    const adapter = new TauriAdapter();
+    expect(adapter.assetUrl('a.png')).toBeNull();
+    await adapter.setVaultRoot('C:\\Labs\\Vault');
+    expect(decodeURIComponent(adapter.assetUrl('attachments/shot one.png') ?? '')).toContain(
+      'C:\\Labs\\Vault\\attachments\\shot one.png',
+    );
   });
 
   it('rejects bad paths before calling Rust', async () => {

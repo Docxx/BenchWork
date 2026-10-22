@@ -1,12 +1,17 @@
-import { invoke } from '@tauri-apps/api/core';
+import { convertFileSrc, invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
 import { PlatformError } from './errors';
-import type { DeviceKind, DirEntry, PlatformAdapter, VaultOwner } from './types';
+import type { DeviceKind, DirEntry, PlatformAdapter, VaultChange, VaultOwner } from './types';
 import { normaliseVaultPath } from './vaultPath';
 
+/** Matches CHANGE_EVENT in src-tauri/src/watcher.rs. */
+const CHANGE_EVENT = 'vault-change';
+
 /**
- * Arguments are built lazily so a path that fails `normaliseVaultPath`
- * becomes a rejected promise rather than a synchronous throw.
+ * Runs a command, turning failures into PlatformErrors. Arguments are built
+ * lazily so a path that fails `normaliseVaultPath` becomes a rejected
+ * promise rather than a synchronous throw.
  */
 async function call<T>(command: string, args?: () => Record<string, unknown>): Promise<T> {
   try {
@@ -20,6 +25,14 @@ function detectKind(): DeviceKind {
   return /Android/i.test(navigator.userAgent) ? 'tablet' : 'desktop';
 }
 
+/** Joins a vault-relative path onto the vault's full path, with its separator. */
+export function fullPath(root: string, path: string): string {
+  if (path === '') return root;
+  const sep = root.includes('\\') ? '\\' : '/';
+  const base = root.endsWith(sep) ? root.slice(0, -1) : root;
+  return `${base}${sep}${path.split('/').join(sep)}`;
+}
+
 /**
  * Talks to the Rust commands in src-tauri/src/lib.rs. Paths are checked here
  * first for quick, consistent errors; the Rust path guard checks them again
@@ -27,6 +40,8 @@ function detectKind(): DeviceKind {
  */
 export class TauriAdapter implements PlatformAdapter {
   readonly kind: DeviceKind = detectKind();
+  /** Full path of the open vault, as Rust reported it. */
+  private root: string | null = null;
 
   async pickFolder(options: { title: string }): Promise<string | null> {
     try {
@@ -41,8 +56,10 @@ export class TauriAdapter implements PlatformAdapter {
     return call('find_vault_root', () => ({ path }));
   }
 
-  setVaultRoot(root: string): Promise<string> {
-    return call('set_vault_root', () => ({ root }));
+  async setVaultRoot(root: string): Promise<string> {
+    const display = await call<string>('set_vault_root', () => ({ root }));
+    this.root = display;
+    return display;
   }
 
   listDir(path: string): Promise<DirEntry[]> {
@@ -63,6 +80,58 @@ export class TauriAdapter implements PlatformAdapter {
 
   exists(path: string): Promise<boolean> {
     return call('exists', () => ({ path: normaliseVaultPath(path) }));
+  }
+
+  createNew(path: string, text: string): Promise<void> {
+    return call('create_new', () => ({ path: normaliseVaultPath(path), text }));
+  }
+
+  rename(from: string, to: string): Promise<void> {
+    return call('rename', () => ({ from: normaliseVaultPath(from), to: normaliseVaultPath(to) }));
+  }
+
+  async writeBytes(path: string, data: Uint8Array): Promise<void> {
+    try {
+      // Sent as the raw body; the path goes in a header, encoded because
+      // header values must be ASCII.
+      const header = encodeURIComponent(normaliseVaultPath(path));
+      await invoke('write_bytes', data, { headers: { 'x-vault-path': header } });
+    } catch (err) {
+      throw PlatformError.from(err);
+    }
+  }
+
+  copyIn(externalPath: string, to: string, maxBytes: number): Promise<number> {
+    return call('copy_in', () => ({
+      external: externalPath,
+      to: normaliseVaultPath(to),
+      maxBytes,
+    }));
+  }
+
+  trash(path: string): Promise<void> {
+    return call('trash', () => ({ path: normaliseVaultPath(path) }));
+  }
+
+  watch(listener: (change: VaultChange) => void): () => void {
+    let stopped = false;
+    let unlisten: (() => void) | null = null;
+    void listen<{ root: string; paths: string[] }>(CHANGE_EVENT, (event) => {
+      // Ignore changes from a vault that has since been closed.
+      if (event.payload.root === this.root) listener({ paths: event.payload.paths });
+    }).then((fn) => {
+      if (stopped) fn();
+      else unlisten = fn;
+    });
+    return () => {
+      stopped = true;
+      unlisten?.();
+    };
+  }
+
+  assetUrl(path: string): string | null {
+    if (this.root === null) return null;
+    return convertFileSrc(fullPath(this.root, normaliseVaultPath(path)));
   }
 
   loadAppSettings(): Promise<unknown> {

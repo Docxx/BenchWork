@@ -1,6 +1,14 @@
 /** Matches `ErrorKind` in src-tauri/src/error.rs. */
 export type PlatformErrorKind =
-  'NoVault' | 'InvalidPath' | 'OutsideVault' | 'NotFound' | 'NotADirectory' | 'NotAFile' | 'Io';
+  | 'NoVault'
+  | 'InvalidPath'
+  | 'OutsideVault'
+  | 'NotFound'
+  | 'NotADirectory'
+  | 'NotAFile'
+  | 'AlreadyExists'
+  | 'TooLarge'
+  | 'Io';
 
 const KINDS: ReadonlySet<string> = new Set<PlatformErrorKind>([
   'NoVault',
@@ -9,6 +17,8 @@ const KINDS: ReadonlySet<string> = new Set<PlatformErrorKind>([
   'NotFound',
   'NotADirectory',
   'NotAFile',
+  'AlreadyExists',
+  'TooLarge',
   'Io',
 ]);
 

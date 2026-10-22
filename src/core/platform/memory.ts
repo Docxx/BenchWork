@@ -1,14 +1,15 @@
 import { PlatformError } from './errors';
-import type { DeviceKind, DirEntry, PlatformAdapter, VaultOwner } from './types';
+import type { DeviceKind, DirEntry, PlatformAdapter, VaultChange, VaultOwner } from './types';
 import { baseName, normaliseVaultPath, parentVaultPath } from './vaultPath';
 
 type MemoryNode =
-  { kind: 'dir'; modified: number } | { kind: 'file'; text: string; modified: number };
+  { kind: 'dir'; modified: number } | { kind: 'file'; bytes: Uint8Array; modified: number };
 
 /** The parts of a Map the adapter uses, so a subfolder can stand in for a whole folder. */
 interface NodeStore extends Iterable<[string, MemoryNode]> {
   get(path: string): MemoryNode | undefined;
   set(path: string, node: MemoryNode): void;
+  delete(path: string): void;
   has(path: string): boolean;
 }
 
@@ -19,6 +20,9 @@ function prefixedNodes(nodes: Map<string, MemoryNode>, prefix: string): NodeStor
     get: (path) => nodes.get(full(path)),
     set: (path, node) => {
       nodes.set(full(path), node);
+    },
+    delete: (path) => {
+      nodes.delete(full(path));
     },
     has: (path) => nodes.has(full(path)),
     *[Symbol.iterator]() {
@@ -46,14 +50,43 @@ const VAULT_DIR_NAME = '.benchwork';
 /** Folder returned by pickFolder when no result has been queued. */
 export const DEFAULT_MEMORY_FOLDER = 'memory://Vault';
 
+const encoder = new TextEncoder();
+const strictDecoder = new TextDecoder('utf-8', { fatal: true });
+
+const MIME_TYPES: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+};
+
+/** Same rule as `ignored` in src-tauri/src/watcher.rs. */
+function ignoredChange(path: string): boolean {
+  if (path === '.benchwork') return true;
+  if (path.startsWith('.benchwork/') && path !== '.benchwork/config.json') return true;
+  const name = baseName(path);
+  return name.startsWith('.') && name.endsWith('.tmp');
+}
+
+function byName(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 /**
  * An in-memory PlatformAdapter for unit tests and Playwright runs in a plain
- * browser. It follows the same rules and error kinds as the Rust backend.
+ * browser. It follows the same rules and error kinds as the Rust backend,
+ * and reports its own changes to watchers like the real file watcher does.
  */
 export class MemoryAdapter implements PlatformAdapter {
   readonly kind: DeviceKind;
   private readonly folders = new Map<string, Map<string, MemoryNode>>();
+  private readonly external = new Map<string, Uint8Array>();
   private readonly pickQueue: (string | null)[] = [];
+  private readonly trashBin: string[] = [];
+  private readonly listeners = new Set<(change: VaultChange) => void>();
+  private pendingChanges = new Set<string>();
   private root: string | null = null;
   private appSettings: unknown;
   private clock = 1_700_000_000_000;
@@ -68,7 +101,7 @@ export class MemoryAdapter implements PlatformAdapter {
 
   // ---- Test helpers ----
 
-  /** Creates a folder on the fake disk, with optional contents. */
+  /** Creates a folder on the fake disk, with optional contents. Replaces one already there. */
   addFolder(root: string, contents: MemoryFolderContents = {}): void {
     const nodes = new Map<string, MemoryNode>([['', { kind: 'dir', modified: this.tick() }]]);
     this.folders.set(root, nodes);
@@ -76,8 +109,13 @@ export class MemoryAdapter implements PlatformAdapter {
       const path = normaliseVaultPath(rawPath);
       this.makeDirs(nodes, parentVaultPath(path) ?? '');
       if (text === null) this.makeDirs(nodes, path);
-      else nodes.set(path, { kind: 'file', text, modified: this.tick() });
+      else nodes.set(path, { kind: 'file', bytes: encoder.encode(text), modified: this.tick() });
     }
+  }
+
+  /** A file outside any vault, for copyIn (dragged-in files). */
+  addExternalFile(fullPath: string, content: string | Uint8Array): void {
+    this.external.set(fullPath, typeof content === 'string' ? encoder.encode(content) : content);
   }
 
   /** Sets what the next pickFolder calls return; null means the user cancelled. */
@@ -85,15 +123,31 @@ export class MemoryAdapter implements PlatformAdapter {
     this.pickQueue.push(...results);
   }
 
+  /** Vault-relative paths sent to the Recycle Bin, oldest first. */
+  trashed(): string[] {
+    return [...this.trashBin];
+  }
+
+  /** Changes a file as another program would, so watchers hear about it. */
+  externalWrite(path: string, text: string): Promise<void> {
+    return this.writeTextAtomic(path, text);
+  }
+
   /** Every file and folder in a folder (the open vault by default), sorted by path. */
   snapshot(root?: string): MemoryFolderContents {
     const nodes = this.store(root ?? this.root ?? '');
     const out: MemoryFolderContents = {};
-    for (const [path, node] of [...nodes].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+    for (const [path, node] of [...nodes].sort(([a], [b]) => byName(a, b))) {
       if (path === '') continue;
-      out[path] = node.kind === 'file' ? node.text : null;
+      out[path] = node.kind === 'file' ? this.describe(node.bytes) : null;
     }
     return out;
+  }
+
+  /** The raw bytes of a file in the open vault. */
+  bytesOf(path: string): Uint8Array | null {
+    const node = this.vault().get(normaliseVaultPath(path));
+    return node?.kind === 'file' ? node.bytes : null;
   }
 
   // ---- PlatformAdapter ----
@@ -133,6 +187,7 @@ export class MemoryAdapter implements PlatformAdapter {
     return this.run(() => {
       this.locate(root);
       this.root = root;
+      this.pendingChanges = new Set();
       return root;
     });
   }
@@ -149,52 +204,151 @@ export class MemoryAdapter implements PlatformAdapter {
           name: baseName(childPath),
           path: childPath,
           isDir: node.kind === 'dir',
-          size: node.kind === 'file' ? new TextEncoder().encode(node.text).length : 0,
+          size: node.kind === 'file' ? node.bytes.length : 0,
           modified: node.modified,
         });
       }
       // Byte order, like the Rust backend.
-      return entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+      return entries.sort((a, b) => byName(a.name, b.name));
     });
   }
 
   readText(path: string): Promise<string> {
     return this.run(() => {
-      const nodes = this.vault();
       const file = normaliseVaultPath(path);
-      const node = nodes.get(file);
+      const node = this.vault().get(file);
       if (!node) throw new PlatformError('NotFound', `'${file}' does not exist`);
       if (node.kind !== 'file') throw new PlatformError('NotAFile', `'${file}' is a folder`);
-      return node.text;
+      try {
+        return strictDecoder.decode(node.bytes);
+      } catch {
+        throw new PlatformError('Io', `'${file}' is not a text file`);
+      }
     });
   }
 
   writeTextAtomic(path: string, text: string): Promise<void> {
+    return this.writeBytes(path, encoder.encode(text));
+  }
+
+  writeBytes(path: string, data: Uint8Array): Promise<void> {
     return this.run(() => {
       const nodes = this.vault();
       const file = normaliseVaultPath(path);
       if (file === '') throw new PlatformError('NotAFile', 'The vault root is a folder');
-      const parent = parentVaultPath(file) ?? '';
-      const parentNode = nodes.get(parent);
-      if (!parentNode) throw new PlatformError('NotFound', 'Parent folder does not exist');
-      if (parentNode.kind !== 'dir') {
-        throw new PlatformError('NotADirectory', 'The parent of this path is a file');
-      }
+      this.expectParentDir(nodes, file);
       if (nodes.get(file)?.kind === 'dir') {
         throw new PlatformError('NotAFile', 'Cannot write over a folder');
       }
-      nodes.set(file, { kind: 'file', text, modified: this.tick() });
+      nodes.set(file, { kind: 'file', bytes: data.slice(), modified: this.tick() });
+      this.changed(file);
     });
   }
 
   ensureDir(path: string): Promise<void> {
     return this.run(() => {
-      this.makeDirs(this.vault(), normaliseVaultPath(path));
+      this.makeDirs(this.vault(), normaliseVaultPath(path), true);
     });
   }
 
   exists(path: string): Promise<boolean> {
     return this.run(() => this.vault().has(normaliseVaultPath(path)));
+  }
+
+  createNew(path: string, text: string): Promise<void> {
+    return this.run(() => {
+      const nodes = this.vault();
+      const file = normaliseVaultPath(path);
+      if (file === '' || nodes.has(file)) {
+        throw new PlatformError('AlreadyExists', `'${file}' already exists`);
+      }
+      this.expectParentDir(nodes, file);
+      nodes.set(file, { kind: 'file', bytes: encoder.encode(text), modified: this.tick() });
+      this.changed(file);
+    });
+  }
+
+  rename(from: string, to: string): Promise<void> {
+    return this.run(() => {
+      const nodes = this.vault();
+      const src = normaliseVaultPath(from);
+      const dest = normaliseVaultPath(to);
+      if (src === '' || dest === '') {
+        throw new PlatformError('InvalidPath', 'The vault itself cannot be renamed');
+      }
+      if (dest.startsWith(`${src}/`)) {
+        throw new PlatformError('InvalidPath', 'A folder cannot be moved inside itself');
+      }
+      if (!nodes.has(src)) throw new PlatformError('NotFound', `'${src}' does not exist`);
+      if (src === dest) return;
+      this.expectParentDir(nodes, dest);
+      if (nodes.has(dest)) throw new PlatformError('AlreadyExists', `'${dest}' already exists`);
+
+      const moving = [...nodes].filter(([p]) => p === src || p.startsWith(`${src}/`));
+      for (const [p] of moving) nodes.delete(p);
+      for (const [p, node] of moving) {
+        const moved = dest + p.slice(src.length);
+        nodes.set(moved, node);
+        this.changed(p);
+        this.changed(moved);
+      }
+    });
+  }
+
+  copyIn(externalPath: string, to: string, maxBytes: number): Promise<number> {
+    return this.run(() => {
+      const data = this.external.get(externalPath);
+      if (!data) throw new PlatformError('NotFound', `No file '${externalPath}'`);
+      if (data.length > maxBytes) {
+        throw new PlatformError(
+          'TooLarge',
+          `The file is ${String(data.length)} bytes, over the limit of ${String(maxBytes)}`,
+        );
+      }
+      const nodes = this.vault();
+      const dest = normaliseVaultPath(to);
+      this.expectParentDir(nodes, dest);
+      if (nodes.has(dest)) throw new PlatformError('AlreadyExists', `'${dest}' already exists`);
+      nodes.set(dest, { kind: 'file', bytes: data.slice(), modified: this.tick() });
+      this.changed(dest);
+      return data.length;
+    });
+  }
+
+  trash(path: string): Promise<void> {
+    return this.run(() => {
+      const nodes = this.vault();
+      const target = normaliseVaultPath(path);
+      if (target === '') {
+        throw new PlatformError(
+          'InvalidPath',
+          'The vault itself cannot be moved to the Recycle Bin',
+        );
+      }
+      if (!nodes.has(target)) throw new PlatformError('NotFound', `'${target}' does not exist`);
+      for (const [p] of [...nodes]) {
+        if (p === target || p.startsWith(`${target}/`)) {
+          nodes.delete(p);
+          this.changed(p);
+        }
+      }
+      this.trashBin.push(target);
+    });
+  }
+
+  watch(listener: (change: VaultChange) => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  assetUrl(path: string): string | null {
+    const node = this.root === null ? undefined : this.vault().get(normaliseVaultPath(path));
+    if (node?.kind !== 'file' || typeof URL.createObjectURL !== 'function') return null;
+    const ext = baseName(path).split('.').pop()?.toLowerCase() ?? '';
+    const type = MIME_TYPES[ext] ?? 'application/octet-stream';
+    return URL.createObjectURL(new Blob([node.bytes.slice()], { type }));
   }
 
   loadAppSettings(): Promise<unknown> {
@@ -215,6 +369,32 @@ export class MemoryAdapter implements PlatformAdapter {
       return Promise.resolve(work());
     } catch (err) {
       return Promise.reject(PlatformError.from(err));
+    }
+  }
+
+  /**
+   * Queues a change for watchers. Changes made in the same turn are sent
+   * together, a little later, like the real watcher's debouncing.
+   */
+  private changed(path: string): void {
+    if (ignoredChange(path)) return;
+    const first = this.pendingChanges.size === 0;
+    this.pendingChanges.add(path);
+    if (!first) return;
+    const batch = this.pendingChanges;
+    setTimeout(() => {
+      if (batch !== this.pendingChanges || batch.size === 0) return;
+      this.pendingChanges = new Set();
+      const change = { paths: [...batch].sort(byName) };
+      for (const listener of this.listeners) listener(change);
+    }, 0);
+  }
+
+  private describe(bytes: Uint8Array): string {
+    try {
+      return strictDecoder.decode(bytes);
+    } catch {
+      return `[binary ${String(bytes.length)} bytes]`;
     }
   }
 
@@ -252,7 +432,15 @@ export class MemoryAdapter implements PlatformAdapter {
     if (node.kind !== 'dir') throw new PlatformError('NotADirectory', `'${path}' is not a folder`);
   }
 
-  private makeDirs(nodes: NodeStore, path: string): void {
+  private expectParentDir(nodes: NodeStore, path: string): void {
+    const parent = nodes.get(parentVaultPath(path) ?? '');
+    if (!parent) throw new PlatformError('NotFound', 'Parent folder does not exist');
+    if (parent.kind !== 'dir') {
+      throw new PlatformError('NotADirectory', 'The parent of this path is a file');
+    }
+  }
+
+  private makeDirs(nodes: NodeStore, path: string, notify = false): void {
     let current = '';
     for (const part of path === '' ? [] : path.split('/')) {
       current = current === '' ? part : `${current}/${part}`;
@@ -260,7 +448,10 @@ export class MemoryAdapter implements PlatformAdapter {
       if (node?.kind === 'file') {
         throw new PlatformError('NotADirectory', `'${current}' is a file`);
       }
-      if (!node) nodes.set(current, { kind: 'dir', modified: this.tick() });
+      if (!node) {
+        nodes.set(current, { kind: 'dir', modified: this.tick() });
+        if (notify) this.changed(current);
+      }
     }
   }
 

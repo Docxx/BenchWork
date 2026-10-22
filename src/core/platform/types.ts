@@ -30,6 +30,31 @@ export interface PlatformAdapter {
   ensureDir(path: string): Promise<void>;
   exists(path: string): Promise<boolean>;
 
+  /** Creates a file, failing with AlreadyExists rather than overwriting one. */
+  createNew(path: string, text: string): Promise<void>;
+  /**
+   * Renames or moves a file or folder. Fails with AlreadyExists if `to` is
+   * taken (a change of case alone is allowed where names ignore case).
+   */
+  rename(from: string, to: string): Promise<void>;
+  /** Writes binary data, such as a pasted image, safely like writeTextAtomic. */
+  writeBytes(path: string, data: Uint8Array): Promise<void>;
+  /**
+   * Copies a file from outside the vault (a full path, from a drop) to `to`.
+   * Fails with TooLarge over `maxBytes`, AlreadyExists if `to` is taken.
+   * Resolves to the number of bytes copied.
+   */
+  copyIn(externalPath: string, to: string, maxBytes: number): Promise<number>;
+  /** Moves a file or folder to the Recycle Bin. Nothing deletes permanently. */
+  trash(path: string): Promise<void>;
+  /**
+   * Calls `listener` with paths that changed in the open vault, from any
+   * source, BenchWork included. Returns a function that stops listening.
+   */
+  watch(listener: (change: VaultChange) => void): () => void;
+  /** A URL an <img> can load a vault file from, or null if there is none. */
+  assetUrl(path: string): string | null;
+
   /** Per-device settings, stored outside the vault. Null if never saved. */
   loadAppSettings(): Promise<unknown>;
   saveAppSettings(settings: unknown): Promise<void>;
@@ -50,6 +75,11 @@ export interface VaultOwner {
    *   vault or become a separate one
    */
   via: 'selfVault' | 'benchwork' | 'ancestor';
+}
+
+export interface VaultChange {
+  /** Vault-relative paths that were created, changed, moved or removed. */
+  paths: string[];
 }
 
 export interface DirEntry {
