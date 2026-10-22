@@ -129,8 +129,27 @@ async fn index_search(
 async fn index_backlinks(
     keys: Vec<String>,
     state: State<'_, VaultState>,
-) -> VaultResult<Vec<String>> {
+) -> VaultResult<Vec<index::LinkRef>> {
     with_index(&state, |i| i.backlinks(&keys))
+}
+
+#[tauri::command]
+async fn index_pages(state: State<'_, VaultState>) -> VaultResult<Vec<index::PageRef>> {
+    with_index(&state, |i| i.pages())
+}
+
+#[tauri::command]
+async fn index_tags(state: State<'_, VaultState>) -> VaultResult<Vec<index::TagCount>> {
+    with_index(&state, |i| i.tags())
+}
+
+#[tauri::command]
+async fn index_tagged(
+    tag: String,
+    limit: usize,
+    state: State<'_, VaultState>,
+) -> VaultResult<Vec<index::SearchHit>> {
+    with_index(&state, |i| i.tagged(&tag, limit.min(200)))
 }
 
 #[derive(serde::Serialize)]
@@ -308,6 +327,9 @@ pub fn run() {
             index_clear,
             index_search,
             index_backlinks,
+            index_pages,
+            index_tags,
+            index_tagged,
         ])
         .run(tauri::generate_context!())
         .expect("error while running BenchWork");

@@ -4,8 +4,11 @@ import {
   MATCH_START,
   type IndexEntry,
   type IndexedPage,
+  type LinkRef,
+  type PageRef,
   type SearchHit,
   type SearchIndex,
+  type TagCount,
 } from './types';
 
 /**
@@ -14,6 +17,16 @@ import {
  * one (every word, word starts, "quoted phrases", accents ignored, titles
  * first) without trying to match its ranking exactly.
  */
+
+/** Byte order, like SQLite's default. */
+function byText(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** Same rule as `tag_key` in src-tauri/src/index.rs. */
+function tagKey(tag: string): string {
+  return tag.trim().replace(/^#+/, '').toLowerCase();
+}
 
 /** Lower case, accents removed. */
 function fold(text: string): string {
@@ -65,13 +78,13 @@ function snippet(body: string, terms: readonly Term[]): string {
 
 export class MemoryIndex implements SearchIndex {
   private readonly vaults = new Map<string, Map<string, IndexedPage>>();
-  private pages: Map<string, IndexedPage> | null = null;
+  private openPages: Map<string, IndexedPage> | null = null;
 
   constructor(private readonly root: () => string | null) {}
 
   private current(): Map<string, IndexedPage> {
-    if (!this.pages) throw new PlatformError('NoVault', 'The search index is not open');
-    return this.pages;
+    if (!this.openPages) throw new PlatformError('NoVault', 'The search index is not open');
+    return this.openPages;
   }
 
   open(): Promise<{ fresh: boolean }> {
@@ -83,12 +96,12 @@ export class MemoryIndex implements SearchIndex {
       pages = new Map();
       this.vaults.set(root, pages);
     }
-    this.pages = pages;
+    this.openPages = pages;
     return Promise.resolve({ fresh });
   }
 
   close(): Promise<void> {
-    this.pages = null;
+    this.openPages = null;
     return Promise.resolve();
   }
 
@@ -147,13 +160,61 @@ export class MemoryIndex implements SearchIndex {
     });
   }
 
-  backlinks(keys: readonly string[]): Promise<string[]> {
+  backlinks(keys: readonly string[]): Promise<LinkRef[]> {
+    return this.run(() => {
+      const found = new Map<string, LinkRef>();
+      for (const page of this.current().values()) {
+        for (const link of page.links) {
+          if (!keys.includes(link.key)) continue;
+          found.set(`${page.path}\n${link.target}`, { source: page.path, target: link.target });
+        }
+      }
+      return [...found.values()].sort(
+        (a, b) => byText(a.source, b.source) || byText(a.target, b.target),
+      );
+    });
+  }
+
+  pages(): Promise<PageRef[]> {
     return this.run(() =>
       [...this.current().values()]
-        .filter((p) => p.links.some((l) => keys.includes(l.key)))
-        .map((p) => p.path)
-        .sort(),
+        .map((p) => ({ path: p.path, title: p.title, id: p.id }))
+        .sort((a, b) => byText(a.path, b.path)),
     );
+  }
+
+  tags(): Promise<TagCount[]> {
+    return this.run(() => {
+      const counts = new Map<string, { tag: string; paths: Set<string> }>();
+      for (const page of this.current().values()) {
+        for (const tag of page.tags) {
+          const key = tagKey(tag);
+          const entry = counts.get(key) ?? { tag, paths: new Set<string>() };
+          entry.paths.add(page.path);
+          counts.set(key, entry);
+        }
+      }
+      return [...counts.entries()]
+        .sort(([a], [b]) => byText(a, b))
+        .map(([, { tag, paths }]) => ({ tag, count: paths.size }));
+    });
+  }
+
+  tagged(tag: string, limit: number): Promise<SearchHit[]> {
+    return this.run(() => {
+      const key = tagKey(tag);
+      if (key === '') return [];
+      return [...this.current().values()]
+        .filter((p) =>
+          p.tags.some((t) => {
+            const k = tagKey(t);
+            return k === key || k.startsWith(`${key}/`);
+          }),
+        )
+        .sort((a, b) => byText(a.title, b.title) || byText(a.path, b.path))
+        .slice(0, limit)
+        .map((p) => ({ path: p.path, title: p.title, snippet: '' }));
+    });
   }
 
   private run<T>(fn: () => T): Promise<T> {

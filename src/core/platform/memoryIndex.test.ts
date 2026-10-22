@@ -86,3 +86,34 @@ describe('MemoryIndex', () => {
     await expect(index.entries()).rejects.toThrow('not open');
   });
 });
+
+describe('MemoryIndex links and tags', () => {
+  it('lists pages, links and tags like the SQLite index', async () => {
+    const { index } = await openIndex();
+    const a = page('Lab/a.md', 'Alpha', '', ['LPS', 'lab/flies']);
+    a.links = [{ target: 'Plan', key: 'plan', embed: false }];
+    const b = page('b.md', 'Beta', '', ['lps', 'labwork']);
+    b.links = [
+      { target: 'Lab/Plan', key: 'lab/plan', embed: false },
+      { target: 'Lab/Plan', key: 'lab/plan', embed: false },
+    ];
+    await index.apply([a, b], []);
+
+    expect(await index.pages()).toEqual([
+      { path: 'Lab/a.md', title: 'Alpha', id: null },
+      { path: 'b.md', title: 'Beta', id: null },
+    ]);
+    expect(await index.backlinks(['plan', 'lab/plan'])).toEqual([
+      { source: 'Lab/a.md', target: 'Plan' },
+      { source: 'b.md', target: 'Lab/Plan' },
+    ]);
+    expect(await index.tags()).toEqual([
+      { tag: 'lab/flies', count: 1 },
+      { tag: 'labwork', count: 1 },
+      { tag: 'LPS', count: 2 },
+    ]);
+    expect((await index.tagged('#lps', 10)).map((h) => h.title)).toEqual(['Alpha', 'Beta']);
+    expect((await index.tagged('lab', 10)).map((h) => h.title)).toEqual(['Alpha']);
+    expect(await index.tagged('#', 10)).toEqual([]);
+  });
+});

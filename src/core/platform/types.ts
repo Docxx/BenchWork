@@ -83,8 +83,32 @@ export interface SearchIndex {
   clear(): Promise<void>;
   /** Pages matching what someone typed, best first. */
   search(query: string, limit: number): Promise<SearchHit[]>;
-  /** Pages linking to any of `keys` (see linkKey). */
-  backlinks(keys: readonly string[]): Promise<string[]>;
+  /** Links whose key is one of `keys` (see linkKey), with the page each is in. */
+  backlinks(keys: readonly string[]): Promise<LinkRef[]>;
+  /** Every page, sorted by path. */
+  pages(): Promise<PageRef[]>;
+  /** Every tag with how many pages have it; case is ignored. */
+  tags(): Promise<TagCount[]>;
+  /** Pages with `tag` or a tag nested under it, ignoring case, by title. */
+  tagged(tag: string, limit: number): Promise<SearchHit[]>;
+}
+
+export interface LinkRef {
+  /** The page the link is in. */
+  source: string;
+  /** As written. */
+  target: string;
+}
+
+export interface PageRef {
+  path: string;
+  title: string;
+  id: string | null;
+}
+
+export interface TagCount {
+  tag: string;
+  count: number;
 }
 
 export interface IndexEntry {

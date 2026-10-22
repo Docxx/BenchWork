@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::{ErrorKind, VaultError, VaultResult};
 
 /// Bump when the schema changes; older indexes are then rebuilt.
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 
 /// Marks around matched words in snippets. Control characters, so they can
 /// never clash with page text or be read as HTML.
@@ -42,9 +42,9 @@ const SCHEMA: &str = "
     );
     CREATE INDEX links_source ON links (source);
     CREATE INDEX links_key ON links (key);
-    CREATE TABLE tags (path TEXT NOT NULL, tag TEXT NOT NULL);
+    CREATE TABLE tags (path TEXT NOT NULL, tag TEXT NOT NULL, key TEXT NOT NULL);
     CREATE INDEX tags_path ON tags (path);
-    CREATE INDEX tags_tag ON tags (tag);
+    CREATE INDEX tags_key ON tags (key);
     CREATE VIRTUAL TABLE fts USING fts5(
         title, tags, body,
         tokenize = 'unicode61 remove_diacritics 2'
@@ -96,6 +96,30 @@ pub struct SearchHit {
     pub title: String,
     /// Text around the match, with matched words between MATCH_START and MATCH_END.
     pub snippet: String,
+}
+
+/// A link, and the page it is in.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkRef {
+    pub source: String,
+    /// As written in the page.
+    pub target: String,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PageRef {
+    pub path: String,
+    pub title: String,
+    pub id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct TagCount {
+    pub tag: String,
+    pub count: u64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -245,24 +269,104 @@ impl SearchIndex {
             .map_err(|e| db_error("Cannot search", &e))
     }
 
-    /// Pages with a link whose key is one of `keys`, sorted by path.
-    pub fn backlinks(&self, keys: &[String]) -> VaultResult<Vec<String>> {
+    /// Links whose key is one of `keys`, with the page they are in, sorted
+    /// by page. The front end decides which really point at a given page.
+    pub fn backlinks(&self, keys: &[String]) -> VaultResult<Vec<LinkRef>> {
         if keys.is_empty() {
             return Ok(Vec::new());
         }
         let marks = vec!["?"; keys.len()].join(", ");
-        let sql =
-            format!("SELECT DISTINCT source FROM links WHERE key IN ({marks}) ORDER BY source");
+        let sql = format!(
+            "SELECT DISTINCT source, target FROM links WHERE key IN ({marks})
+             ORDER BY source, target"
+        );
+        let err = |e: rusqlite::Error| db_error("Cannot read links", &e);
+        let mut stmt = self.conn.prepare(&sql).map_err(err)?;
+        let rows = stmt
+            .query_map(params_from_iter(keys.iter()), |row| {
+                Ok(LinkRef {
+                    source: row.get(0)?,
+                    target: row.get(1)?,
+                })
+            })
+            .map_err(err)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(err)
+    }
+
+    /// Every page, sorted by path.
+    pub fn pages(&self) -> VaultResult<Vec<PageRef>> {
+        let err = |e: rusqlite::Error| db_error("Cannot read index", &e);
         let mut stmt = self
             .conn
-            .prepare(&sql)
-            .map_err(|e| db_error("Cannot read links", &e))?;
+            .prepare("SELECT path, title, id FROM notes ORDER BY path")
+            .map_err(err)?;
         let rows = stmt
-            .query_map(params_from_iter(keys.iter()), |row| row.get(0))
-            .map_err(|e| db_error("Cannot read links", &e))?;
-        rows.collect::<Result<Vec<String>, _>>()
-            .map_err(|e| db_error("Cannot read links", &e))
+            .query_map([], |row| {
+                Ok(PageRef {
+                    path: row.get(0)?,
+                    title: row.get(1)?,
+                    id: row.get(2)?,
+                })
+            })
+            .map_err(err)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(err)
     }
+
+    /// Every tag with the number of pages that have it. Tags differing only
+    /// in case count as one, shown in one of their spellings.
+    pub fn tags(&self) -> VaultResult<Vec<TagCount>> {
+        let err = |e: rusqlite::Error| db_error("Cannot read tags", &e);
+        let mut stmt = self
+            .conn
+            .prepare("SELECT MIN(tag), COUNT(DISTINCT path) FROM tags GROUP BY key ORDER BY key")
+            .map_err(err)?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(TagCount {
+                    tag: row.get(0)?,
+                    count: row.get::<_, i64>(1)?.max(0) as u64,
+                })
+            })
+            .map_err(err)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(err)
+    }
+
+    /// Pages with `tag` or a tag nested under it (`lab` finds `lab/flies`),
+    /// ignoring case, sorted by title.
+    pub fn tagged(&self, tag: &str, limit: usize) -> VaultResult<Vec<SearchHit>> {
+        let key = tag_key(tag);
+        if key.is_empty() {
+            return Ok(Vec::new());
+        }
+        let err = |e: rusqlite::Error| db_error("Cannot read tags", &e);
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT n.path, n.title FROM notes n
+                 WHERE n.path IN (
+                     SELECT path FROM tags
+                     WHERE key = ?1 OR substr(key, 1, length(?2)) = ?2
+                 )
+                 ORDER BY n.title, n.path
+                 LIMIT ?3",
+            )
+            .map_err(err)?;
+        let rows = stmt
+            .query_map(params![key, format!("{key}/"), limit as i64], |row| {
+                Ok(SearchHit {
+                    path: row.get(0)?,
+                    title: row.get(1)?,
+                    snippet: String::new(),
+                })
+            })
+            .map_err(err)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(err)
+    }
+}
+
+/// How tags are compared: without `#`, ignoring case.
+fn tag_key(tag: &str) -> String {
+    tag.trim().trim_start_matches('#').to_lowercase()
 }
 
 fn configure(conn: &Connection) -> VaultResult<()> {
@@ -346,8 +450,8 @@ fn insert_page(conn: &Connection, page: &IndexedPage) -> VaultResult<()> {
     .map_err(err)?;
     for tag in &page.tags {
         conn.execute(
-            "INSERT INTO tags (path, tag) VALUES (?1, ?2)",
-            params![page.path, tag],
+            "INSERT INTO tags (path, tag, key) VALUES (?1, ?2, ?3)",
+            params![page.path, tag, tag_key(tag)],
         )
         .map_err(err)?;
     }
@@ -579,9 +683,99 @@ mod tests {
             index
                 .backlinks(&["lab/plan".into(), "plan".into()])
                 .unwrap(),
-            ["a.md", "b.md"]
+            [
+                LinkRef {
+                    source: "a.md".into(),
+                    target: "Plan".into()
+                },
+                LinkRef {
+                    source: "b.md".into(),
+                    target: "Lab/Plan".into()
+                },
+            ]
         );
         assert!(index.backlinks(&[]).unwrap().is_empty());
+    }
+
+    #[test]
+    fn lists_pages() {
+        let mut index = SearchIndex::open_in_memory().unwrap();
+        let mut b = page("Lab/b.md", "b", "");
+        b.id = Some("id-b".into());
+        index.apply(&[b, page("a.md", "a", "")], &[]).unwrap();
+        assert_eq!(
+            index.pages().unwrap(),
+            [
+                PageRef {
+                    path: "Lab/b.md".into(),
+                    title: "b".into(),
+                    id: Some("id-b".into())
+                },
+                PageRef {
+                    path: "a.md".into(),
+                    title: "a".into(),
+                    id: None
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn counts_tags_and_finds_tagged_pages_ignoring_case() {
+        let mut index = SearchIndex::open_in_memory().unwrap();
+        let mut a = page("a.md", "Alpha", "");
+        a.tags = vec!["LPS".into(), "lab/flies".into()];
+        let mut b = page("b.md", "Beta", "");
+        b.tags = vec!["lps".into(), "labwork".into()];
+        index
+            .apply(&[a, b, page("c.md", "Gamma", "")], &[])
+            .unwrap();
+
+        let counts: Vec<(String, u64)> = index
+            .tags()
+            .unwrap()
+            .into_iter()
+            .map(|t| (t.tag.to_lowercase(), t.count))
+            .collect();
+        assert_eq!(
+            counts,
+            [
+                ("lab/flies".into(), 1),
+                ("labwork".into(), 1),
+                ("lps".into(), 2)
+            ]
+        );
+
+        let titles = |tag: &str| -> Vec<String> {
+            index
+                .tagged(tag, 10)
+                .unwrap()
+                .into_iter()
+                .map(|h| h.title)
+                .collect()
+        };
+        assert_eq!(titles("#Lps"), ["Alpha", "Beta"]);
+        // Nested tags count, but not tags that only start the same way.
+        assert_eq!(titles("lab"), ["Alpha"]);
+        assert!(titles("#").is_empty());
+    }
+
+    #[test]
+    fn rebuilds_an_index_from_another_version() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("index.sqlite");
+        {
+            let (index, _) = SearchIndex::open(&file).unwrap();
+            index
+                .conn
+                .execute(
+                    "UPDATE meta SET value = '1' WHERE key = 'schema_version'",
+                    [],
+                )
+                .unwrap();
+        }
+        let (_, info) = SearchIndex::open(&file).unwrap();
+        assert!(info.fresh);
     }
 
     #[test]

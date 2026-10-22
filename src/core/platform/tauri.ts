@@ -55,6 +55,9 @@ const tauriIndex: SearchIndex = {
   clear: () => call('index_clear'),
   search: (query, limit) => call('index_search', () => ({ query, limit })),
   backlinks: (keys) => call('index_backlinks', () => ({ keys })),
+  pages: () => call('index_pages'),
+  tags: () => call('index_tags'),
+  tagged: (tag, limit) => call('index_tagged', () => ({ tag, limit })),
 };
 
 export class TauriAdapter implements PlatformAdapter {

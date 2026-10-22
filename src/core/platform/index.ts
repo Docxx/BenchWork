@@ -11,9 +11,12 @@ export type {
   IndexedLink,
   IndexedPage,
   IndexEntry,
+  LinkRef,
+  PageRef,
   PlatformAdapter,
   SearchHit,
   SearchIndex,
+  TagCount,
   VaultChange,
   VaultOwner,
 } from './types';
