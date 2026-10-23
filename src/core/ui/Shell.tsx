@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { OpenVault } from '../vault/vaultService';
 import { useApp } from './AppStoreContext';
+import { CommandList, TextPromptDialog } from './ModuleDialogs';
 import { PageView } from './PageView';
 import { SettingsPage } from './SettingsPage';
 import { Sidebar } from './Sidebar';
@@ -10,8 +11,12 @@ export function Shell({ vault }: { vault: OpenVault }) {
   const view = useApp((s) => s.view);
   const focusSearch = useApp((s) => s.focusSearch);
   const openToday = useApp((s) => s.openToday);
+  const [showCommands, setShowCommands] = useState(false);
+  const closeCommands = useCallback(() => {
+    setShowCommands(false);
+  }, []);
 
-  // Ctrl+E searches, as in OneNote; Ctrl+Shift+D opens today's page.
+  // Ctrl+E searches, as in OneNote; Ctrl+Shift+D opens today's page; Ctrl+K lists commands.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
@@ -22,6 +27,9 @@ export function Shell({ vault }: { vault: OpenVault }) {
       } else if (e.shiftKey && key === 'd') {
         e.preventDefault();
         void openToday();
+      } else if (!e.shiftKey && key === 'k') {
+        e.preventDefault();
+        setShowCommands(true);
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -36,6 +44,8 @@ export function Shell({ vault }: { vault: OpenVault }) {
       <main className="shell-main">
         {view === 'settings' ? <SettingsPage vault={vault} /> : <PageView />}
       </main>
+      {showCommands && <CommandList onClose={closeCommands} />}
+      <TextPromptDialog />
     </div>
   );
 }

@@ -54,6 +54,11 @@ export function NotebookTree() {
   const openPage = useApp((s) => s.openPage);
   const saveAsTemplate = useApp((s) => s.saveAsTemplate);
   const createFromTemplate = useApp((s) => s.createFromTemplate);
+  const createTypedPage = useApp((s) => s.createTypedPage);
+  const pageTypes = useApp((s) => s.pageTypes);
+  const commands = useApp((s) => s.commands);
+  const runCommand = useApp((s) => s.runCommand);
+  const openPath = useApp((s) => s.openPath);
 
   const options = useMemo(() => ({ showAllFiles }), [showAllFiles]);
   const rows = useMemo(() => notebookRows(tree, options), [tree, options]);
@@ -102,6 +107,7 @@ export function NotebookTree() {
     selectEntry(row.node.path);
     if (row.node.isDir) void toggleFolder(row.node.path);
     else if (row.node.kind === 'page') void openPage(row.node.path);
+    else void openPath(row.node.path);
   }
 
   function openMenuAt(node: NotebookNode | null, x: number, y: number): void {
@@ -114,7 +120,10 @@ export function NotebookTree() {
 
   function menuItems(node: NotebookNode | null): MenuItem[] {
     if (node === null) {
-      return [{ label: 'New notebook', onSelect: () => void createThenRename(createNotebook()) }];
+      return [
+        { label: 'New notebook', onSelect: () => void createThenRename(createNotebook()) },
+        ...commandItems('new', null),
+      ];
     }
     const common: MenuItem[] = [
       {
@@ -147,9 +156,21 @@ export function NotebookTree() {
           setTemplateFolder(node.path);
         },
       },
+      ...pageTypes.map((t) => ({
+        label: `New ${t.name.toLowerCase()}`,
+        onSelect: () => void createThenRename(createTypedPage(node.path, t.type)),
+      })),
       { label: 'New section', onSelect: () => void createThenRename(createSection(node.path)) },
+      ...commandItems('folder', node.path),
       ...common,
     ];
+  }
+
+  /** Module commands for a menu. */
+  function commandItems(place: 'new' | 'folder', folder: string | null): MenuItem[] {
+    return commands
+      .filter((c) => c.places?.includes(place) === true)
+      .map((c) => ({ label: c.title, onSelect: () => void runCommand(c.id, { folder }) }));
   }
 
   function colourSwatches(node: NotebookNode) {

@@ -103,6 +103,26 @@ export type MetaChanges = Partial<Omit<PageMeta, 'tags'>> & { tags?: string[] };
  * broken block is never overwritten.
  */
 export function updateMeta(page: ParsedPage, changes: MetaChanges): ParsedPage {
+  return updateProperties(page, changes);
+}
+
+/** Frontmatter as plain data: every key, not only the known ones. Empty if unreadable. */
+export function pageProperties(page: ParsedPage): Record<string, unknown> {
+  if (page.yaml === null || page.error !== null) return {};
+  const data: unknown = parseDocument(page.yaml).toJS();
+  return typeof data === 'object' && data !== null && !Array.isArray(data)
+    ? (data as Record<string, unknown>)
+    : {};
+}
+
+/**
+ * Like updateMeta, for any keys: sets them, keeping every other key and
+ * comment. `null` or an empty list removes a key.
+ */
+export function updateProperties(
+  page: ParsedPage,
+  changes: Readonly<Record<string, unknown>>,
+): ParsedPage {
   if (page.error !== null) {
     throw new Error(`The page settings could not be read, so they were left alone: ${page.error}`);
   }
@@ -110,9 +130,7 @@ export function updateMeta(page: ParsedPage, changes: MetaChanges): ParsedPage {
   if (doc.contents !== null && !isMap(doc.contents)) {
     throw new Error('The page settings are not a list of keys, so they were left alone');
   }
-  const entries = (Object.entries(changes) as [keyof MetaChanges, unknown][]).filter(
-    ([, v]) => v !== undefined,
-  );
+  const entries = Object.entries(changes).filter(([, v]) => v !== undefined);
 
   // Prefer editing just the lines for these keys, so every other line stays
   // exactly as the person wrote it. Fall back to reprinting the block.
@@ -141,6 +159,8 @@ function isRemoval(value: unknown): boolean {
 function editLines(yaml: string, entries: [string, unknown][]): string | null {
   let lines = yaml === '' ? [] : yaml.split('\n');
   for (const [key, value] of entries) {
+    // Keys that would need quoting are left to the reprint.
+    if (!/^[A-Za-z_][\w-]*$/.test(key)) return null;
     const start = lines.findIndex((l) => new RegExp(`^${key}\\s*:`).test(l));
     let end = start + 1;
     if (start !== -1) {

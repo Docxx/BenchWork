@@ -184,8 +184,7 @@ export function createLinksSlice(ctx: StoreContext): LinksSlice {
       const from = get().page?.path ?? null;
       const found = resolveLink(target, from, get().pageRefs);
       if (found) {
-        get().showView('files');
-        await get().openPage(found.path);
+        await get().openPath(found.path);
         return;
       }
       // A new page: in the folder the link names, if it exists, else beside this page.

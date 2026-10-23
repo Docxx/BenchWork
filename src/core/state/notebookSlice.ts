@@ -1,13 +1,15 @@
 import {
   createFolder,
   createPage,
+  freeName,
   moveItem,
   NameError,
   recycleItem,
   renameItem,
   setColour,
 } from '../notebooks/notebookService';
-import { folderNodes } from '../notebooks/notebookTree';
+import { folderNodes, PAGE_EXTENSION, pageTitle } from '../notebooks/notebookTree';
+import { typedPageText } from '../pages/pageTypes';
 import { parentVaultPath, PlatformError } from '../platform';
 import type { StoreContext } from './context';
 import type { RelinkPlan } from './linksSlice';
@@ -29,6 +31,11 @@ export interface NotebookSlice {
   createSection: (parent: string, title?: string) => Promise<string | null>;
   /** With no title, the page is called "Untitled page" (or "Untitled page 2", and so on). */
   createPage: (folder: string, title?: string) => Promise<string | null>;
+  /**
+   * Creates a page of a type a module registered, such as an experiment,
+   * and opens it. With no title it is "Untitled experiment", numbered.
+   */
+  createTypedPage: (folder: string, type: string, title?: string) => Promise<string | null>;
   renameItem: (path: string, title: string) => Promise<string | null>;
   /** Moves into `folder`; with `index`, also places it there in the folder's order. */
   moveItem: (path: string, folder: string, index?: number) => Promise<string | null>;
@@ -76,6 +83,7 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
   /** Keeps open folders and the selection pointing at a renamed or moved item. */
   async function followMove(from: string, to: string): Promise<void> {
     get().pageMoved(from, to);
+    get().fileMoved(from, to);
     const { tree } = get();
     const expanded = tree.expanded.map((p) => rebasePath(p, from, to));
     const folders = Object.fromEntries(
@@ -147,6 +155,29 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
         return path;
       }),
 
+    createTypedPage: (folder, type, title) =>
+      attempt(async () => {
+        const spec = get().pageTypes.find((t) => t.type === type);
+        if (!spec) {
+          throw new NameError(
+            'That kind of page is not available. Its module may be switched off.',
+          );
+        }
+        const name =
+          title ??
+          pageTitle(
+            await freeName(platform, folder, `Untitled ${spec.name.toLowerCase()}`, PAGE_EXTENSION),
+          );
+        const content = (await spec.create?.({ folder, title: name, now: new Date() })) ?? {};
+        const path = await createPage(platform, folder, {
+          title: name,
+          text: (id, created) => typedPageText(type, content, id, created),
+        });
+        await reveal(path);
+        await get().openPage(path);
+        return path;
+      }),
+
     renameItem: (path, title) =>
       attempt(async () => {
         const relink = await beforeMove(path);
@@ -191,6 +222,8 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
         if (open !== undefined && (open === path || open.startsWith(`${path}/`))) {
           await get().closePage();
         }
+        const file = get().openFile;
+        if (file !== null && (file === path || file.startsWith(`${path}/`))) get().closeFile();
         await recycleItem(platform, path);
         const { tree } = get();
         const gone = (p: string) => p === path || p.startsWith(`${path}/`);

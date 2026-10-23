@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { OpenVault } from '../vault/vaultService';
 import { useApp } from './AppStoreContext';
+import { Menu } from './Menu';
 import { ModulePanels } from './ModulePanels';
 import { NotebookTree } from './NotebookTree';
 import { SearchBox, SearchResults } from './SearchPanel';
@@ -21,6 +23,15 @@ export function Sidebar({ vault }: { vault: OpenVault }) {
   const dismissNotice = useApp((s) => s.dismissSidebarNotice);
   const results = useApp((s) => s.searchResults);
   const openToday = useApp((s) => s.openToday);
+  const newCommands = useApp((s) => s.commands).filter((c) => c.places?.includes('new'));
+  const runCommand = useApp((s) => s.runCommand);
+  const [newMenu, setNewMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const newNotebook = () => {
+    void createNotebook().then((path) => {
+      if (path !== null) setRenaming(path);
+    });
+  };
 
   return (
     <nav className="sidebar" aria-label="Vault">
@@ -38,12 +49,17 @@ export function Sidebar({ vault }: { vault: OpenVault }) {
           <button
             type="button"
             className="quiet"
-            title="New notebook"
-            aria-label="New notebook"
-            onClick={() => {
-              void createNotebook().then((path) => {
-                if (path !== null) setRenaming(path);
-              });
+            title={newCommands.length === 0 ? 'New notebook' : 'New'}
+            aria-label={newCommands.length === 0 ? 'New notebook' : 'New'}
+            aria-haspopup={newCommands.length === 0 ? undefined : 'menu'}
+            onClick={(e) => {
+              // With modules adding things to make, + offers a choice.
+              if (newCommands.length === 0) {
+                newNotebook();
+                return;
+              }
+              const rect = e.currentTarget.getBoundingClientRect();
+              setNewMenu({ x: rect.left, y: rect.bottom });
             }}
           >
             +
@@ -59,6 +75,23 @@ export function Sidebar({ vault }: { vault: OpenVault }) {
           </button>
         </div>
       </header>
+      {newMenu !== null && (
+        <Menu
+          label="New"
+          x={newMenu.x}
+          y={newMenu.y}
+          items={[
+            { label: 'New notebook', onSelect: newNotebook },
+            ...newCommands.map((c) => ({
+              label: c.title,
+              onSelect: () => void runCommand(c.id, { folder: null }),
+            })),
+          ]}
+          onClose={() => {
+            setNewMenu(null);
+          }}
+        />
+      )}
       {notice !== null && (
         <div className="notice sidebar-notice" role="alert">
           <span>{notice}</span>

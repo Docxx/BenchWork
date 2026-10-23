@@ -4,7 +4,9 @@ import { ModuleRegistry } from '../modules/registry';
 import type { PlatformAdapter } from '../platform';
 import { createStoreContext } from './context';
 import { createDailySlice, type DailySlice } from './dailySlice';
+import { createFilesSlice, type FilesSlice } from './filesSlice';
 import { createLinksSlice, type LinksSlice } from './linksSlice';
+import { createModuleBridge } from './moduleBridge';
 import { createModulesSlice, type ModulesSlice } from './modulesSlice';
 import { createNotebookSlice, type NotebookSlice } from './notebookSlice';
 import { createPageSlice, type PageSlice } from './pageSlice';
@@ -16,7 +18,7 @@ import { createVaultSlice, type VaultSlice } from './vaultSlice';
 export { describeError } from './context';
 export type { DayNeighbours } from './dailySlice';
 export type { Backlink } from './linksSlice';
-export type { PendingModuleChange } from './modulesSlice';
+export type { PendingModuleChange, TextPrompt } from './modulesSlice';
 export type { SearchResult } from './searchSlice';
 export { LINK_THRESHOLD_RANGE, type View } from './settingsSlice';
 export type { PickMode, VaultStatus } from './vaultSlice';
@@ -26,6 +28,7 @@ export type AppState = VaultSlice &
   TreeSlice &
   NotebookSlice &
   PageSlice &
+  FilesSlice &
   SearchSlice &
   LinksSlice &
   DailySlice &
@@ -55,6 +58,7 @@ export function createAppStore(
       ...createTreeSlice(ctx),
       ...createNotebookSlice(ctx),
       ...createPageSlice(ctx),
+      ...createFilesSlice(ctx),
       ...createSearchSlice(ctx),
       ...createLinksSlice(ctx),
       ...createDailySlice(ctx),
@@ -66,8 +70,9 @@ export function createAppStore(
   registry.store.subscribe((modules) => {
     store.setState({ modules });
   });
-  registry.contributions.subscribe(({ panels }) => {
-    store.setState({ panels });
+  registry.contributions.subscribe(({ panels, pageTypes, commands, fileHandlers }) => {
+    store.setState({ panels, pageTypes, commands, fileHandlers });
   });
+  registry.connectApp(createModuleBridge(store, platform));
   return store;
 }

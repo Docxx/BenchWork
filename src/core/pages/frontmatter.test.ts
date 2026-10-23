@@ -1,5 +1,13 @@
 // @vitest-environment node
-import { ensureId, localTimestamp, parsePage, serialisePage, updateMeta } from './frontmatter';
+import {
+  ensureId,
+  localTimestamp,
+  pageProperties,
+  parsePage,
+  serialisePage,
+  updateMeta,
+  updateProperties,
+} from './frontmatter';
 
 const EXPERIMENT = [
   '---',
@@ -142,5 +150,42 @@ describe('localTimestamp', () => {
     expect(localTimestamp(new Date(2026, 9, 22, 10, 30, 5))).toMatch(
       /^2026-10-22T10:30:05[+-]\d{2}:\d{2}$/,
     );
+  });
+});
+
+describe('page properties', () => {
+  const page = parsePage(
+    ['---', 'id: 1', '# kept', 'aim: Dose response', 'status: running', '---', 'Body'].join('\n'),
+  );
+
+  it('reads every key', () => {
+    expect(pageProperties(page)).toEqual({ id: 1, aim: 'Dose response', status: 'running' });
+    expect(pageProperties(parsePage('No frontmatter'))).toEqual({});
+  });
+
+  it('sets any key in place, keeping comments and other lines', () => {
+    const next = updateProperties(page, {
+      status: 'done',
+      genotypes: ['w1118', 'elav>tau'],
+      protocol: '[[LPS feeding v3]]',
+    });
+    expect(next.yaml?.split('\n')).toEqual([
+      'id: 1',
+      '# kept',
+      'aim: Dose response',
+      'status: done',
+      'genotypes: [w1118, elav>tau]',
+      'protocol: "[[LPS feeding v3]]"',
+    ]);
+    expect(pageProperties(updateProperties(next, { aim: null, genotypes: [] }))).toEqual({
+      id: 1,
+      status: 'done',
+      protocol: '[[LPS feeding v3]]',
+    });
+  });
+
+  it('reprints for keys that need quoting', () => {
+    const next = updateProperties(page, { 'cell line': 'HeLa' });
+    expect(pageProperties(next)).toMatchObject({ 'cell line': 'HeLa', aim: 'Dose response' });
   });
 });

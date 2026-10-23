@@ -1304,3 +1304,36 @@ pre.raw-block {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---- Dialogs that float over the page ---- */
+
+.floating-dialog {
+  position: fixed;
+  top: 20vh;
+  left: 50%;
+  z-index: 20;
+  width: min(24rem, calc(100vw - 2rem));
+  box-sizing: border-box;
+  transform: translateX(-50%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.floating-dialog .dialog-title {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.floating-dialog .field {
+  margin-bottom: 0.5rem;
+}
+
+.floating-dialog input {
+  box-sizing: border-box;
+  width: 100%;
+  font: inherit;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}

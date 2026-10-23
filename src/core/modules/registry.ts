@@ -3,7 +3,7 @@ import type { ModuleDefinition } from '../api';
 import type { DeviceKind, PlatformAdapter } from '../platform';
 import type { VaultConfig } from '../vault/vaultConfig';
 import type { Contributions } from './contributions';
-import { createModuleContext, type ModuleContextHandle } from './context';
+import { createModuleContext, type AppBridge, type ModuleContextHandle } from './context';
 import type { ModuleManifest } from './manifest';
 
 /** A module the app ships with: its checked manifest and a way to load its code. */
@@ -67,6 +67,7 @@ export class ModuleRegistry {
   private readonly sources = new Map<string, ModuleSource>();
   private readonly running = new Map<string, Running>();
   private queue: Promise<void> = Promise.resolve();
+  private app: AppBridge | null = null;
 
   constructor(
     sources: readonly ModuleSource[],
@@ -89,6 +90,11 @@ export class ModuleRegistry {
       })),
       broken: [...broken, ...extraBroken],
     }));
+  }
+
+  /** Gives modules the app: pages, links and messages. The store calls this once. */
+  connectApp(app: AppBridge): void {
+    this.app = app;
   }
 
   /** What running modules have added to the UI. */
@@ -252,7 +258,7 @@ export class ModuleRegistry {
       return;
     }
 
-    const handle = createModuleContext(source.manifest, this.deps);
+    const handle = createModuleContext(source.manifest, { ...this.deps, app: () => this.app });
     try {
       const definition = await source.load();
       if (typeof definition.activate !== 'function') {

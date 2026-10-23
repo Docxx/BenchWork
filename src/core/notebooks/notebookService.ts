@@ -6,6 +6,7 @@ import {
   PlatformError,
   type PlatformAdapter,
 } from '../platform';
+import { recordFileName, recordKind } from '../records/records';
 import { isPage, PAGE_EXTENSION, pageTitle } from './notebookTree';
 import {
   parseSectionMeta,
@@ -124,6 +125,8 @@ export async function createFolder(
 
 export interface NewPageOptions {
   title?: string;
+  /** The name to number when there is no title. Defaults to "Untitled page". */
+  untitled?: string;
   /** The page's Markdown after the frontmatter. */
   body?: string;
   /** The whole file, such as from a template, given the new id, created time and title. */
@@ -140,7 +143,7 @@ export async function createPage(
 ): Promise<string> {
   const name =
     options.title === undefined
-      ? await freeName(platform, folder, 'Untitled page', PAGE_EXTENSION)
+      ? await freeName(platform, folder, options.untitled ?? 'Untitled page', PAGE_EXTENSION)
       : `${safeName(options.title)}${PAGE_EXTENSION}`;
   const path = joinVaultPath(folder, name);
   const id = (options.newId ?? (() => crypto.randomUUID()))();
@@ -159,9 +162,11 @@ export async function createPage(
 
 // ---- Rename, move, reorder ----
 
-/** The file name for a new title: pages keep their `.md`. */
+/** The file name for a new title: pages keep their `.md`, records their `.<kind>.yaml`. */
 function renamedName(path: string, title: string): string {
   const name = safeName(title);
+  const kind = recordKind(path);
+  if (kind !== null) return recordKind(name) === kind ? name : recordFileName(name, kind);
   return isPage(baseName(path)) && !isPage(name) ? `${name}${PAGE_EXTENSION}` : name;
 }
 

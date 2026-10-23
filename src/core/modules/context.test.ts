@@ -88,3 +88,76 @@ describe('module context', () => {
     }
   });
 });
+
+describe('module context: Phase 2 extension points', () => {
+  it('adds page types, commands and file handlers, and removes them on switch-off', async () => {
+    const { contributions, ctx, handle } = await setup();
+    ctx.pageTypes.register({ type: 'experiment', name: 'Experiment', fields: [] });
+    ctx.commands.register({ id: 'hello.go', title: 'Go', run: () => undefined });
+    ctx.files.register({
+      id: 'hello.viewer',
+      extensions: ['.Dataset.yaml'],
+      name: 'Dataset',
+      render: () => null,
+    });
+    const state = contributions.getState();
+    expect(state.pageTypes.map((t) => [t.type, t.moduleId])).toEqual([['experiment', 'hello']]);
+    expect(state.commands.map((c) => c.id)).toEqual(['hello.go']);
+    expect(state.fileHandlers.map((h) => h.extensions)).toEqual([['.dataset.yaml']]);
+
+    handle.dispose();
+    expect(contributions.getState()).toMatchObject({
+      pageTypes: [],
+      commands: [],
+      fileHandlers: [],
+    });
+  });
+
+  it('refuses clashes and names it cannot use', async () => {
+    const { ctx } = await setup();
+    ctx.pageTypes.register({ type: 'experiment', name: 'Experiment', fields: [] });
+    expect(() => ctx.pageTypes.register({ type: 'experiment', name: 'Again', fields: [] })).toThrow(
+      'already registered',
+    );
+    expect(() => ctx.pageTypes.register({ type: 'page', name: 'Page', fields: [] })).toThrow();
+    expect(() => ctx.pageTypes.register({ type: 'Big Type', name: 'Big', fields: [] })).toThrow();
+    expect(() => ctx.commands.register({ id: 'go', title: 'Go', run: () => undefined })).toThrow(
+      "must start with 'hello.'",
+    );
+    for (const extensions of [['.md'], ['csv'], ['.a b']]) {
+      expect(() =>
+        ctx.files.register({ id: 'hello.x', extensions, name: 'X', render: () => null }),
+      ).toThrow();
+    }
+  });
+
+  it('reads and writes vault files, with no way to delete them', async () => {
+    const { platform, ctx } = await setup();
+    await ctx.vault.ensureDir('Lab/Data');
+    await ctx.vault.createNew('Lab/Data/a.dataset.yaml', 'id: 1\n');
+    await expect(ctx.vault.createNew('Lab/Data/a.dataset.yaml', 'x')).rejects.toThrow();
+    await ctx.vault.writeText('Lab/Data/a.dataset.yaml', 'id: 2\n');
+    expect(await ctx.vault.readText('Lab/Data/a.dataset.yaml')).toBe('id: 2\n');
+    expect(await ctx.vault.freeName('Lab/Data', 'a', '.dataset.yaml')).toBe('a 2.dataset.yaml');
+    expect(await ctx.vault.hashFile('Lab/Data/a.dataset.yaml')).toMatch(/^[0-9a-f]{64}$/);
+    expect(Object.keys(ctx.vault)).not.toContain('trash');
+    expect(platform.snapshot()['Lab/Data/a.dataset.yaml']).toBe('id: 2\n');
+  });
+
+  it('stops watching when switched off', async () => {
+    const { ctx, handle } = await setup();
+    const seen: string[][] = [];
+    ctx.vault.watch((change) => seen.push(change.paths));
+    await ctx.vault.writeText('a.md', 'x');
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    handle.dispose();
+    await ctx.vault.writeText('b.md', 'x').catch(() => undefined);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(seen).toEqual([['a.md']]);
+  });
+
+  it('says so when the app is not connected yet', async () => {
+    const { ctx } = await setup();
+    await expect(Promise.resolve().then(() => ctx.app.items())).rejects.toThrow('not ready');
+  });
+});
