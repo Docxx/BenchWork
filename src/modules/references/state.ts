@@ -11,6 +11,8 @@ interface Settings {
 
 export interface LibrarySnapshot {
   path: string;
+  /** The references by key; a new map whenever the library is reloaded. */
+  refs: ReadonlyMap<string, Reference>;
   /** `missing`: no file there yet; `error`: the file could not be used. */
   status: 'loading' | 'ready' | 'missing' | 'error';
   count: number;
@@ -25,9 +27,13 @@ export interface LibrarySnapshot {
  * changes, such as when Better BibTeX updates it after a change in Zotero.
  */
 export class LibraryState {
-  refs = new Map<string, Reference>();
+  /** The references by key, for citations. */
+  get refs(): ReadonlyMap<string, Reference> {
+    return this.snapshot.refs;
+  }
   private snapshot: LibrarySnapshot = {
     path: DEFAULT_LIBRARY,
+    refs: new Map(),
     status: 'loading',
     count: 0,
     modified: null,
@@ -74,8 +80,7 @@ export class LibraryState {
   async load(): Promise<void> {
     const { path } = this.snapshot;
     if (!(await this.ctx.vault.exists(path))) {
-      this.refs = new Map();
-      this.set({ status: 'missing', count: 0, modified: null, error: null });
+      this.set({ refs: new Map(), status: 'missing', count: 0, modified: null, error: null });
       this.ctx.citations.refresh();
       return;
     }
@@ -90,8 +95,8 @@ export class LibraryState {
         this.set({ error: library.error });
         return;
       }
-      this.refs = library.refs;
       this.set({
+        refs: library.refs,
         status: library.error === null ? 'ready' : 'error',
         count: library.refs.size,
         modified: info?.modified ?? null,

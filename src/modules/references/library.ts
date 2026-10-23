@@ -145,7 +145,7 @@ function fold(s: string): string {
 export function searchLibrary(
   refs: ReadonlyMap<string, Reference>,
   query: string,
-  limit = 8,
+  limit = 50,
 ): CitationChoice[] {
   const words = fold(query).split(/\s+/).filter(Boolean);
   const scored: { ref: Reference; score: number }[] = [];
@@ -156,7 +156,8 @@ export function searchLibrary(
     let score = 0;
     let all = true;
     for (const w of words) {
-      if (key.startsWith(w)) score += 4;
+      if (key === w) score += 6;
+      else if (key.startsWith(w)) score += 4;
       else if (names[0]?.startsWith(w)) score += 3;
       else if (names.some((n) => n.startsWith(w))) score += 2;
       else if (ref.year?.startsWith(w)) score += 2;

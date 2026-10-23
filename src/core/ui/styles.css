@@ -1111,6 +1111,18 @@ pre.raw-block {
   color: var(--muted);
 }
 
+/* The [@ menu: references have long titles, shown on one line each. */
+.slash-menu.wide {
+  width: 22rem;
+  max-height: 22rem;
+}
+
+.slash-menu.wide .slash-detail {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 /* Links to pages that do not exist yet. */
 .unresolved .wiki-link,
 .wiki-link.unresolved {
@@ -1703,4 +1715,60 @@ pre.raw-block {
   background: none;
   border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
   opacity: 0.75;
+}
+
+/* References: the Library panel in the sidebar. */
+.library-panel input {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 0.35rem;
+}
+
+.library-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.library-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 0.3rem 0.4rem;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.library-item:hover,
+.library-item:focus-visible {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.library-label {
+  font-weight: 600;
+}
+
+.library-note {
+  margin-left: 0.4rem;
+  padding: 0 0.3rem;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.library-title {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.8rem;
+  color: var(--muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }

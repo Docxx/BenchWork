@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { defineModule } from '@core/api';
 import { describe, searchLibrary } from './library';
+import { LibraryPanel } from './LibraryPanel';
 import { openNote, referenceType } from './notes';
 import { ReferencesSettings } from './SettingsPanel';
 import { LibraryState } from './state';
@@ -44,6 +45,12 @@ export default defineModule({
       id: 'references.reload',
       title: 'Reload reference library',
       run: () => library.load(),
+    });
+
+    ctx.views.registerSidebarPanel({
+      id: 'references.library',
+      title: 'Library',
+      render: () => createElement(LibraryPanel, { ctx, library }),
     });
 
     ctx.views.registerSettingsPanel({

@@ -1,6 +1,6 @@
 import { Collaboration } from '@tiptap/extension-collaboration';
 import { EditorContent, useEditor } from '@tiptap/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { citationsKey, type CiteMenuState } from '../editor/citationNode';
 import { baseExtensions } from '../editor/extensions';
 import { FileInput, insertFiles } from '../editor/fileInput';
@@ -101,7 +101,7 @@ export function PageEditor({ page }: { page: OpenPage }) {
       {slash !== null && <SlashMenu state={slash} />}
       {linkMenu !== null && <LinkMenu state={linkMenu} />}
       {citeMenu !== null && (
-        <LinkMenu state={citeMenu} label="Cite" empty="No matching references" />
+        <LinkMenu state={citeMenu} label="Cite" empty="No matching references" wide />
       )}
       {templateAt !== null && (
         <TemplatePicker
@@ -131,20 +131,37 @@ function LinkMenu({
   state,
   label = 'Link to page',
   empty = 'Type a page name',
+  wide = false,
 }: {
   state: LinkMenuState | CiteMenuState;
   label?: string;
   empty?: string;
+  /** Wider, for references with long titles. */
+  wide?: boolean;
 }) {
+  const list = useRef<HTMLUListElement>(null);
+  // Keep the chosen item in view as the arrow keys move through a long list.
+  useEffect(() => {
+    list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, [state.index, state.items]);
+
+  const className = wide ? 'slash-menu wide' : 'slash-menu';
+  const width = wide ? 360 : 240;
   if (state.items.length === 0) {
     return (
-      <div className="slash-menu" style={position(state.rect)} role="status">
+      <div className={className} style={position(state.rect, width)} role="status">
         <p className="slash-empty">{empty}</p>
       </div>
     );
   }
   return (
-    <ul className="slash-menu" role="listbox" aria-label={label} style={position(state.rect)}>
+    <ul
+      ref={list}
+      className={className}
+      role="listbox"
+      aria-label={label}
+      style={position(state.rect, width)}
+    >
       {state.items.map((item, i) => (
         <li
           key={item.id}
@@ -198,10 +215,10 @@ function SlashMenu({ state }: { state: SlashMenuState }) {
   );
 }
 
-function position(rect: DOMRect | null): { left: number; top: number } {
+function position(rect: DOMRect | null, width = 240): { left: number; top: number } {
   if (!rect) return { left: 0, top: 0 };
   return {
-    left: Math.min(rect.left, window.innerWidth - 240),
+    left: Math.max(0, Math.min(rect.left, window.innerWidth - width)),
     top: Math.min(rect.bottom + 4, window.innerHeight - 320),
   };
 }

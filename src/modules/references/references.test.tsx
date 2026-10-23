@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { createContributions } from '@core/modules/contributions';
 import { validateManifest } from '@core/modules/manifest';
 import { ModuleRegistry, type ModuleSource } from '@core/modules/registry';
@@ -6,6 +6,7 @@ import { parsePage } from '@core/pages/frontmatter';
 import { MemoryAdapter, type MemoryFolderContents } from '@core/platform/memory';
 import { createAppStore } from '@core/state/appStore';
 import { AppStoreProvider } from '@core/ui/AppStoreContext';
+import { ModulePanels } from '@core/ui/ModulePanels';
 import { ModulesPanel } from '@core/ui/ModulesPanel';
 import manifestJson from './manifest.json';
 import { fullReference, parseLibrary, searchLibrary, shortLabel } from './library';
@@ -235,6 +236,77 @@ describe('References module', () => {
     await vi.waitFor(() => {
       expect(state().sidebarNotice).toContain('Choose a file inside the vault');
     });
+  });
+
+  it('offers up to 50 references in the [@ menu', async () => {
+    const many = JSON.stringify(
+      Array.from({ length: 70 }, (_, i) => ({
+        id: `ref${String(i)}`,
+        title: `Work ${String(i)}`,
+        author: [{ family: 'Author' }],
+        issued: { 'date-parts': [[2000 + (i % 25)]] },
+      })),
+    );
+    const { provider } = await openVault({ 'references/library.json': many });
+    expect(provider().suggest('')).toHaveLength(50);
+    expect(provider().suggest('author')).toHaveLength(50);
+    // The exact key first, then keys that start with it, newest first.
+    const keys = provider()
+      .suggest('ref6')
+      .map((c) => c.key);
+    expect(keys[0]).toBe('ref6');
+    expect(keys.slice(1, 4)).toEqual(['ref69', 'ref68', 'ref67']);
+    expect(keys).toHaveLength(11);
+  });
+
+  it('lists the library in the sidebar, and opens a reference’s note from it', async () => {
+    const { store, state } = await openVault({ 'references/library.json': LIBRARY });
+    render(
+      <AppStoreProvider store={store}>
+        <ModulePanels />
+      </AppStoreProvider>,
+    );
+    await settle();
+    const list = screen.getByRole('list', { name: 'References' });
+    expect(
+      within(list)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual([
+      'Smith et al. 2024Tau spreads in the fly brain',
+      'Lee and Smith 2023Climbing assays revisited',
+      'WHO 2020Guidance',
+    ]);
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Find a reference' }), {
+      target: { value: 'climb' },
+    });
+    expect(within(list).getAllByRole('button')).toHaveLength(1);
+
+    await act(async () => {
+      fireEvent.click(within(list).getByRole('button', { name: /Lee and Smith 2023/ }));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(state().page?.path).toBe('references/lee2023.md');
+    await act(async () => {
+      await state().indexIdle();
+    });
+    await vi.waitFor(() => {
+      expect(
+        within(list).getByRole('button', { name: /Lee and Smith 2023/ }).textContent,
+      ).toContain('Note');
+    });
+  });
+
+  it('says in the sidebar when there is no library yet', async () => {
+    const { store } = await openVault();
+    render(
+      <AppStoreProvider store={store}>
+        <ModulePanels />
+      </AppStoreProvider>,
+    );
+    await settle();
+    expect(screen.getByText(/No library yet/)).toBeDefined();
   });
 
   it('when switched off, leaves citations and notes as they are', async () => {
