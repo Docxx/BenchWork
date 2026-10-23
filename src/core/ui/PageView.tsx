@@ -3,6 +3,7 @@ import { dayOfPath } from '../pages/daily';
 import type { OpenPage, SaveState } from '../state/pageSlice';
 import { useApp } from './AppStoreContext';
 import { Backlinks } from './Backlinks';
+import { FileView } from './FileView';
 import { HistoryPanel } from './HistoryPanel';
 import { PageEditor } from './PageEditor';
 import { PropertiesPanel } from './PropertiesPanel';
@@ -19,7 +20,10 @@ export function PageView() {
   const page = useApp((s) => s.page);
   const notice = useApp((s) => s.pageNotice);
   const dismissNotice = useApp((s) => s.dismissPageNotice);
+  const openFile = useApp((s) => s.openFile);
   const [showHistory, setShowHistory] = useState(false);
+
+  if (page === null && openFile !== null) return <FileView path={openFile} />;
 
   return (
     <article className="page-view" aria-label={page ? page.title : 'No page open'}>

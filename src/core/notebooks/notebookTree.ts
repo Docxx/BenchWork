@@ -1,4 +1,5 @@
 import type { DirEntry } from '../platform';
+import { isRecord, recordName } from '../records/records';
 import { compareEntries, type TreeState } from '../vault/fileTree';
 import { SECTION_FILE } from './sectionMeta';
 
@@ -53,7 +54,17 @@ export function isShown(entry: DirEntry, atRoot: boolean, options: LayoutOptions
   if (entry.name === SECTION_FILE) return false;
   if (options.showAllFiles) return true;
   if (entry.isDir) return !isReserved(entry, atRoot);
-  return isPage(entry.name);
+  return isPage(entry.name) || isPreviewed(entry.name);
+}
+
+/**
+ * Files besides pages that the sidebar shows: data, documents, images and
+ * records. The same kinds `fileKind` in src/core/files can preview.
+ */
+const PREVIEWED = /\.(csv|tsv|xlsx|xlsm|xls|ods|pdf|png|jpe?g|gif|webp|svg|bmp|avif)$/i;
+
+export function isPreviewed(name: string): boolean {
+  return !name.startsWith('.') && (PREVIEWED.test(name) || isRecord(name));
 }
 
 /**
@@ -95,7 +106,12 @@ function nodeFor(entry: DirEntry, depth: number, colour: string | null): Noteboo
     kind,
     path: entry.path,
     name: entry.name,
-    title: kind === 'page' ? pageTitle(entry.name) : entry.name,
+    title:
+      kind === 'page'
+        ? pageTitle(entry.name)
+        : isRecord(entry.name)
+          ? recordName(entry.name)
+          : entry.name,
     isDir: entry.isDir,
     colour,
   };

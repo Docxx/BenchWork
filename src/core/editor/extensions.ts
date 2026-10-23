@@ -8,6 +8,7 @@ import type { Schema } from '@tiptap/pm/model';
 import { StarterKit } from '@tiptap/starter-kit';
 import { isImage } from '../pages/attachments';
 import { joinLabel, splitLabel } from './imageSize';
+import { fileEmbedElement, isFileEmbed, type TableLoader } from './fileEmbed';
 import { imageView } from './imageView';
 import { RAW_BLOCK, RAW_INLINE, SOURCE_ATTR, WIKI_LINK } from './markdown/model';
 
@@ -109,6 +110,8 @@ export interface AssetResolver {
   embed(target: string): string | null;
   /** For Markdown images, `![](src)`. */
   image(src: string): string | null;
+  /** The first rows of an embedded table, for its card. */
+  table?: TableLoader;
 }
 
 interface AssetOptions {
@@ -164,6 +167,14 @@ export const WikiLink = Node.create<AssetOptions>({
             missing: () => missingChip(target),
           },
         );
+      }
+      if (embed && isFileEmbed(target)) {
+        const card = fileEmbedElement(target, alias, assets.table ?? null);
+        return {
+          dom: card.dom,
+          update: (next) => next.type === node.type && next.attrs === node.attrs,
+          destroy: card.destroy,
+        };
       }
       const wrapper = document.createElement('span');
       wrapper.className = 'wiki-link-view';

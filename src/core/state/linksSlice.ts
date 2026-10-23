@@ -1,7 +1,8 @@
 import type { LinkChoice } from '../editor/pageLinks';
 import { candidates, linkTargetFor, resolveLink, suffixKeys, suggestPages } from '../links/resolve';
 import { rewriteLinks } from '../links/rewrite';
-import { pageTitle } from '../notebooks/notebookTree';
+import { isPage, pageTitle } from '../notebooks/notebookTree';
+import { embedPath } from '../pages/attachments';
 import { baseName, parentVaultPath, type LinkRef, type PageRef } from '../platform';
 import type { StoreContext } from './context';
 import { locationOf } from './searchSlice';
@@ -185,6 +186,12 @@ export function createLinksSlice(ctx: StoreContext): LinksSlice {
       const found = resolveLink(target, from, get().pageRefs);
       if (found) {
         await get().openPath(found.path);
+        return;
+      }
+      // A file such as `attachments/plot.png` or `Data/day7.csv`.
+      const file = embedPath(target);
+      if (file !== null && !isPage(baseName(file)) && (await platform.exists(file))) {
+        await get().openPath(file);
         return;
       }
       // A new page: in the folder the link names, if it exists, else beside this page.

@@ -135,9 +135,9 @@ describe('notebook actions', () => {
   });
 
   it('can show all files', async () => {
-    const { state } = await openVault({ ...VAULT, 'photo.png': 'x', attachments: null });
-    expect(drawn(state())).not.toContain('photo.png');
+    const { state } = await openVault({ ...VAULT, 'notes.txt': 'x', attachments: null });
+    expect(drawn(state())).not.toContain('notes.txt');
     await state().setShowAllFiles(true);
-    expect(drawn(state())).toEqual(['Archive', 'attachments', 'LPS model (teal)', 'photo.png']);
+    expect(drawn(state())).toEqual(['Archive', 'attachments', 'LPS model (teal)', 'notes.txt']);
   });
 });

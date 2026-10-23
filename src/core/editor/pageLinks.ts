@@ -5,6 +5,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { Suggestion, type SuggestionProps } from '@tiptap/suggestion';
 import { isImage } from '../pages/attachments';
 import { tagRanges } from '../search/extract';
+import { isFileEmbed } from './fileEmbed';
 import { WIKI_LINK } from './markdown/model';
 
 /**
@@ -59,7 +60,9 @@ function opensPage(node: PMNodeType): boolean {
 function decorate(state: EditorState, resolves: (target: string) => boolean): DecorationSet {
   const decorations: Decoration[] = [];
   state.doc.descendants((node, pos, parent) => {
-    if (opensPage(node) && !resolves(String(node.attrs['target']))) {
+    // Embedded files are not pages, so they are not looked for among pages.
+    const file = node.attrs['embed'] === true && isFileEmbed(String(node.attrs['target']));
+    if (opensPage(node) && !file && !resolves(String(node.attrs['target']))) {
       decorations.push(Decoration.node(pos, pos + node.nodeSize, { class: 'unresolved' }));
     }
     if (node.isText && parent?.type.name !== 'codeBlock') {

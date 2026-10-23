@@ -48,13 +48,13 @@ async function settle(): Promise<void> {
 }
 
 describe('NotebookTree', () => {
-  it('shows notebooks and pages, without .md, other files or reserved folders', async () => {
+  it('shows notebooks, pages and data files, without .md or reserved folders', async () => {
     await renderSidebar();
     expect(names()).toEqual(['Archive', 'LPS model', 'readme']);
     expect(item('LPS model').getAttribute('aria-roledescription')).toBe('notebook');
     fireEvent.click(item('LPS model'));
     await settle();
-    expect(names()).toEqual(['Archive', 'LPS model', 'Experiments', 'Plan', 'readme']);
+    expect(names()).toEqual(['Archive', 'LPS model', 'Experiments', 'data.csv', 'Plan', 'readme']);
     expect(item('Experiments').getAttribute('aria-roledescription')).toBe('section');
     expect(item('Plan').getAttribute('aria-roledescription')).toBe('page');
   });

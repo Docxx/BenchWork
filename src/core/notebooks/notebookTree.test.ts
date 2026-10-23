@@ -86,6 +86,8 @@ describe('notebookRows', () => {
           entry('LPS model/Experiments', true),
           entry('LPS model/Plan.md'),
           entry('LPS model/data.csv'),
+          entry('LPS model/day7.dataset.yaml'),
+          entry('LPS model/notes.txt'),
           entry('LPS model/_section.yaml'),
         ]),
         meta: { colour: 'teal', order: ['Plan.md'] },
@@ -96,14 +98,17 @@ describe('notebookRows', () => {
     expanded: ['LPS model', 'LPS model/Experiments'],
   };
 
-  it('shows notebooks, sections and pages, hiding other files and reserved folders', () => {
+  it('shows notebooks, sections, pages and files it can preview, hiding the rest', () => {
     expect(drawn(tree)).toEqual([
       'notebook:Daily',
       'notebook:LPS model (teal)',
       '  page:Plan',
       '  section:Experiments (red)',
       '    [empty]',
+      '  file:data.csv',
+      '  file:day7',
       'page:Loose page',
+      'file:photo.png',
     ]);
   });
 
@@ -112,6 +117,7 @@ describe('notebookRows', () => {
     expect(rows).toContain('notebook:attachments');
     expect(rows).toContain('file:photo.png');
     expect(rows).toContain('  file:data.csv');
+    expect(rows).toContain('  file:notes.txt');
     expect(rows.some((r) => r.includes('_section.yaml'))).toBe(false);
   });
 });

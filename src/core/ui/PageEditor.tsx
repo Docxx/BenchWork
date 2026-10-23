@@ -23,6 +23,7 @@ export function PageEditor({ page }: { page: OpenPage }) {
   const suggestLinks = useApp((s) => s.suggestLinks);
   const templateBodyFor = useApp((s) => s.templateBodyFor);
   const setAddingProperty = useApp((s) => s.setAddingProperty);
+  const embedTable = useApp((s) => s.embedTable);
   const [slash, setSlash] = useState<SlashMenuState | null>(null);
   const [linkMenu, setLinkMenu] = useState<LinkMenuState | null>(null);
   /** Where to insert a template, while choosing one. */
@@ -34,6 +35,7 @@ export function PageEditor({ page }: { page: OpenPage }) {
         ...baseExtensions({
           embed: (target) => assetUrl(target, true),
           image: (src) => assetUrl(src, false),
+          table: embedTable,
         }),
         Collaboration.configure({ document: page.ydoc, field: FRAGMENT }),
         SlashCommands.configure({

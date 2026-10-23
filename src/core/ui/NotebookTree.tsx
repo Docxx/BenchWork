@@ -7,6 +7,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from 'react';
+import { kindLabel } from '../files/fileKinds';
 import {
   folderNodes,
   notebookRows,
@@ -15,6 +16,7 @@ import {
 } from '../notebooks/notebookTree';
 import { SECTION_COLOURS } from '../notebooks/sectionMeta';
 import { parentVaultPath } from '../platform';
+import { isRecord } from '../records/records';
 import { useApp } from './AppStoreContext';
 import { Menu, type MenuItem } from './Menu';
 import { TemplatePicker } from './TemplatePicker';
@@ -451,7 +453,12 @@ export function NotebookTree() {
                   }}
                 />
               ) : (
-                <span className="tree-label">{node.title}</span>
+                <span className="tree-label">
+                  {node.title}
+                  {node.kind === 'file' && isRecord(node.name) && (
+                    <span className="tree-kind">{kindLabel(node.path)}</span>
+                  )}
+                </span>
               )}
               {!isRenaming && (
                 <button
