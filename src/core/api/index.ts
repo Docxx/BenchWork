@@ -154,6 +154,12 @@ export interface FileHandlerSpec {
   extensions: string[];
   /** What these files are called, such as "Dataset". */
   name: string;
+  /**
+   * The view watches the file itself, so the app keeps it open when the
+   * file changes on disk instead of starting it afresh. For editors that
+   * save the file.
+   */
+  watchesFile?: boolean;
   render: (file: { path: string }) => ReactNode;
 }
 
@@ -169,6 +175,15 @@ export interface ModuleVault {
   readText(path: string): Promise<string>;
   /** Replaces a file safely, via a temporary file. */
   writeText(path: string, text: string): Promise<void>;
+  /** A file's bytes, such as a spreadsheet. Files over 64 MB fail with TooLarge. */
+  readBytes(path: string): Promise<Uint8Array>;
+  /** Replaces a file with bytes, safely like writeText. */
+  writeBytes(path: string, data: Uint8Array): Promise<void>;
+  /**
+   * Keeps a recovery copy of a file in BenchWork's snapshots before it is
+   * changed, as the core does for pages. Files over 64 MB are not copied.
+   */
+  keepSnapshot(path: string): Promise<void>;
   /** Creates a file, failing if one is already there. */
   createNew(path: string, text: string): Promise<void>;
   ensureDir(path: string): Promise<void>;

@@ -1,6 +1,7 @@
 import type { Disposable, ModuleApp, ModuleContext, ModuleLogger } from '../api';
 import { freeName } from '../notebooks/notebookService';
 import { localTimestamp } from '../pages/frontmatter';
+import { FILE_SNAPSHOT_LIMIT, saveFileSnapshot } from '../pages/snapshots';
 import { parseRecord, updateRecord } from '../records/records';
 import {
   normaliseVaultPath,
@@ -220,6 +221,11 @@ export function createModuleContext(
       exists: (path) => deps.platform.exists(path),
       readText: (path) => deps.platform.readText(path),
       writeText: (path, text) => deps.platform.writeTextAtomic(path, text),
+      readBytes: (path) => deps.platform.readBytes(path, FILE_SNAPSHOT_LIMIT),
+      writeBytes: (path, data) => deps.platform.writeBytes(path, data),
+      keepSnapshot: async (path) => {
+        await saveFileSnapshot(deps.platform, path);
+      },
       createNew: (path, text) => deps.platform.createNew(path, text),
       ensureDir: (path) => deps.platform.ensureDir(path),
       freeName: (folder, base, ext) => freeName(deps.platform, folder, base, ext),

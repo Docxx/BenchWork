@@ -29,8 +29,11 @@ export function FileView({ path }: { path: string }) {
         <h1 className="file-title">{title}</h1>
         <span className="file-kind">{handler?.name ?? kindLabel(path)}</span>
       </header>
-      {/* Keyed so a change on disk, or another file, starts afresh. */}
-      <div className="file-body" key={`${path}\n${String(version)}`}>
+      {/* Keyed so a change on disk, or another file, starts afresh, unless the view watches its file. */}
+      <div
+        className="file-body"
+        key={handler?.watchesFile === true ? path : `${path}\n${String(version)}`}
+      >
         {handler ? (
           <ModuleBoundary moduleId={handler.moduleId}>{handler.render({ path })}</ModuleBoundary>
         ) : (

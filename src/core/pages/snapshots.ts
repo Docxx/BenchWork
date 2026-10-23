@@ -113,3 +113,34 @@ export async function pruneSnapshots(
   const drop = snapshotsToDrop(await listSnapshots(platform, pagePath, pageId), now);
   for (const s of drop) await platform.removeSnapshot(s.path).catch(() => undefined);
 }
+
+/** Data files bigger than this get no recovery copy: copying them would take too long. */
+export const FILE_SNAPSHOT_LIMIT = 64 * 1024 * 1024;
+
+/**
+ * Keeps a copy of any vault file, such as a CSV about to be edited, in
+ * `.benchwork/snapshots/<path>/<time><ending>`. Returns its path.
+ */
+export async function saveFileSnapshot(
+  platform: PlatformAdapter,
+  path: string,
+  now: Date = new Date(),
+): Promise<string> {
+  const bytes = await platform.readBytes(path, FILE_SNAPSHOT_LIMIT);
+  const folder = snapshotFolder(path, null);
+  await platform.ensureDir(folder);
+  const name = path.slice(path.lastIndexOf('/') + 1);
+  const dot = name.lastIndexOf('.');
+  const ending = dot > 0 ? name.slice(dot) : '';
+  const stamp = snapshotStamp(now);
+  for (let n = 1; n < 100; n += 1) {
+    const candidate = joinVaultPath(
+      folder,
+      n === 1 ? `${stamp}${ending}` : `${stamp} ${String(n)}${ending}`,
+    );
+    if (await platform.exists(candidate)) continue;
+    await platform.writeBytes(candidate, bytes);
+    return candidate;
+  }
+  throw new Error('Could not find a free name for the snapshot');
+}

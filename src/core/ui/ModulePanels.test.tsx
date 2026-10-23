@@ -1,4 +1,5 @@
 import { act, render, screen } from '@testing-library/react';
+import { createElement, useState } from 'react';
 import { createContributions } from '../modules/contributions';
 import { ModuleRegistry } from '../modules/registry';
 import { fakeModule } from '../modules/testModules';
@@ -28,7 +29,7 @@ async function renderWith(registryModules: Parameters<typeof fakeModule>[] = [])
       <App />
     </AppStoreProvider>,
   );
-  return { store, registry };
+  return { store, registry, platform };
 }
 
 beforeEach(() => {
@@ -84,5 +85,62 @@ describe('module panels in the sidebar', () => {
       'This panel could not be shown.',
     );
     expect(screen.getByRole('tree', { name: 'Notebooks' })).toBeDefined();
+  });
+});
+
+describe('module file views', () => {
+  let mounts = 0;
+  function Probe({ path }: { path: string }) {
+    const [mount] = useState(() => (mounts += 1));
+    return `${path} view ${String(mount)}`;
+  }
+
+  async function changeOnDisk(
+    { store, platform }: Awaited<ReturnType<typeof renderWith>>,
+    path: string,
+  ) {
+    await act(async () => {
+      await store.getState().openPath(path);
+    });
+    const before = screen.getByText(new RegExp(`^${path} view`)).textContent;
+    await act(async () => {
+      await platform.externalWrite(path, 'changed');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    return { before, after: screen.getByText(new RegExp(`^${path} view`)).textContent };
+  }
+
+  it('start afresh when their file changes, unless they watch it themselves', async () => {
+    const app = await renderWith([
+      [
+        'viewers',
+        [],
+        {
+          activate: (ctx) => {
+            ctx.files.register({
+              id: 'viewers.plain',
+              extensions: ['.one'],
+              name: 'One',
+              render: ({ path }) => createElement(Probe, { path }),
+            });
+            ctx.files.register({
+              id: 'viewers.editor',
+              extensions: ['.two'],
+              name: 'Two',
+              watchesFile: true,
+              render: ({ path }) => createElement(Probe, { path }),
+            });
+          },
+        },
+      ],
+    ]);
+    await act(() => app.store.getState().setModuleEnabled('viewers', true));
+    await app.platform.writeTextAtomic('a.one', 'x');
+    await app.platform.writeTextAtomic('b.two', 'x');
+
+    const plain = await changeOnDisk(app, 'a.one');
+    expect(plain.after).not.toBe(plain.before);
+    const editor = await changeOnDisk(app, 'b.two');
+    expect(editor.after).toBe(editor.before);
   });
 });
