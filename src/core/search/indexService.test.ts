@@ -47,10 +47,27 @@ describe('which files are searched', () => {
     expect(searchedPage('.benchwork/snapshots/p1/a.md')).toBe(false);
     expect(searchedPage('Lab/.draft.md')).toBe(false);
     expect(searchedPage('Lab/data.csv')).toBe(false);
+    expect(searchedPage('Lab/Data/day7.dataset.yaml')).toBe(true);
+    expect(searchedPage('Lab/config.yaml')).toBe(false);
   });
 });
 
 describe('IndexService', () => {
+  it('indexes records beside pages, found by their values', async () => {
+    const { service, found, platform } = await setup({
+      ...VAULT,
+      'Lab/Data/day7.dataset.yaml': 'instrument: Camera 2\nexperiment: "[[Dose]]"\n',
+    });
+    await service.start();
+    expect(await found('camera')).toEqual(['Lab/Data/day7.dataset.yaml']);
+    expect(await platform.index.pages()).toContainEqual({
+      path: 'Lab/Data/day7.dataset.yaml',
+      title: 'day7',
+      id: null,
+      type: 'dataset',
+    });
+  });
+
   it('indexes every searched page when the vault opens', async () => {
     const { service, progress, found } = await setup();
     await service.start();

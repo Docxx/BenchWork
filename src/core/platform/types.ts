@@ -120,6 +120,8 @@ export interface PageRef {
   path: string;
   title: string;
   id: string | null;
+  /** The page's `type`, or a record's kind, such as `dataset`. */
+  type: string;
 }
 
 export interface TagCount {

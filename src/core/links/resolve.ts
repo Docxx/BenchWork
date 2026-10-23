@@ -1,4 +1,5 @@
 import { parentVaultPath, type PageRef } from '../platform';
+import { withoutRecordEnding } from '../records/records';
 import { linkKey } from '../search/extract';
 
 /**
@@ -65,10 +66,10 @@ export function resolveLink(
 /**
  * What to write between `[[` and `]]` to link to `path`: its name if no
  * other page has that name, otherwise as much of its path as it takes to
- * make it unique. Never includes `.md`.
+ * make it unique. Never includes `.md` or a record's `.<kind>.yaml`.
  */
 export function linkTargetFor(path: string, pages: readonly PageRef[]): string {
-  const parts = path.replace(/\.md$/i, '').split('/');
+  const parts = withoutRecordEnding(path.replace(/\.md$/i, '')).split('/');
   for (let i = parts.length - 1; i >= 0; i -= 1) {
     const target = parts.slice(i).join('/');
     const key = linkKey(target);

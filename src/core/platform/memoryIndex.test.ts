@@ -100,8 +100,8 @@ describe('MemoryIndex links and tags', () => {
     await index.apply([a, b], []);
 
     expect(await index.pages()).toEqual([
-      { path: 'Lab/a.md', title: 'Alpha', id: null },
-      { path: 'b.md', title: 'Beta', id: null },
+      { path: 'Lab/a.md', title: 'Alpha', id: null, type: 'page' },
+      { path: 'b.md', title: 'Beta', id: null, type: 'page' },
     ]);
     expect(await index.backlinks(['plan', 'lab/plan'])).toEqual([
       { source: 'Lab/a.md', target: 'Plan' },

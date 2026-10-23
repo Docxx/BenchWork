@@ -12,8 +12,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{ErrorKind, VaultError, VaultResult};
 
-/// Bump when the schema changes; older indexes are then rebuilt.
-const SCHEMA_VERSION: i64 = 2;
+/// Bump when the schema, or what the front end stores in it, changes; older
+/// indexes are then rebuilt. 3: records and property values are indexed.
+const SCHEMA_VERSION: i64 = 3;
 
 /// Marks around matched words in snippets. Control characters, so they can
 /// never clash with page text or be read as HTML.
@@ -113,6 +114,9 @@ pub struct PageRef {
     pub path: String,
     pub title: String,
     pub id: Option<String>,
+    /// The page's `type`, or the record kind, such as `dataset`.
+    #[serde(rename = "type")]
+    pub kind: String,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -298,7 +302,7 @@ impl SearchIndex {
         let err = |e: rusqlite::Error| db_error("Cannot read index", &e);
         let mut stmt = self
             .conn
-            .prepare("SELECT path, title, id FROM notes ORDER BY path")
+            .prepare("SELECT path, title, id, type FROM notes ORDER BY path")
             .map_err(err)?;
         let rows = stmt
             .query_map([], |row| {
@@ -306,6 +310,7 @@ impl SearchIndex {
                     path: row.get(0)?,
                     title: row.get(1)?,
                     id: row.get(2)?,
+                    kind: row.get(3)?,
                 })
             })
             .map_err(err)?;
@@ -709,12 +714,14 @@ mod tests {
                 PageRef {
                     path: "Lab/b.md".into(),
                     title: "b".into(),
-                    id: Some("id-b".into())
+                    id: Some("id-b".into()),
+                    kind: "page".into(),
                 },
                 PageRef {
                     path: "a.md".into(),
                     title: "a".into(),
-                    id: None
+                    id: None,
+                    kind: "page".into(),
                 },
             ]
         );

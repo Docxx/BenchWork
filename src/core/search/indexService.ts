@@ -9,7 +9,8 @@ import {
   type PlatformAdapter,
   type SearchHit,
 } from '../platform';
-import { extractPage } from './extract';
+import { isRecord } from '../records/records';
+import { extractFile } from './extract';
 
 /**
  * Keeps the search index in step with the vault. On opening it reads only
@@ -43,10 +44,14 @@ function searchedFolder(path: string): boolean {
   return !SKIPPED_FOLDERS.includes((parts[0] ?? '').toLowerCase());
 }
 
-/** Whether a file is a page that should be searched. */
+/** Whether a file is a page or record that should be searched. */
 export function searchedPage(path: string): boolean {
   const name = baseName(path);
-  return isPage(name) && !name.startsWith('.') && searchedFolder(parentVaultPath(path) ?? '');
+  return (
+    (isPage(name) || isRecord(name)) &&
+    !name.startsWith('.') &&
+    searchedFolder(parentVaultPath(path) ?? '')
+  );
 }
 
 export interface IndexServiceEvents {
@@ -191,7 +196,7 @@ export class IndexService {
       for (const file of files.slice(i, i + BATCH_SIZE)) {
         try {
           const text = await this.platform.readText(file.path);
-          pages.push(extractPage(file.path, text, { mtime: file.modified, size: file.size }));
+          pages.push(extractFile(file.path, text, { mtime: file.modified, size: file.size }));
         } catch (err) {
           // A page that vanished or cannot be read is left out; the
           // watcher will report it again if it comes back.

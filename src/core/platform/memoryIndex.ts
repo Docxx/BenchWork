@@ -178,7 +178,7 @@ export class MemoryIndex implements SearchIndex {
   pages(): Promise<PageRef[]> {
     return this.run(() =>
       [...this.current().values()]
-        .map((p) => ({ path: p.path, title: p.title, id: p.id }))
+        .map((p) => ({ path: p.path, title: p.title, id: p.id, type: p.type }))
         .sort((a, b) => byText(a.path, b.path)),
     );
   }

@@ -7,6 +7,7 @@ const ref = (path: string): PageRef => ({
   path,
   title: (path.split('/').pop() ?? path).replace(/\.md$/, ''),
   id: null,
+  type: 'page',
 });
 
 const PAGES = [

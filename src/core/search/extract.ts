@@ -3,6 +3,14 @@ import { parseBody } from '../editor/markdown/markdown';
 import { RAW_BLOCK, RAW_INLINE, WIKI_LINK, type PMNode } from '../editor/markdown/model';
 import { pageTitle } from '../notebooks/notebookTree';
 import { parsePage } from '../pages/frontmatter';
+import {
+  parseRecord,
+  propertyLinks,
+  propertyText,
+  recordKind,
+  recordName,
+  withoutRecordEnding,
+} from '../records/records';
 import { baseName, type IndexedLink, type IndexedPage } from '../platform';
 
 /**
@@ -18,12 +26,15 @@ const TAG = /(?<![\p{L}\p{N}_&#/])#([\p{L}\p{N}_/-]*[\p{L}_/-][\p{L}\p{N}_/-]*)/
 
 const INLINE_TYPES = new Set(['text', WIKI_LINK, 'image', 'hardBreak', RAW_INLINE]);
 
-/** Matching key for a link target: lower case, without `#heading`, `^block` or `.md`. */
+/**
+ * Matching key for a link target: lower case, without `#heading`, `^block`,
+ * `.md` or a record's `.<kind>.yaml`.
+ */
 export function linkKey(target: string): string {
   let key = target.split(/[#^]/)[0] ?? '';
   key = key.replace(/\\/g, '/').trim();
   key = key.replace(/^(\.\/|\/)+/, '');
-  key = key.replace(/\.md$/i, '');
+  key = withoutRecordEnding(key.replace(/\.md$/i, ''));
   return key.normalize('NFC').toLowerCase();
 }
 
@@ -107,7 +118,21 @@ function unique(tags: readonly string[]): string[] {
   });
 }
 
-/** Reads a page's text into what the index stores. */
+function propertyLinkRefs(data: Record<string, unknown>): IndexedLink[] {
+  return propertyLinks(data).map((target) => ({ target, key: linkKey(target), embed: false }));
+}
+
+/** Frontmatter as plain data; empty if it cannot be read. */
+function frontmatterData(yaml: string | null): Record<string, unknown> {
+  if (yaml === null) return {};
+  const { data, error } = parseRecord(yaml);
+  return error === null ? data : {};
+}
+
+/**
+ * Reads a page's text into what the index stores. Property values are
+ * searched too, and `[[links]]` in them count as links.
+ */
 export function extractPage(
   path: string,
   text: string,
@@ -115,7 +140,9 @@ export function extractPage(
 ): IndexedPage {
   const page = parsePage(text);
   const found: Found = { links: [], tags: [] };
-  const body = plain(parseBody(page.body).doc, found, false);
+  const content = plain(parseBody(page.body).doc, found, false);
+  const data = frontmatterData(page.yaml);
+  const properties = propertyText(data);
   return {
     path,
     id: page.meta.id,
@@ -126,7 +153,52 @@ export function extractPage(
     mtime: file.mtime,
     size: file.size,
     tags: unique([...page.meta.tags, ...found.tags]),
-    links: found.links,
-    body,
+    links: [...propertyLinkRefs(data), ...found.links],
+    body: properties === '' ? content : `${properties}\n${content}`,
   };
+}
+
+function stringOrNull(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+}
+
+function tagList(value: unknown): string[] {
+  const raw: unknown[] = Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
+  return raw
+    .filter((t): t is string => typeof t === 'string')
+    .map((t) => t.trim().replace(/^#/, ''))
+    .filter((t) => t !== '');
+}
+
+/** Reads a record into what the index stores: its kind is its type. */
+export function extractRecord(
+  path: string,
+  text: string,
+  file: { mtime: number | null; size: number },
+): IndexedPage {
+  const { data } = parseRecord(text);
+  return {
+    path,
+    id: stringOrNull(data['id']),
+    title: recordName(path),
+    type: recordKind(path) ?? 'record',
+    created: stringOrNull(data['created']),
+    modified: stringOrNull(data['modified']),
+    mtime: file.mtime,
+    size: file.size,
+    tags: unique(tagList(data['tags'])),
+    links: propertyLinkRefs(data),
+    body: propertyText(data),
+  };
+}
+
+/** Reads a page or record, by its name. */
+export function extractFile(
+  path: string,
+  text: string,
+  file: { mtime: number | null; size: number },
+): IndexedPage {
+  return recordKind(path) !== null
+    ? extractRecord(path, text, file)
+    : extractPage(path, text, file);
 }

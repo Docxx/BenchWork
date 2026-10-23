@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { extractPage, inlineTags, linkKey, pageKeys } from './extract';
+import { extractFile, extractPage, inlineTags, linkKey, pageKeys } from './extract';
 
 const FILE = { mtime: 1000, size: 10 };
 
@@ -103,5 +103,63 @@ describe('sized images', () => {
     const text = '![[plot.png|300]] ![[blot.png|Western blot|250]] ![graph|400](g.png)\n';
     const page = extractPage('A.md', text, FILE);
     expect(page.body).toBe('plot.png Western blot graph');
+  });
+});
+
+describe('properties and records', () => {
+  it('searches property values and counts links in them', () => {
+    const page = extractPage(
+      'Lab/Dose.md',
+      [
+        '---',
+        'type: experiment',
+        'genotypes: [w1118, elav>tau]',
+        "datasets: ['[[climbing-day7]]']",
+        '---',
+        'Flies moved.',
+      ].join('\n'),
+      FILE,
+    );
+    expect(page.body).toBe('w1118, elav>tau\nclimbing-day7\nFlies moved.');
+    expect(page.links).toEqual([{ target: 'climbing-day7', key: 'climbing-day7', embed: false }]);
+  });
+
+  it('reads records: their kind is the type and their name the title', () => {
+    const record = extractFile(
+      'Lab/Data/climbing-day7.dataset.yaml',
+      [
+        'id: 42ab',
+        'experiment: "[[Dose]]"',
+        'instrument: Camera 2',
+        'tags: [climbing]',
+        'files:',
+        '  - path: Lab/Data/day7.csv',
+      ].join('\n'),
+      FILE,
+    );
+    expect(record).toMatchObject({
+      id: '42ab',
+      title: 'climbing-day7',
+      type: 'dataset',
+      tags: ['climbing'],
+      links: [{ target: 'Dose', key: 'dose', embed: false }],
+      body: 'Dose\nCamera 2\nLab/Data/day7.csv',
+    });
+  });
+
+  it('indexes records it cannot read with no text', () => {
+    expect(extractFile('a.dataset.yaml', 'a: [', FILE)).toMatchObject({
+      title: 'a',
+      type: 'dataset',
+      body: '',
+    });
+  });
+
+  it('links to records without their ending', () => {
+    expect(linkKey('Data/climbing-day7.dataset.yaml')).toBe('data/climbing-day7');
+    expect(pageKeys('Data/climbing-day7.dataset.yaml')).toEqual([
+      'data/climbing-day7',
+      'climbing-day7',
+    ]);
   });
 });
