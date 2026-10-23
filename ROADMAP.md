@@ -40,8 +40,9 @@ Current phase: **Phase 3**
 
 ## Phase 3: First modules
 
-- [ ] Lab notebook module
-- [ ] References module (Zotero)
+- [x] Lab notebook module
+- [x] References module (Zotero)
+- [ ] Exit check: daily pages with citations from the Zotero library (passes in Playwright, tests/e2e/phase3.spec.ts; still to try on the desktop with a real Better BibTeX export)
 
 ## Phase 4: Android tablet and ink
 

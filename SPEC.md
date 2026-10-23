@@ -276,4 +276,4 @@ The two biggest risks are sync conflicts and ink responsiveness on tablets; both
 
 - [ ] Folder sync for phase 4: Syncthing, or bring native sync forward
 - [ ] Licence: undecided; private repo for now
-- [ ] Zotero connection: Web API key or local Better BibTeX
+- [x] Zotero connection: Web API key or local Better BibTeX. Decided 23 Oct 2026: Better BibTeX keeps a CSL JSON export in the vault, which the References module reads
