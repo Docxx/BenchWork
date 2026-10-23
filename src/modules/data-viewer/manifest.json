@@ -1,0 +1,9 @@
+{
+  "id": "data-viewer",
+  "name": "Data viewer",
+  "version": "0.1.0",
+  "description": "Open CSV and Excel files as editable sheets with simple formulas and quick plots",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}
