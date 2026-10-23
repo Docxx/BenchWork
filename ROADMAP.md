@@ -1,6 +1,6 @@
 # BenchWork roadmap
 
-Current phase: **Phase 3**
+Current phase: **Phase 4**
 
 ## Phase 0: Skeleton
 
@@ -42,7 +42,7 @@ Current phase: **Phase 3**
 
 - [x] Lab notebook module
 - [x] References module (Zotero)
-- [ ] Exit check: daily pages with citations from the Zotero library (passes in Playwright, tests/e2e/phase3.spec.ts; still to try on the desktop with a real Better BibTeX export)
+- [x] Exit check: daily pages with citations from the Zotero library
 
 ## Phase 4: Android tablet and ink
 
@@ -66,6 +66,7 @@ Current phase: **Phase 3**
 - [ ] Inventory, Analysis bridge, Tasks
 - [ ] Onboarding with role-based module packs (Research pack first)
 - [ ] Handwriting-to-text search and PDF annotation
+- [ ] Rethink the References Library panel: it is always open in the sidebar and takes up room (for example folded until opened, or shown in the references notebook)
 
 ## Phase 7: Apple port
 
