@@ -47,6 +47,9 @@ importers:
       '@tiptap/suggestion':
         specifier: ^3.32.0
         version: 3.32.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
+      frappe-gantt:
+        specifier: ^1.2.2
+        version: 1.2.2
       mdast-util-from-markdown:
         specifier: ^2.1.0
         version: 2.1.0
@@ -1208,6 +1211,9 @@ packages:
 
   flatted@3.4.4:
     resolution: {integrity: sha512-5+ybhBZANEJxaH3X5evAFatUxLfEHSr7n6kYJ+1Qd0mUqr4eu9gIf6GDbWHf8RJijHrjjO8G+la14SlL2SeS1Q==}
+
+  frappe-gantt@1.2.2:
+    resolution: {integrity: sha512-1+uPNRa92LBIeKiZCVhJMiGIifJk5ONaoerXI8eBREXWRZGGoTJR5ATpMpsnAQcyBA6Gnq5wIht4eL+e4eHMBA==}
 
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
@@ -3013,6 +3019,8 @@ snapshots:
       hookified: 1.15.1
 
   flatted@3.4.4: {}
+
+  frappe-gantt@1.2.2: {}
 
   fsevents@2.3.3:
     optional: true

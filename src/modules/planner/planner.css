@@ -1,0 +1,63 @@
+/* The Planner's timeline. Frappe Gantt's colours follow BenchWork's theme. */
+
+.planner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.planner-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.planner-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.planner-chart {
+  --g-arrow-color: var(--muted);
+  --g-bar-color: var(--surface);
+  --g-bar-border: var(--border);
+  --g-tick-color-thick: var(--border);
+  --g-tick-color: var(--border);
+  --g-actions-background: var(--surface);
+  --g-border-color: var(--border);
+  --g-text-muted: var(--muted);
+  --g-text-light: var(--accent-text);
+  --g-text-dark: var(--text);
+  --g-progress-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  --g-handle-color: var(--text);
+  --g-weekend-label-color: var(--surface);
+  --g-header-background: var(--bg);
+  --g-row-color: var(--bg);
+  --g-row-border-color: var(--border);
+  --g-today-highlight: var(--accent);
+  --g-popup-actions: var(--surface);
+  --g-weekend-highlight-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.planner-chart .bar-label {
+  font-family: inherit;
+}
+
+.planner-chart .bar-wrapper.milestone .bar {
+  fill: var(--accent);
+}
+
+.planner-chart .bar-wrapper.milestone .bar-label {
+  font-weight: 600;
+}
+
+/* Room for the horizontal scrollbar, so the last row is not hidden. */
+.planner-chart .gantt-container {
+  height: calc(var(--gv-grid-height) + 16px);
+}

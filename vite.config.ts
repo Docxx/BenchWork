@@ -14,8 +14,15 @@ export default defineConfig({
   resolve: {
     alias: {
       '@core': fileURLToPath(new URL('./src/core', import.meta.url)),
+      // Frappe Gantt lists its stylesheet only under a "style" export condition.
+      'frappe-gantt/style.css': fileURLToPath(
+        new URL('./node_modules/frappe-gantt/dist/frappe-gantt.css', import.meta.url),
+      ),
     },
   },
+  // Loaded only when first used, so Vite would otherwise find them mid-session
+  // and bundle them then, reloading the page.
+  optimizeDeps: { include: ['plotly.js-dist-min', 'frappe-gantt'] },
   clearScreen: false,
   envPrefix: ['VITE_', 'TAURI_ENV_'],
   server: {
