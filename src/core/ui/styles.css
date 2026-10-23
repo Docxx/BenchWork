@@ -1772,3 +1772,70 @@ pre.raw-block {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+/* A module's full-page view, such as the Planner or a manuscript overview. */
+.module-view {
+  padding: 1.5rem 2rem;
+}
+
+.module-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.module-view-header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+/* Manuscript overview. */
+.manuscript-title {
+  margin: 0 0 0.25rem;
+}
+
+.manuscript-parts {
+  width: 100%;
+  max-width: 36rem;
+  margin: 1rem 0;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.manuscript-parts th,
+.manuscript-parts td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.manuscript-parts .number {
+  text-align: right;
+}
+
+.manuscript-parts tr.missing td {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.manuscript-parts tfoot th,
+.manuscript-parts tfoot td {
+  font-weight: 600;
+  border-bottom: none;
+}
+
+.link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}

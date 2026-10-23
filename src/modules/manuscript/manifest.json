@@ -1,0 +1,9 @@
+{
+  "id": "manuscript",
+  "name": "Manuscript",
+  "version": "0.1.0",
+  "description": "Join pages into a manuscript, count words, and export to Word with formatted citations",
+  "dependsOn": ["references"],
+  "platforms": ["desktop"],
+  "defaultEnabled": false
+}
