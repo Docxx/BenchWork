@@ -249,9 +249,13 @@ function LinkEditor({
   const listId = useId();
   const kind = row.kind === 'link' ? 'link' : 'links';
   const targets = linkTargets(row.value);
+  // Pages of the type this property links to (such as protocols) come first.
   const choices = useMemo(
-    () => pageRefs.map((p) => ({ target: linkTargetFor(p.path), title: p.title })),
-    [pageRefs, linkTargetFor],
+    () =>
+      [...pageRefs]
+        .sort((a, b) => Number(b.type === row.linkType) - Number(a.type === row.linkType))
+        .map((p) => ({ target: linkTargetFor(p.path), title: p.title })),
+    [pageRefs, linkTargetFor, row.linkType],
   );
 
   const add = (text: string) => {

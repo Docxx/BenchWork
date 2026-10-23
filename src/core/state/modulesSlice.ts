@@ -1,5 +1,12 @@
 import type { CommandTarget } from '../api';
-import type { Command, FileHandler, PageType, SidebarPanel } from '../modules/contributions';
+import type {
+  CitationProvider,
+  Command,
+  FileHandler,
+  PageType,
+  SettingsPanel,
+  SidebarPanel,
+} from '../modules/contributions';
 import type { RegistryState } from '../modules/registry';
 import { describeError, type StoreContext } from './context';
 
@@ -27,6 +34,14 @@ export interface ModulesSlice {
   pageTypes: PageType[];
   commands: Command[];
   fileHandlers: FileHandler[];
+  /** Settings panels of modules that are on. */
+  settingsPanels: SettingsPanel[];
+  /** The module that names cited works, if one is on; at most one. */
+  citationProviders: CitationProvider[];
+  /** Goes up when citations should be redrawn. */
+  citationVersion: number;
+  /** The citation provider now, for the editor, which reads it when it needs it. */
+  citationProvider: () => CitationProvider | null;
   textPrompt: TextPrompt | null;
   /** Shows a text prompt; resolves to the answer, or null if cancelled. */
   askText: (prompt: { title: string; label: string; initial?: string }) => Promise<string | null>;
@@ -85,6 +100,10 @@ export function createModulesSlice(ctx: StoreContext): ModulesSlice {
     pageTypes: registry.contributions.getState().pageTypes,
     commands: registry.contributions.getState().commands,
     fileHandlers: registry.contributions.getState().fileHandlers,
+    settingsPanels: registry.contributions.getState().settingsPanels,
+    citationProviders: registry.contributions.getState().citationProviders,
+    citationVersion: registry.contributions.getState().citationVersion,
+    citationProvider: () => get().citationProviders[0] ?? null,
     textPrompt: null,
 
     askText: (prompt) => {

@@ -1,5 +1,12 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
-import type { CommandSpec, FileHandlerSpec, PageTypeSpec, SidebarPanelSpec } from '../api';
+import type {
+  CitationProviderSpec,
+  CommandSpec,
+  FileHandlerSpec,
+  PageTypeSpec,
+  SettingsPanelSpec,
+  SidebarPanelSpec,
+} from '../api';
 
 export interface SidebarPanel extends SidebarPanelSpec {
   moduleId: string;
@@ -17,12 +24,25 @@ export interface FileHandler extends FileHandlerSpec {
   moduleId: string;
 }
 
+export interface SettingsPanel extends SettingsPanelSpec {
+  moduleId: string;
+}
+
+export interface CitationProvider extends CitationProviderSpec {
+  moduleId: string;
+}
+
 export interface ContributionsState {
   /** Sidebar panels from modules that are on, in the order they registered. */
   panels: SidebarPanel[];
   pageTypes: PageType[];
   commands: Command[];
   fileHandlers: FileHandler[];
+  settingsPanels: SettingsPanel[];
+  /** At most one: the first module to register wins. */
+  citationProviders: CitationProvider[];
+  /** Goes up when a module asks for citations to be redrawn. */
+  citationVersion: number;
 }
 
 /** Everything modules have added to the UI. The UI reads it; modules add via their context. */
@@ -34,6 +54,9 @@ export function createContributions(): Contributions {
     pageTypes: [],
     commands: [],
     fileHandlers: [],
+    settingsPanels: [],
+    citationProviders: [],
+    citationVersion: 0,
   }));
 }
 

@@ -4,8 +4,8 @@
  *
  * Phase 0 offers sidebar panels, private storage and clean-up. Phase 2 adds
  * page types, commands, file handlers, and access to the vault and the app.
- * Block renderers, settings panels and index hooks are added in the phases
- * that first need them.
+ * Phase 3 adds settings panels and citations. Block renderers and index
+ * hooks are added in the phases that first need them.
  */
 import type { ReactNode } from 'react';
 import type { DeviceKind, DirEntry, FileInfo, VaultChange } from '../platform/types';
@@ -38,6 +38,7 @@ export interface ModuleContext {
   readonly pageTypes: ModulePageTypes;
   readonly commands: ModuleCommands;
   readonly files: ModuleFiles;
+  readonly citations: ModuleCitations;
   /** JSON files in `.benchwork/modules/<id>/`, the module's private folder. */
   readonly storage: ModuleStorage;
   /** The vault's files. Modules keep their files in normal vault folders. */
@@ -92,6 +93,8 @@ export interface PropertyField {
   kind: PropertyKind;
   /** For `choice`. */
   options?: string[];
+  /** For `link` and `links`: pages of this type are offered first, such as `protocol`. */
+  linkType?: string;
 }
 
 export interface NewPageInfo {
@@ -215,8 +218,26 @@ export interface ModuleApp {
   open(path: string): Promise<void>;
   /** Creates a notebook (with `folder` empty) or a section. Returns its path, or null. */
   createFolder(folder: string, title: string): Promise<string | null>;
-  /** Creates a page, optionally of a registered type, and opens it. Returns its path, or null. */
-  createPage(folder: string, title: string, type?: string): Promise<string | null>;
+  /**
+   * Creates a page, optionally of a registered type, and opens it. With
+   * `content`, a typed page starts with that instead of its type's usual
+   * start. Returns its path, or null.
+   */
+  createPage(
+    folder: string,
+    title: string,
+    type?: string,
+    content?: NewPageContent,
+  ): Promise<string | null>;
+  /** The page open in the editor, or null. */
+  openPage(): string | null;
+  /** A page's properties (its frontmatter keys), or null if they cannot be read. */
+  pageProperties(path: string): Promise<Record<string, unknown> | null>;
+  /**
+   * Sets or (with null) removes properties of a page, leaving the rest of it
+   * exactly as it is. Saved straight away, also when the page is open.
+   */
+  setPageProperties(path: string, changes: Record<string, unknown>): Promise<void>;
   /** Asks the user for a line of text, such as a name. Null if cancelled. */
   askText(options: { title: string; label: string; initial?: string }): Promise<string | null>;
   /** Shows a short message. */
@@ -233,6 +254,52 @@ export interface ModuleApp {
 
 export interface ModuleViews {
   registerSidebarPanel(spec: SidebarPanelSpec): Disposable;
+  /** The module's own options, shown under it in Settings > Modules while it is on. */
+  registerSettingsPanel(spec: SettingsPanelSpec): Disposable;
+}
+
+export interface SettingsPanelSpec {
+  /** Must start with the module id and a dot. */
+  id: string;
+  render: () => ReactNode;
+}
+
+// ---- Citations ----
+
+/**
+ * Citations are written `[@key]` in pages (Pandoc's form). A module that
+ * knows a reference library says what each key is; without one, citations
+ * show as their keys. One module provides citations at a time.
+ */
+export interface ModuleCitations {
+  register(spec: CitationProviderSpec): Disposable;
+  /** Asks open pages to redraw their citations, such as after the library changed. */
+  refresh(): void;
+}
+
+export interface CitationProviderSpec {
+  /** Must start with the module id and a dot. */
+  id: string;
+  /** The work behind a key, or null if the library does not have it. */
+  describe(key: string): CitedWork | null;
+  /** Works for the `[@` menu, best first. */
+  suggest(query: string): CitationChoice[];
+  /** Called when a citation is clicked: opens the key's note. */
+  open(key: string): void | Promise<void>;
+}
+
+export interface CitedWork {
+  /** For the chip, such as `Smith et al. 2024`. */
+  short: string;
+  /** For the tooltip: the full reference. */
+  full: string;
+}
+
+export interface CitationChoice {
+  key: string;
+  label: string;
+  /** A second line, such as the title. */
+  detail: string;
 }
 
 export interface SidebarPanelSpec {

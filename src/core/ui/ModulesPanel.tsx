@@ -53,6 +53,7 @@ export function ModulesPanel() {
                     {statusText(info)}
                   </span>
                 </div>
+                {on && <ModuleSettings id={id} />}
                 <button
                   type="button"
                   role="switch"
@@ -85,6 +86,13 @@ export function ModulesPanel() {
       )}
     </div>
   );
+}
+
+/** A module's own options, under it while it is on. */
+function ModuleSettings({ id }: { id: string }) {
+  const panel = useApp((s) => s.settingsPanels.find((p) => p.moduleId === id));
+  if (!panel) return null;
+  return <div className="module-settings">{panel.render()}</div>;
 }
 
 function ConfirmChange({ id, enable, names }: { id: string; enable: boolean; names: string[] }) {

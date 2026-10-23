@@ -74,9 +74,27 @@ export function createAppStore(
   registry.store.subscribe((modules) => {
     store.setState({ modules });
   });
-  registry.contributions.subscribe(({ panels, pageTypes, commands, fileHandlers }) => {
-    store.setState({ panels, pageTypes, commands, fileHandlers });
-  });
+  registry.contributions.subscribe(
+    ({
+      panels,
+      pageTypes,
+      commands,
+      fileHandlers,
+      settingsPanels,
+      citationProviders,
+      citationVersion,
+    }) => {
+      store.setState({
+        panels,
+        pageTypes,
+        commands,
+        fileHandlers,
+        settingsPanels,
+        citationProviders,
+        citationVersion,
+      });
+    },
+  );
   registry.connectApp(createModuleBridge(store, platform));
   return store;
 }

@@ -1,3 +1,4 @@
+import type { NewPageContent } from '../api';
 import {
   createFolder,
   createPage,
@@ -35,7 +36,13 @@ export interface NotebookSlice {
    * Creates a page of a type a module registered, such as an experiment,
    * and opens it. With no title it is "Untitled experiment", numbered.
    */
-  createTypedPage: (folder: string, type: string, title?: string) => Promise<string | null>;
+  /** With `content`, the page starts with that instead of its type's usual start. */
+  createTypedPage: (
+    folder: string,
+    type: string,
+    title?: string,
+    content?: NewPageContent,
+  ) => Promise<string | null>;
   renameItem: (path: string, title: string) => Promise<string | null>;
   /** Moves into `folder`; with `index`, also places it there in the folder's order. */
   moveItem: (path: string, folder: string, index?: number) => Promise<string | null>;
@@ -155,7 +162,7 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
         return path;
       }),
 
-    createTypedPage: (folder, type, title) =>
+    createTypedPage: (folder, type, title, given) =>
       attempt(async () => {
         const spec = get().pageTypes.find((t) => t.type === type);
         if (!spec) {
@@ -168,7 +175,8 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
           pageTitle(
             await freeName(platform, folder, `Untitled ${spec.name.toLowerCase()}`, PAGE_EXTENSION),
           );
-        const content = (await spec.create?.({ folder, title: name, now: new Date() })) ?? {};
+        const content =
+          given ?? (await spec.create?.({ folder, title: name, now: new Date() })) ?? {};
         const path = await createPage(platform, folder, {
           title: name,
           text: (id, created) => typedPageText(type, content, id, created),

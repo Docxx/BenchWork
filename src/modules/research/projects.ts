@@ -65,7 +65,7 @@ export function experimentType(ctx: Pick<ModuleContext, 'vault' | 'app'>): PageT
       { key: 'date', label: 'Date', kind: 'date' },
       { key: 'status', label: 'Status', kind: 'choice', options: EXPERIMENT_STATUS },
       { key: 'project', label: 'Project', kind: 'link' },
-      { key: 'protocol', label: 'Protocol', kind: 'link' },
+      { key: 'protocol', label: 'Protocol', kind: 'link', linkType: 'protocol' },
       { key: 'conditions', label: 'Conditions', kind: 'list' },
       { key: 'genotypes', label: 'Genotypes', kind: 'list' },
       { key: 'datasets', label: 'Datasets', kind: 'links' },

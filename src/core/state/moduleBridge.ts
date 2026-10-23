@@ -1,6 +1,7 @@
 import type { VaultItem } from '../api';
 import { linkTargetFor, resolveLink, suffixKeys } from '../links/resolve';
 import type { AppBridge } from '../modules/context';
+import { pageProperties, parsePage, serialisePage, updateProperties } from '../pages/frontmatter';
 import type { PageRef, PlatformAdapter } from '../platform';
 import type { AppStore } from './appStore';
 
@@ -27,10 +28,25 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
     open: (path) => state().openPath(path),
     createFolder: (folder, title) =>
       folder === '' ? state().createNotebook(title) : state().createSection(folder, title),
-    createPage: (folder, title, type) =>
+    createPage: (folder, title, type, content) =>
       type === undefined
         ? state().createPage(folder, title)
-        : state().createTypedPage(folder, type, title),
+        : state().createTypedPage(folder, type, title, content),
+    openPage: () => state().page?.path ?? null,
+    pageProperties: async (path) => {
+      const page = parsePage(await platform.readText(path));
+      return page.error === null ? pageProperties(page) : null;
+    },
+    setPageProperties: async (path, changes) => {
+      // The open page changes through the editor's session, so nothing is lost.
+      if (state().page?.path === path) {
+        state().setPageProperties(changes);
+        await state().savePageNow();
+        return;
+      }
+      const page = parsePage(await platform.readText(path));
+      await platform.writeTextAtomic(path, serialisePage(updateProperties(page, changes)));
+    },
     askText: (options) => state().askText(options),
     notify: (message) => {
       store.setState({ sidebarNotice: message });

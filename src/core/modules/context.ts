@@ -28,7 +28,8 @@ export interface ContextDeps {
 }
 
 /** Lists in ContributionsState that hold registered items. */
-type ListKey = 'panels' | 'pageTypes' | 'commands' | 'fileHandlers';
+type ListKey =
+  'panels' | 'pageTypes' | 'commands' | 'fileHandlers' | 'settingsPanels' | 'citationProviders';
 
 export interface ModuleContextHandle {
   ctx: ModuleContext;
@@ -128,6 +129,29 @@ export function createModuleContext(
           `A panel with id '${spec.id}'`,
         );
       },
+      registerSettingsPanel(spec) {
+        checkId('Settings panel', spec.id);
+        return contribute(
+          'settingsPanels',
+          { ...spec, moduleId: id },
+          (p) => p.moduleId === id,
+          `A settings panel for '${id}'`,
+        );
+      },
+    },
+    citations: {
+      register(spec) {
+        checkId('Citation provider', spec.id);
+        return contribute(
+          'citationProviders',
+          { ...spec, moduleId: id },
+          () => true,
+          'A citation provider',
+        );
+      },
+      refresh() {
+        deps.contributions.setState((s) => ({ citationVersion: s.citationVersion + 1 }));
+      },
     },
     pageTypes: {
       register(spec) {
@@ -209,7 +233,10 @@ export function createModuleContext(
     app: {
       open: (path) => app().open(path),
       createFolder: (folder, title) => app().createFolder(folder, title),
-      createPage: (folder, title, type) => app().createPage(folder, title, type),
+      createPage: (folder, title, type, content) => app().createPage(folder, title, type, content),
+      openPage: () => app().openPage(),
+      pageProperties: (path) => app().pageProperties(path),
+      setPageProperties: (path, changes) => app().setPageProperties(path, changes),
       askText: (options) => app().askText(options),
       notify: (message) => {
         app().notify(message);
