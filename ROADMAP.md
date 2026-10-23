@@ -31,12 +31,12 @@ Current phase: **Phase 2**
 
 ## Phase 2: Research core
 
-- [ ] Projects (folder + project.md hub)
-- [ ] Experiment note type
-- [ ] Dataset records (.dataset.yaml) with SHA-256 checksums and external paths
-- [ ] Attachments with copy-or-link prompt (size threshold in Settings, default 50 MB)
-- [ ] CSV, Excel, image and PDF previews
-- [ ] Exit check: an experiment links to its data and both appear in search
+- [x] Projects (folder + project.md hub)
+- [x] Experiment note type
+- [x] Dataset records (.dataset.yaml) with SHA-256 checksums and external paths
+- [x] Attachments with copy-or-link prompt (size threshold in Settings, default 50 MB)
+- [x] CSV, Excel, image and PDF previews
+- [ ] Exit check: an experiment links to its data and both appear in search (passes in Playwright, tests/e2e/phase2.spec.ts; still to try in the desktop app)
 
 ## Phase 3: First modules
 

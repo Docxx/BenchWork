@@ -2,7 +2,7 @@ import { Component, useEffect, useRef, useState, type ErrorInfo, type ReactNode 
 import type { TableData } from '../files/csv';
 import { parseCsv } from '../files/csv';
 import { fileKind, kindLabel } from '../files/fileKinds';
-import { openPdf, type PdfDocument } from '../files/pdf';
+import { openPdf, type PdfDocument, type PdfRender } from '../files/pdf';
 import { readSpreadsheet, type SheetData } from '../files/spreadsheet';
 import { handlerFor } from '../modules/contributions';
 import { baseName, PlatformError } from '../platform';
@@ -216,15 +216,16 @@ function PdfPages({ doc }: { doc: PdfDocument }) {
   const shown = Math.min(doc.pages, PDF_PAGES);
 
   useEffect(() => {
-    const run = { live: true };
+    const run: { live: boolean; current: PdfRender | null } = { live: true, current: null };
     const width = Math.min(900, Math.max(320, (ref.current?.clientWidth ?? 800) - 16));
     void (async () => {
       // One page at a time, top first, so the first page shows quickly.
       for (let n = 1; n <= shown && run.live; n += 1) {
         const canvas = ref.current?.querySelector<HTMLCanvasElement>(`[data-page="${String(n)}"]`);
         if (!canvas) continue;
+        run.current = doc.render(n, canvas, width);
         try {
-          await doc.render(n, canvas, width);
+          if (!(await run.current.done)) return;
         } catch (err) {
           console.warn('Could not draw PDF page', n, err);
           setFailed(true);
@@ -232,7 +233,9 @@ function PdfPages({ doc }: { doc: PdfDocument }) {
       }
     })();
     return () => {
+      // Stop the page being drawn, so the canvas is free to draw again.
       run.live = false;
+      run.current?.cancel();
     };
   }, [doc, shown]);
 

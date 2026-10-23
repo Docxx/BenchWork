@@ -5,9 +5,19 @@
 
 export interface PdfDocument {
   pages: number;
-  /** Draws page `n` (from 1) into `canvas`, `width` CSS pixels wide. */
-  render(n: number, canvas: HTMLCanvasElement, width: number): Promise<void>;
+  /**
+   * Draws page `n` (from 1) into `canvas`, `width` CSS pixels wide. A
+   * canvas takes one drawing at a time, so cancel one that is no longer
+   * wanted; `done` then resolves to false.
+   */
+  render(n: number, canvas: HTMLCanvasElement, width: number): PdfRender;
   destroy(): void;
+}
+
+export interface PdfRender {
+  /** True once drawn; false if cancelled first. */
+  done: Promise<boolean>;
+  cancel(): void;
 }
 
 let configured: Promise<typeof import('pdfjs-dist')> | null = null;
@@ -30,16 +40,38 @@ export async function openPdf(bytes: Uint8Array): Promise<PdfDocument> {
   const doc = await task.promise;
   return {
     pages: doc.numPages,
-    async render(n, canvas, width) {
-      const page = await doc.getPage(n);
-      const base = page.getViewport({ scale: 1 });
-      const ratio = window.devicePixelRatio || 1;
-      const viewport = page.getViewport({ scale: (width / base.width) * ratio });
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
-      canvas.style.width = `${String(Math.floor(viewport.width / ratio))}px`;
-      canvas.style.height = `${String(Math.floor(viewport.height / ratio))}px`;
-      await page.render({ canvas, viewport }).promise;
+    render(n, canvas, width) {
+      let cancelled = false;
+      // Read through a function: cancel() changes it while this waits.
+      const stopped = () => cancelled;
+      let task: { cancel(): void } | null = null;
+      const done = (async () => {
+        const page = await doc.getPage(n);
+        if (stopped()) return false;
+        const base = page.getViewport({ scale: 1 });
+        const ratio = window.devicePixelRatio || 1;
+        const viewport = page.getViewport({ scale: (width / base.width) * ratio });
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        canvas.style.width = `${String(Math.floor(viewport.width / ratio))}px`;
+        canvas.style.height = `${String(Math.floor(viewport.height / ratio))}px`;
+        const rendering = page.render({ canvas, viewport });
+        task = rendering;
+        try {
+          await rendering.promise;
+          return true;
+        } catch (err) {
+          if (stopped()) return false;
+          throw err;
+        }
+      })();
+      return {
+        done,
+        cancel: () => {
+          cancelled = true;
+          task?.cancel();
+        },
+      };
     },
     destroy() {
       void task.destroy();
