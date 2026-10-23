@@ -168,6 +168,23 @@ export interface ModuleVault {
   ensureDir(path: string): Promise<void>;
   /** A free file name in `folder`: `base` + `ext`, or `base 2` + `ext`, and so on. */
   freeName(folder: string, base: string, ext: string): Promise<string>;
+  /** A record's values, from `<name>.<kind>.yaml`. `error` says why it could not be read. */
+  readRecord(path: string): Promise<RecordData>;
+  /**
+   * Sets top-level keys in a record, keeping its comments and order; null
+   * removes a key. Refuses a record that could not be read.
+   */
+  updateRecord(path: string, changes: Record<string, unknown>): Promise<void>;
+  /**
+   * Creates `<folder>/<name>.<kind>.yaml` under a free name, with an `id`
+   * and `created` time before `data`. Returns its path.
+   */
+  createRecord(
+    folder: string,
+    name: string,
+    kind: string,
+    data: Record<string, unknown>,
+  ): Promise<string>;
   /** Size and time of a vault file, or of a full path outside the vault with `external`. */
   fileInfo(path: string, external?: boolean): Promise<FileInfo>;
   /** SHA-256 as lower-case hex. `external` as for fileInfo. */
@@ -178,6 +195,11 @@ export interface ModuleVault {
   vaultPathOf(fullPath: string): string | null;
   /** Calls `listener` when vault files change. Stopped when the module is switched off. */
   watch(listener: (change: VaultChange) => void): Disposable;
+}
+
+export interface RecordData {
+  data: Record<string, unknown>;
+  error: string | null;
 }
 
 /** A page or record in the vault, from the search index. */

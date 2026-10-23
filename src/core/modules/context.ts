@@ -1,5 +1,7 @@
 import type { Disposable, ModuleApp, ModuleContext, ModuleLogger } from '../api';
 import { freeName } from '../notebooks/notebookService';
+import { localTimestamp } from '../pages/frontmatter';
+import { parseRecord, updateRecord } from '../records/records';
 import {
   normaliseVaultPath,
   vaultPathOf,
@@ -175,6 +177,23 @@ export function createModuleContext(
       createNew: (path, text) => deps.platform.createNew(path, text),
       ensureDir: (path) => deps.platform.ensureDir(path),
       freeName: (folder, base, ext) => freeName(deps.platform, folder, base, ext),
+      readRecord: async (path) => parseRecord(await deps.platform.readText(path)),
+      updateRecord: async (path, changes) => {
+        const text = await deps.platform.readText(path);
+        await deps.platform.writeTextAtomic(path, updateRecord(text, changes));
+      },
+      createRecord: async (folder, name, kind, data) => {
+        if (!/^[a-z][a-z0-9-]*$/.test(kind)) throw new Error(`'${kind}' cannot be a record kind`);
+        const file = await freeName(deps.platform, folder, name, `.${kind}.yaml`);
+        const path = folder === '' ? file : `${folder}/${file}`;
+        const text = updateRecord('', {
+          id: crypto.randomUUID(),
+          created: localTimestamp(),
+          ...data,
+        });
+        await deps.platform.createNew(path, text);
+        return path;
+      },
       fileInfo: (path, external) => deps.platform.fileInfo(path, external),
       hashFile: (path, external) => deps.platform.hashFile(path, external),
       pickFiles: (options) => deps.platform.pickFiles(options),

@@ -144,6 +144,27 @@ describe('module context: Phase 2 extension points', () => {
     expect(platform.snapshot()['Lab/Data/a.dataset.yaml']).toBe('id: 2\n');
   });
 
+  it('creates, reads and updates records, keeping comments', async () => {
+    const { platform, ctx } = await setup();
+    await ctx.vault.ensureDir('Data');
+    const path = await ctx.vault.createRecord('Data', 'day7', 'dataset', { files: [] });
+    expect(path).toBe('Data/day7.dataset.yaml');
+    expect(await ctx.vault.createRecord('Data', 'day7', 'dataset', {})).toBe(
+      'Data/day7 2.dataset.yaml',
+    );
+    const { data, error } = await ctx.vault.readRecord(path);
+    expect(error).toBeNull();
+    expect(Object.keys(data)).toEqual(['id', 'created', 'files']);
+
+    await platform.writeTextAtomic(path, `# Day 7\n${platform.snapshot()[path] ?? ''}`);
+    await ctx.vault.updateRecord(path, { instrument: 'Camera 2', files: null });
+    const text = platform.snapshot()[path] ?? '';
+    expect(text.startsWith('# Day 7\n')).toBe(true);
+    expect((await ctx.vault.readRecord(path)).data).toMatchObject({ instrument: 'Camera 2' });
+    expect((await ctx.vault.readRecord(path)).data).not.toHaveProperty('files');
+    await expect(ctx.vault.createRecord('Data', 'x', 'Bad Kind', {})).rejects.toThrow();
+  });
+
   it('stops watching when switched off', async () => {
     const { ctx, handle } = await setup();
     const seen: string[][] = [];

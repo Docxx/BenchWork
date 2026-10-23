@@ -23,8 +23,10 @@ export default tseslint.config(
     ...tseslint.configs.disableTypeChecked,
   },
   {
-    // Modules talk to the core only through the public API.
+    // Modules talk to the core only through the public API. Their tests
+    // may set the app up from core internals.
     files: ['src/modules/**'],
+    ignores: ['src/modules/**/*.test.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
         'error',

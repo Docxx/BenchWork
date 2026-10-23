@@ -1654,3 +1654,28 @@ pre.raw-block {
 .ProseMirror-selectednode.file-embed {
   outline: 2px solid var(--accent);
 }
+
+/* ---- Small helpers, for the core and modules ---- */
+
+.link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

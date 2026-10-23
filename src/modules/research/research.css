@@ -1,0 +1,41 @@
+/* The Research module's own styles; it reuses the core's field and table look. */
+
+.dataset-heading {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.dataset-files {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.dataset-files th,
+.dataset-files td {
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.dataset-files th {
+  background: var(--surface);
+  font-weight: 600;
+}
+
+.file-state.same {
+  color: var(--accent);
+}
+
+.file-state.changed,
+.file-state.missing,
+.file-state.unreadable {
+  color: var(--warn-text);
+  font-weight: 600;
+}
+
+.dataset-links ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
