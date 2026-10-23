@@ -1,0 +1,9 @@
+{
+  "id": "references",
+  "name": "References",
+  "version": "0.1.0",
+  "description": "Citations from Zotero through Better BibTeX, and literature notes",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}
