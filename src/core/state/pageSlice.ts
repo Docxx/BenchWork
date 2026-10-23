@@ -12,7 +12,14 @@ import {
   type FileSource,
   type IncomingFile,
 } from '../pages/attachments';
-import { ensureId, localTimestamp, updateMeta, type ParsedPage } from '../pages/frontmatter';
+import {
+  ensureId,
+  localTimestamp,
+  pageProperties,
+  updateMeta,
+  updateProperties,
+  type ParsedPage,
+} from '../pages/frontmatter';
 import {
   listSnapshots,
   pruneSnapshots,
@@ -47,6 +54,18 @@ export interface PageConflict {
 
 export interface PageSlice {
   page: OpenPage | null;
+  /**
+   * The open page's frontmatter as data, every key. Null when the page has
+   * none, or when it cannot be read (then it is never changed).
+   */
+  pageProperties: Record<string, unknown> | null;
+  /** Whether the open page's frontmatter could not be read. */
+  propertiesBroken: boolean;
+  /** Sets or (with null) removes frontmatter keys; saved with the next autosave. */
+  setPageProperties: (changes: Record<string, unknown>) => void;
+  /** Whether the Properties panel is asking for a new property's name. */
+  addingProperty: boolean;
+  setAddingProperty: (adding: boolean) => void;
   saveState: SaveState;
   /** A message about the open page, such as why it could not be saved. */
   pageNotice: string | null;
@@ -153,14 +172,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
       stopObserving: () => undefined,
     };
     const onUpdate = () => {
-      if (session !== s) return;
-      s.dirty = true;
-      set({ saveState: 'unsaved' });
-      if (s.timer !== null) clearTimeout(s.timer);
-      s.timer = setTimeout(() => {
-        s.timer = null;
-        void get().savePageNow();
-      }, AUTOSAVE_MS);
+      if (session === s) markEdited(s);
     };
     ydoc.on('update', onUpdate);
     s.stopObserving = () => {
@@ -173,8 +185,32 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
       page: { path, title: titleOf(path), ydoc, version },
       saveState: 'saved',
       pageConflict: null,
+      addingProperty: false,
+      ...propertiesState(s.page),
     });
     return s;
+  }
+
+  function propertiesState(page: ParsedPage): {
+    pageProperties: Record<string, unknown> | null;
+    propertiesBroken: boolean;
+  } {
+    if (page.error !== null) return { pageProperties: null, propertiesBroken: true };
+    return {
+      pageProperties: page.yaml === null ? null : pageProperties(page),
+      propertiesBroken: false,
+    };
+  }
+
+  /** Notes an edit and starts the autosave timer again. */
+  function markEdited(s: Session): void {
+    s.dirty = true;
+    set({ saveState: 'unsaved' });
+    if (s.timer !== null) clearTimeout(s.timer);
+    s.timer = setTimeout(() => {
+      s.timer = null;
+      void get().savePageNow();
+    }, AUTOSAVE_MS);
   }
 
   /** The file text for the session's current content, and the page settings it needs. */
@@ -301,7 +337,14 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
     s.stopObserving();
     s.ydoc.destroy();
     session = null;
-    set({ page: null, saveState: 'saved', pageConflict: null, pageNotice: notice });
+    set({
+      page: null,
+      saveState: 'saved',
+      pageConflict: null,
+      pageNotice: notice,
+      pageProperties: null,
+      propertiesBroken: false,
+    });
   }
 
   ctx.onVault({
@@ -317,12 +360,39 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
       await get().closePage();
     },
     closed: () => {
-      set({ page: null, saveState: 'saved', pageNotice: null, pageConflict: null });
+      set({
+        page: null,
+        saveState: 'saved',
+        pageNotice: null,
+        pageConflict: null,
+        pageProperties: null,
+        propertiesBroken: false,
+      });
     },
   });
 
   return {
     page: null,
+    pageProperties: null,
+    propertiesBroken: false,
+    addingProperty: false,
+    setAddingProperty: (addingProperty) => {
+      set({ addingProperty });
+    },
+
+    setPageProperties: (changes) => {
+      const s = session;
+      if (!s || s.page.error !== null || get().pageConflict !== null) return;
+      try {
+        s.page = updateProperties(s.page, changes);
+      } catch (err) {
+        set({ pageNotice: err instanceof Error ? err.message : String(err) });
+        return;
+      }
+      set(propertiesState(s.page));
+      markEdited(s);
+    },
+
     saveState: 'saved',
     pageNotice: null,
     pageConflict: null,
@@ -354,7 +424,13 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
     closePage: async () => {
       openToken += 1;
       await endSession();
-      set({ page: null, saveState: 'saved', pageConflict: null });
+      set({
+        page: null,
+        saveState: 'saved',
+        pageConflict: null,
+        pageProperties: null,
+        propertiesBroken: false,
+      });
     },
 
     savePageNow: async () => {

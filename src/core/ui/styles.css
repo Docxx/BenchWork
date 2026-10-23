@@ -1337,3 +1337,130 @@ pre.raw-block {
   background: var(--bg);
   color: var(--text);
 }
+
+/* ---- Page properties ---- */
+
+.properties {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.properties-type {
+  margin: 0 0 0.4rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.property-row {
+  display: grid;
+  grid-template-columns: minmax(6rem, 10rem) 1fr;
+  gap: 0.75rem;
+  align-items: center;
+  min-height: 2rem;
+}
+
+.property-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.property-value {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.property-value input,
+.property-value select,
+.new-property input {
+  min-width: 0;
+  flex: 1;
+  font: inherit;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+}
+
+.property-value input:hover,
+.property-value select:hover,
+.property-value input:focus,
+.property-value select:focus,
+.new-property input {
+  border-color: var(--border);
+  background: var(--bg);
+}
+
+.property-value select {
+  flex: 0 1 auto;
+}
+
+.link-chips {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.link-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.link-chip.missing {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+}
+
+.link-chip button {
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.link-chip-open {
+  padding: 0.1rem 0.2rem 0.1rem 0.6rem;
+  color: var(--accent);
+}
+
+.link-chip-remove {
+  padding: 0.1rem 0.5rem 0.1rem 0.2rem;
+  color: var(--muted);
+}
+
+.remove-property {
+  visibility: hidden;
+}
+
+.property-row:hover .remove-property,
+.remove-property:focus-visible {
+  visibility: visible;
+}
+
+.add-property {
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.new-property {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.properties-broken {
+  margin: 0 0 1rem;
+}

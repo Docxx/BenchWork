@@ -5,6 +5,7 @@ import { useApp } from './AppStoreContext';
 import { Backlinks } from './Backlinks';
 import { HistoryPanel } from './HistoryPanel';
 import { PageEditor } from './PageEditor';
+import { PropertiesPanel } from './PropertiesPanel';
 
 const SAVE_LABELS: Record<SaveState, string> = {
   saved: 'Saved',
@@ -60,6 +61,7 @@ export function PageView() {
               }}
             />
           )}
+          <PropertiesPanel />
           {/* A new document after a reload from disk starts a fresh editor. */}
           <PageEditor key={page.ydoc.guid} page={page} />
           <Backlinks />

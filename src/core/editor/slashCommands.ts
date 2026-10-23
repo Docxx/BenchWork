@@ -16,6 +16,10 @@ export interface SlashItem {
 
 /** The item that inserts a template; the editor asks which one. */
 export const TEMPLATE_ITEM = 'template';
+/** The item that shows the page's properties with a new one to fill in. */
+export const PROPERTY_ITEM = 'property';
+/** The item that adds a file from a file picker. */
+export const FILE_ITEM = 'file';
 
 const chain = (editor: Editor, range: Range) => editor.chain().focus().deleteRange(range);
 
@@ -88,6 +92,20 @@ export const SLASH_ITEMS: SlashItem[] = [
     run: (e, r) => chain(e, r).run(),
   },
   {
+    id: PROPERTY_ITEM,
+    label: 'Property',
+    keywords: ['field', 'metadata', 'frontmatter', 'properties'],
+    // Handled by the editor: it opens the page's properties.
+    run: (e, r) => chain(e, r).run(),
+  },
+  {
+    id: FILE_ITEM,
+    label: 'File',
+    keywords: ['attach', 'data', 'upload', 'link'],
+    // Handled by the editor: it asks which file, then adds it here.
+    run: (e, r) => chain(e, r).run(),
+  },
+  {
     id: 'divider',
     label: 'Divider',
     keywords: ['hr', 'rule', 'line', 'separator'],
@@ -123,17 +141,19 @@ export interface SlashOptions {
   onChange: (state: SlashMenuState | null) => void;
   /** Called with where to insert, when Template is chosen. */
   onTemplate: (pos: number) => void;
+  /** Called with where it was chosen, for Property and File. */
+  onAction: (id: typeof PROPERTY_ITEM | typeof FILE_ITEM, pos: number) => void;
 }
 
 export const SlashCommands = Extension.create<SlashOptions>({
   name: 'slashCommands',
 
   addOptions() {
-    return { onChange: () => undefined, onTemplate: () => undefined };
+    return { onChange: () => undefined, onTemplate: () => undefined, onAction: () => undefined };
   },
 
   addProseMirrorPlugins() {
-    const { onChange, onTemplate } = this.options;
+    const { onChange, onTemplate, onAction } = this.options;
     let current: { props: SuggestionProps<SlashItem, SlashItem>; index: number } | null = null;
 
     const emit = () => {
@@ -162,6 +182,7 @@ export const SlashCommands = Extension.create<SlashOptions>({
         command: ({ editor, range, props }) => {
           props.run(editor, range);
           if (props.id === TEMPLATE_ITEM) onTemplate(range.from);
+          if (props.id === PROPERTY_ITEM || props.id === FILE_ITEM) onAction(props.id, range.from);
         },
         render: () => ({
           onStart: (props) => {

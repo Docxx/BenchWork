@@ -359,3 +359,45 @@ describe('automatic snapshots', () => {
     expect(state().pageNotice).toContain('Restored an earlier version');
   });
 });
+
+describe('page properties', () => {
+  it('reads every key and saves changes with autosave', async () => {
+    const { platform, state } = await openVault({
+      'Lab/Dose.md': '---\nid: d1\n# kept\nstatus: planned\n---\nNotes\n',
+    });
+    await state().openPage('Lab/Dose.md');
+    expect(state().pageProperties).toEqual({ id: 'd1', status: 'planned' });
+
+    vi.useFakeTimers();
+    state().setPageProperties({ status: 'running', genotypes: ['w1118'] });
+    expect(state().saveState).toBe('unsaved');
+    expect(state().pageProperties).toMatchObject({ status: 'running', genotypes: ['w1118'] });
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_MS + 10);
+    vi.useRealTimers();
+    await state().savePageNow();
+
+    const text = platform.snapshot()['Lab/Dose.md'] ?? '';
+    expect(text).toContain('# kept\nstatus: running\n');
+    expect(text).toContain('genotypes: [w1118]');
+    expect(text).toContain('modified: ');
+    expect(text.endsWith('---\nNotes\n')).toBe(true);
+  });
+
+  it('has none for a page without frontmatter, and adds them', async () => {
+    const { platform, state } = await openVault();
+    await state().openPage('Lab/Plain.md');
+    expect(state().pageProperties).toBeNull();
+    state().setPageProperties({ aim: 'Check it' });
+    await state().savePageNow();
+    expect(platform.snapshot()['Lab/Plain.md']).toMatch(/^---\nid: .+\naim: Check it\n/);
+  });
+
+  it('never changes frontmatter it cannot read', async () => {
+    const { platform, state } = await openVault({ 'Lab/Bad.md': '---\na: [\n---\nText\n' });
+    await state().openPage('Lab/Bad.md');
+    expect(state().propertiesBroken).toBe(true);
+    state().setPageProperties({ aim: 'x' });
+    await state().savePageNow();
+    expect(platform.snapshot()['Lab/Bad.md']).toBe('---\na: [\n---\nText\n');
+  });
+});

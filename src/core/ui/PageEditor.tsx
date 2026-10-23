@@ -5,7 +5,7 @@ import { baseExtensions } from '../editor/extensions';
 import { FileInput } from '../editor/fileInput';
 import { blocksFromMarkdown } from '../editor/markdown/markdown';
 import { PageLinks, pageLinksKey, type LinkMenuState } from '../editor/pageLinks';
-import { SlashCommands, type SlashMenuState } from '../editor/slashCommands';
+import { PROPERTY_ITEM, SlashCommands, type SlashMenuState } from '../editor/slashCommands';
 import { FRAGMENT } from '../editor/yjsDoc';
 import type { OpenPage } from '../state/pageSlice';
 import { useApp } from './AppStoreContext';
@@ -22,6 +22,7 @@ export function PageEditor({ page }: { page: OpenPage }) {
   const setSearchQuery = useApp((s) => s.setSearchQuery);
   const suggestLinks = useApp((s) => s.suggestLinks);
   const templateBodyFor = useApp((s) => s.templateBodyFor);
+  const setAddingProperty = useApp((s) => s.setAddingProperty);
   const [slash, setSlash] = useState<SlashMenuState | null>(null);
   const [linkMenu, setLinkMenu] = useState<LinkMenuState | null>(null);
   /** Where to insert a template, while choosing one. */
@@ -35,7 +36,13 @@ export function PageEditor({ page }: { page: OpenPage }) {
           image: (src) => assetUrl(src, false),
         }),
         Collaboration.configure({ document: page.ydoc, field: FRAGMENT }),
-        SlashCommands.configure({ onChange: setSlash, onTemplate: setTemplateAt }),
+        SlashCommands.configure({
+          onChange: setSlash,
+          onTemplate: setTemplateAt,
+          onAction: (id) => {
+            if (id === PROPERTY_ITEM) setAddingProperty(true);
+          },
+        }),
         FileInput.configure({ onFiles: addFiles }),
         PageLinks.configure({
           suggest: suggestLinks,
