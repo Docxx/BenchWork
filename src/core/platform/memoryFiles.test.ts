@@ -110,3 +110,33 @@ describe('MemoryAdapter: Phase 1 file operations', () => {
     expect(adapter.assetUrl('missing.png')).toBeNull();
   });
 });
+
+describe('MemoryAdapter: Phase 2 file details', () => {
+  it('reads bytes up to a limit', async () => {
+    const adapter = await openVault({ 'data.csv': 'x,y\n' });
+    expect(new TextDecoder().decode(await adapter.readBytes('data.csv', 10))).toBe('x,y\n');
+    await expectKind(adapter.readBytes('data.csv', 3), 'TooLarge');
+    await expectKind(adapter.readBytes('missing.csv', 10), 'NotFound');
+  });
+
+  it('gives sizes and SHA-256 checksums, inside the vault or outside it', async () => {
+    const adapter = await openVault({ 'abc.txt': 'abc' });
+    adapter.addExternalFile('D:/Raw/empty.bin', new Uint8Array());
+    const abc = 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad';
+    expect(await adapter.hashFile('abc.txt')).toBe(abc);
+    expect(await adapter.hashFile('C:/Vault/abc.txt', true)).toBe(abc);
+    expect(await adapter.hashFile('D:/Raw/empty.bin', true)).toBe(
+      'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    );
+    expect((await adapter.fileInfo('abc.txt')).size).toBe(3);
+    expect((await adapter.fileInfo('D:/Raw/empty.bin', true)).size).toBe(0);
+    await expectKind(adapter.fileInfo('D:/Raw/missing.bin', true), 'NotFound');
+  });
+
+  it('returns queued file picks, then nothing', async () => {
+    const adapter = await openVault();
+    adapter.queueFilePick(['D:/Raw/a.tif', 'D:/Raw/b.tif']);
+    expect(await adapter.pickFiles()).toEqual(['D:/Raw/a.tif', 'D:/Raw/b.tif']);
+    expect(await adapter.pickFiles()).toEqual([]);
+  });
+});

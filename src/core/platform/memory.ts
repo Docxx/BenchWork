@@ -1,6 +1,13 @@
 import { PlatformError } from './errors';
 import { MemoryIndex } from './memoryIndex';
-import type { DeviceKind, DirEntry, PlatformAdapter, VaultChange, VaultOwner } from './types';
+import type {
+  DeviceKind,
+  DirEntry,
+  FileInfo,
+  PlatformAdapter,
+  VaultChange,
+  VaultOwner,
+} from './types';
 import { baseName, normaliseVaultPath, parentVaultPath } from './vaultPath';
 
 type MemoryNode =
@@ -83,8 +90,9 @@ function byName(a: string, b: string): number {
 export class MemoryAdapter implements PlatformAdapter {
   readonly kind: DeviceKind;
   private readonly folders = new Map<string, Map<string, MemoryNode>>();
-  private readonly external = new Map<string, Uint8Array>();
+  private readonly external = new Map<string, { bytes: Uint8Array; modified: number }>();
   private readonly pickQueue: (string | null)[] = [];
+  private readonly filePickQueue: string[][] = [];
   private readonly trashBin: string[] = [];
   private readonly listeners = new Set<(change: VaultChange) => void>();
   private readonly exitHandlers = new Set<() => Promise<void>>();
@@ -118,7 +126,13 @@ export class MemoryAdapter implements PlatformAdapter {
 
   /** A file outside any vault, for copyIn (dragged-in files). */
   addExternalFile(fullPath: string, content: string | Uint8Array): void {
-    this.external.set(fullPath, typeof content === 'string' ? encoder.encode(content) : content);
+    const bytes = typeof content === 'string' ? encoder.encode(content) : content;
+    this.external.set(fullPath, { bytes, modified: this.tick() });
+  }
+
+  /** Sets what the next pickFiles calls return; an empty list means the user cancelled. */
+  queueFilePick(...results: string[][]): void {
+    this.filePickQueue.push(...results);
   }
 
   /** Sets what the next pickFolder calls return; null means the user cancelled. */
@@ -305,8 +319,7 @@ export class MemoryAdapter implements PlatformAdapter {
 
   copyIn(externalPath: string, to: string, maxBytes: number): Promise<number> {
     return this.run(() => {
-      const data = this.external.get(externalPath);
-      if (!data) throw new PlatformError('NotFound', `No file '${externalPath}'`);
+      const data = this.externalFile(externalPath).bytes;
       if (data.length > maxBytes) {
         throw new PlatformError(
           'TooLarge',
@@ -321,6 +334,36 @@ export class MemoryAdapter implements PlatformAdapter {
       this.changed(dest);
       return data.length;
     });
+  }
+
+  pickFiles(): Promise<string[]> {
+    return this.run(() => this.filePickQueue.shift() ?? []);
+  }
+
+  readBytes(path: string, maxBytes: number): Promise<Uint8Array> {
+    return this.run(() => {
+      const { bytes } = this.fileAt(path, false);
+      if (bytes.length > maxBytes) {
+        throw new PlatformError(
+          'TooLarge',
+          `The file is ${String(bytes.length)} bytes, over the limit of ${String(maxBytes)}`,
+        );
+      }
+      return bytes.slice();
+    });
+  }
+
+  fileInfo(path: string, external = false): Promise<FileInfo> {
+    return this.run(() => {
+      const file = this.fileAt(path, external);
+      return { size: file.bytes.length, modified: file.modified };
+    });
+  }
+
+  async hashFile(path: string, external = false): Promise<string> {
+    const { bytes } = await this.run(() => this.fileAt(path, external));
+    const digest = await crypto.subtle.digest('SHA-256', bytes.slice());
+    return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
   }
 
   /** Same rules as `remove_snapshot` in src-tauri/src/vault_fs.rs. */
@@ -419,6 +462,29 @@ export class MemoryAdapter implements PlatformAdapter {
       const change = { paths: [...batch].sort(byName) };
       for (const listener of this.listeners) listener(change);
     }, 0);
+  }
+
+  /** A vault file, or with `external`, a full path: an external file or one in any fake folder. */
+  private fileAt(path: string, external: boolean): { bytes: Uint8Array; modified: number } {
+    if (external) return this.externalFile(path);
+    const file = normaliseVaultPath(path);
+    const node = this.vault().get(file);
+    if (!node) throw new PlatformError('NotFound', `'${file}' does not exist`);
+    if (node.kind !== 'file') throw new PlatformError('NotAFile', `'${file}' is a folder`);
+    return node;
+  }
+
+  private externalFile(fullPath: string): { bytes: Uint8Array; modified: number } {
+    const outside = this.external.get(fullPath);
+    if (outside) return outside;
+    const base = [...this.folders.keys()]
+      .sort((a, b) => b.length - a.length)
+      .find((r) => fullPath.startsWith(`${r}/`));
+    const node =
+      base === undefined ? undefined : this.folders.get(base)?.get(fullPath.slice(base.length + 1));
+    if (node?.kind === 'file') return node;
+    if (node) throw new PlatformError('NotAFile', `'${fullPath}' is a folder`);
+    throw new PlatformError('NotFound', `No file '${fullPath}'`);
   }
 
   private describe(bytes: Uint8Array): string {

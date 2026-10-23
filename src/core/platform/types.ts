@@ -45,6 +45,17 @@ export interface PlatformAdapter {
    * Resolves to the number of bytes copied.
    */
   copyIn(externalPath: string, to: string, maxBytes: number): Promise<number>;
+  /** Shows a file picker. Resolves to the full paths chosen; empty if cancelled. */
+  pickFiles(options: { title: string; multiple: boolean }): Promise<string[]>;
+  /** Reads a vault file as bytes, for previews. Fails with TooLarge over `maxBytes`. */
+  readBytes(path: string, maxBytes: number): Promise<Uint8Array>;
+  /**
+   * Size and modified time of a vault file, or with `external` true, of a
+   * full path outside the vault (a linked file).
+   */
+  fileInfo(path: string, external?: boolean): Promise<FileInfo>;
+  /** The file's SHA-256 as lower-case hex. `external` as for fileInfo. */
+  hashFile(path: string, external?: boolean): Promise<string>;
   /** Moves a file or folder to the Recycle Bin. Nothing deletes permanently. */
   trash(path: string): Promise<void>;
   /**
@@ -176,6 +187,12 @@ export interface VaultOwner {
 export interface VaultChange {
   /** Vault-relative paths that were created, changed, moved or removed. */
   paths: string[];
+}
+
+export interface FileInfo {
+  size: number;
+  /** Milliseconds since the Unix epoch, or null if unknown. */
+  modified: number | null;
 }
 
 export interface DirEntry {

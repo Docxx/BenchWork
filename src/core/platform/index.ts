@@ -8,6 +8,7 @@ export { MATCH_END, MATCH_START } from './types';
 export type {
   DeviceKind,
   DirEntry,
+  FileInfo,
   IndexedLink,
   IndexedPage,
   IndexEntry,
@@ -20,7 +21,14 @@ export type {
   VaultChange,
   VaultOwner,
 } from './types';
-export { baseName, joinVaultPath, normaliseVaultPath, parentVaultPath } from './vaultPath';
+export {
+  baseName,
+  fullBaseName,
+  joinVaultPath,
+  normaliseVaultPath,
+  parentVaultPath,
+  vaultPathOf,
+} from './vaultPath';
 
 declare global {
   interface Window {

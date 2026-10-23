@@ -87,6 +87,28 @@ pub fn read_text(root: &Path, rel: &str) -> VaultResult<String> {
     fs::read_to_string(&path).map_err(|e| VaultError::io("Cannot read file", &e))
 }
 
+/// Reads a whole file as bytes, for previews. Refuses files over `max_bytes`.
+pub fn read_bytes(root: &Path, rel: &str, max_bytes: u64) -> VaultResult<Vec<u8>> {
+    let path = resolve(root, rel)?;
+    let meta = fs::metadata(&path).map_err(|e| VaultError::io("Cannot read file", &e))?;
+    if meta.is_dir() {
+        return Err(VaultError::new(
+            ErrorKind::NotAFile,
+            format!("'{rel}' is a folder"),
+        ));
+    }
+    if meta.len() > max_bytes {
+        return Err(VaultError::new(
+            ErrorKind::TooLarge,
+            format!(
+                "The file is {} bytes, over the limit of {max_bytes}",
+                meta.len()
+            ),
+        ));
+    }
+    fs::read(&path).map_err(|e| VaultError::io("Cannot read file", &e))
+}
+
 pub fn write_text_atomic(root: &Path, rel: &str, text: &str) -> VaultResult<()> {
     let normal = normalise(rel)?;
     if normal.is_empty() {
@@ -654,6 +676,23 @@ mod phase1_tests {
         write_text_atomic(&root, "benchwork-trash-test.md", "x").unwrap();
         trash(&root, "benchwork-trash-test.md").unwrap();
         assert!(!exists(&root, "benchwork-trash-test.md").unwrap());
+    }
+
+    #[test]
+    fn reads_bytes_up_to_a_limit() {
+        let (_dir, root) = vault();
+        write_bytes_atomic(&root, "data.bin", &[1, 2, 3, 4]).unwrap();
+        assert_eq!(read_bytes(&root, "data.bin", 4).unwrap(), vec![1, 2, 3, 4]);
+        assert_eq!(
+            read_bytes(&root, "data.bin", 3).unwrap_err().kind,
+            ErrorKind::TooLarge
+        );
+        ensure_dir(&root, "Folder").unwrap();
+        assert_eq!(
+            read_bytes(&root, "Folder", 100).unwrap_err().kind,
+            ErrorKind::NotAFile
+        );
+        assert!(read_bytes(&root, "../outside.bin", 100).is_err());
     }
 
     #[test]

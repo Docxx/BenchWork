@@ -6,6 +6,7 @@ import { PlatformError } from './errors';
 import type {
   DeviceKind,
   DirEntry,
+  FileInfo,
   PlatformAdapter,
   SearchIndex,
   VaultChange,
@@ -129,6 +130,39 @@ export class TauriAdapter implements PlatformAdapter {
       external: externalPath,
       to: normaliseVaultPath(to),
       maxBytes,
+    }));
+  }
+
+  async pickFiles(options: { title: string; multiple: boolean }): Promise<string[]> {
+    try {
+      const picked = await open({ multiple: options.multiple, title: options.title });
+      if (picked === null) return [];
+      return Array.isArray(picked) ? picked : [picked];
+    } catch (err) {
+      throw PlatformError.from(err);
+    }
+  }
+
+  async readBytes(path: string, maxBytes: number): Promise<Uint8Array> {
+    // Rust sends the bytes back raw, which arrive as an ArrayBuffer.
+    const data = await call<ArrayBuffer | number[]>('read_bytes', () => ({
+      path: normaliseVaultPath(path),
+      maxBytes,
+    }));
+    return data instanceof ArrayBuffer ? new Uint8Array(data) : Uint8Array.from(data);
+  }
+
+  fileInfo(path: string, external = false): Promise<FileInfo> {
+    return call('file_info', () => ({
+      path: external ? path : normaliseVaultPath(path),
+      external,
+    }));
+  }
+
+  hashFile(path: string, external = false): Promise<string> {
+    return call('hash_file', () => ({
+      path: external ? path : normaliseVaultPath(path),
+      external,
     }));
   }
 

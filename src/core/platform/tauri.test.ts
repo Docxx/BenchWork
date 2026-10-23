@@ -142,6 +142,46 @@ describe('TauriAdapter', () => {
     });
   });
 
+  it('returns picked files as a list, empty when cancelled', async () => {
+    let answer: string | string[] | null = ['D:\\Raw\\a.tif', 'D:\\Raw\\b.tif'];
+    const calls = record((cmd) => (cmd === 'plugin:dialog|open' ? answer : null));
+    const adapter = new TauriAdapter();
+
+    expect(await adapter.pickFiles({ title: 'Add files', multiple: true })).toEqual([
+      'D:\\Raw\\a.tif',
+      'D:\\Raw\\b.tif',
+    ]);
+    answer = 'D:\\Raw\\c.tif';
+    expect(await adapter.pickFiles({ title: 'Add a file', multiple: false })).toEqual([
+      'D:\\Raw\\c.tif',
+    ]);
+    answer = null;
+    expect(await adapter.pickFiles({ title: 'Add a file', multiple: false })).toEqual([]);
+    expect(calls[0]?.args).toMatchObject({ options: { multiple: true, title: 'Add files' } });
+  });
+
+  it('sends file detail commands, leaving external paths as they are', async () => {
+    const calls = record((cmd) =>
+      cmd === 'hash_file' ? 'abc123' : cmd === 'file_info' ? { size: 5, modified: 1 } : null,
+    );
+    const adapter = new TauriAdapter();
+    expect(await adapter.hashFile('Data//day7.csv')).toBe('abc123');
+    expect(await adapter.hashFile('D:\\Raw\\scan.tif', true)).toBe('abc123');
+    expect(await adapter.fileInfo('D:\\Raw\\scan.tif', true)).toEqual({ size: 5, modified: 1 });
+    expect(calls).toEqual([
+      { cmd: 'hash_file', args: { path: 'Data/day7.csv', external: false } },
+      { cmd: 'hash_file', args: { path: 'D:\\Raw\\scan.tif', external: true } },
+      { cmd: 'file_info', args: { path: 'D:\\Raw\\scan.tif', external: true } },
+    ]);
+  });
+
+  it('reads bytes sent back raw', async () => {
+    const calls = record(() => new Uint8Array([1, 2, 3]).buffer);
+    const bytes = await new TauriAdapter().readBytes('Data/a.xlsx', 100);
+    expect([...bytes]).toEqual([1, 2, 3]);
+    expect(calls).toEqual([{ cmd: 'read_bytes', args: { path: 'Data/a.xlsx', maxBytes: 100 } }]);
+  });
+
   it('passes app settings through', async () => {
     const calls = record((cmd) => (cmd === 'load_app_settings' ? { theme: 'dark' } : null));
     const adapter = new TauriAdapter();

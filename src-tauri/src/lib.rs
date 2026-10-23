@@ -1,4 +1,5 @@
 mod error;
+mod file_info;
 mod index;
 mod path_guard;
 mod vault_fs;
@@ -231,6 +232,49 @@ async fn copy_in(
     vault_fs::copy_in(&state.root()?, Path::new(&external), &to, max_bytes)
 }
 
+/// A vault path, or with `external` a full path outside the vault (a linked
+/// file the user chose).
+fn file_path(state: &VaultState, path: &str, external: bool) -> VaultResult<PathBuf> {
+    if external {
+        Ok(PathBuf::from(path))
+    } else {
+        path_guard::resolve(&state.root()?, path)
+    }
+}
+
+#[tauri::command]
+async fn file_info(
+    path: String,
+    external: bool,
+    state: State<'_, VaultState>,
+) -> VaultResult<file_info::FileInfo> {
+    file_info::file_info(&file_path(&state, &path, external)?)
+}
+
+/// Hashes on a blocking thread: a linked data file can take minutes.
+#[tauri::command]
+async fn hash_file(
+    path: String,
+    external: bool,
+    state: State<'_, VaultState>,
+) -> VaultResult<String> {
+    let full = file_path(&state, &path, external)?;
+    tauri::async_runtime::spawn_blocking(move || file_info::sha256(&full))
+        .await
+        .map_err(|_| VaultError::new(ErrorKind::Io, "Checking the file stopped unexpectedly"))?
+}
+
+/// The bytes of a vault file, sent back raw rather than as JSON.
+#[tauri::command]
+async fn read_bytes(
+    path: String,
+    max_bytes: u64,
+    state: State<'_, VaultState>,
+) -> VaultResult<tauri::ipc::Response> {
+    let data = vault_fs::read_bytes(&state.root()?, &path, max_bytes)?;
+    Ok(tauri::ipc::Response::new(data))
+}
+
 /// Decodes `%XX` escapes from `encodeURIComponent`. Header values must be
 /// ASCII, so the vault path travels encoded.
 fn percent_decode(value: &str) -> Option<String> {
@@ -338,6 +382,9 @@ pub fn run() {
             remove_snapshot,
             copy_in,
             write_bytes,
+            read_bytes,
+            file_info,
+            hash_file,
             load_app_settings,
             save_app_settings,
             index_open,

@@ -65,3 +65,26 @@ export function parentVaultPath(path: string): string | null {
 export function baseName(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1);
 }
+
+/** A full path's last part, for either separator. */
+export function fullBaseName(fullPath: string): string {
+  return fullPath.slice(Math.max(fullPath.lastIndexOf('/'), fullPath.lastIndexOf('\\')) + 1);
+}
+
+/**
+ * The vault path of a full path inside the vault at `root`, or null if it is
+ * outside. Either separator works; case is ignored on Windows-style paths
+ * (a drive letter or `\`), where names ignore case.
+ */
+export function vaultPathOf(root: string, fullPath: string): string | null {
+  const windows = /^[a-z]:/i.test(root) || root.includes('\\');
+  const slashed = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '');
+  const tidy = (p: string) => (windows ? slashed(p).toLowerCase() : slashed(p));
+  const base = tidy(root);
+  if (!tidy(fullPath).startsWith(`${base}/`)) return null;
+  try {
+    return normaliseVaultPath(slashed(fullPath).slice(base.length + 1));
+  } catch {
+    return null;
+  }
+}
