@@ -57,7 +57,7 @@ Deferred on 23 Oct 2026 until Android Studio and the tablet are set up. Phase 5 
 ## Phase 5: Writing and planning
 
 - [x] Manuscript (Pandoc export)
-- [ ] Planner (Gantt)
+- [x] Planner (Gantt)
 - [ ] Mind maps and canvas
 - [x] Data viewer: CSV and Excel light editing (cells, columns, simple formulas), quick plots
 
