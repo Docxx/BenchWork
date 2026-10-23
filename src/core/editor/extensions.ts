@@ -7,6 +7,7 @@ import { Placeholder } from '@tiptap/extensions';
 import type { Schema } from '@tiptap/pm/model';
 import { StarterKit } from '@tiptap/starter-kit';
 import { isImage } from '../pages/attachments';
+import { Citation, type CitationOptions } from './citationNode';
 import { joinLabel, splitLabel } from './imageSize';
 import { fileEmbedElement, isFileEmbed, type TableLoader } from './fileEmbed';
 import { imageView } from './imageView';
@@ -254,7 +255,10 @@ export const PLACEHOLDER = 'Type / for headings, lists, tables and more';
  * Everything except collaboration, which needs the page's Yjs document.
  * `assets` only changes how images are shown, never the schema.
  */
-export function baseExtensions(assets: AssetResolver | null = null): AnyExtension[] {
+export function baseExtensions(
+  assets: AssetResolver | null = null,
+  citations: Partial<CitationOptions> = {},
+): AnyExtension[] {
   return [
     StarterKit.configure({
       // Undo and redo come from the Yjs document instead.
@@ -275,6 +279,7 @@ export function baseExtensions(assets: AssetResolver | null = null): AnyExtensio
     RawBlock,
     RawInline,
     WikiLink.configure({ assets }),
+    Citation.configure(citations),
   ];
 }
 

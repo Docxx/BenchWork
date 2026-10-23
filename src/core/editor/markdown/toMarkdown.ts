@@ -10,12 +10,25 @@ import type {
 } from 'mdast';
 import { gfmToMarkdown } from 'mdast-util-gfm';
 import { defaultHandlers, toMarkdown, type Handle, type Options } from 'mdast-util-to-markdown';
-import { MARK_ORDER, RAW_BLOCK, RAW_INLINE, WIKI_LINK, type PMMark, type PMNode } from './model';
+import {
+  CITATION,
+  MARK_ORDER,
+  RAW_BLOCK,
+  RAW_INLINE,
+  WIKI_LINK,
+  type PMMark,
+  type PMNode,
+} from './model';
 
 /** Markdown kept exactly as written: raw blocks and raw inline bits. */
 interface RawNode extends MdNode {
   type: 'bwRaw';
   value: string;
+}
+
+interface CitationNode extends MdNode {
+  type: 'citation';
+  inner: string;
 }
 
 interface WikiLinkNode extends MdNode {
@@ -29,10 +42,12 @@ declare module 'mdast' {
   interface PhrasingContentMap {
     bwRaw: RawNode;
     wikiLink: WikiLinkNode;
+    citation: CitationNode;
   }
   interface RootContentMap {
     bwRaw: RawNode;
     wikiLink: WikiLinkNode;
+    citation: CitationNode;
   }
   interface BlockContentMap {
     bwRaw: RawNode;
@@ -40,6 +55,9 @@ declare module 'mdast' {
 }
 
 const rawHandler: Handle = (node) => (node as RawNode).value;
+
+/** Citations are written back exactly as they were typed between the brackets. */
+const citationHandler: Handle = (node) => `[${(node as CitationNode).inner}]`;
 
 const wikiHandler: Handle = (node) => {
   const n = node as WikiLinkNode;
@@ -70,7 +88,12 @@ export const MARKDOWN_STYLE: Options = {
   listItemIndent: 'one',
   incrementListMarker: true,
   extensions: [gfmToMarkdown({ tablePipeAlign: false })],
-  handlers: { bwRaw: rawHandler, wikiLink: wikiHandler, text: textHandler },
+  handlers: {
+    bwRaw: rawHandler,
+    wikiLink: wikiHandler,
+    citation: citationHandler,
+    text: textHandler,
+  },
 };
 
 /** A string attribute, or '' if it is missing or not a string. */
@@ -137,6 +160,8 @@ function leaf(node: PMNode, inTable: boolean): PhrasingContent | null {
         embed: a['embed'] === true,
       };
     }
+    case CITATION:
+      return { type: 'citation', inner: str(node.attrs?.['inner']) };
     case RAW_INLINE:
       return { type: 'bwRaw', value: str(node.attrs?.['markdown']) };
     default:

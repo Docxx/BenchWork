@@ -1,6 +1,7 @@
 import { Collaboration } from '@tiptap/extension-collaboration';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { useEffect, useState } from 'react';
+import { citationsKey, type CiteMenuState } from '../editor/citationNode';
 import { baseExtensions } from '../editor/extensions';
 import { FileInput, insertFiles } from '../editor/fileInput';
 import { blocksFromMarkdown } from '../editor/markdown/markdown';
@@ -26,23 +27,30 @@ export function PageEditor({ page }: { page: OpenPage }) {
   const followLink = useApp((s) => s.followLink);
   const setSearchQuery = useApp((s) => s.setSearchQuery);
   const suggestLinks = useApp((s) => s.suggestLinks);
+  const citationProvider = useApp((s) => s.citationProvider);
+  const citationProviders = useApp((s) => s.citationProviders);
+  const citationVersion = useApp((s) => s.citationVersion);
   const templateBodyFor = useApp((s) => s.templateBodyFor);
   const setAddingProperty = useApp((s) => s.setAddingProperty);
   const embedTable = useApp((s) => s.embedTable);
   const pickAndAddFiles = useApp((s) => s.pickAndAddFiles);
   const [slash, setSlash] = useState<SlashMenuState | null>(null);
   const [linkMenu, setLinkMenu] = useState<LinkMenuState | null>(null);
+  const [citeMenu, setCiteMenu] = useState<CiteMenuState | null>(null);
   /** Where to insert a template, while choosing one. */
   const [templateAt, setTemplateAt] = useState<number | null>(null);
 
   const editor = useEditor(
     {
       extensions: [
-        ...baseExtensions({
-          embed: (target) => assetUrl(target, true),
-          image: (src) => assetUrl(src, false),
-          table: embedTable,
-        }),
+        ...baseExtensions(
+          {
+            embed: (target) => assetUrl(target, true),
+            image: (src) => assetUrl(src, false),
+            table: embedTable,
+          },
+          { citations: citationProvider, onMenu: setCiteMenu },
+        ),
         Collaboration.configure({ document: page.ydoc, field: FRAGMENT }),
         SlashCommands.configure({
           onChange: setSlash,
@@ -82,11 +90,19 @@ export function PageEditor({ page }: { page: OpenPage }) {
     if (!editor.isDestroyed) editor.view.dispatch(editor.state.tr.setMeta(pageLinksKey, true));
   }, [editor, pageRefs]);
 
+  // When the reference library changes, or its module is switched on or off, redraw citations.
+  useEffect(() => {
+    if (!editor.isDestroyed) editor.view.dispatch(editor.state.tr.setMeta(citationsKey, true));
+  }, [editor, citationProviders, citationVersion]);
+
   return (
     <>
       <EditorContent editor={editor} className="page-content" />
       {slash !== null && <SlashMenu state={slash} />}
       {linkMenu !== null && <LinkMenu state={linkMenu} />}
+      {citeMenu !== null && (
+        <LinkMenu state={citeMenu} label="Cite" empty="No matching references" />
+      )}
       {templateAt !== null && (
         <TemplatePicker
           mode="insert"
@@ -110,21 +126,25 @@ export function PageEditor({ page }: { page: OpenPage }) {
   );
 }
 
-function LinkMenu({ state }: { state: LinkMenuState }) {
+/** The `[[` menu of pages, and the `[@` menu of references, which look the same. */
+function LinkMenu({
+  state,
+  label = 'Link to page',
+  empty = 'Type a page name',
+}: {
+  state: LinkMenuState | CiteMenuState;
+  label?: string;
+  empty?: string;
+}) {
   if (state.items.length === 0) {
     return (
       <div className="slash-menu" style={position(state.rect)} role="status">
-        <p className="slash-empty">Type a page name</p>
+        <p className="slash-empty">{empty}</p>
       </div>
     );
   }
   return (
-    <ul
-      className="slash-menu"
-      role="listbox"
-      aria-label="Link to page"
-      style={position(state.rect)}
-    >
+    <ul className="slash-menu" role="listbox" aria-label={label} style={position(state.rect)}>
       {state.items.map((item, i) => (
         <li
           key={item.id}

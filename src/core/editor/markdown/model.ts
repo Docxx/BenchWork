@@ -46,6 +46,8 @@ export interface BodySource {
 export const RAW_BLOCK = 'rawBlock';
 export const RAW_INLINE = 'rawInline';
 export const WIKI_LINK = 'wikiLink';
+/** `[@key]`: a citation, kept as written between its brackets in `inner`. */
+export const CITATION = 'citation';
 
 /** Attribute name for BlockSource on top-level blocks. */
 export const SOURCE_ATTR = 'md';

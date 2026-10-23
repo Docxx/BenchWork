@@ -9,7 +9,8 @@ import type {
   RootContent,
   Table,
 } from 'mdast';
-import { RAW_BLOCK, RAW_INLINE, WIKI_LINK, type PMMark, type PMNode } from './model';
+import { findCitations } from '../citations';
+import { CITATION, RAW_BLOCK, RAW_INLINE, WIKI_LINK, type PMMark, type PMNode } from './model';
 
 /**
  * Markdown syntax tree (mdast) to page model. Anything the editor cannot
@@ -39,7 +40,32 @@ function withMarks(node: PMNode, marks: readonly PMMark[]): PMNode {
   return marks.length > 0 ? { ...node, marks: [...marks] } : node;
 }
 
-/** Splits plain text into text and wiki link nodes. */
+/** Whether `text` appears in the Markdown `raw` without a backslash before it. */
+function appearsUnescaped(raw: string, text: string): boolean {
+  for (let i = raw.indexOf(text); i !== -1; i = raw.indexOf(text, i + 1)) {
+    if (raw[i - 1] !== '\\') return true;
+  }
+  return false;
+}
+
+/** Splits plain text into text and citation nodes. */
+function citationNodes(value: string, raw: string, marks: readonly PMMark[]): PMNode[] {
+  const out: PMNode[] = [];
+  let last = 0;
+  for (const c of findCitations(value)) {
+    const whole = value.slice(c.index, c.index + c.length);
+    // An escaped `\[@key]` reads as the same text but stays text.
+    if (!appearsUnescaped(raw, whole)) continue;
+    if (c.index > last)
+      out.push(withMarks({ type: 'text', text: value.slice(last, c.index) }, marks));
+    out.push(withMarks({ type: CITATION, attrs: { inner: c.inner } }, marks));
+    last = c.index + c.length;
+  }
+  if (last < value.length) out.push(withMarks({ type: 'text', text: value.slice(last) }, marks));
+  return out;
+}
+
+/** Splits plain text into text, wiki link and citation nodes. */
 function textNodes(value: string, raw: string, marks: readonly PMMark[]): PMNode[] {
   const out: PMNode[] = [];
   let last = 0;
@@ -48,14 +74,14 @@ function textNodes(value: string, raw: string, marks: readonly PMMark[]): PMNode
     // text but must stay text.
     if (!raw.includes(m[0])) continue;
     const index = m.index;
-    if (index > last) out.push(withMarks({ type: 'text', text: value.slice(last, index) }, marks));
+    if (index > last) out.push(...citationNodes(value.slice(last, index), raw, marks));
     out.push({
       type: WIKI_LINK,
       attrs: { target: (m[2] ?? '').trim(), alias: m[3]?.trim() ?? null, embed: m[1] === '!' },
     });
     last = index + m[0].length;
   }
-  if (last < value.length) out.push(withMarks({ type: 'text', text: value.slice(last) }, marks));
+  if (last < value.length) out.push(...citationNodes(value.slice(last), raw, marks));
   return out;
 }
 

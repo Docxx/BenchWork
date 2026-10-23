@@ -1,6 +1,7 @@
+import { citationKeys } from '../editor/citations';
 import { splitLabel } from '../editor/imageSize';
 import { parseBody } from '../editor/markdown/markdown';
-import { RAW_BLOCK, RAW_INLINE, WIKI_LINK, type PMNode } from '../editor/markdown/model';
+import { CITATION, RAW_BLOCK, RAW_INLINE, WIKI_LINK, type PMNode } from '../editor/markdown/model';
 import { pageTitle } from '../notebooks/notebookTree';
 import { parsePage } from '../pages/frontmatter';
 import {
@@ -24,7 +25,7 @@ import { baseName, type IndexedLink, type IndexedPage } from '../platform';
  */
 const TAG = /(?<![\p{L}\p{N}_&#/])#([\p{L}\p{N}_/-]*[\p{L}_/-][\p{L}\p{N}_/-]*)/gu;
 
-const INLINE_TYPES = new Set(['text', WIKI_LINK, 'image', 'hardBreak', RAW_INLINE]);
+const INLINE_TYPES = new Set(['text', WIKI_LINK, CITATION, 'image', 'hardBreak', RAW_INLINE]);
 
 /**
  * Matching key for a link target: lower case, without `#heading`, `^block`,
@@ -89,6 +90,13 @@ function plain(node: PMNode, found: Found, inCode: boolean): string {
       // An embed's alias may be just a size, such as `|300`: not text to search.
       const alias = embed ? splitLabel(attr(node, 'alias')).caption : attr(node, 'alias');
       return alias !== '' ? alias : target;
+    }
+    case CITATION: {
+      // Each key links to the literature note of that name, so the note's
+      // backlinks list the pages citing it; the keys are searchable as text.
+      const keys = citationKeys(attr(node, 'inner'));
+      for (const key of keys) found.links.push({ target: key, key: linkKey(key), embed: false });
+      return keys.map((k) => `@${k}`).join(' ');
     }
     case 'image':
       return splitLabel(attr(node, 'alt')).caption;
