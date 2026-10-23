@@ -6,6 +6,7 @@ import { expect, test, type Page } from '@playwright/test';
  * stand-in writes what it was given; the desktop check uses real Pandoc.
  * Data viewer: a CSV file edited with a formula, saved and plotted.
  * Planner: pages with dates on a timeline, moved by dragging.
+ * Mind maps and canvas: a page as a mind map, and cards joined on a canvas.
  */
 
 const LIBRARY = JSON.stringify([
@@ -33,10 +34,43 @@ const VAULT = {
       manuscript: { enabled: true },
       'data-viewer': { enabled: true },
       planner: { enabled: true },
+      'mind-maps': { enabled: true },
     },
   }),
   'Lab/Pilot.md': `---\nstart: ${day(-3)}\nend: ${day(4)}\n---\nA small first run.\n`,
   'Lab/Main study.md': `---\nstart: ${day(6)}\nend: ${day(20)}\nafter: "[[Pilot]]"\n---\n`,
+  'Lab/Fly climbing.md': [
+    '# Fly climbing',
+    '',
+    '## Aims',
+    '',
+    '- Measure climbing after LPS',
+    '',
+    '## Methods',
+    '',
+    'Flies were tapped down and filmed.',
+    '',
+    '### Analysis',
+    '',
+    '- Mixed model',
+    '',
+  ].join('\n'),
+  'Lab/Board.canvas.json': JSON.stringify({
+    version: 1,
+    items: [
+      {
+        id: 'q',
+        kind: 'text',
+        x: 0,
+        y: 0,
+        width: 220,
+        height: 100,
+        text: 'Does LPS slow climbing?',
+      },
+      { id: 'p', kind: 'page', x: 400, y: 0, width: 240, height: 140, path: 'Lab/Pilot.md' },
+    ],
+    links: [],
+  }),
   'Lab/Committee.md': `---\ndate: ${day(24)}\nmilestone: true\n---\n`,
   'references/library.json': LIBRARY,
   'Thesis/Chapter 1.md':
@@ -162,4 +196,57 @@ test('pages with dates show on the planner, and dragging a bar moves them', asyn
   await expect.poll(async () => (await dates()).start > day(-3)).toBe(true);
   const { start, end } = await dates();
   expect((Date.parse(end) - Date.parse(start)) / 86_400_000).toBe(7);
+});
+
+test('a page shows as a mind map, and a branch leads back to its heading', async ({ page }) => {
+  await tree(page).getByRole('treeitem', { name: 'Lab' }).click();
+  await tree(page).getByRole('treeitem', { name: 'Fly climbing' }).click();
+  await expect(page.getByRole('textbox', { name: 'Page title' })).toHaveValue('Fly climbing');
+  await runCommand(page, 'Mind map of this page');
+
+  const map = page.getByRole('img', { name: 'Mind map' });
+  await expect(map).toContainText('Measure climbing after LPS');
+  await map.getByText('Analysis', { exact: true }).click();
+
+  await expect(page.getByRole('textbox', { name: 'Page title' })).toHaveValue('Fly climbing');
+  const analysis = page.getByRole('heading', { name: 'Analysis' });
+  await expect
+    .poll(() => analysis.evaluate((h) => h.contains(window.getSelection()?.anchorNode ?? null)))
+    .toBe(true);
+});
+
+test('cards on a canvas are written, moved and joined by arrows', async ({ page }) => {
+  await tree(page).getByRole('treeitem', { name: 'Lab' }).click();
+  await tree(page).getByRole('treeitem', { name: 'Board' }).click();
+  const board = page.getByLabel('Canvas', { exact: true });
+  await expect(board.locator('.react-flow__node')).toHaveCount(2);
+  await expect(board).toContainText('A small first run');
+
+  const canvas = async () =>
+    JSON.parse(
+      (await page.evaluate(() => window.__benchworkMemory?.snapshot()['Lab/Board.canvas.json'])) ??
+        '{}',
+    ) as { items: { kind: string; text?: string }[]; links: { from: string; to: string }[] };
+
+  // A new card, written in straight away.
+  await page.getByRole('button', { name: 'Add card' }).click();
+  await page.getByRole('textbox', { name: 'Card text' }).fill('Day 7 results');
+  await board.locator('.react-flow__pane').click({ position: { x: 20, y: 20 } });
+  await expect
+    .poll(async () => (await canvas()).items.map((i) => i.text ?? i.kind))
+    .toEqual(['Does LPS slow climbing?', 'page', 'Day 7 results']);
+
+  // An arrow from the question to the pilot page.
+  const question = board.locator('.react-flow__node[data-id="q"]');
+  await question.hover();
+  const from = await question.locator('.react-flow__handle-right').boundingBox();
+  const to = await board.locator('.react-flow__node[data-id="p"]').boundingBox();
+  if (from === null || to === null) throw new Error('Cards not drawn');
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
+  await page.mouse.up();
+  await expect
+    .poll(async () => (await canvas()).links)
+    .toEqual([expect.objectContaining({ from: 'q', to: 'p' })]);
 });
