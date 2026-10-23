@@ -4,6 +4,7 @@ import type {
   Command,
   FileHandler,
   PageType,
+  PageView,
   SettingsPanel,
   SidebarPanel,
 } from '../modules/contributions';
@@ -36,6 +37,8 @@ export interface ModulesSlice {
   fileHandlers: FileHandler[];
   /** Settings panels of modules that are on. */
   settingsPanels: SettingsPanel[];
+  /** Full-page views of modules that are on. */
+  pageViews: PageView[];
   /** The module that names cited works, if one is on; at most one. */
   citationProviders: CitationProvider[];
   /** Goes up when citations should be redrawn. */
@@ -101,6 +104,7 @@ export function createModulesSlice(ctx: StoreContext): ModulesSlice {
     commands: registry.contributions.getState().commands,
     fileHandlers: registry.contributions.getState().fileHandlers,
     settingsPanels: registry.contributions.getState().settingsPanels,
+    pageViews: registry.contributions.getState().pageViews,
     citationProviders: registry.contributions.getState().citationProviders,
     citationVersion: registry.contributions.getState().citationVersion,
     citationProvider: () => get().citationProviders[0] ?? null,

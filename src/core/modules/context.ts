@@ -29,7 +29,13 @@ export interface ContextDeps {
 
 /** Lists in ContributionsState that hold registered items. */
 type ListKey =
-  'panels' | 'pageTypes' | 'commands' | 'fileHandlers' | 'settingsPanels' | 'citationProviders';
+  | 'panels'
+  | 'pageTypes'
+  | 'commands'
+  | 'fileHandlers'
+  | 'settingsPanels'
+  | 'pageViews'
+  | 'citationProviders';
 
 export interface ModuleContextHandle {
   ctx: ModuleContext;
@@ -138,6 +144,15 @@ export function createModuleContext(
           `A settings panel for '${id}'`,
         );
       },
+      registerPageView(spec) {
+        checkId('View', spec.id);
+        return contribute(
+          'pageViews',
+          { ...spec, moduleId: id },
+          (v) => v.id === spec.id,
+          `A view with id '${spec.id}'`,
+        );
+      },
     },
     citations: {
       register(spec) {
@@ -152,6 +167,13 @@ export function createModuleContext(
       refresh() {
         deps.contributions.setState((s) => ({ citationVersion: s.citationVersion + 1 }));
       },
+      bibliography() {
+        return deps.contributions.getState().citationProviders[0]?.bibliography?.() ?? null;
+      },
+    },
+    pandoc: {
+      version: () => deps.platform.pandocVersion(),
+      toWord: (options) => deps.platform.pandocToWord(options),
     },
     pageTypes: {
       register(spec) {
@@ -235,6 +257,7 @@ export function createModuleContext(
       createFolder: (folder, title) => app().createFolder(folder, title),
       createPage: (folder, title, type, content) => app().createPage(folder, title, type, content),
       openPage: () => app().openPage(),
+      openView: (viewId, param) => app().openView(viewId, param),
       pageProperties: (path) => app().pageProperties(path),
       setPageProperties: (path, changes) => app().setPageProperties(path, changes),
       askText: (options) => app().askText(options),

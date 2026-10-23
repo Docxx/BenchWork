@@ -4,6 +4,7 @@ import type {
   DeviceKind,
   DirEntry,
   FileInfo,
+  PandocWordOptions,
   PlatformAdapter,
   VaultChange,
   VaultOwner,
@@ -99,6 +100,8 @@ export class MemoryAdapter implements PlatformAdapter {
   private pendingChanges = new Set<string>();
   private root: string | null = null;
   private appSettings: unknown;
+  /** The Pandoc version the fake reports; null acts as if it is not installed. */
+  private pandoc: string | null = '3.6 (in memory)';
   private clock = 1_700_000_000_000;
   readonly index = new MemoryIndex(() => this.root);
 
@@ -380,6 +383,36 @@ export class MemoryAdapter implements PlatformAdapter {
       nodes.delete(file);
       this.changed(file);
     });
+  }
+
+  /** Acts as if Pandoc is installed with this version, or (with null) not installed. */
+  setPandoc(version: string | null): void {
+    this.pandoc = version;
+  }
+
+  pandocVersion(): Promise<string | null> {
+    return Promise.resolve(this.pandoc);
+  }
+
+  /**
+   * A stand-in for Pandoc: writes a text file holding what it was given, so
+   * tests can see what would have been converted.
+   */
+  pandocToWord(options: PandocWordOptions): Promise<void> {
+    if (this.pandoc === null) {
+      return Promise.reject(new PlatformError('NotFound', 'Pandoc is not installed'));
+    }
+    if (!options.output.toLowerCase().endsWith('.docx')) {
+      return Promise.reject(new PlatformError('InvalidPath', 'Word files end in .docx'));
+    }
+    const text = [
+      'FAKE DOCX',
+      `bibliography: ${options.bibliography ?? 'none'}`,
+      `csl: ${options.csl ?? 'none'}`,
+      '',
+      options.markdown,
+    ].join('\n');
+    return this.writeTextAtomic(options.output, text);
   }
 
   trash(path: string): Promise<void> {

@@ -1,6 +1,7 @@
 mod error;
 mod file_info;
 mod index;
+mod pandoc;
 mod path_guard;
 mod vault_fs;
 mod vault_root;
@@ -216,6 +217,30 @@ async fn trash(path: String, state: State<'_, VaultState>) -> VaultResult<()> {
     vault_fs::trash(&state.root()?, &path)
 }
 
+/// Pandoc's version, or null if it is not installed.
+#[tauri::command]
+async fn pandoc_version() -> VaultResult<Option<String>> {
+    Ok(pandoc::version())
+}
+
+/// Turns Markdown into a Word file in the vault with Pandoc.
+#[tauri::command]
+async fn pandoc_to_word(
+    markdown: String,
+    output: String,
+    bibliography: Option<String>,
+    csl: Option<String>,
+    state: State<'_, VaultState>,
+) -> VaultResult<()> {
+    pandoc::to_word(
+        &state.root()?,
+        &markdown,
+        &output,
+        bibliography.as_deref(),
+        csl.as_deref(),
+    )
+}
+
 #[tauri::command]
 async fn remove_snapshot(path: String, state: State<'_, VaultState>) -> VaultResult<()> {
     vault_fs::remove_snapshot(&state.root()?, &path)
@@ -380,6 +405,8 @@ pub fn run() {
             rename,
             trash,
             remove_snapshot,
+            pandoc_version,
+            pandoc_to_word,
             copy_in,
             write_bytes,
             read_bytes,

@@ -14,6 +14,7 @@ export type {
   IndexEntry,
   LinkRef,
   PageRef,
+  PandocWordOptions,
   PlatformAdapter,
   SearchHit,
   SearchIndex,

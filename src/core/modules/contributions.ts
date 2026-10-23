@@ -4,6 +4,7 @@ import type {
   CommandSpec,
   FileHandlerSpec,
   PageTypeSpec,
+  PageViewSpec,
   SettingsPanelSpec,
   SidebarPanelSpec,
 } from '../api';
@@ -32,6 +33,10 @@ export interface CitationProvider extends CitationProviderSpec {
   moduleId: string;
 }
 
+export interface PageView extends PageViewSpec {
+  moduleId: string;
+}
+
 export interface ContributionsState {
   /** Sidebar panels from modules that are on, in the order they registered. */
   panels: SidebarPanel[];
@@ -39,6 +44,7 @@ export interface ContributionsState {
   commands: Command[];
   fileHandlers: FileHandler[];
   settingsPanels: SettingsPanel[];
+  pageViews: PageView[];
   /** At most one: the first module to register wins. */
   citationProviders: CitationProvider[];
   /** Goes up when a module asks for citations to be redrawn. */
@@ -55,6 +61,7 @@ export function createContributions(): Contributions {
     commands: [],
     fileHandlers: [],
     settingsPanels: [],
+    pageViews: [],
     citationProviders: [],
     citationVersion: 0,
   }));

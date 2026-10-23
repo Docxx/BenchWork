@@ -5,6 +5,7 @@ import { useApp } from './AppStoreContext';
 import { Backlinks } from './Backlinks';
 import { FileView } from './FileView';
 import { HistoryPanel } from './HistoryPanel';
+import { ModuleView } from './ModuleView';
 import { PageEditor } from './PageEditor';
 import { PropertiesPanel } from './PropertiesPanel';
 
@@ -21,8 +22,10 @@ export function PageView() {
   const notice = useApp((s) => s.pageNotice);
   const dismissNotice = useApp((s) => s.dismissPageNotice);
   const openFile = useApp((s) => s.openFile);
+  const moduleView = useApp((s) => s.moduleView);
   const [showHistory, setShowHistory] = useState(false);
 
+  if (page === null && moduleView !== null) return <ModuleView open={moduleView} />;
   if (page === null && openFile !== null) return <FileView path={openFile} />;
 
   return (

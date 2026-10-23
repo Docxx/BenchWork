@@ -82,6 +82,11 @@ export interface PlatformAdapter {
 
   /** The open vault's search index, in `.benchwork/index.sqlite`. */
   readonly index: SearchIndex;
+
+  /** Pandoc's version, or null if it is not installed (always null on tablets). */
+  pandocVersion(): Promise<string | null>;
+  /** Converts Markdown to Word with Pandoc. Every path is a vault path. */
+  pandocToWord(options: PandocWordOptions): Promise<void>;
 }
 
 /**
@@ -167,6 +172,16 @@ export interface SearchHit {
   title: string;
   /** Text around the match, matched words between MATCH_START and MATCH_END. */
   snippet: string;
+}
+
+export interface PandocWordOptions {
+  markdown: string;
+  /** Where the `.docx` goes. */
+  output: string;
+  /** A CSL JSON file for `[@key]` citations. */
+  bibliography?: string;
+  /** A citation style (`.csl`) file. */
+  csl?: string;
 }
 
 export type DeviceKind = 'desktop' | 'tablet';

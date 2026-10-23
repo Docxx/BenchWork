@@ -17,9 +17,20 @@ import { rebasePath } from './treeSlice';
 /** Files bigger than this are not read for a preview. */
 export const PREVIEW_LIMIT_BYTES = 64 * 1024 * 1024;
 
+/** A module's full-page view, open in the main area. */
+export interface OpenModuleView {
+  id: string;
+  param: string | null;
+}
+
 export interface FilesSlice {
   /** A file that is not a page, open in its viewer in the main area. */
   openFile: string | null;
+  /** A module's full-page view, open in the main area instead of a page or file. */
+  moduleView: OpenModuleView | null;
+  /** Opens a module's view, saving and closing the open page first. */
+  openModuleView: (id: string, param?: string | null) => Promise<void>;
+  closeModuleView: () => void;
   /** Goes up when the open file changes on disk, so its viewer reads it again. */
   fileVersion: number;
   /** Opens a page in the editor, or any other file in its viewer. */
@@ -59,17 +70,30 @@ export function createFilesSlice(ctx: StoreContext): FilesSlice {
       stopWatching = null;
     },
     closed: () => {
-      set({ openFile: null });
+      set({ openFile: null, moduleView: null });
     },
   });
 
   return {
     openFile: null,
+    moduleView: null,
     fileVersion: 0,
+
+    openModuleView: async (id, param = null) => {
+      if (get().status.kind !== 'open') return;
+      get().showView('files');
+      await get().closePage();
+      set({ openFile: null, moduleView: { id, param } });
+    },
+
+    closeModuleView: () => {
+      set({ moduleView: null });
+    },
 
     openPath: async (path) => {
       if (get().status.kind !== 'open') return;
       get().showView('files');
+      set({ moduleView: null });
       if (isPage(baseName(path))) {
         set({ openFile: null });
         await get().openPage(path);

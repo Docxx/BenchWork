@@ -394,7 +394,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
       }
       if (token !== openToken || get().status.kind !== 'open') return;
       // The last page's backlinks go straight away; this page's follow.
-      set({ pageNotice: null, backlinks: [], openFile: null });
+      set({ pageNotice: null, backlinks: [], openFile: null, moduleView: null });
       startSession(path, text, 0);
       void get().loadBacklinks(path);
       void get().loadDayNeighbours(path);

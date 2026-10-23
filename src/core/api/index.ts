@@ -4,8 +4,9 @@
  *
  * Phase 0 offers sidebar panels, private storage and clean-up. Phase 2 adds
  * page types, commands, file handlers, and access to the vault and the app.
- * Phase 3 adds settings panels and citations. Block renderers and index
- * hooks are added in the phases that first need them.
+ * Phase 3 adds settings panels and citations. Phase 5 adds full-page views
+ * and Pandoc. Block renderers and index hooks are added in the phases that
+ * first need them.
  */
 import type { ReactNode } from 'react';
 import type { DeviceKind, DirEntry, FileInfo, VaultChange } from '../platform/types';
@@ -39,6 +40,8 @@ export interface ModuleContext {
   readonly commands: ModuleCommands;
   readonly files: ModuleFiles;
   readonly citations: ModuleCitations;
+  /** Converting Markdown with Pandoc, if it is installed. Desktop only. */
+  readonly pandoc: ModulePandoc;
   /** JSON files in `.benchwork/modules/<id>/`, the module's private folder. */
   readonly storage: ModuleStorage;
   /** The vault's files. Modules keep their files in normal vault folders. */
@@ -231,6 +234,8 @@ export interface ModuleApp {
   ): Promise<string | null>;
   /** The page open in the editor, or null. */
   openPage(): string | null;
+  /** Opens a module's full-page view, with an optional parameter such as a page path. */
+  openView(id: string, param?: string): Promise<void>;
   /** A page's properties (its frontmatter keys), or null if they cannot be read. */
   pageProperties(path: string): Promise<Record<string, unknown> | null>;
   /**
@@ -256,6 +261,36 @@ export interface ModuleViews {
   registerSidebarPanel(spec: SidebarPanelSpec): Disposable;
   /** The module's own options, shown under it in Settings > Modules while it is on. */
   registerSettingsPanel(spec: SettingsPanelSpec): Disposable;
+  /** A view filling the main area, opened with app.openView, such as a timeline. */
+  registerPageView(spec: PageViewSpec): Disposable;
+}
+
+export interface PageViewSpec {
+  /** Must start with the module id and a dot. */
+  id: string;
+  /** Shown at the top of the view. */
+  title: string;
+  /** `param` is what openView was given, such as the page the view is about. */
+  render: (param: string | null) => ReactNode;
+}
+
+// ---- Pandoc ----
+
+export interface ModulePandoc {
+  /** Pandoc's version, such as `3.5`, or null if it cannot be found. */
+  version(): Promise<string | null>;
+  /**
+   * Converts Markdown to a Word file at `output` (a vault path ending
+   * `.docx`), formatting `[@key]` citations from `bibliography` (a CSL JSON
+   * file in the vault) in the style of `csl`, if given. Images are found
+   * relative to the vault folder.
+   */
+  toWord(options: {
+    markdown: string;
+    output: string;
+    bibliography?: string;
+    csl?: string;
+  }): Promise<void>;
 }
 
 export interface SettingsPanelSpec {
@@ -275,6 +310,8 @@ export interface ModuleCitations {
   register(spec: CitationProviderSpec): Disposable;
   /** Asks open pages to redraw their citations, such as after the library changed. */
   refresh(): void;
+  /** The provider's library file (a vault path), for formatting citations, or null. */
+  bibliography(): string | null;
 }
 
 export interface CitationProviderSpec {
@@ -282,10 +319,12 @@ export interface CitationProviderSpec {
   id: string;
   /** The work behind a key, or null if the library does not have it. */
   describe(key: string): CitedWork | null;
-  /** Works for the `[@` menu, best first. */
-  suggest(query: string): CitationChoice[];
+  /** Works for the `[@` menu, best first; may wait for the library to load. */
+  suggest(query: string): CitationChoice[] | Promise<CitationChoice[]>;
   /** Called when a citation is clicked: opens the key's note. */
   open(key: string): void | Promise<void>;
+  /** The library file as a vault path, such as for Pandoc, or null if there is none. */
+  bibliography?(): string | null;
 }
 
 export interface CitedWork {

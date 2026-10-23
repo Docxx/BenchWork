@@ -7,6 +7,7 @@ import type {
   DeviceKind,
   DirEntry,
   FileInfo,
+  PandocWordOptions,
   PlatformAdapter,
   SearchIndex,
   VaultChange,
@@ -163,6 +164,20 @@ export class TauriAdapter implements PlatformAdapter {
     return call('hash_file', () => ({
       path: external ? path : normaliseVaultPath(path),
       external,
+    }));
+  }
+
+  pandocVersion(): Promise<string | null> {
+    return call('pandoc_version');
+  }
+
+  pandocToWord(options: PandocWordOptions): Promise<void> {
+    return call('pandoc_to_word', () => ({
+      markdown: options.markdown,
+      output: normaliseVaultPath(options.output),
+      bibliography:
+        options.bibliography === undefined ? null : normaliseVaultPath(options.bibliography),
+      csl: options.csl === undefined ? null : normaliseVaultPath(options.csl),
     }));
   }
 

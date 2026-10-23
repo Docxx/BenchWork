@@ -81,10 +81,12 @@ export function createAppStore(
       commands,
       fileHandlers,
       settingsPanels,
+      pageViews,
       citationProviders,
       citationVersion,
     }) => {
       store.setState({
+        pageViews,
         panels,
         pageTypes,
         commands,
