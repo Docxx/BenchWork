@@ -1,6 +1,6 @@
 # BenchWork roadmap
 
-Current phase: **Phase 4**
+Current phase: **Phase 5** (Phase 4 is deferred)
 
 ## Phase 0: Skeleton
 
@@ -44,7 +44,9 @@ Current phase: **Phase 4**
 - [x] References module (Zotero)
 - [x] Exit check: daily pages with citations from the Zotero library
 
-## Phase 4: Android tablet and ink
+## Phase 4: Android tablet and ink (deferred)
+
+Deferred on 23 Oct 2026 until Android Studio and the tablet are set up. Phase 5 goes first; this phase comes back after it.
 
 - [ ] Android tablet build (Galaxy Tab S10) and touch layout
 - [ ] Core pen writing: ink blocks in document pages (S Pen pressure, palm rejection)
