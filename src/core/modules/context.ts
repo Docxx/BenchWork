@@ -253,13 +253,14 @@ export function createModuleContext(
         const root = app().vaultRoot();
         return root === null ? null : vaultPathOf(root, fullPath);
       },
+      fileUrl: (path) => deps.platform.assetUrl(path),
       watch(listener) {
         const stop = deps.platform.watch(listener);
         return track(stop);
       },
     },
     app: {
-      open: (path) => app().open(path),
+      open: (path, options) => app().open(path, options),
       createFolder: (folder, title) => app().createFolder(folder, title),
       createPage: (folder, title, type, content) => app().createPage(folder, title, type, content),
       openPage: () => app().openPage(),

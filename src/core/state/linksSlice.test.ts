@@ -63,6 +63,17 @@ describe('following links', () => {
     expect(state().page?.path).toBe('Home/Plan.md');
   });
 
+  it('asks the editor to go to the heading a link names', async () => {
+    const { state } = await openVault();
+    await state().openPage('Home/List.md');
+    await state().followLink('Lab/Plan#Plan');
+    expect(state().page?.path).toBe('Lab/Plan.md');
+    expect(state().revealHeading).toBe('Plan');
+
+    await state().followLink('Home/Plan');
+    expect(state().revealHeading).toBeNull();
+  });
+
   it('creates a page that does not exist yet beside the current one', async () => {
     const { state, file } = await openVault();
     await state().openPage('Lab/Notes.md');

@@ -85,6 +85,53 @@ export function PageEditor({ page }: { page: OpenPage }) {
     [page.ydoc],
   );
 
+  // Go to a heading asked for when the page was opened, such as from a mind map.
+  const revealHeading = useApp((s) => s.revealHeading);
+  const clearRevealHeading = useApp((s) => s.clearRevealHeading);
+  // The page's text arrives from its Yjs document just after the editor
+  // starts, so the heading is looked for as it fills, for a short while.
+  useEffect(() => {
+    if (revealHeading === null || editor.isDestroyed) return;
+    const wanted = revealHeading.toLowerCase();
+    const reveal = (): boolean => {
+      if (editor.isDestroyed) return false;
+      const found: number[] = [];
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'heading' && node.textContent.trim().toLowerCase() === wanted) {
+          found.push(pos);
+        }
+        return found.length === 0;
+      });
+      const at = found[0];
+      if (at === undefined) return false;
+      editor
+        .chain()
+        .focus()
+        .setTextSelection(at + 1)
+        .scrollIntoView()
+        .run();
+      return true;
+    };
+    let waiting: ReturnType<typeof setTimeout> | null = null;
+    const onChange = () => {
+      waiting ??= setTimeout(() => {
+        waiting = null;
+        if (reveal()) clearRevealHeading();
+      }, 0);
+    };
+    if (reveal()) {
+      clearRevealHeading();
+      return;
+    }
+    editor.on('update', onChange);
+    const giveUp = setTimeout(clearRevealHeading, 2000);
+    return () => {
+      editor.off('update', onChange);
+      clearTimeout(giveUp);
+      if (waiting !== null) clearTimeout(waiting);
+    };
+  }, [editor, revealHeading, clearRevealHeading]);
+
   // When pages come and go, recheck which links point at a page.
   useEffect(() => {
     if (!editor.isDestroyed) editor.view.dispatch(editor.state.tr.setMeta(pageLinksKey, true));

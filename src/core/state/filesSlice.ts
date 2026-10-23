@@ -33,8 +33,14 @@ export interface FilesSlice {
   closeModuleView: () => void;
   /** Goes up when the open file changes on disk, so its viewer reads it again. */
   fileVersion: number;
-  /** Opens a page in the editor, or any other file in its viewer. */
-  openPath: (path: string) => Promise<void>;
+  /**
+   * Opens a page in the editor, or any other file in its viewer. With
+   * `heading`, the editor goes to the first heading with that text.
+   */
+  openPath: (path: string, heading?: string) => Promise<void>;
+  /** A heading the editor should go to once the page it is in opens. */
+  revealHeading: string | null;
+  clearRevealHeading: () => void;
   closeFile: () => void;
   /** After a rename or move, keeps the open file pointing at it. */
   fileMoved: (from: string, to: string) => void;
@@ -78,6 +84,7 @@ export function createFilesSlice(ctx: StoreContext): FilesSlice {
     openFile: null,
     moduleView: null,
     fileVersion: 0,
+    revealHeading: null,
 
     openModuleView: async (id, param = null) => {
       if (get().status.kind !== 'open') return;
@@ -90,18 +97,25 @@ export function createFilesSlice(ctx: StoreContext): FilesSlice {
       set({ moduleView: null });
     },
 
-    openPath: async (path) => {
+    openPath: async (path, heading) => {
       if (get().status.kind !== 'open') return;
       get().showView('files');
-      set({ moduleView: null });
+      set({ moduleView: null, revealHeading: null });
       if (isPage(baseName(path))) {
         set({ openFile: null });
         await get().openPage(path);
+        // Set once the page is open, so only its editor acts on it.
+        const wanted = heading?.trim() ?? '';
+        if (wanted !== '' && get().page?.path === path) set({ revealHeading: wanted });
         return;
       }
       await get().closePage();
       set({ openFile: path, pageNotice: null });
       get().selectEntry(path);
+    },
+
+    clearRevealHeading: () => {
+      set({ revealHeading: null });
     },
 
     closeFile: () => {

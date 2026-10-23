@@ -187,7 +187,7 @@ export function createLinksSlice(ctx: StoreContext): LinksSlice {
       const from = get().page?.path ?? null;
       const found = resolveLink(target, from, get().pageRefs);
       if (found) {
-        await get().openPath(found.path);
+        await get().openPath(found.path, target.split('#')[1]?.split('^')[0]);
         return;
       }
       // A file such as `attachments/plot.png` or `Data/day7.csv`.

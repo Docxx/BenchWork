@@ -25,7 +25,7 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
       const status = state().status;
       return status.kind === 'open' ? status.vault.root : null;
     },
-    open: (path) => state().openPath(path),
+    open: (path, options) => state().openPath(path, options?.heading),
     createFolder: (folder, title) =>
       folder === '' ? state().createNotebook(title) : state().createSection(folder, title),
     createPage: (folder, title, type, content) =>

@@ -49,6 +49,15 @@ describe('PageView', () => {
     expect(screen.getByRole('status').textContent).toBe('Saved');
   });
 
+  it('goes to a heading when asked to open the page there', async () => {
+    const { store } = await renderPageView();
+    await act(() => store.getState().openPath('Lab/Plan.md', 'october PLAN'));
+    await settle(50);
+    const heading = screen.getByRole('heading', { name: 'October plan' });
+    expect(heading.contains(window.getSelection()?.anchorNode ?? null)).toBe(true);
+    expect(store.getState().revealHeading).toBeNull();
+  });
+
   it('renames the page from its title', async () => {
     const { platform, store } = await renderPageView();
     await act(() => store.getState().openPage('Lab/Plan.md'));

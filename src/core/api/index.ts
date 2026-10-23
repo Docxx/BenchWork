@@ -214,6 +214,8 @@ export interface ModuleVault {
   pickFiles(options: { title: string; multiple: boolean }): Promise<string[]>;
   /** The vault path of a full path, or null if it is outside the vault. */
   vaultPathOf(fullPath: string): string | null;
+  /** A URL an <img> can show a vault file from, or null if there is none. */
+  fileUrl(path: string): string | null;
   /** Calls `listener` when vault files change. Stopped when the module is switched off. */
   watch(listener: (change: VaultChange) => void): Disposable;
 }
@@ -232,8 +234,11 @@ export interface VaultItem {
 }
 
 export interface ModuleApp {
-  /** Opens a page in the editor, or another file in its viewer. */
-  open(path: string): Promise<void>;
+  /**
+   * Opens a page in the editor, or another file in its viewer. With
+   * `heading`, the editor goes to the first heading with that text.
+   */
+  open(path: string, options?: { heading?: string }): Promise<void>;
   /** Creates a notebook (with `folder` empty) or a section. Returns its path, or null. */
   createFolder(folder: string, title: string): Promise<string | null>;
   /**
