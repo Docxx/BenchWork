@@ -59,7 +59,7 @@ Deferred on 23 Oct 2026 until Android Studio and the tablet are set up. Phase 5 
 - [x] Manuscript (Pandoc export)
 - [ ] Planner (Gantt)
 - [ ] Mind maps and canvas
-- [ ] Data viewer: CSV and Excel light editing (cells, columns, simple formulas), quick plots
+- [x] Data viewer: CSV and Excel light editing (cells, columns, simple formulas), quick plots
 
 ## Phase 6: Sync and polish
 
