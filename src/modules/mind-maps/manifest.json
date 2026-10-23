@@ -1,0 +1,9 @@
+{
+  "id": "mind-maps",
+  "name": "Mind maps and canvas",
+  "version": "0.1.0",
+  "description": "See a page as a mind map, and lay out notes, images and data on a free canvas",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

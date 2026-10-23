@@ -22,7 +22,9 @@ export default defineConfig({
   },
   // Loaded only when first used, so Vite would otherwise find them mid-session
   // and bundle them then, reloading the page.
-  optimizeDeps: { include: ['plotly.js-dist-min', 'frappe-gantt'] },
+  optimizeDeps: {
+    include: ['plotly.js-dist-min', 'frappe-gantt', 'markmap-view', '@xyflow/react'],
+  },
   clearScreen: false,
   envPrefix: ['VITE_', 'TAURI_ENV_'],
   server: {

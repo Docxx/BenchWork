@@ -1,0 +1,162 @@
+/* Mind maps and canvases, in BenchWork's colours in both themes. */
+
+.mind-map {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mind-map-area {
+  width: 100%;
+  height: 70vh;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+
+/* Markmap sets its own colours on the same element, so these must be more specific. */
+svg.mind-map-area.markmap {
+  --markmap-text-color: var(--text);
+  --markmap-code-bg: var(--surface);
+  --markmap-circle-open-bg: var(--bg);
+}
+
+.mind-map-area .mind-node {
+  cursor: pointer;
+}
+
+.mind-map-area .mind-node:hover {
+  text-decoration: underline;
+}
+
+.canvas-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.canvas-view .notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.canvas-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.canvas-board {
+  height: 72vh;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  --xy-background-color: var(--bg);
+  --xy-background-pattern-dots-color: var(--border);
+  --xy-edge-stroke: var(--muted);
+  --xy-edge-stroke-selected: var(--accent);
+  --xy-edge-label-background-color: var(--bg);
+  --xy-edge-label-color: var(--text);
+  --xy-connectionline-stroke: var(--accent);
+  --xy-handle-background-color: var(--accent);
+  --xy-handle-border-color: var(--bg);
+  --xy-resize-background-color: var(--accent);
+  --xy-selection-background-color: color-mix(in srgb, var(--accent) 12%, transparent);
+  --xy-selection-border: 1px dotted var(--accent);
+  --xy-controls-button-background-color: var(--surface);
+  --xy-controls-button-background-color-hover: var(--bg);
+  --xy-controls-button-color: var(--text);
+  --xy-controls-button-color-hover: var(--text);
+  --xy-controls-button-border-color: var(--border);
+}
+
+.canvas-card {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0.65rem;
+  /* Not clipped, so the dots on its edges can be grabbed; the text inside is. */
+  overflow: visible;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.react-flow__node.selected > .canvas-card {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.canvas-card .react-flow__handle {
+  width: 8px;
+  height: 8px;
+  opacity: 0;
+}
+
+.canvas-card:hover .react-flow__handle,
+.react-flow__node.selected .react-flow__handle {
+  opacity: 1;
+}
+
+.card-text,
+.card-preview,
+.image-card img {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.card-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.text-card textarea {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  resize: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.card-title {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.card-preview {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.page-card {
+  border-left: 3px solid var(--accent);
+}
+
+.image-card {
+  padding: 0.25rem;
+  background: var(--bg);
+}
+
+.image-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.unknown-card {
+  border-style: dashed;
+}
