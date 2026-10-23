@@ -1,0 +1,9 @@
+{
+  "id": "lab-notebook",
+  "name": "Lab notebook",
+  "version": "0.1.0",
+  "description": "Protocols with versions, and a daily page for bench work",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}
