@@ -1,9 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Phase 5 exit check, Manuscript part, in a browser: a chapter draft with
- * a citation exported to Word. The browser has no Pandoc, so the in-memory
+ * Phase 5 exit check in a browser. Manuscript: a chapter draft with a
+ * citation exported to Word. The browser has no Pandoc, so the in-memory
  * stand-in writes what it was given; the desktop check uses real Pandoc.
+ * Data viewer: a CSV file edited with a formula, saved and plotted.
  */
 
 const LIBRARY = JSON.stringify([
@@ -18,13 +19,18 @@ const LIBRARY = JSON.stringify([
 const VAULT = {
   '.benchwork/config.json': JSON.stringify({
     version: 1,
-    modules: { references: { enabled: true }, manuscript: { enabled: true } },
+    modules: {
+      references: { enabled: true },
+      manuscript: { enabled: true },
+      'data-viewer': { enabled: true },
+    },
   }),
   'references/library.json': LIBRARY,
   'Thesis/Chapter 1.md':
     '---\ntype: manuscript\nauthor: Ray Price\n---\n1. [[Background]]\n2. [[Aims]]\n',
   'Thesis/Background.md': '# Background\n\nTau spreads between neurons [@smith2024].\n',
   'Thesis/Aims.md': 'We test whether LPS changes climbing.\n',
+  'Thesis/climbing.csv': 'genotype,cm\nw1118,12\nmutant,7\n',
 };
 
 const tree = (page: Page) => page.getByRole('tree', { name: 'Notebooks' });
@@ -79,4 +85,26 @@ test('the Manuscript settings say whether Pandoc is installed', async ({ page })
   await page.getByRole('tab', { name: 'Modules' }).click();
   await expect(page.getByText('Pandoc 3.6 (in memory) is installed.')).toBeVisible();
   await expect(page.getByText('Chicago author-date (Pandoc’s own)')).toBeVisible();
+});
+
+test('a CSV file is edited with a formula, saved and plotted', async ({ page }) => {
+  await tree(page).getByRole('treeitem', { name: 'climbing.csv' }).click();
+  const sheet = page.getByRole('table', { name: 'Sheet' });
+  await expect(sheet).toContainText('w1118');
+
+  // The spare cell below the data, in column B.
+  await sheet.getByRole('row').nth(4).locator('td').nth(1).click();
+  await page.keyboard.type('=SUM(B2:B3)');
+  await page.keyboard.press('Enter');
+  await expect(sheet).toContainText('19');
+  // Saved by itself a moment after the edit.
+  await expect
+    .poll(() => page.evaluate(() => window.__benchworkMemory?.snapshot()['Thesis/climbing.csv']))
+    .toBe('genotype,cm\nw1118,12\nmutant,7\n,19\n');
+
+  await page.getByRole('button', { name: 'Plot' }).click();
+  const plot = page.getByRole('region', { name: 'Plot' });
+  await plot.getByRole('combobox', { name: 'Chart' }).selectOption('bar');
+  // Plotly is large and loaded on first use.
+  await expect(plot.locator('.plot-area svg.main-svg').first()).toBeVisible({ timeout: 20_000 });
 });
