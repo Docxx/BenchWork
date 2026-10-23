@@ -60,7 +60,7 @@ Deferred on 23 Oct 2026 until Android Studio and the tablet are set up. Phase 5 
 - [x] Planner (Gantt)
 - [x] Mind maps and canvas
 - [x] Data viewer: CSV and Excel light editing (cells, columns, simple formulas), quick plots
-- [ ] Exit check: a chapter draft exported to Word with formatted citations
+- [x] Exit check: a chapter draft exported to Word with formatted citations
 
 ## Phase 6: Sync and polish
 
