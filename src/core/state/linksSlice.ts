@@ -178,8 +178,10 @@ export function createLinksSlice(ctx: StoreContext): LinksSlice {
       return choices;
     },
 
+    // Until the page list has loaded, links are not shown as missing, so they
+    // do not flicker faded every time a vault opens.
     linkResolves: (target) =>
-      candidates(target, get().page?.path ?? null, get().pageRefs).length > 0,
+      !loaded || candidates(target, get().page?.path ?? null, get().pageRefs).length > 0,
 
     followLink: async (target) => {
       const from = get().page?.path ?? null;
