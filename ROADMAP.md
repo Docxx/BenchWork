@@ -1,6 +1,6 @@
 # BenchWork roadmap
 
-Current phase: **Phase 2**
+Current phase: **Phase 3**
 
 ## Phase 0: Skeleton
 
@@ -36,7 +36,7 @@ Current phase: **Phase 2**
 - [x] Dataset records (.dataset.yaml) with SHA-256 checksums and external paths
 - [x] Attachments with copy-or-link prompt (size threshold in Settings, default 50 MB)
 - [x] CSV, Excel, image and PDF previews
-- [ ] Exit check: an experiment links to its data and both appear in search (passes in Playwright, tests/e2e/phase2.spec.ts; still to try in the desktop app)
+- [x] Exit check: an experiment links to its data and both appear in search
 
 ## Phase 3: First modules
 
