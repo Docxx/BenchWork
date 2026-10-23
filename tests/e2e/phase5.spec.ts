@@ -5,6 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
  * citation exported to Word. The browser has no Pandoc, so the in-memory
  * stand-in writes what it was given; the desktop check uses real Pandoc.
  * Data viewer: a CSV file edited with a formula, saved and plotted.
+ * Planner: pages with dates on a timeline, moved by dragging.
  */
 
 const LIBRARY = JSON.stringify([
@@ -16,6 +17,14 @@ const LIBRARY = JSON.stringify([
   },
 ]);
 
+/** A day counted from today, as YYYY-MM-DD, so the plan is in view. */
+function day(offset: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${String(d.getFullYear())}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 const VAULT = {
   '.benchwork/config.json': JSON.stringify({
     version: 1,
@@ -23,8 +32,12 @@ const VAULT = {
       references: { enabled: true },
       manuscript: { enabled: true },
       'data-viewer': { enabled: true },
+      planner: { enabled: true },
     },
   }),
+  'Lab/Pilot.md': `---\nstart: ${day(-3)}\nend: ${day(4)}\n---\nA small first run.\n`,
+  'Lab/Main study.md': `---\nstart: ${day(6)}\nend: ${day(20)}\nafter: "[[Pilot]]"\n---\n`,
+  'Lab/Committee.md': `---\ndate: ${day(24)}\nmilestone: true\n---\n`,
   'references/library.json': LIBRARY,
   'Thesis/Chapter 1.md':
     '---\ntype: manuscript\nauthor: Ray Price\n---\n1. [[Background]]\n2. [[Aims]]\n',
@@ -107,4 +120,46 @@ test('a CSV file is edited with a formula, saved and plotted', async ({ page }) 
   await plot.getByRole('combobox', { name: 'Chart' }).selectOption('bar');
   // Plotly is large and loaded on first use.
   await expect(plot.locator('.plot-area svg.main-svg').first()).toBeVisible({ timeout: 20_000 });
+});
+
+test('pages with dates show on the planner, and dragging a bar moves them', async ({ page }) => {
+  await runCommand(page, 'Open planner');
+  const timeline = page.getByRole('figure', { name: 'Timeline' });
+  await expect(timeline.locator('.bar-wrapper')).toHaveCount(3);
+  await expect(timeline).toContainText('Pilot');
+  await expect(timeline).toContainText('Committee');
+  await expect(timeline.locator('.arrow')).toHaveCount(1);
+  await expect(timeline.locator('.bar-wrapper.milestone')).toHaveCount(1);
+
+  // Drag the pilot about a week later.
+  const bar = timeline.locator('.bar-wrapper', { hasText: 'Pilot' }).locator('.bar');
+  // Bars grow in and the chart scrolls to today; wait until the bar is still.
+  let box = await bar.boundingBox();
+  await expect
+    .poll(
+      async () => {
+        const now = await bar.boundingBox();
+        const still = JSON.stringify(now) === JSON.stringify(box);
+        box = now;
+        return still;
+      },
+      { intervals: [300] },
+    )
+    .toBe(true);
+  if (box === null) throw new Error('No bar to drag');
+  const from = { x: box.x + 10, y: box.y + box.height / 2 };
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 140, from.y, { steps: 10 });
+  await page.mouse.up();
+
+  // Later, and still eight days long.
+  const dates = async () => {
+    const text = await page.evaluate(() => window.__benchworkMemory?.snapshot()['Lab/Pilot.md']);
+    const [, start = '', end = ''] = /start: (\S+)\nend: (\S+)/.exec(text ?? '') ?? [];
+    return { start, end };
+  };
+  await expect.poll(async () => (await dates()).start > day(-3)).toBe(true);
+  const { start, end } = await dates();
+  expect((Date.parse(end) - Date.parse(start)) / 86_400_000).toBe(7);
 });
