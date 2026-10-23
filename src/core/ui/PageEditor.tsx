@@ -2,10 +2,15 @@ import { Collaboration } from '@tiptap/extension-collaboration';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { useEffect, useState } from 'react';
 import { baseExtensions } from '../editor/extensions';
-import { FileInput } from '../editor/fileInput';
+import { FileInput, insertFiles } from '../editor/fileInput';
 import { blocksFromMarkdown } from '../editor/markdown/markdown';
 import { PageLinks, pageLinksKey, type LinkMenuState } from '../editor/pageLinks';
-import { PROPERTY_ITEM, SlashCommands, type SlashMenuState } from '../editor/slashCommands';
+import {
+  FILE_ITEM,
+  PROPERTY_ITEM,
+  SlashCommands,
+  type SlashMenuState,
+} from '../editor/slashCommands';
 import { FRAGMENT } from '../editor/yjsDoc';
 import type { OpenPage } from '../state/pageSlice';
 import { useApp } from './AppStoreContext';
@@ -24,6 +29,7 @@ export function PageEditor({ page }: { page: OpenPage }) {
   const templateBodyFor = useApp((s) => s.templateBodyFor);
   const setAddingProperty = useApp((s) => s.setAddingProperty);
   const embedTable = useApp((s) => s.embedTable);
+  const pickAndAddFiles = useApp((s) => s.pickAndAddFiles);
   const [slash, setSlash] = useState<SlashMenuState | null>(null);
   const [linkMenu, setLinkMenu] = useState<LinkMenuState | null>(null);
   /** Where to insert a template, while choosing one. */
@@ -41,8 +47,13 @@ export function PageEditor({ page }: { page: OpenPage }) {
         SlashCommands.configure({
           onChange: setSlash,
           onTemplate: setTemplateAt,
-          onAction: (id) => {
+          onAction: (id, pos, current) => {
             if (id === PROPERTY_ITEM) setAddingProperty(true);
+            if (id === FILE_ITEM) {
+              void pickAndAddFiles().then((files) => {
+                insertFiles(current, pos, files);
+              });
+            }
           },
         }),
         FileInput.configure({ onFiles: addFiles }),

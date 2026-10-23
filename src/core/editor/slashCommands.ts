@@ -142,7 +142,7 @@ export interface SlashOptions {
   /** Called with where to insert, when Template is chosen. */
   onTemplate: (pos: number) => void;
   /** Called with where it was chosen, for Property and File. */
-  onAction: (id: typeof PROPERTY_ITEM | typeof FILE_ITEM, pos: number) => void;
+  onAction: (id: typeof PROPERTY_ITEM | typeof FILE_ITEM, pos: number, editor: Editor) => void;
 }
 
 export const SlashCommands = Extension.create<SlashOptions>({
@@ -182,7 +182,9 @@ export const SlashCommands = Extension.create<SlashOptions>({
         command: ({ editor, range, props }) => {
           props.run(editor, range);
           if (props.id === TEMPLATE_ITEM) onTemplate(range.from);
-          if (props.id === PROPERTY_ITEM || props.id === FILE_ITEM) onAction(props.id, range.from);
+          if (props.id === PROPERTY_ITEM || props.id === FILE_ITEM) {
+            onAction(props.id, range.from, editor);
+          }
         },
         render: () => ({
           onStart: (props) => {

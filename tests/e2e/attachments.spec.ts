@@ -84,9 +84,14 @@ test('a dropped file is copied in and linked from the page', async ({ page }) =>
     { x: box.x + box.width - 2, y: box.y + box.height / 2 },
   );
 
-  await expect(editor(page).locator('.wiki-link')).toHaveText('attachments/climbing day7.csv');
+  // A table is embedded as a card showing its first rows.
+  const card = editor(page).locator('.file-embed');
+  await expect(card.locator('.file-embed-name')).toHaveText('climbing day7.csv');
+  await expect(card.locator('th')).toHaveText(['fly', 'height']);
   expect(await file(page, 'attachments/climbing day7.csv')).toBe('fly,height\n1,4.2\n');
-  await expect.poll(() => file(page, 'Lab/Plan.md')).toContain('[[attachments/climbing day7.csv]]');
+  await expect
+    .poll(() => file(page, 'Lab/Plan.md'))
+    .toContain('![[attachments/climbing day7.csv]]');
 });
 
 test('an embedded image whose file is missing shows as a crossed-out chip', async ({ page }) => {

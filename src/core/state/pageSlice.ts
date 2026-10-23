@@ -3,15 +3,7 @@ import { loadPage, savePage } from '../editor/markdown/markdown';
 import type { BodySource } from '../editor/markdown/model';
 import { createPageYDoc, yDocToPage } from '../editor/yjsDoc';
 import { pageTitle } from '../notebooks/notebookTree';
-import {
-  AttachmentError,
-  embedPath,
-  imagePath,
-  isImage,
-  saveAttachment,
-  type FileSource,
-  type IncomingFile,
-} from '../pages/attachments';
+import { embedPath, imagePath } from '../pages/attachments';
 import {
   ensureId,
   localTimestamp,
@@ -90,23 +82,10 @@ export interface PageSlice {
   pageMoved: (from: string, to: string) => void;
   dismissPageNotice: () => void;
   /**
-   * Copies pasted or dropped files into `attachments/` and returns the ones
-   * that were added, for the editor to embed. Files that could not be added
-   * are listed in the page notice.
-   */
-  addFiles: (files: readonly IncomingFile[], source: FileSource) => Promise<AddedFile[]>;
-  /**
    * A URL to load an image in the open page from: `src` is an embed target
    * when `embed` is true, otherwise a Markdown image source. Null if none.
    */
   assetUrl: (src: string, embed: boolean) => string | null;
-}
-
-/** A file copied into the vault for the open page. */
-export interface AddedFile {
-  /** Vault path, such as `attachments/plot.png`. */
-  path: string;
-  image: boolean;
 }
 
 interface Session {
@@ -480,31 +459,6 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
 
     dismissPageNotice: () => {
       set({ pageNotice: null });
-    },
-
-    addFiles: async (files, source) => {
-      const status = get().status;
-      if (status.kind !== 'open' || session === null) return [];
-      const token = ctx.session();
-      const limit = status.vault.config.attachments.linkThresholdMB * 1024 * 1024;
-      const added: AddedFile[] = [];
-      const problems: string[] = [];
-      for (const file of files) {
-        if (ctx.session() !== token) return [];
-        try {
-          const path = await saveAttachment(platform, file, source, limit);
-          added.push({ path, image: isImage(path) });
-        } catch (err) {
-          problems.push(
-            err instanceof AttachmentError
-              ? err.message
-              : `${file.name} could not be added. ${PlatformError.from(err).message}`,
-          );
-        }
-      }
-      if (ctx.session() !== token) return [];
-      set({ pageNotice: problems.length > 0 ? problems.join(' ') : null });
-      return added;
     },
 
     pageHistory: async () => {

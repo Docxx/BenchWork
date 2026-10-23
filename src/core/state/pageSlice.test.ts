@@ -256,8 +256,8 @@ describe('adding files', () => {
       'drop',
     );
     expect(added).toEqual([
-      { path: 'attachments/plot.png', image: true },
-      { path: 'attachments/data.csv', image: false },
+      { path: 'attachments/plot.png', embed: true },
+      { path: 'attachments/data.csv', embed: true },
     ]);
     expect(platform.snapshot()['attachments/data.csv']).toBe('a,b');
 
@@ -271,21 +271,65 @@ describe('adding files', () => {
     });
     await state().savePageNow();
     expect(platform.snapshot()['Lab/Plan.md']).toContain(
-      '\n![[attachments/plot.png]] [[attachments/data.csv]]\n',
+      '\n![[attachments/plot.png]] ![[attachments/data.csv]]\n',
     );
   });
 
-  it('lists files over the size limit in the notice and adds the rest', async () => {
+  it('asks about files over the size limit: skip, copy, or find and link', async () => {
     const { platform, state } = await openVault({
       '.benchwork/config.json': '{"version":1,"attachments":{"linkThresholdMB":1}}',
     });
     await state().openPage('Lab/Plan.md');
-    const added = await state().addFiles(
-      [incoming('stack.tif', '', 2 * 1024 * 1024), incoming('note.txt', 'hi')],
+    const big = (name: string) => incoming(name, 'tiff', 2 * 1024 * 1024);
+    const adding = state().addFiles(
+      [big('a.tif'), incoming('note.txt', 'hi'), big('b.tif')],
       'drop',
     );
-    expect(added.map((a) => a.path)).toEqual(['attachments/note.txt']);
-    expect(state().pageNotice).toContain('stack.tif is over 1 MB');
+    await vi.waitFor(() => {
+      expect(state().attachQuestion).toMatchObject({ name: 'a.tif', limitMB: 1, located: false });
+    });
+    state().answerAttach(null);
+    await vi.waitFor(() => {
+      expect(state().attachQuestion?.name).toBe('b.tif');
+    });
+    state().answerAttach('copy');
+    expect((await adding).map((a) => a.path)).toEqual([
+      'attachments/note.txt',
+      'attachments/b.tif',
+    ]);
+    expect(platform.snapshot()['attachments/a.tif']).toBeUndefined();
+
+    platform.addExternalFile('D:/Raw/c.tif', 'the real file');
+    platform.queueFilePick(['D:/Raw/c.tif']);
+    const linking = state().addFiles([big('c.tif')], 'drop');
+    await vi.waitFor(() => {
+      expect(state().attachQuestion?.name).toBe('c.tif');
+    });
+    state().answerAttach('link');
+    expect(await linking).toEqual([{ path: 'attachments/c.tif.link.yaml', embed: true }]);
+    expect(platform.snapshot()['attachments/c.tif.link.yaml']).toContain('path: D:/Raw/c.tif');
+  });
+
+  it('adds picked files: copies small ones, links big ones, and keeps vault files where they are', async () => {
+    const { platform, state } = await openVault({
+      '.benchwork/config.json': '{"version":1,"attachments":{"linkThresholdMB":1}}',
+      'Lab/Data/day7.csv': 'x,y',
+    });
+    await state().openPage('Lab/Plan.md');
+    platform.addExternalFile('D:/Raw/small.csv', 'a,b');
+    platform.addExternalFile('D:/Raw/stack.tif', new Uint8Array(2 * 1024 * 1024));
+    platform.queueFilePick(['D:/Raw/small.csv', 'D:/Raw/stack.tif', 'C:/Vault/Lab/Data/day7.csv']);
+    const adding = state().pickAndAddFiles();
+    await vi.waitFor(() => {
+      expect(state().attachQuestion).toMatchObject({ name: 'stack.tif', located: true });
+    });
+    state().answerAttach('link');
+    expect(await adding).toEqual([
+      { path: 'attachments/small.csv', embed: true },
+      { path: 'attachments/stack.tif.link.yaml', embed: true },
+      { path: 'Lab/Data/day7.csv', embed: true },
+    ]);
+    expect(platform.snapshot()['attachments/small.csv']).toBe('a,b');
     expect(platform.snapshot()['attachments/stack.tif']).toBeUndefined();
   });
 

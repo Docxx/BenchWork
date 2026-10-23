@@ -4,7 +4,7 @@ const VAULT = {
   '.benchwork/config.json': '{"version":1}',
   'LPS model/Experiments/Dose.md': '---\nid: a\n---\nDose notes',
   'LPS model/Plan.md': 'p',
-  'LPS model/data.csv': 'a,b',
+  'LPS model/notes.txt': 'a,b',
   Archive: null,
   attachments: null,
 };
@@ -28,12 +28,12 @@ test.beforeEach(async ({ page }) => {
   await expect(tree(page)).toBeVisible();
 });
 
-test('shows notebooks, sections and pages, hiding other files', async ({ page }) => {
+test('shows notebooks, sections and pages, hiding files it cannot preview', async ({ page }) => {
   await expect(tree(page).getByRole('treeitem')).toHaveCount(2);
   await row(page, 'LPS model').click();
   await expect(row(page, 'Experiments')).toBeVisible();
   await expect(row(page, 'Plan')).toBeVisible();
-  await expect(tree(page).getByText('data.csv')).toHaveCount(0);
+  await expect(tree(page).getByText('notes.txt')).toHaveCount(0);
   await expect(tree(page).getByText('attachments')).toHaveCount(0);
 });
 

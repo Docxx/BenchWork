@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { OpenVault } from '../vault/vaultService';
 import { useApp } from './AppStoreContext';
+import { AttachDialog } from './AttachDialog';
 import { CommandList, TextPromptDialog } from './ModuleDialogs';
 import { PageView } from './PageView';
 import { SettingsPage } from './SettingsPage';
@@ -46,6 +47,7 @@ export function Shell({ vault }: { vault: OpenVault }) {
       </main>
       {showCommands && <CommandList onClose={closeCommands} />}
       <TextPromptDialog />
+      <AttachDialog />
     </div>
   );
 }

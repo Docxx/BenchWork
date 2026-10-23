@@ -6,12 +6,12 @@ import { WIKI_LINK, type PMNode } from './markdown/model';
 /**
  * Catches files pasted or dropped into the page, hands them to `onFiles` to
  * be copied into the vault, then embeds the ones it added where they landed:
- * images as `![[path]]`, other files as `[[path]]` links.
+ * images and files with a preview as `![[path]]`, others as `[[path]]` links.
  */
 
 export interface AddedFileRef {
   path: string;
-  image: boolean;
+  embed: boolean;
 }
 
 export interface FileInputOptions {
@@ -31,11 +31,12 @@ export function toIncoming(file: File): IncomingFile {
 export function embedContent(added: readonly AddedFileRef[]): PMNode[] {
   return added.flatMap((file, i) => [
     ...(i > 0 ? [{ type: 'text', text: ' ' }] : []),
-    { type: WIKI_LINK, attrs: { target: file.path, alias: null, embed: file.image } },
+    { type: WIKI_LINK, attrs: { target: file.path, alias: null, embed: file.embed } },
   ]);
 }
 
-function insertFiles(editor: Editor, pos: number, added: readonly AddedFileRef[]): void {
+/** Inserts added files at `pos`, or as near as the page now allows. */
+export function insertFiles(editor: Editor, pos: number, added: readonly AddedFileRef[]): void {
   if (added.length === 0 || editor.isDestroyed) return;
   // The page may have changed while the files were being copied.
   const at = Math.min(pos, editor.state.doc.content.size);

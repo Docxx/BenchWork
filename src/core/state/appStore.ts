@@ -3,6 +3,7 @@ import { createContributions } from '../modules/contributions';
 import { ModuleRegistry } from '../modules/registry';
 import type { PlatformAdapter } from '../platform';
 import { createStoreContext } from './context';
+import { createAttachmentsSlice, type AttachmentsSlice } from './attachmentsSlice';
 import { createDailySlice, type DailySlice } from './dailySlice';
 import { createFilesSlice, type FilesSlice } from './filesSlice';
 import { createLinksSlice, type LinksSlice } from './linksSlice';
@@ -16,6 +17,7 @@ import { createTreeSlice, type TreeSlice } from './treeSlice';
 import { createVaultSlice, type VaultSlice } from './vaultSlice';
 
 export { describeError } from './context';
+export type { AddedFile, AttachChoice, AttachQuestion } from './attachmentsSlice';
 export type { DayNeighbours } from './dailySlice';
 export type { Backlink } from './linksSlice';
 export type { PendingModuleChange, TextPrompt } from './modulesSlice';
@@ -29,6 +31,7 @@ export type AppState = VaultSlice &
   NotebookSlice &
   PageSlice &
   FilesSlice &
+  AttachmentsSlice &
   SearchSlice &
   LinksSlice &
   DailySlice &
@@ -59,6 +62,7 @@ export function createAppStore(
       ...createNotebookSlice(ctx),
       ...createPageSlice(ctx),
       ...createFilesSlice(ctx),
+      ...createAttachmentsSlice(ctx),
       ...createSearchSlice(ctx),
       ...createLinksSlice(ctx),
       ...createDailySlice(ctx),

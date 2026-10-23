@@ -185,8 +185,8 @@ function VaultSettings({ vault }: { vault: OpenVault }) {
           <span>MB</span>
         </div>
         <p className="hint">
-          Smaller files are copied into the vault. Larger ones stay where they are and are linked,
-          with a checksum. Saved in this vault.
+          Smaller files are copied into the vault. For larger ones, BenchWork asks: link to them
+          where they are, with a checksum, or copy them in. Saved in this vault.
         </p>
       </div>
 

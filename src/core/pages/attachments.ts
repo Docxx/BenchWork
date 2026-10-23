@@ -1,5 +1,11 @@
 import { freeName, NameError, safeName } from '../notebooks/notebookService';
-import { baseName, joinVaultPath, parentVaultPath, type PlatformAdapter } from '../platform';
+import {
+  baseName,
+  fullBaseName,
+  joinVaultPath,
+  parentVaultPath,
+  type PlatformAdapter,
+} from '../platform';
 import { snapshotStamp } from './snapshots';
 
 /**
@@ -100,6 +106,30 @@ export async function saveAttachment(
   const name = await freeName(platform, ATTACHMENTS_DIR, base, ext);
   const path = joinVaultPath(ATTACHMENTS_DIR, name);
   await platform.writeBytes(path, await file.bytes());
+  return path;
+}
+
+/**
+ * Copies a file the user picked (a full path outside the vault) into
+ * `attachments/` under a free name, and returns its vault path. Never
+ * overwrites. Fails with TooLarge over `maxBytes`.
+ */
+export async function copyInAttachment(
+  platform: PlatformAdapter,
+  fullPath: string,
+  maxBytes: number,
+): Promise<string> {
+  const file: IncomingFile = {
+    name: fullBaseName(fullPath),
+    type: '',
+    size: 0,
+    bytes: () => Promise.resolve(new Uint8Array()),
+  };
+  const { base, ext } = splitName(attachmentName(file, 'drop', new Date()));
+  await platform.ensureDir(ATTACHMENTS_DIR);
+  const name = await freeName(platform, ATTACHMENTS_DIR, base, ext);
+  const path = joinVaultPath(ATTACHMENTS_DIR, name);
+  await platform.copyIn(fullPath, path, maxBytes);
   return path;
 }
 
