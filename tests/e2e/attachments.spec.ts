@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { clickInto } from './helpers';
 
 /** A 1x1 PNG, so pasted images really load. */
 const PNG_BASE64 =
@@ -44,7 +45,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('a pasted screenshot is saved in attachments and shown in the page', async ({ page }) => {
-  await editor(page).locator('p').last().click();
+  await clickInto(editor(page).locator('p').last());
   await page.keyboard.press('End');
   await page.evaluate((base64) => {
     const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { clickInto } from './helpers';
 
 const PLAN = [
   '---',
@@ -52,7 +53,7 @@ test('opens a page without showing Markdown', async ({ page }) => {
 });
 
 test('autosaves typing, leaving untouched blocks exactly as written', async ({ page }) => {
-  await editor(page).locator('p').last().click();
+  await clickInto(editor(page).locator('p').last());
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');
   await page.keyboard.type('Added from the keyboard.');
@@ -70,7 +71,7 @@ test('autosaves typing, leaving untouched blocks exactly as written', async ({ p
 });
 
 test('the / menu turns a line into a heading or a checklist', async ({ page }) => {
-  await editor(page).locator('p').last().click();
+  await clickInto(editor(page).locator('p').last());
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');
   await page.keyboard.type('/head');
@@ -111,7 +112,7 @@ test('a change made outside BenchWork appears in the open page', async ({ page }
 });
 
 test('a clash with an outside change asks, and keeps both versions', async ({ page }) => {
-  await editor(page).locator('p').last().click();
+  await clickInto(editor(page).locator('p').last());
   await page.keyboard.press('End');
   await page.keyboard.type(' Mine.');
   // Change the file before autosave runs.

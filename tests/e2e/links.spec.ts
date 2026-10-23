@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { clickInto } from './helpers';
 
 const VAULT = {
   '.benchwork/config.json': '{"version":1}',
@@ -40,7 +41,7 @@ test.beforeEach(async ({ page }) => {
 
 test('[[ links to a page, saved as a wiki link', async ({ page }) => {
   await openPage(page, 'Lab', 'Notes');
-  await editor(page).locator('p').last().click();
+  await clickInto(editor(page).locator('p').last());
   await page.keyboard.press('End');
   await page.keyboard.type(' See [[Dos');
   const menu = page.getByRole('listbox', { name: 'Link to page' });
@@ -53,7 +54,7 @@ test('[[ links to a page, saved as a wiki link', async ({ page }) => {
 
 test('a link typed in full becomes a link', async ({ page }) => {
   await openPage(page, 'Lab', 'Notes');
-  await editor(page).locator('p').last().click();
+  await clickInto(editor(page).locator('p').last());
   await page.keyboard.press('End');
   await page.keyboard.type(' Ask [[Plan|the plan]]');
   await page.keyboard.press('Escape');

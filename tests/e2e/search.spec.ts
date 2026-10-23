@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { clickInto } from './helpers';
 
 const VAULT = {
   '.benchwork/config.json': '{"version":1}',
@@ -55,7 +56,7 @@ test('says when nothing matches', async ({ page }) => {
 test('finds what was just typed in a page', async ({ page }) => {
   await tree(page).getByRole('treeitem', { name: 'Lab' }).click();
   await tree(page).getByRole('treeitem', { name: 'Plan' }).click();
-  await editor(page).locator('p').last().click();
+  await clickInto(editor(page).locator('p').last());
   await page.keyboard.press('End');
   await page.keyboard.type(' Ordered yeast today.');
   await expect(page.getByText('Saved', { exact: true })).toBeVisible();

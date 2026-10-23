@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { clickInto } from './helpers';
 
 /**
  * Phase 1 exit check, end to end in a browser: a new vault with the sample
@@ -39,7 +40,7 @@ test('a new vault starts with the Getting started notebook', async ({ page }) =>
 test('lab notes are written in today’s page and found again', async ({ page }) => {
   await page.keyboard.press('Control+Shift+D');
   await expect(title(page)).toHaveValue('2026-10-22');
-  await editor(page).locator('p').last().click();
+  await clickInto(editor(page).locator('p').last());
   await page.keyboard.type('Spun samples at 4000 rpm for the ');
   await page.keyboard.type('[[Example exp');
   await page.getByRole('listbox', { name: 'Link to page' }).getByRole('option').first().click();
@@ -69,7 +70,7 @@ test('an earlier version of a page can be restored', async ({ page }) => {
   await tree(page).getByRole('treeitem', { name: 'Getting started' }).click();
   await tree(page).getByRole('treeitem', { name: 'Welcome' }).click();
   const original = await file(page, 'Getting started/Welcome.md');
-  await editor(page).locator('h1').click();
+  await clickInto(editor(page).locator('h1'));
   await page.keyboard.press('End');
   await page.keyboard.type(' (edited by mistake)');
   await expect(page.getByText('Saved', { exact: true })).toBeVisible();

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { clickInto } from './helpers';
 
 const BASE = {
   '.benchwork/config.json': '{"version":1}',
@@ -92,7 +93,7 @@ test('/template inserts a template into the page', async ({ page }) => {
   await open(page);
   await tree(page).getByRole('treeitem', { name: 'Lab' }).click();
   await tree(page).getByRole('treeitem', { name: 'Run' }).click();
-  await editor(page).locator('p').last().click();
+  await clickInto(editor(page).locator('p').last());
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');
   await page.keyboard.type('/templ');

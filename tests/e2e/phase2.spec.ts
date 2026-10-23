@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { clickInto } from './helpers';
 
 /**
  * Phase 2 exit check, end to end in a browser: with the Research module on,
@@ -140,7 +141,7 @@ test('CSV and PDF files preview from the sidebar', async ({ page }) => {
 test('a file over the size limit is linked where it is, not copied', async ({ page }) => {
   await row(page, 'Reading').click();
   await row(page, 'Notes').click();
-  await editor(page).locator('p').last().click();
+  await clickInto(editor(page).locator('p').last());
   await page.keyboard.press('End');
 
   // Dropped files do not say where they are, so linking asks for the file.
