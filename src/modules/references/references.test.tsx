@@ -137,11 +137,25 @@ describe('References module', () => {
       full: expect.stringContaining('Tau spreads') as string,
     });
     expect(provider().describe('missing')).toBeNull();
-    expect(
-      provider()
-        .suggest('lee')
-        .map((c) => c.key),
-    ).toEqual(['lee2023', 'smith2024']);
+    expect((await provider().suggest('lee')).map((c) => c.key)).toEqual(['lee2023', 'smith2024']);
+  });
+
+  it('waits for the library before answering the [@ menu, so it never comes up empty', async () => {
+    const { platform, state } = await openVault({ 'references/library.json': LIBRARY });
+    // Ask straight after switching the module on again, before the library is read.
+    await act(async () => {
+      await state().setModuleEnabled('references', false);
+    });
+    const switchedOn = state().setModuleEnabled('references', true);
+    await vi.waitFor(() => {
+      expect(state().citationProvider()).not.toBeNull();
+    });
+    const asked = state().citationProvider()?.suggest('smi');
+    await act(async () => {
+      await switchedOn;
+    });
+    expect((await asked)?.map((c) => c.key)).toEqual(['smith2024', 'lee2023']);
+    expect(platform.snapshot()['references/library.json']).toBe(LIBRARY);
   });
 
   it('follows changes to the library, as when Better BibTeX updates it', async () => {
@@ -248,12 +262,10 @@ describe('References module', () => {
       })),
     );
     const { provider } = await openVault({ 'references/library.json': many });
-    expect(provider().suggest('')).toHaveLength(50);
-    expect(provider().suggest('author')).toHaveLength(50);
+    expect(await provider().suggest('')).toHaveLength(50);
+    expect(await provider().suggest('author')).toHaveLength(50);
     // The exact key first, then keys that start with it, newest first.
-    const keys = provider()
-      .suggest('ref6')
-      .map((c) => c.key);
+    const keys = (await provider().suggest('ref6')).map((c) => c.key);
     expect(keys[0]).toBe('ref6');
     expect(keys.slice(1, 4)).toEqual(['ref69', 'ref68', 'ref67']);
     expect(keys).toHaveLength(11);

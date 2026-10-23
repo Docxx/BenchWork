@@ -22,8 +22,14 @@ export default defineModule({
         const ref = library.refs.get(key);
         return ref ? describe(ref) : null;
       },
-      suggest: (query) => searchLibrary(library.refs, query),
+      // Straight after a vault opens the library may still be loading: wait
+      // for it, so the menu does not come up empty.
+      suggest: async (query) => {
+        await library.ready;
+        return searchLibrary(library.refs, query);
+      },
       open: (key) => openNote(ctx, library, key),
+      bibliography: () => (library.current().status === 'ready' ? library.current().path : null),
     });
 
     ctx.pageTypes.register(referenceType(library));

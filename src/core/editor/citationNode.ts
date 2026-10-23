@@ -16,7 +16,7 @@ import { CITATION } from './markdown/model';
 /** What the editor needs from the References module; null when it is off. */
 export interface CitationView {
   describe(key: string): CitedWork | null;
-  suggest(query: string): CitationChoice[];
+  suggest(query: string): CitationChoice[] | Promise<CitationChoice[]>;
   open(key: string): void | Promise<void>;
 }
 

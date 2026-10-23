@@ -57,6 +57,12 @@ export class LibraryState {
     for (const listener of this.listeners) listener();
   }
 
+  private loadedOnce: () => void = () => undefined;
+  /** Resolves once the library has been read for the first time, whatever was found. */
+  readonly ready: Promise<void> = new Promise((resolve) => {
+    this.loadedOnce = resolve;
+  });
+
   /** Reads the saved settings, loads the library, and follows changes to it. */
   async start(): Promise<void> {
     const settings = await this.ctx.storage
@@ -67,7 +73,11 @@ export class LibraryState {
     this.ctx.vault.watch((change) => {
       if (change.paths.includes(this.snapshot.path)) void this.load();
     });
-    await this.load();
+    try {
+      await this.load();
+    } finally {
+      this.loadedOnce();
+    }
   }
 
   /** Uses another file as the library, and remembers it in this vault. */
