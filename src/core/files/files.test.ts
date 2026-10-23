@@ -18,9 +18,22 @@ describe('file kinds', () => {
         'paper.pdf',
         'scan.tif.link.yaml',
         'day7.dataset.yaml',
+        'Ideas.canvas.json',
         'notes.txt',
       ].map(fileKind),
-    ).toEqual(['page', 'image', 'table', 'table', 'spreadsheet', 'pdf', 'link', 'record', 'other']);
+    ).toEqual([
+      'page',
+      'image',
+      'table',
+      'table',
+      'spreadsheet',
+      'pdf',
+      'link',
+      'record',
+      'canvas',
+      'other',
+    ]);
+    expect(kindLabel('Lab/Ideas.canvas.json')).toBe('Canvas');
     expect(kindLabel('Data/day7.csv')).toBe('CSV table');
     expect(kindLabel('Data/day7.dataset.yaml')).toBe('Dataset');
   });

@@ -41,6 +41,13 @@ export function isPage(name: string): boolean {
   return name.toLowerCase().endsWith(PAGE_EXTENSION) && name.length > PAGE_EXTENSION.length;
 }
 
+/** Canvas pages: cards and arrows on a free surface, drawn by a module. */
+export const CANVAS_EXTENSION = '.canvas.json';
+
+export function isCanvas(name: string): boolean {
+  return name.toLowerCase().endsWith(CANVAS_EXTENSION) && name.length > CANVAS_EXTENSION.length;
+}
+
 export function pageTitle(name: string): string {
   return isPage(name) ? name.slice(0, -PAGE_EXTENSION.length) : name;
 }
@@ -54,7 +61,7 @@ export function isShown(entry: DirEntry, atRoot: boolean, options: LayoutOptions
   if (entry.name === SECTION_FILE) return false;
   if (options.showAllFiles) return true;
   if (entry.isDir) return !isReserved(entry, atRoot);
-  return isPage(entry.name) || isPreviewed(entry.name);
+  return isPage(entry.name) || isCanvas(entry.name) || isPreviewed(entry.name);
 }
 
 /**
@@ -109,9 +116,11 @@ function nodeFor(entry: DirEntry, depth: number, colour: string | null): Noteboo
     title:
       kind === 'page'
         ? pageTitle(entry.name)
-        : isRecord(entry.name)
-          ? recordName(entry.name)
-          : entry.name,
+        : isCanvas(entry.name)
+          ? entry.name.slice(0, -CANVAS_EXTENSION.length)
+          : isRecord(entry.name)
+            ? recordName(entry.name)
+            : entry.name,
     isDir: entry.isDir,
     colour,
   };

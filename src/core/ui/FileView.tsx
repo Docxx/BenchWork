@@ -5,6 +5,7 @@ import { fileKind, kindLabel } from '../files/fileKinds';
 import { openPdf, type PdfDocument, type PdfRender } from '../files/pdf';
 import { readSpreadsheet, type SheetData } from '../files/spreadsheet';
 import { handlerFor } from '../modules/contributions';
+import { CANVAS_EXTENSION } from '../notebooks/notebookTree';
 import { baseName, PlatformError } from '../platform';
 import { parseRecord, recordName } from '../records/records';
 import { useApp } from './AppStoreContext';
@@ -21,7 +22,12 @@ export function FileView({ path }: { path: string }) {
   const version = useApp((s) => s.fileVersion);
   const handler = handlerFor(handlers, path);
   const kind = fileKind(path);
-  const title = kind === 'record' || kind === 'link' ? recordName(path) : baseName(path);
+  const title =
+    kind === 'record' || kind === 'link'
+      ? recordName(path)
+      : kind === 'canvas'
+        ? baseName(path).slice(0, -CANVAS_EXTENSION.length)
+        : baseName(path);
 
   return (
     <article className="file-view" aria-label={title}>
@@ -58,6 +64,13 @@ function Preview({ path }: { path: string }) {
       return <LinkedFileView path={path} />;
     case 'record':
       return <RecordPreview path={path} />;
+    case 'canvas':
+      return (
+        <p className="hint">
+          Canvases are drawn by the Mind maps and canvas module. Switch it on in Settings to see
+          this one.
+        </p>
+      );
     default:
       return <p className="hint">There is no preview for this kind of file.</p>;
   }

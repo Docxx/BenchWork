@@ -1,4 +1,4 @@
-import { isPage } from '../notebooks/notebookTree';
+import { isCanvas, isPage } from '../notebooks/notebookTree';
 import { isImage } from '../pages/attachments';
 import { baseName } from '../platform';
 import { recordKind } from '../records/records';
@@ -16,6 +16,8 @@ export type FileKind =
   /** Excel or OpenDocument spreadsheets. */
   | 'spreadsheet'
   | 'pdf'
+  /** `<name>.canvas.json`, drawn by the Mind maps and canvas module. */
+  | 'canvas'
   /** A linked file's record, `<name>.link.yaml`: path, size and checksum. */
   | 'link'
   /** Any other record, such as `<name>.dataset.yaml`. */
@@ -36,6 +38,7 @@ function extensionOf(name: string): string {
 export function fileKind(path: string): FileKind {
   const name = baseName(path);
   if (isPage(name)) return 'page';
+  if (isCanvas(name)) return 'canvas';
   const kind = recordKind(name);
   if (kind !== null) return kind === LINK_RECORD ? 'link' : 'record';
   if (isImage(name)) return 'image';
@@ -58,6 +61,8 @@ export function kindLabel(path: string): string {
       return 'PDF';
     case 'image':
       return 'Image';
+    case 'canvas':
+      return 'Canvas';
     case 'link':
       return 'Linked file';
     case 'record': {

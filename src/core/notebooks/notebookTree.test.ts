@@ -86,6 +86,7 @@ describe('notebookRows', () => {
           entry('LPS model/Experiments', true),
           entry('LPS model/Plan.md'),
           entry('LPS model/data.csv'),
+          entry('LPS model/Ideas.canvas.json'),
           entry('LPS model/day7.dataset.yaml'),
           entry('LPS model/notes.txt'),
           entry('LPS model/_section.yaml'),
@@ -107,6 +108,7 @@ describe('notebookRows', () => {
       '    [empty]',
       '  file:data.csv',
       '  file:day7',
+      '  file:Ideas',
       'page:Loose page',
       'file:photo.png',
     ]);
