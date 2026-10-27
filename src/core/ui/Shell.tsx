@@ -1,3 +1,4 @@
+import { PanelLeftOpen } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import type { OpenVault } from '../vault/vaultService';
 import { useApp } from './AppStoreContext';
@@ -13,6 +14,7 @@ export function Shell({ vault }: { vault: OpenVault }) {
   const focusSearch = useApp((s) => s.focusSearch);
   const openToday = useApp((s) => s.openToday);
   const [showCommands, setShowCommands] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const closeCommands = useCallback(() => {
     setShowCommands(false);
   }, []);
@@ -41,7 +43,29 @@ export function Shell({ vault }: { vault: OpenVault }) {
 
   return (
     <div className="shell">
-      <Sidebar vault={vault} />
+      {sidebarOpen ? (
+        <Sidebar
+          vault={vault}
+          onCollapse={() => {
+            setSidebarOpen(false);
+          }}
+          onCommands={() => {
+            setShowCommands(true);
+          }}
+        />
+      ) : (
+        <button
+          type="button"
+          className="icon-button sidebar-reveal"
+          title="Show the sidebar"
+          aria-label="Show the sidebar"
+          onClick={() => {
+            setSidebarOpen(true);
+          }}
+        >
+          <PanelLeftOpen size={17} strokeWidth={1.75} aria-hidden />
+        </button>
+      )}
       <main className="shell-main">
         {view === 'settings' ? <SettingsPage vault={vault} /> : <PageView />}
       </main>

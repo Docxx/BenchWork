@@ -1,3 +1,12 @@
+import {
+  ArrowLeftRight,
+  CalendarDays,
+  PanelLeftClose,
+  Plus,
+  RotateCw,
+  Settings,
+  SquareTerminal,
+} from 'lucide-react';
 import { useState } from 'react';
 import type { OpenVault } from '../vault/vaultService';
 import { useApp } from './AppStoreContext';
@@ -12,7 +21,25 @@ export function vaultName(root: string): string {
   return parts.at(-1) ?? root;
 }
 
-export function Sidebar({ vault }: { vault: OpenVault }) {
+/** Up to two letters for a name, for its badge. */
+export function initials(name: string): string {
+  const words = name.split(/[\s_-]+/).filter((w) => w !== '');
+  const letters =
+    words.length > 1 ? (words[0]?.[0] ?? '') + (words[1]?.[0] ?? '') : name.slice(0, 2);
+  return letters.toUpperCase();
+}
+
+const ICON = { size: 17, strokeWidth: 1.75, 'aria-hidden': true } as const;
+
+export function Sidebar({
+  vault,
+  onCollapse,
+  onCommands,
+}: {
+  vault: OpenVault;
+  onCollapse: () => void;
+  onCommands: () => void;
+}) {
   const refreshTree = useApp((s) => s.refreshTree);
   const closeVault = useApp((s) => s.closeVault);
   const view = useApp((s) => s.view);
@@ -26,6 +53,7 @@ export function Sidebar({ vault }: { vault: OpenVault }) {
   const newCommands = useApp((s) => s.commands).filter((c) => c.places?.includes('new'));
   const runCommand = useApp((s) => s.runCommand);
   const [newMenu, setNewMenu] = useState<{ x: number; y: number } | null>(null);
+  const name = vaultName(vault.root);
 
   const newNotebook = () => {
     void createNotebook().then((path) => {
@@ -36,45 +64,88 @@ export function Sidebar({ vault }: { vault: OpenVault }) {
   return (
     <nav className="sidebar" aria-label="Vault">
       <header className="sidebar-header">
-        <h1 title={vault.root}>{vaultName(vault.root)}</h1>
-        <div className="sidebar-tools">
+        <span className="brand-mark" aria-hidden="true">
+          B
+        </span>
+        <div className="brand-text">
+          <span className="brand-name">BenchWork</span>
+          <h1 className="vault-name" title={vault.root}>
+            {name}
+          </h1>
+        </div>
+        <button
+          type="button"
+          className="icon-button"
+          title="Hide the sidebar"
+          aria-label="Hide the sidebar"
+          onClick={onCollapse}
+        >
+          <PanelLeftClose {...ICON} />
+        </button>
+      </header>
+
+      {notice !== null && (
+        <div className="notice sidebar-notice" role="alert">
+          <span>{notice}</span>
+          <button type="button" className="quiet" aria-label="Dismiss" onClick={dismissNotice}>
+            ×
+          </button>
+        </div>
+      )}
+
+      <SearchBox />
+
+      <ul className="sidebar-nav">
+        <li>
           <button
             type="button"
-            className="quiet today"
+            className="nav-item"
             title="Today's page (Ctrl+Shift+D)"
             onClick={() => void openToday()}
           >
+            <CalendarDays {...ICON} />
             Today
           </button>
-          <button
-            type="button"
-            className="quiet"
-            title={newCommands.length === 0 ? 'New notebook' : 'New'}
-            aria-label={newCommands.length === 0 ? 'New notebook' : 'New'}
-            aria-haspopup={newCommands.length === 0 ? undefined : 'menu'}
-            onClick={(e) => {
-              // With modules adding things to make, + offers a choice.
-              if (newCommands.length === 0) {
-                newNotebook();
-                return;
-              }
-              const rect = e.currentTarget.getBoundingClientRect();
-              setNewMenu({ x: rect.left, y: rect.bottom });
-            }}
-          >
-            +
+        </li>
+        <li>
+          <button type="button" className="nav-item" title="Commands (Ctrl+K)" onClick={onCommands}>
+            <SquareTerminal {...ICON} />
+            Commands
+            <kbd>Ctrl K</kbd>
           </button>
-          <button
-            type="button"
-            className="quiet"
-            title="Refresh"
-            aria-label="Refresh"
-            onClick={() => void refreshTree()}
-          >
-            ↻
-          </button>
-        </div>
-      </header>
+        </li>
+      </ul>
+
+      <div className="sidebar-section-head">
+        <span>{results === null ? 'Notebooks' : 'Search results'}</span>
+        <button
+          type="button"
+          className="icon-button"
+          title="Refresh"
+          aria-label="Refresh"
+          onClick={() => void refreshTree()}
+        >
+          <RotateCw size={14} strokeWidth={1.75} aria-hidden />
+        </button>
+        <button
+          type="button"
+          className="icon-button"
+          title={newCommands.length === 0 ? 'New notebook' : 'New'}
+          aria-label={newCommands.length === 0 ? 'New notebook' : 'New'}
+          aria-haspopup={newCommands.length === 0 ? undefined : 'menu'}
+          onClick={(e) => {
+            // With modules adding things to make, + offers a choice.
+            if (newCommands.length === 0) {
+              newNotebook();
+              return;
+            }
+            const rect = e.currentTarget.getBoundingClientRect();
+            setNewMenu({ x: rect.left, y: rect.bottom });
+          }}
+        >
+          <Plus size={15} strokeWidth={1.75} aria-hidden />
+        </button>
+      </div>
       {newMenu !== null && (
         <Menu
           label="New"
@@ -92,32 +163,40 @@ export function Sidebar({ vault }: { vault: OpenVault }) {
           }}
         />
       )}
-      {notice !== null && (
-        <div className="notice sidebar-notice" role="alert">
-          <span>{notice}</span>
-          <button type="button" className="quiet" aria-label="Dismiss" onClick={dismissNotice}>
-            ×
-          </button>
-        </div>
-      )}
-      <SearchBox />
+
       <div className="sidebar-body">
         {results === null ? <NotebookTree /> : <SearchResults results={results} />}
       </div>
       <ModulePanels />
+
       <footer className="sidebar-footer">
+        <span className="vault-badge" aria-hidden="true">
+          {initials(name)}
+        </span>
+        <div className="vault-card">
+          <span className="vault-card-name">{name}</span>
+          <span className="vault-card-detail">Local vault</span>
+        </div>
         <button
           type="button"
-          className="quiet"
+          className="icon-button"
+          title="Settings"
+          aria-label="Settings"
           aria-pressed={view === 'settings'}
           onClick={() => {
             showView(view === 'settings' ? 'files' : 'settings');
           }}
         >
-          Settings
+          <Settings {...ICON} />
         </button>
-        <button type="button" className="quiet" onClick={() => void closeVault()}>
-          Switch vault
+        <button
+          type="button"
+          className="icon-button"
+          title="Switch vault"
+          aria-label="Switch vault"
+          onClick={() => void closeVault()}
+        >
+          <ArrowLeftRight {...ICON} />
         </button>
       </footer>
     </nav>

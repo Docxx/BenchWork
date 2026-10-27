@@ -1,3 +1,4 @@
+import { Search } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { MATCH_END, MATCH_START } from '../platform';
 import type { SearchResult } from '../state/appStore';
@@ -20,11 +21,12 @@ export function SearchBox() {
 
   return (
     <div className="search-box">
+      <Search className="search-icon" size={16} strokeWidth={1.75} aria-hidden />
       <input
         ref={input}
         type="search"
         aria-label="Search pages"
-        placeholder="Search (Ctrl+E)"
+        placeholder="Search vault"
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
@@ -40,6 +42,7 @@ export function SearchBox() {
           }
         }}
       />
+      {query === '' && <kbd className="search-key">Ctrl E</kbd>}
       {progress.state === 'indexing' && progress.total > 0 && (
         <p className="search-status" role="status">
           Indexing {progress.done} of {progress.total} pages
