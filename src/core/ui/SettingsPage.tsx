@@ -1,12 +1,13 @@
 import { useEffect, useState, type KeyboardEvent } from 'react';
-import type { Theme } from '../settings/appSettings';
 import { LINK_THRESHOLD_RANGE } from '../state/appStore';
 import type { OpenVault } from '../vault/vaultService';
+import { AppearanceSettings } from './AppearanceSettings';
 import { useApp } from './AppStoreContext';
 import { ModulesPanel } from './ModulesPanel';
 
 const TABS = [
   { id: 'general', label: 'General' },
+  { id: 'appearance', label: 'Appearance' },
   { id: 'vault', label: 'Vault' },
   { id: 'modules', label: 'Modules' },
 ] as const;
@@ -76,46 +77,12 @@ export function SettingsPage({ vault }: { vault: OpenVault }) {
         id={`settings-panel-${tab}`}
         aria-labelledby={`settings-tab-${tab}`}
       >
-        {tab === 'general' && (
-          <>
-            <GeneralSettings />
-            <SidebarSettings />
-          </>
-        )}
+        {tab === 'general' && <SidebarSettings />}
+        {tab === 'appearance' && <AppearanceSettings />}
         {tab === 'vault' && <VaultSettings vault={vault} />}
         {tab === 'modules' && <ModulesPanel />}
       </div>
     </section>
-  );
-}
-
-const THEMES: { value: Theme; label: string }[] = [
-  { value: 'system', label: 'Match system' },
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-];
-
-function GeneralSettings() {
-  const theme = useApp((s) => s.settings.theme);
-  const setTheme = useApp((s) => s.setTheme);
-
-  return (
-    <fieldset className="field">
-      <legend>Theme</legend>
-      {THEMES.map((t) => (
-        <label key={t.value} className="choice">
-          <input
-            type="radio"
-            name="theme"
-            value={t.value}
-            checked={theme === t.value}
-            onChange={() => void setTheme(t.value)}
-          />
-          {t.label}
-        </label>
-      ))}
-      <p className="hint">Saved on this device only.</p>
-    </fieldset>
   );
 }
 

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { createContributions } from '../modules/contributions';
 import { ModuleRegistry, type BrokenModule, type ModuleSource } from '../modules/registry';
 import { fakeModule } from '../modules/testModules';
@@ -7,7 +7,8 @@ import { createAppStore } from '../state/appStore';
 import { VAULT_CONFIG_PATH } from '../vault/vaultConfig';
 import { App } from './App';
 import { AppStoreProvider } from './AppStoreContext';
-import { applyTheme } from './theme';
+import { defaultAppearance } from '../settings/appearance';
+import { applyAppearance } from './theme';
 
 async function renderSettings(sources: ModuleSource[] = [], broken: BrokenModule[] = []) {
   const platform = new MemoryAdapter({
@@ -40,7 +41,7 @@ async function flush(): Promise<void> {
 }
 
 afterEach(() => {
-  applyTheme('system');
+  applyAppearance(defaultAppearance(), 'system', false);
 });
 
 describe('Settings page', () => {
@@ -53,12 +54,44 @@ describe('Settings page', () => {
 
   it('changes the theme on the page', async () => {
     await renderSettings();
-    fireEvent.click(screen.getByRole('radio', { name: 'Dark' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Appearance' }));
+    const scheme = screen.getByRole('group', { name: 'Light or dark' });
+    fireEvent.click(within(scheme).getByRole('radio', { name: 'Dark' }));
     await flush();
     expect(document.documentElement.dataset['theme']).toBe('dark');
-    fireEvent.click(screen.getByRole('radio', { name: 'Match system' }));
+    fireEvent.click(within(scheme).getByRole('radio', { name: 'Match system' }));
     await flush();
     expect(document.documentElement.dataset['theme']).toBeUndefined();
+  });
+
+  it('changes colours, fonts and sizes at once, and saves them', async () => {
+    const { platform } = await renderSettings();
+    fireEvent.click(screen.getByRole('tab', { name: 'Appearance' }));
+    const root = document.documentElement;
+    fireEvent.click(screen.getByRole('button', { name: 'Plum' }));
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Page text' })).getByRole('radio', {
+        name: 'Sans serif',
+      }),
+    );
+    fireEvent.change(screen.getByRole('slider', { name: 'Text size' }), {
+      target: { value: '18' },
+    });
+    await flush();
+    expect(root.style.getPropertyValue('--accent')).toBe('#7d5ba6');
+    expect(root.style.getPropertyValue('--font-body')).toContain('Inter');
+    expect(root.style.getPropertyValue('--text-size')).toBe('18px');
+    const saved = (await platform.loadAppSettings()) as { appearance: Record<string, unknown> };
+    expect(saved.appearance).toMatchObject({ accent: '#7d5ba6', bodyFont: 'sans', textSize: 18 });
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Classic' }));
+    await flush();
+    expect(root.style.getPropertyValue('--bg')).toBe('#ffffff');
+    expect(root.style.getPropertyValue('--accent')).toBe('#2e6b5e');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to the theme’s own look' }));
+    await flush();
+    expect(root.style.getPropertyValue('--text-size')).toBe('16px');
   });
 
   it('moves between tabs with the arrow keys', async () => {
@@ -66,7 +99,9 @@ describe('Settings page', () => {
     const general = screen.getByRole('tab', { name: 'General' });
     general.focus();
     fireEvent.keyDown(general, { key: 'ArrowRight' });
-    expect(screen.getByRole('tab', { name: 'Vault' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: 'Appearance' }).getAttribute('aria-selected')).toBe(
+      'true',
+    );
     fireEvent.keyDown(general, { key: 'ArrowLeft' });
     fireEvent.keyDown(general, { key: 'ArrowLeft' });
     expect(screen.getByRole('tab', { name: 'Modules' }).getAttribute('aria-selected')).toBe('true');
@@ -134,12 +169,15 @@ describe('Settings page', () => {
   });
 });
 
-describe('applyTheme', () => {
+describe('applyAppearance', () => {
   it('sets light or dark, and removes the attribute for system', () => {
     const root = document.createElement('html');
-    applyTheme('light', root);
+    applyAppearance(defaultAppearance(), 'light', true, root);
     expect(root.dataset['theme']).toBe('light');
-    applyTheme('system', root);
+    expect(root.style.getPropertyValue('--bg')).toBe('#f8f7f3');
+    applyAppearance(defaultAppearance(), 'system', true, root);
     expect(root.dataset['theme']).toBeUndefined();
+    // Following the system, which is dark here.
+    expect(root.style.getPropertyValue('--bg')).toBe('#171d1c');
   });
 });

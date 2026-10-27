@@ -1,4 +1,5 @@
 import type { PlatformAdapter } from '../platform';
+import { defaultAppearance, parseAppearance, type Appearance } from './appearance';
 
 /**
  * Per-device settings, kept in the app's own config folder rather than the
@@ -13,15 +14,24 @@ export interface AppSettings {
   theme: Theme;
   /** Show every file in the sidebar, not just pages. */
   showAllFiles: boolean;
+  /** Theme preset, colours, fonts and sizes. */
+  appearance: Appearance;
   /** Keys this version does not know about, kept on save. */
   extra: Record<string, unknown>;
 }
 
 const THEMES: readonly Theme[] = ['system', 'light', 'dark'];
-const KNOWN_KEYS = new Set(['version', 'lastVault', 'theme', 'showAllFiles']);
+const KNOWN_KEYS = new Set(['version', 'lastVault', 'theme', 'showAllFiles', 'appearance']);
 
 export function defaultAppSettings(): AppSettings {
-  return { version: 1, lastVault: null, theme: 'system', showAllFiles: false, extra: {} };
+  return {
+    version: 1,
+    lastVault: null,
+    theme: 'system',
+    showAllFiles: false,
+    appearance: defaultAppearance(),
+    extra: {},
+  };
 }
 
 /** Never throws: anything unreadable falls back to the default. */
@@ -39,6 +49,7 @@ export function parseAppSettings(data: unknown): AppSettings {
   }
 
   if (typeof record['showAllFiles'] === 'boolean') settings.showAllFiles = record['showAllFiles'];
+  settings.appearance = parseAppearance(record['appearance']);
 
   for (const [key, value] of Object.entries(record)) {
     if (!KNOWN_KEYS.has(key)) settings.extra[key] = value;

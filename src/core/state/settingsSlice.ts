@@ -1,3 +1,4 @@
+import { defaultAppearance, type Appearance } from '../settings/appearance';
 import { saveAppSettings, type Theme } from '../settings/appSettings';
 import { describeError, type StoreContext } from './context';
 
@@ -15,6 +16,10 @@ export interface SettingsSlice {
   showView: (view: View) => void;
   /** Per-device; saved in the app settings, not the vault. */
   setTheme: (theme: Theme) => Promise<void>;
+  /** Per-device: changes some of the appearance, keeping the rest. */
+  setAppearance: (changes: Partial<Appearance>) => Promise<void>;
+  /** Per-device: back to a preset's own look. */
+  resetAppearance: () => Promise<void>;
   /** Per-device: show every file in the sidebar, not just pages. */
   setShowAllFiles: (show: boolean) => Promise<void>;
   /** Per-vault; saved in .benchwork/config.json. */
@@ -49,6 +54,23 @@ export function createSettingsSlice(ctx: StoreContext): SettingsSlice {
       } catch (err) {
         set({ settingsError: `The theme could not be saved. ${describeError(err)}` });
       }
+    },
+
+    setAppearance: async (changes) => {
+      const settings = {
+        ...get().settings,
+        appearance: { ...get().settings.appearance, ...changes },
+      };
+      set({ settings, settingsError: null });
+      try {
+        await saveAppSettings(platform, settings);
+      } catch (err) {
+        set({ settingsError: `The appearance could not be saved. ${describeError(err)}` });
+      }
+    },
+
+    resetAppearance: async () => {
+      await get().setAppearance(defaultAppearance(get().settings.appearance.preset));
     },
 
     setShowAllFiles: async (showAllFiles) => {

@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useApp } from './AppStoreContext';
 import { Shell } from './Shell';
-import { applyTheme } from './theme';
+import { applyAppearance } from './theme';
 import { ConfirmFolder, ConfirmNested, VaultPicker } from './VaultPicker';
 
 /**
@@ -28,13 +28,38 @@ function blockStrayFileDrops(): () => void {
   };
 }
 
+function darkQuery(): MediaQueryList | null {
+  return typeof window.matchMedia === 'function'
+    ? window.matchMedia('(prefers-color-scheme: dark)')
+    : null;
+}
+
+/** Whether the operating system is set to dark, following changes. */
+function useSystemDark(): boolean {
+  const [dark, setDark] = useState(() => darkQuery()?.matches ?? false);
+  useEffect(() => {
+    const query = darkQuery();
+    if (!query) return;
+    const onChange = (e: MediaQueryListEvent) => {
+      setDark(e.matches);
+    };
+    query.addEventListener('change', onChange);
+    return () => {
+      query.removeEventListener('change', onChange);
+    };
+  }, []);
+  return dark;
+}
+
 export function App() {
   const status = useApp((s) => s.status);
   const theme = useApp((s) => s.settings.theme);
+  const appearance = useApp((s) => s.settings.appearance);
+  const systemDark = useSystemDark();
 
   useEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
+    applyAppearance(appearance, theme, systemDark);
+  }, [appearance, theme, systemDark]);
 
   useEffect(blockStrayFileDrops, []);
 
