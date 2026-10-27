@@ -13,12 +13,32 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('changing the theme recolours the app', async ({ page }) => {
+  await page.getByRole('tab', { name: 'Appearance' }).click();
+  const scheme = page.getByRole('group', { name: 'Light or dark' });
   const background = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  await page.getByRole('radio', { name: 'Light' }).check();
+  await scheme.getByRole('radio', { name: 'Light' }).check();
   const light = await background();
-  await page.getByRole('radio', { name: 'Dark' }).check();
+  await scheme.getByRole('radio', { name: 'Dark' }).check();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   expect(await background()).not.toBe(light);
+});
+
+test('the accent colour, page font and sidebar can be changed', async ({ page }) => {
+  await page.getByRole('tab', { name: 'Appearance' }).click();
+  const token = (name: string) =>
+    page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n), name);
+  await page.getByRole('button', { name: 'Plum' }).click();
+  await expect.poll(() => token('--accent')).toBe('#7d5ba6');
+  await page
+    .getByRole('group', { name: 'Page text' })
+    .getByRole('radio', { name: 'Sans serif' })
+    .check();
+  await expect.poll(() => token('--font-body')).toContain('Inter');
+
+  await page.getByRole('button', { name: 'Hide the sidebar' }).click();
+  await expect(page.getByRole('navigation', { name: 'Vault' })).toBeHidden();
+  await page.getByRole('button', { name: 'Show the sidebar' }).click();
+  await expect(page.getByRole('navigation', { name: 'Vault' })).toBeVisible();
 });
 
 test('the link threshold is saved in the vault config', async ({ page }) => {

@@ -7,7 +7,15 @@ import type { PropertyField, PropertyKind } from '../api';
  */
 
 /** Keys every page has, kept out of the panel: the core looks after them. */
-export const QUIET_PROPERTIES = new Set(['id', 'type', 'created', 'modified', 'tags']);
+/** Kept out of the Properties panel; `description` shows under the title instead. */
+export const QUIET_PROPERTIES = new Set([
+  'id',
+  'type',
+  'created',
+  'modified',
+  'tags',
+  'description',
+]);
 
 export interface PropertyRow extends PropertyField {
   value: unknown;

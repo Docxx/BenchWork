@@ -1,3 +1,4 @@
+import { ChevronRight, History } from 'lucide-react';
 import { useState } from 'react';
 import { dayOfPath } from '../pages/daily';
 import type { OpenPage, SaveState } from '../state/pageSlice';
@@ -8,6 +9,7 @@ import { HistoryPanel } from './HistoryPanel';
 import { ModuleView } from './ModuleView';
 import { PageEditor } from './PageEditor';
 import { PropertiesPanel } from './PropertiesPanel';
+import { updatedText } from './updated';
 
 const SAVE_LABELS: Record<SaveState, string> = {
   saved: 'Saved',
@@ -29,52 +31,144 @@ export function PageView() {
   if (page === null && openFile !== null) return <FileView path={openFile} />;
 
   return (
-    <article className="page-view" aria-label={page ? page.title : 'No page open'}>
-      {notice !== null && (
-        <div className="notice page-notice" role="alert">
-          <span>{notice}</span>
-          <button type="button" className="quiet" aria-label="Dismiss" onClick={dismissNotice}>
-            ×
-          </button>
-        </div>
+    <>
+      {page !== null && (
+        <PageTopBar
+          page={page}
+          historyOpen={showHistory}
+          onHistory={() => {
+            setShowHistory((open) => !open);
+          }}
+        />
       )}
-      {page === null ? (
-        <p className="page-empty">
-          Pick a page in the sidebar, or create one from a notebook’s menu.
-        </p>
-      ) : (
-        <>
-          <header className="page-header">
-            {/* Keyed by path so a rename elsewhere resets the field. */}
-            <TitleField key={page.path} page={page} />
-            {dayOfPath(page.path) !== null && <DayArrows />}
-            <SaveStatus />
-            <button
-              type="button"
-              className="quiet history-button"
-              onClick={() => {
-                setShowHistory(true);
-              }}
-            >
-              History
+      <article className="page-view" aria-label={page ? page.title : 'No page open'}>
+        {notice !== null && (
+          <div className="notice page-notice" role="alert">
+            <span>{notice}</span>
+            <button type="button" className="quiet" aria-label="Dismiss" onClick={dismissNotice}>
+              ×
             </button>
-          </header>
-          <ConflictBanner />
-          {showHistory && (
-            <HistoryPanel
-              key={page.path}
-              onClose={() => {
-                setShowHistory(false);
-              }}
-            />
-          )}
-          <PropertiesPanel />
-          {/* A new document after a reload from disk starts a fresh editor. */}
-          <PageEditor key={page.ydoc.guid} page={page} />
-          <Backlinks />
-        </>
+          </div>
+        )}
+        {page === null ? (
+          <p className="page-empty">
+            Pick a page in the sidebar, or create one from a notebook’s menu.
+          </p>
+        ) : (
+          <>
+            <PageStatus />
+            <header className="page-header">
+              {/* Keyed by path so a rename elsewhere resets the field. */}
+              <TitleField key={page.path} page={page} />
+              {dayOfPath(page.path) !== null && <DayArrows />}
+            </header>
+            <PageLead />
+            <ConflictBanner />
+            {showHistory && (
+              <HistoryPanel
+                key={page.path}
+                onClose={() => {
+                  setShowHistory(false);
+                }}
+              />
+            )}
+            <PropertiesPanel />
+            {/* A new document after a reload from disk starts a fresh editor. */}
+            <PageEditor key={page.ydoc.guid} page={page} />
+            <Backlinks />
+          </>
+        )}
+      </article>
+    </>
+  );
+}
+
+/** Across the top: where the page is, whether it is saved, and its history. */
+function PageTopBar({
+  page,
+  historyOpen,
+  onHistory,
+}: {
+  page: OpenPage;
+  historyOpen: boolean;
+  onHistory: () => void;
+}) {
+  const folders = page.path.split('/').slice(0, -1);
+  return (
+    <div className="top-bar">
+      <nav className="breadcrumb" aria-label="Where this page is">
+        {folders.map((folder, i) => (
+          <span key={folders.slice(0, i + 1).join('/')} className="crumb">
+            {folder}
+            <ChevronRight size={14} strokeWidth={1.75} aria-hidden />
+          </span>
+        ))}
+        <span className="crumb current" aria-current="page">
+          {page.title}
+        </span>
+      </nav>
+      <SaveStatus />
+      <button
+        type="button"
+        className="quiet top-button"
+        aria-pressed={historyOpen}
+        onClick={onHistory}
+      >
+        <History size={16} strokeWidth={1.75} aria-hidden />
+        History
+      </button>
+    </div>
+  );
+}
+
+/** A page's status, as a pill, and when it last changed. */
+function PageStatus() {
+  const properties = useApp((s) => s.pageProperties);
+  const status = properties?.['status'];
+  const updated = updatedText(properties?.['modified']);
+  if (typeof status !== 'string' && updated === null) return null;
+  return (
+    <p className="page-status">
+      {typeof status === 'string' && status.trim() !== '' && (
+        <span className="status-pill">{status}</span>
       )}
-    </article>
+      {updated !== null && <span className="page-updated">{updated}</span>}
+    </p>
+  );
+}
+
+/** The page's `description`, as an introduction under the title. */
+function PageLead() {
+  const description = useApp((s) => s.pageProperties?.['description']);
+  if (typeof description !== 'string') return null;
+  // Starts afresh when the description changes elsewhere, such as on disk.
+  return <LeadField key={description} description={description} />;
+}
+
+function LeadField({ description }: { description: string }) {
+  const setProperties = useApp((s) => s.setPageProperties);
+  const [draft, setDraft] = useState(description);
+  return (
+    <textarea
+      className="page-lead"
+      aria-label="Description"
+      rows={1}
+      value={draft}
+      placeholder="Add a short description"
+      ref={(el) => {
+        // Grows with its text, like a paragraph.
+        if (el) {
+          el.style.height = 'auto';
+          el.style.height = `${String(el.scrollHeight)}px`;
+        }
+      }}
+      onChange={(e) => {
+        setDraft(e.target.value);
+      }}
+      onBlur={() => {
+        if (draft !== description) setProperties({ description: draft });
+      }}
+    />
   );
 }
 
@@ -94,10 +188,18 @@ function TitleField({ page }: { page: OpenPage }) {
   };
 
   return (
-    <input
+    <textarea
       className="page-title"
       aria-label="Page title"
+      rows={1}
       value={draft}
+      ref={(el) => {
+        // Wraps onto more lines for a long title, like a heading.
+        if (el) {
+          el.style.height = 'auto';
+          el.style.height = `${String(el.scrollHeight)}px`;
+        }
+      }}
       onChange={(e) => {
         setDraft(e.target.value);
       }}
