@@ -9,6 +9,7 @@ import '@fontsource-variable/source-serif-4';
 import type { PMNode } from '../../src/core/editor/markdown/model';
 import { freeExtensions } from './box';
 import { documentToFree, freeFromMarkdown, freeToDocument, freeToMarkdown } from './storage';
+import { Toolbar } from './Toolbar';
 import './spike.css';
 
 /**
@@ -43,7 +44,11 @@ const SAMPLE = [
 
 const CHECKS = [
   'Click empty space and type: a box appears there',
-  'Drag a box by its top bar; drag its right edge to resize',
+  'Drag across empty space: a rectangle selects the boxes it touches',
+  'Drag a box by its top bar; drag its right edge, bottom edge or corner to resize',
+  'Drag a box down past the bottom: the page scrolls and grows',
+  'Paste a screenshot or image; drop an image file on empty space',
+  'Format with the Home tab; add a table, sticky note or picture from Insert',
   'Select text across two boxes, cut, click empty space, paste',
   'Copy a whole box (select all in it), paste into empty space',
   'Drag selected text out of a box onto empty space',
@@ -52,6 +57,7 @@ const CHECKS = [
   'Arrow keys at the end of a box: the next box in reading order',
   'Switch to Document and back: no text is lost',
   'Edit the Markdown, then Load it: the page matches',
+  'Not saved yet in the spike: highlight and underline (the app will save them)',
 ];
 
 type Layout = 'free' | 'document';
@@ -70,6 +76,8 @@ function Spike() {
 
   const editor = useEditor({
     extensions: freeExtensions(ydoc),
+    // The toolbar shows what is bold, which list, and so on, as the cursor moves.
+    shouldRerenderOnTransaction: true,
     editorProps: { attributes: { class: 'free-page', 'aria-label': 'Free page' } },
     onUpdate: ({ editor: e }) => {
       setMarkdown(freeToMarkdown(e.getJSON() as PMNode));
@@ -109,6 +117,9 @@ function Spike() {
           ))}
         </div>
       </header>
+      <div className="spike-ribbon">
+        <Toolbar editor={editor} free={layout === 'free'} />
+      </div>
       <main className={`spike-page ${layout}`}>
         <EditorContent editor={editor} />
       </main>

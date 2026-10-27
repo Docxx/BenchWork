@@ -20,8 +20,141 @@ body {
 .spike {
   display: grid;
   grid-template-columns: 1fr 22rem;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   height: 100vh;
+}
+
+/* ---- The ribbon ---- */
+
+.spike-ribbon {
+  grid-column: 1;
+  border-bottom: 1px solid var(--border);
+}
+
+.ribbon-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.3rem 1rem 0;
+}
+
+.ribbon-tabs button {
+  padding: 0.35rem 0.8rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.ribbon-tabs button[aria-selected='true'] {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+.ribbon-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  padding: 0.4rem 1rem 0.5rem;
+}
+
+.tool-group {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  padding-right: 0.5rem;
+  border-right: 1px solid var(--border);
+}
+
+.tool-group:last-child {
+  border-right: none;
+}
+
+.tool {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.tool:hover {
+  background: var(--surface);
+}
+
+.tool[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+
+.tool:disabled {
+  opacity: 0.4;
+}
+
+.ribbon-tools select {
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.tool-label {
+  margin-right: 0.3rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.colour-chip {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0 0.1rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--chip, #fff);
+  cursor: pointer;
+}
+
+.colour-chip.none {
+  background: linear-gradient(135deg, #fff 45%, #d1495b 45%, #d1495b 55%, #fff 55%);
+}
+
+.colour-chip[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--text);
+}
+
+.colour-chip:disabled {
+  opacity: 0.35;
+}
+
+[data-colour='yellow'] {
+  --chip: #fff3b0;
+}
+
+[data-colour='pink'] {
+  --chip: #ffd6e0;
+}
+
+[data-colour='green'] {
+  --chip: #d4f0d6;
+}
+
+[data-colour='blue'] {
+  --chip: #d3e6fb;
+}
+
+[data-colour='purple'] {
+  --chip: #e6dcf7;
 }
 
 .spike-bar {
@@ -55,10 +188,13 @@ body {
 }
 
 .spike-page {
+  grid-column: 1;
   overflow: auto;
 }
 
 .spike-side {
+  grid-column: 2;
+  grid-row: 2 / 4;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -96,7 +232,8 @@ body {
 
 .free-page {
   position: relative;
-  min-height: 1600px;
+  /* Grows with its lowest box, so there is always room below to write. */
+  min-height: var(--free-height, 1600px);
   min-width: 1400px;
   outline: none;
   cursor: text;
@@ -144,12 +281,87 @@ body {
 
 .box-resize {
   position: absolute;
+  user-select: none;
+}
+
+.box-resize.right {
   top: 0;
   right: -4px;
   width: 8px;
   height: 100%;
   cursor: ew-resize;
-  user-select: none;
+}
+
+.box-resize.bottom {
+  left: 0;
+  bottom: -4px;
+  width: 100%;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.box-resize.corner {
+  right: -6px;
+  bottom: -6px;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+}
+
+.free-box:hover .box-resize.corner,
+.free-box:focus-within .box-resize.corner {
+  background: linear-gradient(
+    135deg,
+    transparent 55%,
+    var(--muted) 55%,
+    var(--muted) 65%,
+    transparent 65%,
+    transparent 75%,
+    var(--muted) 75%,
+    var(--muted) 85%,
+    transparent 85%
+  );
+}
+
+/* Sticky notes: a coloured card that keeps its size. */
+.free-box.sticky {
+  border-color: color-mix(in srgb, var(--chip) 70%, #000 8%);
+  background: var(--chip);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.08);
+}
+
+.free-box.sticky:hover,
+.free-box.sticky:focus-within {
+  background: var(--chip);
+}
+
+/* The rectangle drawn while dragging across empty page. */
+.free-band {
+  position: fixed;
+  z-index: 10;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  pointer-events: none;
+}
+
+.box-content p {
+  margin: 0.35em 0;
+}
+
+.box-content img {
+  max-width: 100%;
+  height: auto;
+  vertical-align: middle;
+}
+
+.box-content mark {
+  background: #fff1a8;
+  color: inherit;
+  border-radius: 2px;
+}
+
+.box-content .selectedCell {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .free-box:hover .box-handle,

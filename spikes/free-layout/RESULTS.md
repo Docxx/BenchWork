@@ -5,7 +5,7 @@ page and cut and paste working across it, using the page editor it already
 has? The answer decides how Free pages are built. This page is a test bench,
 not app code; nothing here ships.
 
-**Status:** tested in the browser; waiting for Ray to try it by hand.
+**Status:** round 2, after Ray's first hands-on try (see below).
 **Provisional go:** one editor per page, with boxes as positioned blocks.
 
 ## The approach
@@ -95,6 +95,33 @@ Provisional **go** for one editor per page, pending the checks above. The
 fall-back, one small editor per box, would lose selecting across boxes and
 undo across the page, so it is only worth it if the hand checks find
 something the single editor cannot do.
+
+## Round 2: Ray's first try
+
+Ray's findings, and what changed:
+
+| Found                                             | Cause                                     | Now                                                                                                                                                                                                                            |
+| ------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Copying and pasting images did not work           | The spike's editor had no images at all   | Paste a screenshot or image at the cursor; drop an image file on empty page for a new box, or on a box to put it there                                                                                                         |
+| Dragging made a new box instead of selecting      | Pressing on empty page made a box at once | A click makes a box; a drag draws a rectangle and selects the boxes it touches. Dragging selected text out still moves it                                                                                                      |
+| Boxes could not be made taller                    | Only the width could change               | Bottom edge and corner change the height; the page grows below its lowest box and scrolls while dragging near its edges                                                                                                        |
+| No toolbar for bold, italics, highlight and so on | Not built yet                             | A ribbon with Home (undo, text style, bold, italic, underline, strikethrough, highlight, code, lists, quote, box colour) and Insert (text box, sticky note, table, picture, link, to-do list, code block, divider, date, time) |
+
+Sticky notes are boxes with a colour (yellow, pink, green, blue or purple),
+kept even when empty. Any box can be given a colour from Home.
+
+Checked in the browser pane and in a real Chromium drag (Playwright):
+images by paste and drop, the selection rectangle, height, page growth,
+sticky notes, formatting, and dragging selected text out of a box.
+Scrolling while dragging a box needs a real mouse to check.
+
+**Fonts per word:** not offered. Pages are Markdown, which has no way to
+record a font or size for some words, so they would be lost on saving and
+in Obsidian. The page font and text size are set in Settings > Appearance.
+
+**Highlight and underline** show in the spike but are not yet in its
+saved Markdown. The app will save them as `==highlight==` (as Obsidian
+does) and `<u>underline</u>`.
 
 ## What the real build adds
 

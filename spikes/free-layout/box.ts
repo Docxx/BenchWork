@@ -1,5 +1,6 @@
-import { Extension, Node, mergeAttributes, type AnyExtension } from '@tiptap/core';
+import { Extension, Mark, Node, mergeAttributes, type AnyExtension } from '@tiptap/core';
 import Collaboration from '@tiptap/extension-collaboration';
+import Image from '@tiptap/extension-image';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
@@ -18,13 +19,20 @@ import type * as Y from 'yjs';
 
 /**
  * Free layout spike: one editor, whose document is a list of boxes, each
- * placed on the page by its x, y and width. Text, cut and paste, undo and
- * selection all stay those of one ProseMirror document; only how the boxes
- * are drawn changes. Not app code.
+ * placed on the page by its x, y, width and (optionally) height. Text,
+ * cut and paste, undo and selection all stay those of one ProseMirror
+ * document; only how the boxes are drawn changes. Not app code.
  */
 
 export const DEFAULT_WIDTH = 420;
 const MIN_WIDTH = 120;
+const MIN_HEIGHT = 40;
+/** How far the pointer may wander before a press on empty page counts as a drag. */
+const CLICK_SLOP = 5;
+
+/** Colours a box can have; any colour makes it a sticky note. */
+export const BOX_COLOURS = ['yellow', 'pink', 'green', 'blue', 'purple'] as const;
+export type BoxColour = (typeof BOX_COLOURS)[number];
 
 /** A free page holds only boxes; an empty page holds none. */
 const FreeDoc = Node.create({
@@ -33,11 +41,46 @@ const FreeDoc = Node.create({
   content: 'box*',
 });
 
-/** Where a box sits: left, top and width in pixels from the page's corner. */
+/**
+ * Where a box sits: left, top, width and height in pixels from the page's
+ * corner. A height of 0 means as tall as its text.
+ */
 export interface BoxPlace {
   x: number;
   y: number;
   w: number;
+  h: number;
+}
+
+/** ==highlighted== text, as Obsidian writes it. */
+export const Highlight = Mark.create({
+  name: 'highlight',
+  parseHTML() {
+    return [{ tag: 'mark' }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['mark', HTMLAttributes, 0];
+  },
+  addKeyboardShortcuts() {
+    return { 'Mod-Shift-h': () => this.editor.commands.toggleMark(this.name) };
+  },
+});
+
+/** The nearest ancestor that scrolls, for scrolling while dragging. */
+function scrollParent(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const { overflowY } = getComputedStyle(p);
+    if (overflowY === 'auto' || overflowY === 'scroll') return p;
+  }
+  return null;
+}
+
+/** Scrolls when the pointer is near the top or bottom while dragging. */
+function nudgeScroll(scroller: HTMLElement | null, clientY: number): void {
+  if (!scroller) return;
+  const rect = scroller.getBoundingClientRect();
+  if (clientY > rect.bottom - 48) scroller.scrollTop += 18;
+  else if (clientY < rect.top + 48) scroller.scrollTop -= 18;
 }
 
 export const Box = Node.create({
@@ -48,12 +91,23 @@ export const Box = Node.create({
   draggable: false,
 
   addAttributes() {
-    const attr = (name: string, fallback: number) => ({
+    const number = (name: string, fallback: number) => ({
       default: fallback,
       parseHTML: (el: HTMLElement) => Number(el.dataset[name] ?? fallback),
       renderHTML: (attrs: Record<string, unknown>) => ({ [`data-${name}`]: attrs[name] }),
     });
-    return { x: attr('x', 0), y: attr('y', 0), w: attr('w', DEFAULT_WIDTH) };
+    return {
+      x: number('x', 0),
+      y: number('y', 0),
+      w: number('w', DEFAULT_WIDTH),
+      h: number('h', 0),
+      colour: {
+        default: null,
+        parseHTML: (el: HTMLElement) => el.dataset['colour'] ?? null,
+        renderHTML: (attrs: Record<string, unknown>) =>
+          attrs['colour'] ? { 'data-colour': attrs['colour'] } : {},
+      },
+    };
   },
 
   parseHTML() {
@@ -68,36 +122,59 @@ export const Box = Node.create({
     return ({ node, getPos, editor }) => {
       const dom = document.createElement('div');
       dom.className = 'free-box';
-      const handle = document.createElement('div');
-      handle.className = 'box-handle';
-      handle.contentEditable = 'false';
-      handle.title = 'Drag to move';
-      const resize = document.createElement('div');
-      resize.className = 'box-resize';
-      resize.contentEditable = 'false';
-      resize.title = 'Drag to change the width';
+      const part = (className: string, title: string) => {
+        const el = document.createElement('div');
+        el.className = className;
+        el.contentEditable = 'false';
+        el.title = title;
+        return el;
+      };
+      const handle = part('box-handle', 'Drag to move');
+      const right = part('box-resize right', 'Drag to change the width');
+      const bottom = part('box-resize bottom', 'Drag to change the height');
+      const corner = part('box-resize corner', 'Drag to change the size');
       const content = document.createElement('div');
       content.className = 'box-content';
-      dom.append(handle, content, resize);
+      dom.append(handle, content, right, bottom, corner);
+      const handles: HTMLElement[] = [handle, right, bottom, corner];
 
       let current = node;
-      const place = (p: BoxPlace) => {
+      const show = (n: PMNode) => {
+        const p = n.attrs as BoxPlace;
         dom.style.left = `${String(p.x)}px`;
         dom.style.top = `${String(p.y)}px`;
         dom.style.width = `${String(p.w)}px`;
+        dom.style.minHeight = p.h > 0 ? `${String(p.h)}px` : '';
+        const colour = n.attrs['colour'] as string | null;
+        dom.dataset['colour'] = colour ?? '';
+        dom.classList.toggle('sticky', colour !== null);
       };
-      place(current.attrs as BoxPlace);
+      show(current);
 
-      /** Follows the pointer, then writes the new place in one undoable step. */
-      const drag = (start: PointerEvent, change: (dx: number, dy: number) => BoxPlace) => {
+      /** Follows the pointer, scrolling near the edges, then saves the new place in one step. */
+      const drag = (
+        start: PointerEvent,
+        change: (from: BoxPlace, dx: number, dy: number) => Partial<BoxPlace>,
+      ) => {
         start.preventDefault();
         const target = start.currentTarget as HTMLElement;
         target.setPointerCapture(start.pointerId);
         dom.classList.add('moving');
-        let next = current.attrs as BoxPlace;
+        const scroller = scrollParent(dom);
+        const startScroll = scroller?.scrollTop ?? 0;
+        const from = current.attrs as BoxPlace;
+        let next = from;
         const onMove = (e: PointerEvent) => {
-          next = change(e.clientX - start.clientX, e.clientY - start.clientY);
-          place(next);
+          nudgeScroll(scroller, e.clientY);
+          const scrolled = (scroller?.scrollTop ?? 0) - startScroll;
+          next = {
+            ...from,
+            ...change(from, e.clientX - start.clientX, e.clientY - start.clientY + scrolled),
+          };
+          dom.style.left = `${String(next.x)}px`;
+          dom.style.top = `${String(next.y)}px`;
+          dom.style.width = `${String(next.w)}px`;
+          dom.style.minHeight = next.h > 0 ? `${String(next.h)}px` : '';
         };
         const onUp = () => {
           target.removeEventListener('pointermove', onMove);
@@ -115,17 +192,27 @@ export const Box = Node.create({
         target.addEventListener('pointercancel', onUp);
       };
 
+      /** The box's height now, as drawn, for resizing from it. */
+      const drawnHeight = () => Math.round(dom.getBoundingClientRect().height);
+      const width = (f: BoxPlace, dx: number) => Math.max(MIN_WIDTH, Math.round(f.w + dx));
+      const height = (base: number, dy: number) => Math.max(MIN_HEIGHT, Math.round(base + dy));
+
       handle.addEventListener('pointerdown', (e) => {
-        const from = current.attrs as BoxPlace;
-        drag(e, (dx, dy) => ({
-          x: Math.max(0, Math.round(from.x + dx)),
-          y: Math.max(0, Math.round(from.y + dy)),
-          w: from.w,
+        drag(e, (f, dx, dy) => ({
+          x: Math.max(0, Math.round(f.x + dx)),
+          y: Math.max(0, Math.round(f.y + dy)),
         }));
       });
-      resize.addEventListener('pointerdown', (e) => {
-        const from = current.attrs as BoxPlace;
-        drag(e, (dx) => ({ ...from, w: Math.max(MIN_WIDTH, Math.round(from.w + dx)) }));
+      right.addEventListener('pointerdown', (e) => {
+        drag(e, (f, dx) => ({ w: width(f, dx) }));
+      });
+      bottom.addEventListener('pointerdown', (e) => {
+        const base = drawnHeight();
+        drag(e, (_f, _dx, dy) => ({ h: height(base, dy) }));
+      });
+      corner.addEventListener('pointerdown', (e) => {
+        const base = drawnHeight();
+        drag(e, (f, dx, dy) => ({ w: width(f, dx), h: height(base, dy) }));
       });
 
       return {
@@ -134,14 +221,13 @@ export const Box = Node.create({
         update(updated) {
           if (updated.type !== current.type) return false;
           current = updated;
-          place(updated.attrs as BoxPlace);
+          show(updated);
           return true;
         },
         // The handles are ours, not the text's.
-        stopEvent: (event) => event.target === handle || event.target === resize,
+        stopEvent: (event) => handles.includes(event.target as HTMLElement),
         ignoreMutation: (m) =>
-          m.target === handle ||
-          m.target === resize ||
+          handles.includes(m.target as HTMLElement) ||
           (m.type === 'attributes' && m.target === dom),
       };
     };
@@ -149,12 +235,12 @@ export const Box = Node.create({
 });
 
 /** Boxes in reading order: top to bottom, then left to right. */
-function readingOrder(a: BoxPlace, b: BoxPlace): number {
+function readingOrder(a: { x: number; y: number }, b: { x: number; y: number }): number {
   return a.y - b.y || a.x - b.x;
 }
 
 /** Where a box at `place` belongs in the document, so arrow keys follow reading order. */
-function indexFor(doc: PMNode, place: BoxPlace, skip = -1): number {
+function indexFor(doc: PMNode, place: { x: number; y: number }, skip = -1): number {
   let index = 0;
   let i = 0;
   doc.forEach((child) => {
@@ -170,44 +256,77 @@ function posOfIndex(doc: PMNode, index: number): number {
   return pos;
 }
 
-/** Moves the box at `pos` to `place`, and into its place in reading order. */
-export function moveBox(tr: Transaction, pos: number, place: BoxPlace): Transaction {
+/** Moves or resizes the box at `pos`, keeping it in its place in reading order. */
+export function moveBox(tr: Transaction, pos: number, place: Partial<BoxPlace>): Transaction {
   const node = tr.doc.nodeAt(pos);
   if (!node) return tr;
+  const attrs = { ...node.attrs, ...place } as BoxPlace;
   let index = -1;
   tr.doc.forEach((_child, offset, i) => {
     if (offset === pos) index = i;
   });
-  // Staying in the same place in reading order: only its place changes.
-  if (indexFor(tr.doc, place, index) === index) {
-    return tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...place });
-  }
-  const moved = node.type.create({ ...node.attrs, ...place }, node.content);
+  // Staying in the same place in reading order: only its attributes change.
+  if (indexFor(tr.doc, attrs, index) === index) return tr.setNodeMarkup(pos, undefined, attrs);
+  const moved = node.type.create(attrs, node.content);
   const { selection } = tr;
   const inside = selection.from > pos && selection.to < pos + node.nodeSize;
   const offsetInBox = selection.from - pos;
   tr.delete(pos, pos + node.nodeSize);
-  const target = posOfIndex(tr.doc, indexFor(tr.doc, place));
+  const target = posOfIndex(tr.doc, indexFor(tr.doc, attrs));
   tr.insert(target, moved);
   // Keep the cursor where it was in the text.
   if (inside) tr.setSelection(TextSelection.create(tr.doc, target + offsetInBox));
   return tr;
 }
 
-/** A new box at `place`, holding `content` or an empty paragraph, with the cursor in it. */
-export function addBox(view: EditorView, place: BoxPlace, content?: Fragment): void {
+export interface NewBox {
+  x: number;
+  y: number;
+  w?: number;
+  h?: number;
+  colour?: BoxColour | null;
+}
+
+/** A new box, holding `content` or an empty paragraph, with the cursor at its end. */
+export function addBox(view: EditorView, place: NewBox, content?: Fragment): void {
   const { state } = view;
-  const schema = state.schema;
-  const paragraph = schema.nodes['paragraph'];
-  const box = schema.nodes['box'];
+  const paragraph = state.schema.nodes['paragraph'];
+  const box = state.schema.nodes['box'];
   if (!paragraph || !box) return;
   const inner = content && content.size > 0 ? content : Fragment.from(paragraph.create());
-  const node = box.create(place, inner);
-  const at = posOfIndex(state.doc, indexFor(state.doc, place));
+  const attrs = { w: DEFAULT_WIDTH, h: 0, colour: null, ...place };
+  const node = box.create(attrs, inner);
+  const at = posOfIndex(state.doc, indexFor(state.doc, attrs));
   const tr = state.tr.insert(at, node);
   tr.setSelection(TextSelection.near(tr.doc.resolve(at + node.nodeSize - 2), -1));
   view.dispatch(tr.scrollIntoView());
   view.focus();
+}
+
+/** The box the cursor is in, with its position, or null. */
+export function boxAtCursor(state: EditorState): { node: PMNode; pos: number } | null {
+  const { $from } = state.selection;
+  if ($from.depth < 1) return null;
+  return { node: $from.node(1), pos: $from.before(1) };
+}
+
+/** Somewhere visible and free on the page, for a box made from a toolbar. */
+export function freeSpot(view: EditorView): { x: number; y: number } {
+  const scroller = scrollParent(view.dom);
+  const top = scroller ? scroller.scrollTop : 0;
+  let y = top + 40;
+  // Below the lowest box that starts in view, so new boxes do not land on others.
+  for (const el of Array.from(view.dom.children) as HTMLElement[]) {
+    const bottom = el.offsetTop + el.offsetHeight;
+    if (el.offsetTop >= top && el.offsetTop < top + 600) y = Math.max(y, bottom + 24);
+  }
+  return { x: 40, y };
+}
+
+/** Puts the cursor in a box, making one if the page has none or the cursor is outside them. */
+export function ensureBox(view: EditorView): void {
+  if (boxAtCursor(view.state) !== null) return;
+  addBox(view, freeSpot(view));
 }
 
 /** Blocks for a box from a pasted or dropped slice: inline content goes in a paragraph. */
@@ -259,17 +378,130 @@ export function deleteAcross(tr: Transaction): Transaction {
 }
 
 /** The point in the page under a pointer event. */
-function pagePoint(view: EditorView, event: MouseEvent): { x: number; y: number } {
+function pagePoint(view: EditorView, event: { clientX: number; clientY: number }) {
   const rect = view.dom.getBoundingClientRect();
   return { x: Math.round(event.clientX - rect.left), y: Math.round(event.clientY - rect.top) };
 }
 
-const cleanupKey = new PluginKey('free-layout-cleanup');
+/** Image files among dropped or pasted files. */
+function imageFiles(files: FileList | null | undefined): File[] {
+  return Array.from(files ?? []).filter((f) => f.type.startsWith('image/'));
+}
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      resolve(typeof reader.result === 'string' ? reader.result : '');
+    };
+    reader.onerror = () => {
+      reject(reader.error ?? new Error('Could not read the image'));
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 /**
- * Clicking empty page makes a box there; dropping on empty page makes a
- * box holding what was dropped; boxes left empty when the cursor leaves
- * them go away, as in OneNote.
+ * Puts images in the page: at the cursor, or in a new box at `point`.
+ * The spike keeps them in the page as data; the app will save them to
+ * attachments/, as it does for pages now.
+ */
+export async function insertImages(
+  view: EditorView,
+  files: File[],
+  point?: { x: number; y: number },
+): Promise<void> {
+  const image = view.state.schema.nodes['image'];
+  const paragraph = view.state.schema.nodes['paragraph'];
+  if (!image || !paragraph || files.length === 0) return;
+  const urls = await Promise.all(files.map(readAsDataUrl));
+  const nodes = urls.map((src, i) => image.create({ src, alt: files[i]?.name ?? '' }));
+  if (point) {
+    addBox(view, { ...point }, Fragment.from(nodes.map((n) => paragraph.create(null, n))));
+    return;
+  }
+  ensureBox(view);
+  view.dispatch(view.state.tr.replaceSelectionWith(nodes[0] ?? image.create()).scrollIntoView());
+  for (const node of nodes.slice(1)) view.dispatch(view.state.tr.replaceSelectionWith(node));
+  view.focus();
+}
+
+/** Boxes whose drawn area meets a rectangle on screen, as document indexes. */
+function boxesIn(view: EditorView, rect: DOMRect): number[] {
+  const hits: number[] = [];
+  Array.from(view.dom.children).forEach((el, i) => {
+    const r = el.getBoundingClientRect();
+    if (r.right > rect.left && r.left < rect.right && r.bottom > rect.top && r.top < rect.bottom) {
+      hits.push(i);
+    }
+  });
+  return hits;
+}
+
+/**
+ * A press on empty page: a click makes a box there; a drag draws a
+ * rectangle and selects the text of every box it touches, as OneNote does.
+ */
+function pressOnPage(view: EditorView, down: MouseEvent): void {
+  let band: HTMLDivElement | null = null;
+  const area = () =>
+    new DOMRect(
+      Math.min(down.clientX, last.clientX),
+      Math.min(down.clientY, last.clientY),
+      Math.abs(last.clientX - down.clientX),
+      Math.abs(last.clientY - down.clientY),
+    );
+  let last: { clientX: number; clientY: number } = down;
+  const onMove = (e: MouseEvent) => {
+    last = e;
+    if (!band && Math.hypot(e.clientX - down.clientX, e.clientY - down.clientY) < CLICK_SLOP)
+      return;
+    if (!band) {
+      band = document.createElement('div');
+      band.className = 'free-band';
+      document.body.append(band);
+    }
+    const r = area();
+    Object.assign(band.style, {
+      left: `${String(r.left)}px`,
+      top: `${String(r.top)}px`,
+      width: `${String(r.width)}px`,
+      height: `${String(r.height)}px`,
+    });
+  };
+  const onUp = (e: MouseEvent) => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    last = e;
+    if (!band) {
+      const p = pagePoint(view, down);
+      // The cursor lands on the first line, where the click was.
+      addBox(view, { x: Math.max(0, p.x - 8), y: Math.max(0, p.y - 14) });
+      return;
+    }
+    band.remove();
+    const hits = boxesIn(view, area());
+    const first = hits[0];
+    const lastHit = hits.at(-1);
+    if (first === undefined || lastHit === undefined) return;
+    const { doc } = view.state;
+    const start = posOfIndex(doc, first) + 1;
+    const end = posOfIndex(doc, lastHit) + doc.child(lastHit).nodeSize - 1;
+    view.dispatch(
+      view.state.tr.setSelection(TextSelection.between(doc.resolve(start), doc.resolve(end))),
+    );
+    view.focus();
+  };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+const freeKey = new PluginKey('free-layout');
+
+/**
+ * Clicking empty page makes a box there and dragging selects boxes;
+ * dropping or pasting on empty page makes a box holding it; boxes left
+ * empty when the cursor leaves them go away; the page grows to fit.
  */
 export const FreeLayout = Extension.create({
   name: 'freeLayout',
@@ -277,7 +509,22 @@ export const FreeLayout = Extension.create({
   addProseMirrorPlugins() {
     return [
       new Plugin({
-        key: cleanupKey,
+        key: freeKey,
+        // The page is always taller than its lowest box, so there is room below to write.
+        view: (view) => {
+          const grow = () => {
+            let bottom = 0;
+            for (const el of Array.from(view.dom.children) as HTMLElement[]) {
+              bottom = Math.max(bottom, el.offsetTop + el.offsetHeight);
+            }
+            view.dom.parentElement?.style.setProperty(
+              '--free-height',
+              `${String(Math.max(1600, bottom + 800))}px`,
+            );
+          };
+          grow();
+          return { update: grow };
+        },
         props: {
           handleDOMEvents: {
             cut: (view, event) => {
@@ -293,9 +540,7 @@ export const FreeLayout = Extension.create({
             mousedown: (view, event) => {
               if (event.button !== 0 || event.target !== view.dom) return false;
               event.preventDefault();
-              const p = pagePoint(view, event);
-              // The cursor lands on the first line, where the click was.
-              addBox(view, { x: Math.max(0, p.x - 8), y: Math.max(0, p.y - 14), w: DEFAULT_WIDTH });
+              pressOnPage(view, event);
               return true;
             },
           },
@@ -311,8 +556,15 @@ export const FreeLayout = Extension.create({
             view.dispatch(deleteAcross(view.state.tr).insertText(text));
             return true;
           },
-          // Pasted boxes are not placed again: their text goes where the cursor is.
-          handlePaste: (view, _event, slice) => {
+          handlePaste: (view, event, slice) => {
+            // Pictures, such as a screenshot: at the cursor.
+            const images = imageFiles(event.clipboardData?.files);
+            if (images.length > 0) {
+              event.preventDefault();
+              void insertImages(view, images);
+              return true;
+            }
+            // Pasted boxes are not placed again: their text goes where the cursor is.
             const hasBoxes = slice.content.firstChild?.type.name === 'box';
             if (!hasBoxes && !spansBoxes(view.state)) return false;
             const tr = spansBoxes(view.state) ? deleteAcross(view.state.tr) : view.state.tr;
@@ -321,7 +573,23 @@ export const FreeLayout = Extension.create({
             return true;
           },
           handleDrop: (view, event, slice, moved) => {
-            if (event.target !== view.dom) return false;
+            const onPage = event.target === view.dom;
+            const images = imageFiles(event.dataTransfer?.files);
+            if (images.length > 0) {
+              event.preventDefault();
+              if (onPage) {
+                void insertImages(view, images, pagePoint(view, event));
+              } else {
+                const at = view.posAtCoords({ left: event.clientX, top: event.clientY });
+                if (at)
+                  view.dispatch(
+                    view.state.tr.setSelection(TextSelection.create(view.state.doc, at.pos)),
+                  );
+                void insertImages(view, images);
+              }
+              return true;
+            }
+            if (!onPage) return false;
             event.preventDefault();
             const p = pagePoint(view, event);
             const content = blocksOf(view, slice);
@@ -331,7 +599,7 @@ export const FreeLayout = Extension.create({
                 spansBoxes(state) ? deleteAcross(state.tr) : state.tr.deleteSelection(),
               );
             }
-            addBox(view, { x: p.x, y: p.y, w: DEFAULT_WIDTH }, content);
+            addBox(view, { x: p.x, y: p.y }, content);
             return true;
           },
         },
@@ -340,10 +608,13 @@ export const FreeLayout = Extension.create({
           const { from } = state.selection;
           const empty: { pos: number; size: number }[] = [];
           state.doc.forEach((box, pos) => {
+            // Sticky notes stay even when empty; plain boxes go.
             const blank =
+              box.attrs['colour'] === null &&
               box.childCount === 1 &&
               box.textContent === '' &&
-              box.firstChild?.type.name === 'paragraph';
+              box.firstChild?.type.name === 'paragraph' &&
+              box.firstChild.childCount === 0;
             const holdsCursor = from > pos && from < pos + box.nodeSize;
             if (blank && !holdsCursor) empty.push({ pos, size: box.nodeSize });
           });
@@ -363,15 +634,16 @@ export function freeExtensions(ydoc: Y.Doc): AnyExtension[] {
     StarterKit.configure({
       document: false,
       undoRedo: false,
-      underline: false,
       link: { openOnClick: false, autolink: true, linkOnPaste: true },
     }),
     FreeDoc,
     Box,
     FreeLayout,
+    Highlight,
+    Image.configure({ inline: true, allowBase64: true }),
     TaskList,
     TaskItem.configure({ nested: true }),
-    Table.configure({ resizable: false }),
+    Table.configure({ resizable: true }),
     TableRow,
     TableHeader,
     TableCell,
