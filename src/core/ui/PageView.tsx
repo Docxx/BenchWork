@@ -1,4 +1,4 @@
-import { ChevronRight, History, PanelRight } from 'lucide-react';
+import { ChevronRight, FileText, History, LayoutDashboard, PanelRight } from 'lucide-react';
 import { useState } from 'react';
 import { dayOfPath } from '../pages/daily';
 import type { OpenPage, SaveState } from '../state/pageSlice';
@@ -27,6 +27,7 @@ export function PageView() {
   const moduleView = useApp((s) => s.moduleView);
   const [showHistory, setShowHistory] = useState(false);
   const sidePanel = useApp((s) => s.settings.appearance.sidePanel);
+  const free = useApp((s) => s.pageProperties?.['layout']) === 'free';
 
   if (page === null && moduleView !== null) return <ModuleView open={moduleView} />;
   if (page === null && openFile !== null) return <FileView path={openFile} />;
@@ -42,7 +43,10 @@ export function PageView() {
           }}
         />
       )}
-      <article className="page-view" aria-label={page ? page.title : 'No page open'}>
+      <article
+        className={free ? 'page-view free' : 'page-view'}
+        aria-label={page ? page.title : 'No page open'}
+      >
         {notice !== null && (
           <div className="notice page-notice" role="alert">
             <span>{notice}</span>
@@ -118,7 +122,37 @@ function PageTopBar({
         <History size={16} strokeWidth={1.75} aria-hidden />
         History
       </button>
+      <LayoutSwitch />
       <SidePanelToggle />
+    </div>
+  );
+}
+
+/** Document or free layout, for this page. */
+function LayoutSwitch() {
+  const layout = useApp((s) => s.pageProperties?.['layout']) === 'free' ? 'free' : 'document';
+  const setProperties = useApp((s) => s.setPageProperties);
+  const options = [
+    { value: 'document', label: 'Document', icon: FileText },
+    { value: 'free', label: 'Free layout', icon: LayoutDashboard },
+  ] as const;
+  return (
+    <div className="layout-switch" role="radiogroup" aria-label="Page layout">
+      {options.map(({ value, label, icon: Icon }) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={layout === value}
+          title={label}
+          aria-label={label}
+          onClick={() => {
+            if (value !== layout) setProperties({ layout: value === 'free' ? 'free' : null });
+          }}
+        >
+          <Icon size={16} strokeWidth={1.75} aria-hidden />
+        </button>
+      ))}
     </div>
   );
 }

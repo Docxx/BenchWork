@@ -64,4 +64,14 @@ describe('vault config', () => {
     expect(() => parseVaultConfig('[1, 2]')).toThrow(/JSON object/);
     expect(() => parseVaultConfig('{"version": 2}')).toThrow(/newer version/);
   });
+
+  it('keeps the layout new pages start with, writing it only when not the default', () => {
+    const free = parseVaultConfig('{"version":1,"pages":{"layout":"free"}}');
+    expect(free.pages.layout).toBe('free');
+    expect(JSON.parse(serialiseVaultConfig(free))).toMatchObject({ pages: { layout: 'free' } });
+    expect(parseVaultConfig('{"version":1,"pages":{"layout":"spiral"}}').pages.layout).toBe(
+      'document',
+    );
+    expect(serialiseVaultConfig(defaultVaultConfig())).not.toContain('pages');
+  });
 });

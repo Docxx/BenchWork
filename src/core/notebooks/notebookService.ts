@@ -1,4 +1,10 @@
-import { localTimestamp } from '../pages/frontmatter';
+import {
+  localTimestamp,
+  pageProperties,
+  parsePage,
+  serialisePage,
+  updateProperties,
+} from '../pages/frontmatter';
 import {
   baseName,
   joinVaultPath,
@@ -133,6 +139,16 @@ export interface NewPageOptions {
   text?: (id: string, created: string, title: string) => string;
   newId?: () => string;
   now?: () => string;
+  /** `free` starts the page with a free layout, unless its text already says. */
+  layout?: 'document' | 'free';
+}
+
+/** A new page's text with `layout: free`, unless it already has a layout or its frontmatter cannot be read. */
+export function withLayout(text: string, layout: 'document' | 'free' | undefined): string {
+  if (layout !== 'free') return text;
+  const page = parsePage(text);
+  if (page.error !== null || pageProperties(page)['layout'] !== undefined) return text;
+  return serialisePage(updateProperties(page, { layout: 'free' }));
 }
 
 /** Creates a page with an id, so links to it survive renames. Returns its path. */
@@ -148,9 +164,11 @@ export async function createPage(
   const path = joinVaultPath(folder, name);
   const id = (options.newId ?? (() => crypto.randomUUID()))();
   const created = (options.now ?? localTimestamp)();
-  const text =
+  const text = withLayout(
     options.text?.(id, created, pageTitle(name)) ??
-    `---\nid: ${id}\ncreated: ${created}\n---\n${options.body ?? ''}`;
+      `---\nid: ${id}\ncreated: ${created}\n---\n${options.body ?? ''}`,
+    options.layout,
+  );
   try {
     await platform.createNew(path, text);
   } catch (err) {

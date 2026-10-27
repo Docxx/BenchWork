@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { citationsKey, type CiteMenuState } from '../editor/citationNode';
 import { baseExtensions } from '../editor/extensions';
 import { FileInput, insertFiles } from '../editor/fileInput';
+import { FreeLayout, hasBoxes, setLayout, wrapInBox, type Layout } from '../editor/freeLayout';
 import { blocksFromMarkdown } from '../editor/markdown/markdown';
 import { PageLinks, pageLinksKey, type LinkMenuState } from '../editor/pageLinks';
 import {
@@ -65,6 +66,7 @@ export function PageEditor({ page }: { page: OpenPage }) {
           },
         }),
         FileInput.configure({ onFiles: addFiles }),
+        FreeLayout.configure({ onFiles: addFiles }),
         PageLinks.configure({
           suggest: suggestLinks,
           resolves: linkResolves,
@@ -132,6 +134,23 @@ export function PageEditor({ page }: { page: OpenPage }) {
     };
   }, [editor, revealHeading, clearRevealHeading]);
 
+  // Free layout or document, from the page's properties. Switching to free
+  // layout while the page is open puts its blocks in one box to start from.
+  const layout: Layout =
+    useApp((s) => s.pageProperties?.['layout']) === 'free' ? 'free' : 'document';
+  const shownLayout = useRef<Layout | null>(null);
+  useEffect(() => {
+    if (editor.isDestroyed) return;
+    setLayout(editor, layout);
+    const before = shownLayout.current;
+    shownLayout.current = layout;
+    if (before === 'document' && layout === 'free' && !hasBoxes(editor.state.doc)) {
+      wrapInBox(editor);
+    }
+    // Redraw, so the free layout's handlers see the change.
+    editor.view.dispatch(editor.state.tr.setMeta('freeLayout', layout));
+  }, [editor, layout]);
+
   // When pages come and go, recheck which links point at a page.
   useEffect(() => {
     if (!editor.isDestroyed) editor.view.dispatch(editor.state.tr.setMeta(pageLinksKey, true));
@@ -144,7 +163,7 @@ export function PageEditor({ page }: { page: OpenPage }) {
 
   return (
     <>
-      <EditorContent editor={editor} className="page-content" />
+      <EditorContent editor={editor} className={`page-content layout-${layout}`} />
       {slash !== null && <SlashMenu state={slash} />}
       {linkMenu !== null && <LinkMenu state={linkMenu} />}
       {citeMenu !== null && (

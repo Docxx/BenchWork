@@ -1,5 +1,6 @@
 import { defaultAppearance, type Appearance } from '../settings/appearance';
 import { saveAppSettings, type Theme } from '../settings/appSettings';
+import type { PageLayout } from '../vault/vaultConfig';
 import { describeError, type StoreContext } from './context';
 
 export type View = 'files' | 'settings';
@@ -28,6 +29,8 @@ export interface SettingsSlice {
   setShowAllFiles: (show: boolean) => Promise<void>;
   /** Per-vault; saved in .benchwork/config.json. */
   setLinkThreshold: (mb: number) => Promise<void>;
+  /** Per-vault: the layout new pages start with. */
+  setNewPageLayout: (layout: PageLayout) => Promise<void>;
 }
 
 export function createSettingsSlice(ctx: StoreContext): SettingsSlice {
@@ -90,6 +93,15 @@ export function createSettingsSlice(ctx: StoreContext): SettingsSlice {
         await saveAppSettings(platform, settings);
       } catch (err) {
         set({ settingsError: `The setting could not be saved. ${describeError(err)}` });
+      }
+    },
+
+    setNewPageLayout: async (layout) => {
+      set({ settingsError: null });
+      try {
+        await ctx.updateConfig((c) => ({ ...c, pages: { ...c.pages, layout } }));
+      } catch (err) {
+        set({ settingsError: `The vault settings could not be saved. ${describeError(err)}` });
       }
     },
 

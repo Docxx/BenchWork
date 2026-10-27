@@ -1,5 +1,6 @@
 import { useEffect, useState, type KeyboardEvent } from 'react';
 import { LINK_THRESHOLD_RANGE } from '../state/appStore';
+import type { PageLayout } from '../vault/vaultConfig';
 import type { OpenVault } from '../vault/vaultService';
 import { AppearanceSettings } from './AppearanceSettings';
 import { useApp } from './AppStoreContext';
@@ -160,9 +161,43 @@ function VaultSettings({ vault }: { vault: OpenVault }) {
         </p>
       </div>
 
+      <NewPageSettings layout={vault.config.pages.layout} />
       <TemplateSettings />
       <SearchIndexSettings />
     </>
+  );
+}
+
+function NewPageSettings({ layout }: { layout: PageLayout }) {
+  const setNewPageLayout = useApp((s) => s.setNewPageLayout);
+  const options: { value: PageLayout; label: string; hint: string }[] = [
+    { value: 'document', label: 'Document', hint: 'Text flows down the page.' },
+    {
+      value: 'free',
+      label: 'Free layout',
+      hint: 'Click anywhere to write; boxes can be moved and resized.',
+    },
+  ];
+  return (
+    <fieldset className="field">
+      <legend>New pages start as</legend>
+      {options.map((o) => (
+        <label key={o.value} className="choice">
+          <input
+            type="radio"
+            name="new-page-layout"
+            value={o.value}
+            checked={layout === o.value}
+            onChange={() => void setNewPageLayout(o.value)}
+          />
+          {o.label}
+          <span className="hint">{o.hint}</span>
+        </label>
+      ))}
+      <p className="hint">
+        Each page can be switched from its top bar at any time. Saved in this vault.
+      </p>
+    </fieldset>
   );
 }
 

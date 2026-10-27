@@ -22,10 +22,20 @@ export interface AttachmentsConfig {
   [key: string]: unknown;
 }
 
+/** How new pages start: flowing like a document, or with text placed anywhere. */
+export type PageLayout = 'document' | 'free';
+
+export interface PagesConfig {
+  [key: string]: unknown;
+  /** The layout new pages start with. */
+  layout: PageLayout;
+}
+
 export interface VaultConfig {
   version: typeof CONFIG_VERSION;
   modules: Record<string, ModuleConfig>;
   attachments: AttachmentsConfig;
+  pages: PagesConfig;
   /** Top-level keys this version does not know about. */
   extra: Record<string, unknown>;
 }
@@ -34,7 +44,7 @@ export class VaultConfigError extends Error {
   override readonly name = 'VaultConfigError';
 }
 
-const KNOWN_KEYS = new Set(['version', 'modules', 'attachments']);
+const KNOWN_KEYS = new Set(['version', 'modules', 'attachments', 'pages']);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -45,6 +55,7 @@ export function defaultVaultConfig(): VaultConfig {
     version: CONFIG_VERSION,
     modules: {},
     attachments: { linkThresholdMB: DEFAULT_LINK_THRESHOLD_MB },
+    pages: { layout: 'document' },
     extra: {},
   };
 }
@@ -96,6 +107,11 @@ export function parseVaultConfig(text: string): VaultConfig {
     };
   }
 
+  const pages = data['pages'];
+  if (isRecord(pages)) {
+    config.pages = { ...pages, layout: pages['layout'] === 'free' ? 'free' : 'document' };
+  }
+
   for (const [key, value] of Object.entries(data)) {
     if (!KNOWN_KEYS.has(key)) config.extra[key] = value;
   }
@@ -103,6 +119,8 @@ export function parseVaultConfig(text: string): VaultConfig {
 }
 
 export function serialiseVaultConfig(config: VaultConfig): string {
-  const { extra, ...known } = config;
-  return `${JSON.stringify({ ...known, ...extra }, null, 2)}\n`;
+  const { extra, pages, ...known } = config;
+  // Left out while it says only the default, so older vaults' files do not change.
+  const plainPages = Object.keys(pages).length === 1 && pages.layout === 'document';
+  return `${JSON.stringify({ ...known, ...(plainPages ? {} : { pages }), ...extra }, null, 2)}\n`;
 }
