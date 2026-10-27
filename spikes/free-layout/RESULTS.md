@@ -1,6 +1,6 @@
 # Free layout spike: method and results
 
-Question: can BenchWork offer OneNote-style pages, with text anywhere on the
+Question: can BenchWork offer free-layout pages, with text anywhere on the
 page and cut and paste working across it, using the page editor it already
 has? The answer decides how Free pages are built. This page is a test bench,
 not app code; nothing here ships.
@@ -22,7 +22,7 @@ the document, so arrow keys, screen readers and the saved Markdown all
 follow the page as it reads.
 
 Saved as Markdown, each box's text follows a hidden comment giving its
-place, so other Markdown apps (Obsidian included) show the page as a
+place, so other Markdown apps show the page as a
 document in reading order:
 
 ```markdown
@@ -117,11 +117,20 @@ Scrolling while dragging a box needs a real mouse to check.
 
 **Fonts per word:** not offered. Pages are Markdown, which has no way to
 record a font or size for some words, so they would be lost on saving and
-in Obsidian. The page font and text size are set in Settings > Appearance.
+in other apps. The page font and text size are set in Settings > Appearance.
 
 **Highlight and underline** show in the spike but are not yet in its
-saved Markdown. The app will save them as `==highlight==` (as Obsidian
-does) and `<u>underline</u>`.
+saved Markdown. The app will save them as `==highlight==` (as other
+Markdown note apps do) and `<u>underline</u>`.
+
+## Round 3
+
+- Switching to Document and back no longer merges every box into one.
+  Document view shows the same boxes one after another in reading order,
+  with the free layout's clicks, drags and drops off; switching back puts
+  each box where it was. Text typed in Document view stays in its box.
+- The layout switch reads **Free layout** and **Document**. Ray asked for
+  no other products to be named in what people see.
 
 ## What the real build adds
 

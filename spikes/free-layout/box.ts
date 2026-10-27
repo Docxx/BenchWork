@@ -52,7 +52,7 @@ export interface BoxPlace {
   h: number;
 }
 
-/** ==highlighted== text, as Obsidian writes it. */
+/** ==highlighted== text, as other Markdown note apps write it. */
 export const Highlight = Mark.create({
   name: 'highlight',
   parseHTML() {
@@ -352,8 +352,8 @@ export function spansBoxes(state: EditorState): boolean {
 }
 
 /**
- * Deletes a selection that reaches across boxes, box by box, as OneNote
- * does: each box loses only the selected part and stays where it is;
+ * Deletes a selection that reaches across boxes, box by box, as other
+ * free-layout note apps do: each box loses only the selected part and stays where it is;
  * boxes wholly selected go. Plain deleting would join what is left of the
  * first and last boxes into one.
  */
@@ -440,7 +440,7 @@ function boxesIn(view: EditorView, rect: DOMRect): number[] {
 
 /**
  * A press on empty page: a click makes a box there; a drag draws a
- * rectangle and selects the text of every box it touches, as OneNote does.
+ * rectangle and selects the text of every box it touches.
  */
 function pressOnPage(view: EditorView, down: MouseEvent): void {
   let band: HTMLDivElement | null = null;
@@ -503,10 +503,27 @@ const freeKey = new PluginKey('free-layout');
  * dropping or pasting on empty page makes a box holding it; boxes left
  * empty when the cursor leaves them go away; the page grows to fit.
  */
-export const FreeLayout = Extension.create({
+export type Layout = 'free' | 'document';
+
+/**
+ * The page's layout. In document view the same boxes are shown one after
+ * another in reading order, and the free layout's clicks, drags and drops
+ * are off; switching back puts every box where it was.
+ */
+export function setLayout(editor: { storage: unknown }, layout: Layout): void {
+  (editor.storage as { freeLayout: { layout: Layout } }).freeLayout.layout = layout;
+}
+
+export const FreeLayout = Extension.create<object, { layout: Layout }>({
   name: 'freeLayout',
 
+  addStorage() {
+    return { layout: 'free' };
+  },
+
   addProseMirrorPlugins() {
+    const storage = this.storage;
+    const free = () => storage.layout === 'free';
     return [
       new Plugin({
         key: freeKey,
@@ -539,6 +556,13 @@ export const FreeLayout = Extension.create({
             },
             mousedown: (view, event) => {
               if (event.button !== 0 || event.target !== view.dom) return false;
+              if (!free()) {
+                // A document with nothing in it yet still needs somewhere to type.
+                if (view.state.doc.childCount > 0) return false;
+                event.preventDefault();
+                addBox(view, { x: 40, y: 40 });
+                return true;
+              }
               event.preventDefault();
               pressOnPage(view, event);
               return true;
@@ -573,7 +597,7 @@ export const FreeLayout = Extension.create({
             return true;
           },
           handleDrop: (view, event, slice, moved) => {
-            const onPage = event.target === view.dom;
+            const onPage = free() && event.target === view.dom;
             const images = imageFiles(event.dataTransfer?.files);
             if (images.length > 0) {
               event.preventDefault();

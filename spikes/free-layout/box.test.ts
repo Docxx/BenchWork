@@ -4,7 +4,7 @@ import { TextSelection } from '@tiptap/pm/state';
 import { prosemirrorJSONToYXmlFragment } from 'y-prosemirror';
 import * as Y from 'yjs';
 import type { PMNode } from '../../src/core/editor/markdown/model';
-import { deleteAcross, freeExtensions, moveBox, spansBoxes } from './box';
+import { deleteAcross, freeExtensions, moveBox, setLayout, spansBoxes } from './box';
 import { freeFromMarkdown, freeToMarkdown } from './storage';
 
 const PAGE = [
@@ -134,5 +134,16 @@ describe('free layout boxes', () => {
     expect(editor.state.doc.childCount).toBe(4);
     editor.commands.setTextSelection(at(editor, 'Third'));
     expect(editor.state.doc.childCount).toBe(3);
+  });
+
+  it('keeps every box when switching to document view and back', () => {
+    const editor = editorWith(PAGE);
+    const before = markdown(editor);
+    setLayout(editor, 'document');
+    // In document view, a click below the text does not make a box.
+    editor.view.dom.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    expect(editor.state.doc.childCount).toBe(3);
+    setLayout(editor, 'free');
+    expect(markdown(editor)).toBe(before);
   });
 });

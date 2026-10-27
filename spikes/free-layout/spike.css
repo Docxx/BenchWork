@@ -240,7 +240,7 @@ body {
   font-family: 'Source Serif 4 Variable', Georgia, serif;
   font-size: 1.02rem;
   line-height: 1.55;
-  /* Faint dots, as on a OneNote page, to show it is a surface. */
+  /* Faint dots, to show the page is a surface to write anywhere on. */
   background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
   background-size: 24px 24px;
 }
@@ -412,6 +412,11 @@ body {
   border: none;
   background: none;
   padding: 0;
+}
+
+/* A paragraph's space between boxes, so they read as one document. */
+.document .free-box + .free-box {
+  margin-top: 0.75em;
 }
 
 .document .box-handle,

@@ -25,7 +25,9 @@ describe('free layout storage', () => {
   });
 
   it('keeps text written before any box, as a box at the top', () => {
-    const doc = freeFromMarkdown('Written in Obsidian.\n\n<!-- box x=10 y=300 w=200 -->\nLater.\n');
+    const doc = freeFromMarkdown(
+      'Written in another app.\n\n<!-- box x=10 y=300 w=200 -->\nLater.\n',
+    );
     expect(doc.content?.map((b) => b.attrs)).toEqual([
       { x: 0, y: 0, w: 420, h: 0, colour: null },
       { x: 10, y: 300, w: 200, h: 0, colour: null },

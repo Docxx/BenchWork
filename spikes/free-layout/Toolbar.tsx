@@ -36,7 +36,7 @@ import {
 } from './box';
 
 /**
- * A ribbon like OneNote's, across the top of the page: Home for text,
+ * A ribbon across the top of the page: Home for text,
  * Insert for things to add. Spike only: the app's version will live in the
  * page's top bar and can be hidden.
  */

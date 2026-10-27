@@ -7,13 +7,13 @@ import * as Y from 'yjs';
 import '@fontsource-variable/inter';
 import '@fontsource-variable/source-serif-4';
 import type { PMNode } from '../../src/core/editor/markdown/model';
-import { freeExtensions } from './box';
-import { documentToFree, freeFromMarkdown, freeToDocument, freeToMarkdown } from './storage';
+import { freeExtensions, setLayout as setLayoutOf, type Layout } from './box';
+import { freeFromMarkdown, freeToMarkdown } from './storage';
 import { Toolbar } from './Toolbar';
 import './spike.css';
 
 /**
- * Free layout spike: can one page editor give OneNote-style pages, with
+ * Free layout spike: can one page editor give free-layout pages, with
  * text anywhere? Not part of the app. Open /spikes/free-layout/ on the dev
  * server; see RESULTS.md for what to try.
  */
@@ -60,8 +60,6 @@ const CHECKS = [
   'Not saved yet in the spike: highlight and underline (the app will save them)',
 ];
 
-type Layout = 'free' | 'document';
-
 function Spike() {
   // Filled before the editor starts, as pages are, since the Yjs document is what it shows.
   const ydoc = useMemo(() => {
@@ -84,16 +82,10 @@ function Spike() {
     },
   });
 
+  // The same boxes either way: Document shows them in reading order, Free where they were put.
   const switchTo = (next: Layout) => {
     if (next === layout) return;
-    const json = editor.getJSON() as PMNode;
-    const blocks = freeToDocument(json);
-    // Document: everything in one full-width box, in reading order. Free: that box placed on the page.
-    const doc =
-      next === 'document'
-        ? { type: 'doc', content: [{ type: 'box', attrs: { x: 0, y: 0, w: 0 }, content: blocks }] }
-        : documentToFree(blocks);
-    editor.commands.setContent(doc);
+    setLayoutOf(editor, next);
     setLayout(next);
   };
 
@@ -112,7 +104,7 @@ function Spike() {
                 switchTo(l);
               }}
             >
-              {l === 'free' ? 'Free (OneNote)' : 'Document (Obsidian)'}
+              {l === 'free' ? 'Free layout' : 'Document'}
             </button>
           ))}
         </div>
@@ -150,6 +142,7 @@ function Spike() {
             if (edited === null) return;
             editor.commands.setContent(freeFromMarkdown(edited));
             setEdited(null);
+            setLayoutOf(editor, 'free');
             setLayout('free');
           }}
         >
