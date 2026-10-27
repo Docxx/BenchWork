@@ -1,0 +1,208 @@
+/* Free layout spike: the Forest look, so it reads like the app. */
+
+:root {
+  --bg: #f8f7f3;
+  --surface: #efede7;
+  --border: #e2dfd7;
+  --text: #1d2725;
+  --muted: #6b7470;
+  --accent: #5b8a76;
+  font-family: 'Inter Variable', system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  accent-color: var(--accent);
+}
+
+body {
+  margin: 0;
+}
+
+.spike {
+  display: grid;
+  grid-template-columns: 1fr 22rem;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+}
+
+.spike-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.layout-switch {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.layout-switch button {
+  padding: 0.4rem 0.9rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.layout-switch button[aria-checked='true'] {
+  background: var(--accent);
+  color: #fff;
+}
+
+.spike-page {
+  overflow: auto;
+}
+
+.spike-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  overflow: auto;
+  border-left: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.spike-side h2 {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
+}
+
+.spike-side ol {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.spike-side li {
+  margin: 0.2rem 0;
+}
+
+.spike-side textarea {
+  min-height: 16rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.78rem;
+}
+
+/* ---- The free page ---- */
+
+.free-page {
+  position: relative;
+  min-height: 1600px;
+  min-width: 1400px;
+  outline: none;
+  cursor: text;
+  font-family: 'Source Serif 4 Variable', Georgia, serif;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  /* Faint dots, as on a OneNote page, to show it is a surface. */
+  background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.free-box {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 0.6rem 0.9rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: auto;
+}
+
+.free-box:hover,
+.free-box:focus-within,
+.free-box.moving {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+}
+
+.free-box.moving {
+  opacity: 0.85;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.12);
+}
+
+.box-handle {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  height: 10px;
+  border-radius: 6px 6px 0 0;
+  background: var(--surface);
+  cursor: grab;
+  opacity: 0;
+  user-select: none;
+}
+
+.box-resize {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  width: 8px;
+  height: 100%;
+  cursor: ew-resize;
+  user-select: none;
+}
+
+.free-box:hover .box-handle,
+.free-box:focus-within .box-handle,
+.free-box.moving .box-handle {
+  opacity: 1;
+}
+
+.box-content > :first-child {
+  margin-top: 0;
+}
+
+.box-content > :last-child {
+  margin-bottom: 0;
+}
+
+.box-content table {
+  border-collapse: collapse;
+}
+
+.box-content th,
+.box-content td {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border);
+}
+
+.box-content p.is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* ---- The same page as a document ---- */
+
+.document .free-page {
+  min-width: 0;
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 2rem;
+  background-image: none;
+}
+
+.document .free-box {
+  position: static;
+  width: auto !important;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+.document .box-handle,
+.document .box-resize {
+  display: none;
+}
