@@ -27,6 +27,8 @@ export interface Appearance {
   textSize: number;
   density: Density;
   pageWidth: PageWidth;
+  /** The side panel beside pages, with the outline and backlinks. */
+  sidePanel: boolean;
 }
 
 export const TEXT_SIZE_RANGE = { min: 13, max: 20 } as const;
@@ -169,6 +171,7 @@ export function defaultAppearance(preset: ThemePreset = 'forest'): Appearance {
     textSize: 16,
     density: 'comfortable',
     pageWidth: 'normal',
+    sidePanel: true,
   };
 }
 
@@ -202,6 +205,7 @@ export function parseAppearance(data: unknown): Appearance {
     result.density = record['density'];
   if (oneOf(record['pageWidth'], ['narrow', 'normal', 'wide'] as const))
     result.pageWidth = record['pageWidth'];
+  if (typeof record['sidePanel'] === 'boolean') result.sidePanel = record['sidePanel'];
   return result;
 }
 

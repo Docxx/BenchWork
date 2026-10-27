@@ -14,6 +14,10 @@ export interface SettingsSlice {
   settingsError: string | null;
 
   showView: (view: View) => void;
+  /** The Settings tab to show when Settings next opens, such as `modules`. */
+  settingsTab: string | null;
+  /** Opens Settings, at a tab if given. */
+  openSettings: (tab?: string) => void;
   /** Per-device; saved in the app settings, not the vault. */
   setTheme: (theme: Theme) => Promise<void>;
   /** Per-device: changes some of the appearance, keeping the rest. */
@@ -41,6 +45,12 @@ export function createSettingsSlice(ctx: StoreContext): SettingsSlice {
   return {
     view: 'files',
     settingsError: null,
+    settingsTab: null,
+
+    openSettings: (tab) => {
+      if (get().status.kind !== 'open') return;
+      set({ view: 'settings', settingsTab: tab ?? null });
+    },
 
     showView: (view) => {
       if (get().status.kind === 'open') set({ view });

@@ -6,11 +6,15 @@ import { AttachDialog } from './AttachDialog';
 import { CommandList, TextPromptDialog } from './ModuleDialogs';
 import { PageView } from './PageView';
 import { SettingsPage } from './SettingsPage';
+import { SidePanel } from './SidePanel';
 import { Sidebar } from './Sidebar';
 
 /** The sidebar, and the main area: Settings when open, otherwise the open page. */
 export function Shell({ vault }: { vault: OpenVault }) {
   const view = useApp((s) => s.view);
+  const page = useApp((s) => s.page);
+  const moduleView = useApp((s) => s.moduleView);
+  const sidePanel = useApp((s) => s.settings.appearance.sidePanel);
   const focusSearch = useApp((s) => s.focusSearch);
   const openToday = useApp((s) => s.openToday);
   const [showCommands, setShowCommands] = useState(false);
@@ -69,6 +73,10 @@ export function Shell({ vault }: { vault: OpenVault }) {
       <main className="shell-main">
         {view === 'settings' ? <SettingsPage vault={vault} /> : <PageView />}
       </main>
+      {sidePanel && view === 'files' && page !== null && moduleView === null && (
+        // Keyed by page, so each page starts on its outline.
+        <SidePanel key={page.path} page={page} />
+      )}
       {showCommands && <CommandList onClose={closeCommands} />}
       <TextPromptDialog />
       <AttachDialog />

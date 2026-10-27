@@ -1,4 +1,4 @@
-import { ChevronRight, History } from 'lucide-react';
+import { ChevronRight, History, PanelRight } from 'lucide-react';
 import { useState } from 'react';
 import { dayOfPath } from '../pages/daily';
 import type { OpenPage, SaveState } from '../state/pageSlice';
@@ -26,6 +26,7 @@ export function PageView() {
   const openFile = useApp((s) => s.openFile);
   const moduleView = useApp((s) => s.moduleView);
   const [showHistory, setShowHistory] = useState(false);
+  const sidePanel = useApp((s) => s.settings.appearance.sidePanel);
 
   if (page === null && moduleView !== null) return <ModuleView open={moduleView} />;
   if (page === null && openFile !== null) return <FileView path={openFile} />;
@@ -75,7 +76,7 @@ export function PageView() {
             <PropertiesPanel />
             {/* A new document after a reload from disk starts a fresh editor. */}
             <PageEditor key={page.ydoc.guid} page={page} />
-            <Backlinks />
+            {!sidePanel && <Backlinks />}
           </>
         )}
       </article>
@@ -117,7 +118,26 @@ function PageTopBar({
         <History size={16} strokeWidth={1.75} aria-hidden />
         History
       </button>
+      <SidePanelToggle />
     </div>
+  );
+}
+
+function SidePanelToggle() {
+  const shown = useApp((s) => s.settings.appearance.sidePanel);
+  const setAppearance = useApp((s) => s.setAppearance);
+  const label = shown ? 'Hide the side panel' : 'Show the side panel';
+  return (
+    <button
+      type="button"
+      className="icon-button"
+      title={label}
+      aria-label={label}
+      aria-pressed={shown}
+      onClick={() => void setAppearance({ sidePanel: !shown })}
+    >
+      <PanelRight size={17} strokeWidth={1.75} aria-hidden />
+    </button>
   );
 }
 

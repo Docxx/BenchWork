@@ -17,7 +17,10 @@ type TabId = (typeof TABS)[number]['id'];
 export function SettingsPage({ vault }: { vault: OpenVault }) {
   const showView = useApp((s) => s.showView);
   const settingsError = useApp((s) => s.settingsError);
-  const [tab, setTab] = useState<TabId>('general');
+  const requested = useApp((s) => s.settingsTab);
+  const [tab, setTab] = useState<TabId>(
+    () => TABS.find((t) => t.id === requested)?.id ?? 'general',
+  );
 
   function onTabKey(event: KeyboardEvent<HTMLDivElement>): void {
     const index = TABS.findIndex((t) => t.id === tab);

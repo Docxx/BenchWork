@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { clickInto } from './helpers';
+import { clickInto, linkedFrom } from './helpers';
 
 /**
  * Phase 3 exit check, end to end in a browser: daily pages with citations
@@ -88,7 +88,7 @@ test('a daily page cites the Zotero library, and the citation leads to its note'
     editor(page).getByRole('heading', { name: 'Tau spreads in the fly brain' }),
   ).toBeVisible();
   await expect(page.getByRole('region', { name: 'Properties' })).toContainText('Literature note');
-  await expect(page.getByRole('region', { name: 'Linked from' })).toContainText('2026-10-23');
+  await expect(await linkedFrom(page)).toContainText('2026-10-23');
   const note = await file(page, 'references/smith2024.md');
   expect(note).toContain('type: reference');
   expect(note).toContain('citekey: smith2024');

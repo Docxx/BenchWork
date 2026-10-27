@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { clickInto } from './helpers';
+import { clickInto, linkedFrom } from './helpers';
 
 /**
  * Phase 1 exit check, end to end in a browser: a new vault with the sample
@@ -63,7 +63,7 @@ test('lab notes are written in today’s page and found again', async ({ page })
   await page.getByRole('searchbox', { name: 'Search pages' }).press('Escape');
   await editor(page).locator('.wiki-link', { hasText: 'Example experiment' }).click();
   await expect(title(page)).toHaveValue('Example experiment');
-  await expect(page.getByRole('region', { name: 'Linked from' })).toContainText('2026-10-22');
+  await expect(await linkedFrom(page)).toContainText('2026-10-22');
 });
 
 test('an earlier version of a page can be restored', async ({ page }) => {

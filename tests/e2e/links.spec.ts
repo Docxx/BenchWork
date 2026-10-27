@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { clickInto } from './helpers';
+import { clickInto, linkedFrom } from './helpers';
 
 const VAULT = {
   '.benchwork/config.json': '{"version":1}',
@@ -76,13 +76,13 @@ test('clicking a link opens its page, and a missing page is created', async ({ p
   expect(await file(page, 'Lab/Experiments/Western blot.md')).toMatch(/^---\nid: /);
 });
 
-test('backlinks show at the foot of a linked page only', async ({ page }) => {
+test('backlinks show beside a linked page only', async ({ page }) => {
   await openPage(page, 'Lab', 'Notes');
-  await expect(page.getByRole('region', { name: 'Linked from' })).toHaveCount(0);
+  await expect(await linkedFrom(page)).toContainText('Pages that link here will be listed here.');
 
   await openPage(page, 'Lab', 'Plan');
-  const backlinks = page.getByRole('region', { name: 'Linked from' });
-  await expect(backlinks).toContainText('Linked from 1 page');
+  const backlinks = await linkedFrom(page);
+  await expect(backlinks).toContainText('1 page links here');
   await expect(backlinks).toContainText('Follow the lab plan.');
   await backlinks.getByRole('button', { name: /Dose/ }).click();
   await expect(title(page)).toHaveValue('Dose');

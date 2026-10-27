@@ -41,6 +41,8 @@ export interface FilesSlice {
   /** A heading the editor should go to once the page it is in opens. */
   revealHeading: string | null;
   clearRevealHeading: () => void;
+  /** Moves the open page's editor to the first heading with this text. */
+  goToHeading: (heading: string) => void;
   closeFile: () => void;
   /** After a rename or move, keeps the open file pointing at it. */
   fileMoved: (from: string, to: string) => void;
@@ -116,6 +118,10 @@ export function createFilesSlice(ctx: StoreContext): FilesSlice {
 
     clearRevealHeading: () => {
       set({ revealHeading: null });
+    },
+
+    goToHeading: (heading) => {
+      if (get().page !== null) set({ revealHeading: heading });
     },
 
     closeFile: () => {

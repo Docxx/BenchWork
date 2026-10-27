@@ -35,6 +35,25 @@ export function yDocToPage(ydoc: Y.Doc): PMNode {
   return root.toJSON() as PMNode;
 }
 
+export interface Heading {
+  level: number;
+  text: string;
+}
+
+/** The page's headings, top to bottom, for its outline. Empty headings are left out. */
+export function pageHeadings(ydoc: Y.Doc): Heading[] {
+  const text = (node: PMNode): string =>
+    node.text ?? (node.content ?? []).map((child) => text(child)).join('');
+  const headings: Heading[] = [];
+  for (const block of yDocToPage(ydoc).content ?? []) {
+    if (block.type !== 'heading') continue;
+    const words = text(block).trim();
+    const level = Number(block.attrs?.['level'] ?? 1);
+    if (words !== '') headings.push({ level, text: words });
+  }
+  return headings;
+}
+
 /** ProseMirror needs a doc with at least one block. */
 function withContent(doc: PMNode): PMNode {
   return (doc.content ?? []).length > 0 ? doc : { type: 'doc', content: [{ type: 'paragraph' }] };

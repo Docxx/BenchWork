@@ -225,6 +225,18 @@ export function AppearanceSettings() {
         onChange={(pageWidth) => void setAppearance({ pageWidth })}
       />
 
+      <fieldset className="field">
+        <legend>Side panel</legend>
+        <label className="choice">
+          <input
+            type="checkbox"
+            checked={appearance.sidePanel}
+            onChange={(e) => void setAppearance({ sidePanel: e.target.checked })}
+          />
+          Show the outline and links beside pages
+        </label>
+      </fieldset>
+
       <div className="actions">
         <button type="button" className="quiet" onClick={() => void resetAppearance()}>
           Reset to the theme’s own look
