@@ -42,11 +42,39 @@
   color: var(--text);
   background: var(--bg);
   color-scheme: light;
+  /* Checkboxes, radio buttons and sliders in the accent colour. */
+  accent-color: var(--accent);
 }
 
 body {
   margin: 0;
   background: var(--bg);
+}
+
+/*
+ * Text boxes and drop-down lists in the theme. :where() gives these no
+ * weight, so any styled control (search, properties, renaming) keeps its own.
+ */
+:where(
+  select,
+  textarea,
+  input[type='text'],
+  input[type='search'],
+  input[type='number'],
+  input[type='date'],
+  input:not([type])
+) {
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+:where(select, textarea, input):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 1px;
 }
 
 /* Thin scrollbars in the theme's colours, the sidebar's included. */
@@ -87,6 +115,13 @@ button:disabled {
 .picker {
   max-width: 32rem;
   margin: 10vh auto 0;
+}
+
+.picker h1 {
+  font-family: var(--font-heading);
+  font-size: 2.4rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .actions {
@@ -527,7 +562,9 @@ button.nav-item:hover {
 
 .settings-header h2 {
   margin: 0;
-  font-size: 1.4rem;
+  font-family: var(--font-heading);
+  font-size: 1.8rem;
+  font-weight: 600;
 }
 
 .tabs {
@@ -2097,7 +2134,9 @@ button.backlink:focus-visible {
 
 .file-title {
   margin: 0;
-  font-size: 1.6rem;
+  font-family: var(--font-heading);
+  font-size: 1.9rem;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
@@ -2376,7 +2415,9 @@ button.backlink:focus-visible {
 
 .module-view-header h1 {
   margin: 0;
-  font-size: 1.4rem;
+  font-family: var(--font-heading);
+  font-size: 1.9rem;
+  font-weight: 600;
 }
 
 /* Manuscript overview. */
