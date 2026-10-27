@@ -1,7 +1,7 @@
 import { prosemirrorJSONToYXmlFragment, yXmlFragmentToProseMirrorRootNode } from 'y-prosemirror';
 import * as Y from 'yjs';
 import { pageSchema } from './extensions';
-import type { PMNode } from './markdown/model';
+import { BOX, type PMNode } from './markdown/model';
 
 /**
  * Each open page lives in a Yjs document while it is being edited. The file
@@ -45,7 +45,11 @@ export function pageHeadings(ydoc: Y.Doc): Heading[] {
   const text = (node: PMNode): string =>
     node.text ?? (node.content ?? []).map((child) => text(child)).join('');
   const headings: Heading[] = [];
-  for (const block of yDocToPage(ydoc).content ?? []) {
+  // On a free layout page, the headings inside each box, in reading order.
+  const blocks = (yDocToPage(ydoc).content ?? []).flatMap((b) =>
+    b.type === BOX ? (b.content ?? []) : [b],
+  );
+  for (const block of blocks) {
     if (block.type !== 'heading') continue;
     const words = text(block).trim();
     const level = Number(block.attrs?.['level'] ?? 1);
