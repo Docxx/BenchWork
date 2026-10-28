@@ -188,3 +188,42 @@ test('an image dropped on empty page is added to the vault, in a box where it la
     .toMatch(/<!-- box x=\d+ y=\d+ w=420 -->\n!\[\[attachments\/gel\.png\]\]/);
   expect(await file(page, 'attachments/gel.png')).not.toBe('');
 });
+
+test('the toolbar formats text, and adds sticky notes on free pages', async ({ page }) => {
+  await openPage(page, 'Plain');
+  const home = page.getByRole('toolbar', { name: 'Home' });
+  // Select "text" in the paragraph, then make it bold and highlighted.
+  await page.locator('.page-editor p').click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('ArrowLeft');
+  for (let i = 0; i < 4; i += 1) await page.keyboard.press('Shift+ArrowLeft');
+  await home.getByRole('button', { name: /^Bold/ }).click();
+  await home.getByRole('button', { name: /^Highlight/ }).click();
+  await expect(home.getByRole('button', { name: /^Bold/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .poll(() => file(page, 'Lab/Plain.md'))
+    .toContain('Some <u>underlined</u> ==**text**==.');
+
+  await openPage(page, 'Meeting');
+  await page.getByRole('tab', { name: 'Insert' }).click();
+  await page
+    .getByRole('toolbar', { name: 'Insert' })
+    .getByRole('button', { name: 'Sticky note' })
+    .click();
+  await page.keyboard.type('Call Sam');
+  await expect(boxes(page).filter({ hasText: 'Call Sam' })).toHaveClass(/sticky/);
+  await expect
+    .poll(() => file(page, 'Lab/Meeting.md'))
+    .toMatch(/<!-- box x=40 y=\d+ w=240 h=180 colour=yellow -->\nCall Sam/);
+});
+
+test('the toolbar can be hidden', async ({ page }) => {
+  await openPage(page, 'Plain');
+  await expect(page.getByRole('toolbar', { name: 'Home' })).toBeVisible();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('tab', { name: 'Appearance' }).click();
+  await page.getByRole('checkbox', { name: /Show formatting and things to insert/ }).uncheck();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await openPage(page, 'Plain');
+  await expect(page.getByRole('toolbar', { name: 'Home' })).toHaveCount(0);
+});

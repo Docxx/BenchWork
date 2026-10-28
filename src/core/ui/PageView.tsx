@@ -9,6 +9,7 @@ import { HistoryPanel } from './HistoryPanel';
 import { ModuleView } from './ModuleView';
 import { PageEditor } from './PageEditor';
 import { PropertiesPanel } from './PropertiesPanel';
+import { Ribbon } from './Ribbon';
 import { updatedText } from './updated';
 
 const SAVE_LABELS: Record<SaveState, string> = {
@@ -35,13 +36,17 @@ export function PageView() {
   return (
     <>
       {page !== null && (
-        <PageTopBar
-          page={page}
-          historyOpen={showHistory}
-          onHistory={() => {
-            setShowHistory((open) => !open);
-          }}
-        />
+        // The top bar and toolbar stay in view while the page scrolls.
+        <div className="page-chrome">
+          <PageTopBar
+            page={page}
+            historyOpen={showHistory}
+            onHistory={() => {
+              setShowHistory((open) => !open);
+            }}
+          />
+          <PageRibbon free={free} />
+        </div>
       )}
       <article
         className={free ? 'page-view free' : 'page-view'}
@@ -126,6 +131,14 @@ function PageTopBar({
       <SidePanelToggle />
     </div>
   );
+}
+
+/** The toolbar, once the page's editor is showing, unless it is switched off. */
+function PageRibbon({ free }: { free: boolean }) {
+  const handle = useApp((s) => s.pageEditor);
+  const shown = useApp((s) => s.settings.appearance.ribbon);
+  if (!shown || handle === null) return null;
+  return <Ribbon handle={handle} free={free} />;
 }
 
 /** Document or free layout, for this page. */

@@ -151,6 +151,23 @@ export function PageEditor({ page }: { page: OpenPage }) {
     editor.view.dispatch(editor.state.tr.setMeta('freeLayout', layout));
   }, [editor, layout]);
 
+  // The toolbar works on this editor while it is showing.
+  const setPageEditor = useApp((s) => s.setPageEditor);
+  useEffect(() => {
+    setPageEditor({
+      editor,
+      chooseTemplate: setTemplateAt,
+      addFilesAt: (pos) => {
+        void pickAndAddFiles().then((files) => {
+          insertFiles(editor, pos, files);
+        });
+      },
+    });
+    return () => {
+      setPageEditor(null);
+    };
+  }, [editor, setPageEditor, pickAndAddFiles]);
+
   // When pages come and go, recheck which links point at a page.
   useEffect(() => {
     if (!editor.isDestroyed) editor.view.dispatch(editor.state.tr.setMeta(pageLinksKey, true));

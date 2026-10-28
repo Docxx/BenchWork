@@ -29,6 +29,8 @@ export interface Appearance {
   pageWidth: PageWidth;
   /** The side panel beside pages, with the outline and backlinks. */
   sidePanel: boolean;
+  /** The toolbar of formatting and things to insert, above pages. */
+  ribbon: boolean;
 }
 
 export const TEXT_SIZE_RANGE = { min: 13, max: 20 } as const;
@@ -172,6 +174,7 @@ export function defaultAppearance(preset: ThemePreset = 'forest'): Appearance {
     density: 'comfortable',
     pageWidth: 'normal',
     sidePanel: true,
+    ribbon: true,
   };
 }
 
@@ -206,6 +209,7 @@ export function parseAppearance(data: unknown): Appearance {
   if (oneOf(record['pageWidth'], ['narrow', 'normal', 'wide'] as const))
     result.pageWidth = record['pageWidth'];
   if (typeof record['sidePanel'] === 'boolean') result.sidePanel = record['sidePanel'];
+  if (typeof record['ribbon'] === 'boolean') result.ribbon = record['ribbon'];
   return result;
 }
 

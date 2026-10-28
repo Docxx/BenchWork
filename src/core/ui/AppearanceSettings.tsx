@@ -226,6 +226,19 @@ export function AppearanceSettings() {
       />
 
       <fieldset className="field">
+        <legend>Toolbar</legend>
+        <label className="choice">
+          <input
+            type="checkbox"
+            checked={appearance.ribbon}
+            onChange={(e) => void setAppearance({ ribbon: e.target.checked })}
+          />
+          Show formatting and things to insert above pages
+        </label>
+        <p className="hint">The / menu and keyboard shortcuts work either way.</p>
+      </fieldset>
+
+      <fieldset className="field">
         <legend>Side panel</legend>
         <label className="choice">
           <input
