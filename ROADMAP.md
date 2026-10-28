@@ -49,7 +49,7 @@ Current phase: **Phase 4**
 Back on 28 Oct 2026, after 0.6.0. Pen writing goes on free layout pages and in ink blocks, so there is no separate canvas page type.
 
 - [x] Ink files (`.ink.json`), stroke drawing and palm rejection
-- [ ] Drawing surface and pen toolbar (pen, highlighter, eraser)
+- [x] Drawing surface and pen toolbar (pen, highlighter, eraser)
 - [ ] Core pen writing: ink blocks in document pages, ink boxes on free layout pages
 - [ ] Tablet layout: touch targets, sliding sidebar, quick capture
 - [ ] Android tablet build (Galaxy Tab S10), with All files access and a vault folder browser

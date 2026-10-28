@@ -9,6 +9,7 @@ import { HistoryPanel } from './HistoryPanel';
 import { ModuleView } from './ModuleView';
 import { PageEditor } from './PageEditor';
 import { PropertiesPanel } from './PropertiesPanel';
+import { PenTools } from './PenTools';
 import { Ribbon } from './Ribbon';
 import { updatedText } from './updated';
 
@@ -137,8 +138,15 @@ function PageTopBar({
 function PageRibbon({ free }: { free: boolean }) {
   const handle = useApp((s) => s.pageEditor);
   const shown = useApp((s) => s.settings.appearance.ribbon);
-  if (!shown || handle === null) return null;
-  return <Ribbon handle={handle} free={free} />;
+  const penSeen = useApp((s) => s.penSeen);
+  if (handle === null) return null;
+  if (shown) return <Ribbon handle={handle} free={free} />;
+  // With the toolbar hidden, the pen tools still show once a pen is used.
+  return penSeen ? (
+    <div className="ribbon-tools pen-bar" role="toolbar" aria-label="Draw">
+      <PenTools />
+    </div>
+  ) : null;
 }
 
 /** Document or free layout, for this page. */

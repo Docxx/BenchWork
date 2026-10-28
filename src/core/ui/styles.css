@@ -3086,3 +3086,37 @@ button.backlink:focus-visible {
     transform: scale(1.02);
   }
 }
+
+/* ---- Ink ---- */
+
+/* Where ink is written: two canvases stacked, the stroke being written on top. */
+.ink-area {
+  position: relative;
+  max-width: 100%;
+}
+
+.ink-area.editable {
+  /* The pen writes; fingers are scrolled by the ink area itself. */
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.ink-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Pen widths, shown as lines of that thickness. */
+button.tool.pen-width span {
+  display: block;
+  width: 1rem;
+  border-radius: 2px;
+  background: currentcolor;
+}
+
+.pen-bar {
+  border-bottom: 1px solid var(--border);
+}

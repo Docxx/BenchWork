@@ -35,6 +35,7 @@ import { addBox, boxAtCursor, deleteBox, freeSpot, setBoxColour } from '../edito
 import { BOX_COLOURS, type BoxColour } from '../editor/markdown/model';
 import type { PageEditorHandle } from '../state/pageSlice';
 import { useApp } from './AppStoreContext';
+import { PenTools } from './PenTools';
 
 /**
  * The toolbar above a page: Home for text and lists, Insert for things to
@@ -51,6 +52,9 @@ const COLOUR_NAMES: Record<BoxColour, string> = {
   blue: 'Blue',
   purple: 'Purple',
 };
+
+type RibbonTab = 'home' | 'insert' | 'draw';
+const TAB_NAMES: Record<RibbonTab, string> = { home: 'Home', insert: 'Insert', draw: 'Draw' };
 
 type StyleId = 'p' | '1' | '2' | '3' | 'quote' | 'code';
 
@@ -220,7 +224,11 @@ function timeNow(): string {
 
 export function Ribbon({ handle, free }: { handle: PageEditorHandle; free: boolean }) {
   const { editor } = handle;
-  const [tab, setTab] = useState<'home' | 'insert'>('home');
+  const [chosenTab, setTab] = useState<RibbonTab | null>(null);
+  // The Draw tab shows once a pen is seen, and opens by itself then.
+  const penSeen = useApp((s) => s.penSeen);
+  const tabs: RibbonTab[] = penSeen ? ['home', 'insert', 'draw'] : ['home', 'insert'];
+  const tab = chosenTab ?? (penSeen ? 'draw' : 'home');
   const askText = useApp((s) => s.askText);
   const canCite = useApp((s) => s.citationProviders.length > 0);
 
@@ -249,7 +257,7 @@ export function Ribbon({ handle, free }: { handle: PageEditorHandle; free: boole
   return (
     <div className="ribbon">
       <div className="ribbon-tabs" role="tablist" aria-label="Toolbar">
-        {(['home', 'insert'] as const).map((t) => (
+        {tabs.map((t) => (
           <button
             key={t}
             type="button"
@@ -262,12 +270,16 @@ export function Ribbon({ handle, free }: { handle: PageEditorHandle; free: boole
               setTab(t);
             }}
           >
-            {t === 'home' ? 'Home' : 'Insert'}
+            {TAB_NAMES[t]}
           </button>
         ))}
       </div>
 
-      {tab === 'home' ? (
+      {tab === 'draw' ? (
+        <div className="ribbon-tools" role="toolbar" aria-label="Draw">
+          <PenTools />
+        </div>
+      ) : tab === 'home' ? (
         <div className="ribbon-tools" role="toolbar" aria-label="Home">
           <Group>
             <Tool icon={Undo2} label="Undo (Ctrl+Z)" onClick={() => chain().undo().run()} />

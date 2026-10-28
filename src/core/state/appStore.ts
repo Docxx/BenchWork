@@ -6,6 +6,7 @@ import { createStoreContext } from './context';
 import { createAttachmentsSlice, type AttachmentsSlice } from './attachmentsSlice';
 import { createDailySlice, type DailySlice } from './dailySlice';
 import { createFilesSlice, type FilesSlice } from './filesSlice';
+import { createInkSlice, type InkSlice } from './inkSlice';
 import { createLinksSlice, type LinksSlice } from './linksSlice';
 import { createModuleBridge } from './moduleBridge';
 import { createModulesSlice, type ModulesSlice } from './modulesSlice';
@@ -36,7 +37,8 @@ export type AppState = VaultSlice &
   LinksSlice &
   DailySlice &
   SettingsSlice &
-  ModulesSlice;
+  ModulesSlice &
+  InkSlice;
 
 export type AppStore = StoreApi<AppState>;
 
@@ -68,6 +70,7 @@ export function createAppStore(
       ...createDailySlice(ctx),
       ...createSettingsSlice(ctx),
       ...createModulesSlice(ctx),
+      ...createInkSlice(ctx),
     };
   });
 
