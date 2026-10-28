@@ -1,0 +1,9 @@
+{
+  "id": "handwriting",
+  "name": "Handwriting",
+  "version": "0.1.0",
+  "description": "Select strokes with a lasso to move, recolour or delete them, and hold the pen at the end of a stroke to make it a straight line, rectangle or ellipse",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

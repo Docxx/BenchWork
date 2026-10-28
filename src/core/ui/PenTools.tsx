@@ -16,6 +16,7 @@ export function PenTools() {
   const pen = useApp((s) => s.pen);
   const setPen = useApp((s) => s.setPen);
   const penMode = useApp((s) => s.settings.penMode);
+  const moduleTools = useApp((s) => s.inkTools);
   const setPenMode = useApp((s) => s.setPenMode);
   const colours = pen.tool === 'highlighter' ? HIGHLIGHTER_COLOURS : PEN_COLOURS;
 
@@ -70,8 +71,26 @@ export function PenTools() {
               <Icon {...ICON} />
             </button>
           ))}
+          {moduleTools.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className="tool"
+              title={t.title}
+              aria-label={t.title}
+              aria-pressed={pen.tool === t.id}
+              onMouseDown={(e) => {
+                e.preventDefault();
+              }}
+              onClick={() => {
+                setPen({ tool: t.id });
+              }}
+            >
+              {t.icon}
+            </button>
+          ))}
         </div>
-        {pen.tool !== 'eraser' && (
+        {(pen.tool === 'pen' || pen.tool === 'highlighter') && (
           <>
             <div className="tool-group">
               <span className="tool-label">Colour</span>

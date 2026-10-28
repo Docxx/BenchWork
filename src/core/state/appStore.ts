@@ -92,12 +92,16 @@ export function createAppStore(
       settingsPanels,
       pageViews,
       sideTabs,
+      strokeFilters,
+      inkTools,
       citationProviders,
       citationVersion,
     }) => {
       store.setState({
         pageViews,
         sideTabs,
+        strokeFilters,
+        inkTools,
         panels,
         pageTypes,
         commands,

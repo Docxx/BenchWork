@@ -62,6 +62,8 @@ export function PageEditor({ page }: { page: OpenPage }) {
                   store.getState().notePen();
                 },
                 dark: pageIsDark,
+                filters: () => store.getState().strokeFilters,
+                tool: (id) => store.getState().inkTools.find((t) => t.id === id) ?? null,
               },
               shown: () => {
                 store.getState().noteInkShown();
