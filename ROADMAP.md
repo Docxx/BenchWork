@@ -44,15 +44,18 @@ Current phase: **Phase 4**
 - [x] References module (Zotero)
 - [x] Exit check: daily pages with citations from the Zotero library
 
-## Phase 4: Android tablet and ink (deferred)
+## Phase 4: Android tablet and ink
 
-Deferred on 23 Oct 2026 until Android Studio and the tablet are set up. Phase 5 goes first; this phase comes back after it.
+Back on 28 Oct 2026, after 0.6.0. Pen writing goes on free layout pages and in ink blocks, so there is no separate canvas page type.
 
-- [ ] Android tablet build (Galaxy Tab S10) and touch layout
-- [ ] Core pen writing: ink blocks in document pages (S Pen pressure, palm rejection)
-- [ ] Canvas page type
-- [ ] Handwriting module (advanced ink: lasso, shapes)
+- [x] Ink files (`.ink.json`), stroke drawing and palm rejection
+- [ ] Drawing surface and pen toolbar (pen, highlighter, eraser)
+- [ ] Core pen writing: ink blocks in document pages, ink boxes on free layout pages
+- [ ] Tablet layout: touch targets, sliding sidebar, quick capture
+- [ ] Android tablet build (Galaxy Tab S10), with All files access and a vault folder browser
 - [ ] Folder sync via Syncthing (PC and tablet) with conflict handling
+- [ ] Handwriting module (advanced ink: lasso, shapes)
+- [ ] Exit check: a note started on desktop is finished with a pen on the tablet
 
 ## Phase 5: Writing and planning
 
