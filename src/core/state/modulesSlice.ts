@@ -74,6 +74,14 @@ export interface ModulesSlice {
    * waits for confirmModuleChange.
    */
   setModuleEnabled: (id: string, enable: boolean) => Promise<void>;
+  /**
+   * Switches on every module in a pack, with what they need, leaving out
+   * any this device cannot run. Resolves to the names of those left out.
+   */
+  enablePack: (ids: readonly string[]) => Promise<string[]>;
+  /** Whether to ask which pack suits a vault just set up. */
+  choosingPack: boolean;
+  setChoosingPack: (choosing: boolean) => void;
   confirmModuleChange: () => Promise<void>;
   cancelModuleChange: () => void;
 }
@@ -105,7 +113,12 @@ export function createModulesSlice(ctx: StoreContext): ModulesSlice {
     closed: () => {
       answer?.(null);
       answer = null;
-      set({ pendingModuleChange: null, moduleNotice: null, textPrompt: null });
+      set({
+        pendingModuleChange: null,
+        moduleNotice: null,
+        textPrompt: null,
+        choosingPack: false,
+      });
     },
   });
 
@@ -157,6 +170,30 @@ export function createModulesSlice(ctx: StoreContext): ModulesSlice {
     pendingModuleChange: null,
     moduleNotice: null,
     moduleBusy: false,
+
+    choosingPack: false,
+    setChoosingPack: (choosingPack) => {
+      set({ choosingPack });
+    },
+
+    enablePack: async (ids) => {
+      if (get().status.kind !== 'open' || get().moduleBusy) return [];
+      const order: string[] = [];
+      const left: string[] = [];
+      for (const id of ids) {
+        const plan = registry.planEnable(id);
+        if (!plan.ok) {
+          left.push(
+            registry.store.getState().modules.find((m) => m.manifest.id === id)?.manifest.name ??
+              id,
+          );
+          continue;
+        }
+        for (const next of plan.ids) if (!order.includes(next)) order.push(next);
+      }
+      if (order.length > 0) await applyModuleChange(true, order);
+      return left;
+    },
 
     setModuleEnabled: async (id, enable) => {
       if (get().status.kind !== 'open' || get().moduleBusy) return;

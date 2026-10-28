@@ -6,6 +6,7 @@ import { useApp, useAppStore } from './AppStoreContext';
 import { AttachDialog } from './AttachDialog';
 import { ConflictsView } from './ConflictsView';
 import { CommandList, TextPromptDialog } from './ModuleDialogs';
+import { PackChooser } from './PackChooser';
 import { PageView } from './PageView';
 import { QuickCapture } from './QuickCapture';
 import { ResizeEdge } from './ResizeEdge';
@@ -28,6 +29,7 @@ export function Shell({ vault }: { vault: OpenVault }) {
   const focusSearch = useApp((s) => s.focusSearch);
   const openToday = useApp((s) => s.openToday);
   const store = useAppStore();
+  const choosingPack = useApp((s) => s.choosingPack);
   const [showCommands, setShowCommands] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const closeCommands = useCallback(() => {
@@ -166,6 +168,7 @@ export function Shell({ vault }: { vault: OpenVault }) {
       )}
       {showCommands && <CommandList onClose={closeCommands} />}
       <QuickCapture />
+      {choosingPack && <PackChooser />}
       <TextPromptDialog />
       <AttachDialog />
     </div>

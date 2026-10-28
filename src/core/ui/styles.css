@@ -3576,3 +3576,52 @@ button.tool[aria-checked='true'] {
   z-index: 3;
   background: var(--bg);
 }
+
+/* ---- What do you do? (module packs) ---- */
+
+.pack-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  background: rgb(0 0 0 / 0.3);
+}
+
+.floating-dialog.pack-chooser {
+  top: 12vh;
+  width: min(30rem, calc(100vw - 2rem));
+}
+
+.pack-list {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+button.pack-card,
+button.pack-card:first-child {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  text-align: left;
+}
+
+button.pack-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+button.pack-card span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.pack-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}

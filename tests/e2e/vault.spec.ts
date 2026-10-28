@@ -113,6 +113,10 @@ test('a folder inside a vault asks, and can become a separate vault', async ({ p
 test('switch vault returns to the picker', async ({ page }) => {
   await seedPick(page, 'C:/Vault', {});
   await page.getByRole('button', { name: 'New vault' }).click();
+  await page
+    .getByRole('dialog', { name: 'What do you do?' })
+    .getByRole('button', { name: /^Just notes/ })
+    .click();
   await page.getByRole('button', { name: 'Switch vault' }).click();
   await expect(page.getByRole('button', { name: 'Open vault' })).toBeVisible();
 });

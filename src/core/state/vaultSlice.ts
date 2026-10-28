@@ -119,6 +119,8 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
     ctx.bumpSession();
     set({ status: { kind: 'open', vault: { root, config } }, notice: null });
     for (const hooks of ctx.lifecycle) await hooks.opened?.(config);
+    // A vault just set up asks what it is for, to switch on the modules that suit.
+    if (empty) set({ choosingPack: true });
 
     const settings = { ...get().settings, lastVault: root };
     set({ settings });
