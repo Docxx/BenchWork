@@ -28,6 +28,8 @@ const DUE = /\s*📅\s*(\d{4}-\d{2}-\d{2})/u;
 const DOING = /(^|\s)#doing(?=\s|$)/;
 const TAG = /(?:^|\s)#([\p{L}\p{N}_/-]*[\p{L}_/-][\p{L}\p{N}_/-]*)/gu;
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+/** `[[Target]]` or `[[Target|shown]]`, shown by its name. */
+const LINK = /\[\[([^[\]|]+)(?:\|([^[\]]+))?\]\]/g;
 
 /** Every task in a page's text, in order. Code blocks are left alone. */
 export function readTasks(path: string, text: string): Task[] {
@@ -58,7 +60,12 @@ export function readTasks(path: string, text: string): Task[] {
       path,
       line,
       raw,
-      text: body.replace(DUE, '').replace(DOING, '$1').replace(/\s+/g, ' ').trim(),
+      text: body
+        .replace(DUE, '')
+        .replace(DOING, '$1')
+        .replace(LINK, (_w, target: string, label?: string) => (label ?? target).trim())
+        .replace(/\s+/g, ' ')
+        .trim(),
       state: done ? 'done' : doing ? 'doing' : 'todo',
       due,
       tags,

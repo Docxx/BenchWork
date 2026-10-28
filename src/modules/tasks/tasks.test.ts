@@ -13,6 +13,7 @@ const PAGE = [
   '- [ ] in code',
   '```',
   '* [X] Starred done',
+  '- [ ] Flip [[w1118]] and [[elav-GAL4|elav]]',
 ].join('\n');
 
 describe('tasks', () => {
@@ -24,6 +25,7 @@ describe('tasks', () => {
       [4, 'Write up gel', 'doing', null, []],
       [5, 'Numbered task', 'todo', null, []],
       [10, 'Starred done', 'done', null, []],
+      [11, 'Flip w1118 and elav', 'todo', null, []],
     ]);
   });
 
