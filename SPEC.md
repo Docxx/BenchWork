@@ -26,7 +26,7 @@ Single user first, with live co-editing designed in from the start and built lat
 | Area         | Decision                                            | Consequence for the build                                                                                                                                              |
 | ------------ | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Audience     | Single user (Ray) first                             | No accounts at launch; public-release polish later                                                                                                                     |
-| Sharing      | Live co-editing, later                              | Editor built on TipTap's Yjs (CRDT) binding from phase 1, so co-editing reuses the same document model; sync server and accounts from phase 6                          |
+| Sharing      | Live co-editing, later                              | Editor built on TipTap's Yjs (CRDT) binding from phase 1, so co-editing reuses the same document model; sync server and accounts from phase 7                          |
 | Data files   | Ask each time                                       | Small files copied into the vault, large ones linked with path and checksum; size threshold in Settings (default 50 MB)                                                |
 | Data types   | CSV and Excel, images, PDFs                         | Previews for all three in core                                                                                                                                         |
 | Spreadsheets | Light editing                                       | Edit cells, add columns, simple formulas; save back to CSV or XLSX                                                                                                     |
@@ -276,7 +276,7 @@ The two biggest risks are sync conflicts and ink responsiveness on tablets; both
 
 **Open decisions**
 
-- [x] Folder sync for phase 4: Syncthing (decided 28 Oct 2026); native sync stays in phase 6
+- [x] Folder sync for phase 4: Syncthing (decided 28 Oct 2026); native sync moved to phase 7 (decided 28 Oct 2026)
 - [x] Tablet vault access: All files access, so the vault is an ordinary folder that Syncthing also writes to (decided 28 Oct 2026); revisit for a store release
 - [x] No separate canvas page type: pen writing goes on free layout pages and in ink blocks (decided 28 Oct 2026)
 - [ ] Licence: undecided; private repo for now
