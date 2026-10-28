@@ -4,6 +4,7 @@ import { PANEL_WIDTH, SIDEBAR_WIDTH } from '../settings/appearance';
 import type { OpenVault } from '../vault/vaultService';
 import { useApp, useAppStore } from './AppStoreContext';
 import { AttachDialog } from './AttachDialog';
+import { ConflictsView } from './ConflictsView';
 import { CommandList, TextPromptDialog } from './ModuleDialogs';
 import { PageView } from './PageView';
 import { QuickCapture } from './QuickCapture';
@@ -139,7 +140,13 @@ export function Shell({ vault }: { vault: OpenVault }) {
         </button>
       )}
       <main className="shell-main">
-        {view === 'settings' ? <SettingsPage vault={vault} /> : <PageView />}
+        {view === 'settings' ? (
+          <SettingsPage vault={vault} />
+        ) : view === 'conflicts' ? (
+          <ConflictsView />
+        ) : (
+          <PageView />
+        )}
       </main>
       {showPanel && view === 'files' && page !== null && moduleView === null && (
         <>

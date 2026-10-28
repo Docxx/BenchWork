@@ -8,6 +8,7 @@ import { createDailySlice, type DailySlice } from './dailySlice';
 import { createFilesSlice, type FilesSlice } from './filesSlice';
 import { createInkSlice, type InkSlice } from './inkSlice';
 import { createScreenSlice, type ScreenSlice } from './screenSlice';
+import { createSyncSlice, type SyncSlice } from './syncSlice';
 import { createLinksSlice, type LinksSlice } from './linksSlice';
 import { createModuleBridge } from './moduleBridge';
 import { createModulesSlice, type ModulesSlice } from './modulesSlice';
@@ -40,7 +41,8 @@ export type AppState = VaultSlice &
   SettingsSlice &
   ModulesSlice &
   InkSlice &
-  ScreenSlice;
+  ScreenSlice &
+  SyncSlice;
 
 export type AppStore = StoreApi<AppState>;
 
@@ -74,6 +76,7 @@ export function createAppStore(
       ...createModulesSlice(ctx),
       ...createInkSlice(ctx),
       ...createScreenSlice(ctx),
+      ...createSyncSlice(ctx),
     };
   });
 

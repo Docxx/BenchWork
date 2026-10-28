@@ -53,7 +53,7 @@ Back on 28 Oct 2026, after 0.6.0. Pen writing goes on free layout pages and in i
 - [x] Core pen writing: ink blocks in document pages, ink boxes on free layout pages
 - [x] Tablet layout: touch targets, sliding sidebar, quick capture
 - [x] Android tablet build (Galaxy Tab S10), with All files access and a vault folder browser
-- [ ] Folder sync via Syncthing (PC and tablet) with conflict handling
+- [x] Folder sync via Syncthing (PC and tablet) with conflict handling
 - [ ] Handwriting module (advanced ink: lasso, shapes)
 - [ ] Exit check: a note started on desktop is finished with a pen on the tablet
 

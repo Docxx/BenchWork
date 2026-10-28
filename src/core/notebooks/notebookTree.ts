@@ -1,3 +1,5 @@
+import { baseName } from '../platform/vaultPath';
+import { isConflictCopy } from '../sync/conflicts';
 import type { DirEntry } from '../platform';
 import { isRecord, recordName } from '../records/records';
 import { compareEntries, type TreeState } from '../vault/fileTree';
@@ -37,8 +39,13 @@ export const DAILY_NOTEBOOK = 'Daily';
 export const RESERVED_FOLDERS = ['templates', 'attachments'];
 export const PAGE_EXTENSION = '.md';
 
+/** Pages are `.md` files; a sync app's conflict copy of one is not, until it is settled. */
 export function isPage(name: string): boolean {
-  return name.toLowerCase().endsWith(PAGE_EXTENSION) && name.length > PAGE_EXTENSION.length;
+  return (
+    name.toLowerCase().endsWith(PAGE_EXTENSION) &&
+    name.length > PAGE_EXTENSION.length &&
+    !isConflictCopy(baseName(name))
+  );
 }
 
 /** Canvas pages: cards and arrows on a free surface, drawn by a module. */

@@ -3345,3 +3345,77 @@ button.quick-capture {
   display: flex;
   gap: 0.5rem;
 }
+
+/* ---- Differences between devices ---- */
+
+.nav-count {
+  margin-left: auto;
+  min-width: 1.3rem;
+  padding: 0 0.35rem;
+  border-radius: 1rem;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.conflicts-view {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: calc(2rem * var(--space)) 2rem 4rem;
+}
+
+.conflict {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.conflict header h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+}
+
+.diff {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.diff-side h2 {
+  margin: 0 0 0.4rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.diff-side pre {
+  max-height: 24rem;
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--surface);
+  font:
+    0.85rem/1.5 ui-monospace,
+    Consolas,
+    monospace;
+  white-space: pre-wrap;
+}
+
+.diff-line.changed {
+  display: inline-block;
+  width: 100%;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+
+@media (max-width: 700px) {
+  .diff {
+    grid-template-columns: 1fr;
+  }
+}
