@@ -68,6 +68,20 @@ export function App() {
 
   useEffect(blockStrayFileDrops, []);
 
+  // The pen tools show once a pen is seen anywhere, hovering or touching.
+  const notePen = useApp((s) => s.notePen);
+  useEffect(() => {
+    const onPointer = (e: PointerEvent) => {
+      if (e.pointerType === 'pen') notePen();
+    };
+    window.addEventListener('pointerdown', onPointer, true);
+    window.addEventListener('pointermove', onPointer, true);
+    return () => {
+      window.removeEventListener('pointerdown', onPointer, true);
+      window.removeEventListener('pointermove', onPointer, true);
+    };
+  }, [notePen]);
+
   return (
     <>
       <Screen />

@@ -199,3 +199,18 @@ export function inkBounds(strokes: readonly InkStroke[]): Rect | null {
   if (minX === Infinity) return null;
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
+
+/** Whether a path is an ink file. */
+export function isInk(path: string): boolean {
+  return (path.split('#')[0] ?? '').toLowerCase().endsWith(INK_EXTENSION);
+}
+
+/**
+ * A name for a new drawing, unique without looking at the folder: the time
+ * and a random tail, so it can be chosen the moment the pen touches the page.
+ */
+export function newInkName(now: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const stamp = `${String(now.getFullYear())}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  return `Ink ${stamp} ${Math.random().toString(36).slice(2, 6).padEnd(4, '0')}${INK_EXTENSION}`;
+}

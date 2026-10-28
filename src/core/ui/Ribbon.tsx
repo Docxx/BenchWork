@@ -17,6 +17,7 @@ import {
   ListOrdered,
   Minus,
   Paperclip,
+  PenLine,
   Quote,
   Redo2,
   RemoveFormatting,
@@ -32,6 +33,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { addBox, boxAtCursor, deleteBox, freeSpot, setBoxColour } from '../editor/freeLayout';
+import { drawAtCursor } from '../editor/inkInput';
 import { BOX_COLOURS, type BoxColour } from '../editor/markdown/model';
 import type { PageEditorHandle } from '../state/pageSlice';
 import { useApp } from './AppStoreContext';
@@ -227,7 +229,9 @@ export function Ribbon({ handle, free }: { handle: PageEditorHandle; free: boole
   const [chosenTab, setTab] = useState<RibbonTab | null>(null);
   // The Draw tab shows once a pen is seen, and opens by itself then.
   const penSeen = useApp((s) => s.penSeen);
-  const tabs: RibbonTab[] = penSeen ? ['home', 'insert', 'draw'] : ['home', 'insert'];
+  const inkShown = useApp((s) => s.inkShown);
+  const newInkTarget = useApp((s) => s.newInkTarget);
+  const tabs: RibbonTab[] = penSeen || inkShown ? ['home', 'insert', 'draw'] : ['home', 'insert'];
   const tab = chosenTab ?? (penSeen ? 'draw' : 'home');
   const askText = useApp((s) => s.askText);
   const canCite = useApp((s) => s.citationProviders.length > 0);
@@ -418,6 +422,13 @@ export function Ribbon({ handle, free }: { handle: PageEditorHandle; free: boole
             </Group>
           )}
           <Group>
+            <Tool
+              icon={PenLine}
+              label="Drawing"
+              onClick={() => {
+                drawAtCursor(editor, newInkTarget());
+              }}
+            />
             <Tool
               icon={Table}
               label="Table"

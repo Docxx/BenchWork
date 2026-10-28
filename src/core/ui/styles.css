@@ -3120,3 +3120,73 @@ button.tool.pen-width span {
 .pen-bar {
   border-bottom: 1px solid var(--border);
 }
+
+/* A drawing in a page: its own area, with a faint edge while the page is edited. */
+.ink-embed {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 0.25rem 0;
+  border: 1px dashed transparent;
+  border-radius: 6px;
+}
+
+.page-editor[contenteditable='true'] .ink-embed:hover,
+.page-editor[contenteditable='true'] .ink-embed:focus-within {
+  border-color: var(--border);
+}
+
+.ink-embed > .ink-area {
+  display: block;
+  width: 100%;
+}
+
+.ink-embed.missing {
+  min-height: 3rem;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 8px,
+    color-mix(in srgb, var(--text) 6%, transparent) 8px 16px
+  );
+}
+
+.ink-resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -5px;
+  height: 10px;
+  cursor: ns-resize;
+}
+
+button.ink-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--muted);
+  font: 14px/1 var(--font-ui);
+  opacity: 0;
+}
+
+.ink-embed:hover button.ink-delete {
+  opacity: 1;
+}
+
+button.ink-delete:hover {
+  border-color: var(--section-red);
+  background: var(--section-red);
+  color: #fff;
+}
+
+.page-editor[contenteditable='false'] .ink-resize,
+.page-editor[contenteditable='false'] button.ink-delete {
+  display: none;
+}

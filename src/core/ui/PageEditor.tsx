@@ -5,6 +5,7 @@ import { citationsKey, type CiteMenuState } from '../editor/citationNode';
 import { baseExtensions } from '../editor/extensions';
 import { FileInput, insertFiles } from '../editor/fileInput';
 import { FreeLayout, hasBoxes, setLayout, wrapInBox, type Layout } from '../editor/freeLayout';
+import { InkInput } from '../editor/inkInput';
 import { blocksFromMarkdown } from '../editor/markdown/markdown';
 import { PageLinks, pageLinksKey, type LinkMenuState } from '../editor/pageLinks';
 import {
@@ -15,7 +16,8 @@ import {
 } from '../editor/slashCommands';
 import { FRAGMENT } from '../editor/yjsDoc';
 import type { OpenPage } from '../state/pageSlice';
-import { useApp } from './AppStoreContext';
+import { useApp, useAppStore } from './AppStoreContext';
+import { pageIsDark } from './theme';
 import { TemplatePicker } from './TemplatePicker';
 
 /** The editor for one open page, bound to the page's Yjs document. */
@@ -35,6 +37,7 @@ export function PageEditor({ page }: { page: OpenPage }) {
   const setAddingProperty = useApp((s) => s.setAddingProperty);
   const embedTable = useApp((s) => s.embedTable);
   const pickAndAddFiles = useApp((s) => s.pickAndAddFiles);
+  const store = useAppStore();
   const [slash, setSlash] = useState<SlashMenuState | null>(null);
   const [linkMenu, setLinkMenu] = useState<LinkMenuState | null>(null);
   const [citeMenu, setCiteMenu] = useState<CiteMenuState | null>(null);
@@ -49,6 +52,20 @@ export function PageEditor({ page }: { page: OpenPage }) {
             embed: (target) => assetUrl(target, true),
             image: (src) => assetUrl(src, false),
             table: embedTable,
+            ink: {
+              load: (target) => store.getState().loadInk(target),
+              save: (target, ink) => store.getState().saveInk(target, ink),
+              hooks: {
+                settings: () => store.getState().pen,
+                onPen: () => {
+                  store.getState().notePen();
+                },
+                dark: pageIsDark,
+              },
+              shown: () => {
+                store.getState().noteInkShown();
+              },
+            },
           },
           { citations: citationProvider, onMenu: setCiteMenu },
         ),
@@ -67,6 +84,10 @@ export function PageEditor({ page }: { page: OpenPage }) {
         }),
         FileInput.configure({ onFiles: addFiles }),
         FreeLayout.configure({ onFiles: addFiles }),
+        InkInput.configure({
+          newTarget: () => store.getState().newInkTarget(),
+          writing: () => store.getState().pen.tool !== 'eraser',
+        }),
         PageLinks.configure({
           suggest: suggestLinks,
           resolves: linkResolves,
