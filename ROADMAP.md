@@ -80,7 +80,7 @@ Planned 28 Oct 2026. Syncthing keeps devices in step, so BenchWork's own sync mo
 
 - [x] 6a. References Library panel folded until opened
 - [x] 6a. Vault backups: dated copies of the whole vault on a schedule, and restore
-- [ ] 6b. Tasks and Kanban module: checklists from every page, due dates, a board
+- [x] 6b. Tasks and Kanban module: checklists from every page, due dates, a board
 - [ ] 6c. Inventory module: stocks, reagents, antibodies, fly stocks and crosses, flip reminders
 - [ ] 6d. PDF reading with the pen: highlights and ink in a sidecar file, the PDF untouched
 - [ ] 6e. Handwriting to text on the tablet (ML Kit), found by search on every device
