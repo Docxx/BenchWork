@@ -1,10 +1,13 @@
+import type { CSSProperties } from 'react';
 import {
   ACCENT_CHOICES,
+  PAPER_CHOICES,
   PRESETS,
   TEXT_SIZE_RANGE,
   type Density,
   type FontChoice,
   type PageWidth,
+  type PaperPattern,
   type ThemePreset,
 } from '../settings/appearance';
 import type { Theme } from '../settings/appSettings';
@@ -28,9 +31,17 @@ const WIDTHS: { value: PageWidth; label: string }[] = [
   { value: 'wide', label: 'Wide' },
 ];
 
-const FONTS: { value: FontChoice; label: string }[] = [
-  { value: 'serif', label: 'Serif' },
-  { value: 'sans', label: 'Sans serif' },
+// Each font's name is written in that font, as a sample.
+const FONTS: { value: FontChoice; label: string; style: CSSProperties }[] = [
+  { value: 'serif', label: 'Serif', style: { fontFamily: "'Source Serif 4 Variable', serif" } },
+  { value: 'sans', label: 'Sans serif', style: { fontFamily: "'Inter Variable', sans-serif" } },
+];
+
+const PATTERNS: { value: PaperPattern; label: string }[] = [
+  { value: 'plain', label: 'Plain' },
+  { value: 'dots', label: 'Dots' },
+  { value: 'lines', label: 'Lines' },
+  { value: 'grid', label: 'Grid' },
 ];
 
 /** A row of radio buttons for one choice. */
@@ -44,7 +55,7 @@ function Choices<T extends string>({
   legend: string;
   name: string;
   value: T;
-  options: { value: T; label: string }[];
+  options: { value: T; label: string; style?: CSSProperties }[];
   onChange: (value: T) => void;
 }) {
   return (
@@ -52,7 +63,7 @@ function Choices<T extends string>({
       <legend>{legend}</legend>
       <div className="choice-row">
         {options.map((o) => (
-          <label key={o.value} className="choice">
+          <label key={o.value} className="choice" style={o.style}>
             <input
               type="radio"
               name={name}
@@ -226,6 +237,72 @@ export function AppearanceSettings() {
       />
 
       <fieldset className="field">
+        <legend>Page colour</legend>
+        <div className="swatch-row">
+          <button
+            type="button"
+            className="swatch paper"
+            aria-pressed={appearance.paper === null}
+            title={`${preset.name} page`}
+            style={{ background: preset.light.bg }}
+            onClick={() => void setAppearance({ paper: null })}
+          >
+            <span className="visually-hidden">{preset.name} page</span>
+          </button>
+          {PAPER_CHOICES.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              className="swatch paper"
+              aria-pressed={appearance.paper === c.value}
+              title={c.name}
+              style={{ background: c.value }}
+              onClick={() => void setAppearance({ paper: c.value })}
+            >
+              <span className="visually-hidden">{c.name}</span>
+            </button>
+          ))}
+          <label className="swatch-custom">
+            <input
+              type="color"
+              aria-label="Any page colour"
+              value={appearance.paper ?? preset.light.bg}
+              onChange={(e) => void setAppearance({ paper: e.target.value })}
+            />
+            Any colour
+          </label>
+        </div>
+        <p className="hint">On dark pages, the colour shows as a tint.</p>
+      </fieldset>
+
+      <fieldset className="field">
+        <legend>Page pattern</legend>
+        <div className="choice-row">
+          {PATTERNS.map((o) => (
+            <label key={o.value} className="pattern-card">
+              <input
+                type="radio"
+                name="pattern"
+                value={o.value}
+                checked={appearance.pattern === o.value}
+                onChange={() => void setAppearance({ pattern: o.value })}
+              />
+              <span className={`pattern-sample ${o.value}`} aria-hidden="true" />
+              {o.label}
+            </label>
+          ))}
+        </div>
+        <label className="choice">
+          <input
+            type="checkbox"
+            checked={appearance.patternOnDocuments}
+            onChange={(e) => void setAppearance({ patternOnDocuments: e.target.checked })}
+          />
+          On document pages too, not only free layout pages
+        </label>
+      </fieldset>
+
+      <fieldset className="field">
         <legend>Toolbar</legend>
         <label className="choice">
           <input
@@ -249,6 +326,23 @@ export function AppearanceSettings() {
           Show the outline and links beside pages
         </label>
       </fieldset>
+
+      <fieldset className="field">
+        <legend>Opening</legend>
+        <label className="choice">
+          <input
+            type="checkbox"
+            checked={appearance.startupAnimation}
+            onChange={(e) => void setAppearance({ startupAnimation: e.target.checked })}
+          />
+          Show a short animation as BenchWork opens
+        </label>
+      </fieldset>
+
+      <p className="hint">
+        Drag the edge of the sidebar or the side panel to change its width. Double-click the edge to
+        reset it.
+      </p>
 
       <div className="actions">
         <button type="button" className="quiet" onClick={() => void resetAppearance()}>

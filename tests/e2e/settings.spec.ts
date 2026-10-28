@@ -66,3 +66,29 @@ test('the Modules tab is reachable', async ({ page }) => {
   await page.getByRole('tab', { name: 'Modules' }).click();
   await expect(page.getByRole('tabpanel')).toContainText('Switching a module off never deletes');
 });
+
+test('more themes, the page colour and pattern, and widths can be chosen', async ({ page }) => {
+  await page.getByRole('tab', { name: 'Appearance' }).click();
+  const token = (name: string) =>
+    page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n), name);
+  await page
+    .getByRole('group', { name: 'Light or dark' })
+    .getByRole('radio', { name: 'Light' })
+    .check();
+  await page.getByRole('group', { name: 'Theme' }).getByText('Ocean').click();
+  await expect.poll(() => token('--bg')).toBe('#f5f8fa');
+  await page.getByRole('button', { name: 'Cream' }).click();
+  await expect.poll(() => token('--paper')).toBe('#fbf4de');
+  await page.getByRole('group', { name: 'Page pattern' }).getByText('Grid').click();
+  await expect.poll(() => token('--paper-pattern')).toContain('90deg');
+
+  const edge = page.getByRole('separator', { name: 'Sidebar width' });
+  await edge.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(() => token('--sidebar-width')).toBe('276px');
+  const nav = page.getByRole('navigation', { name: 'Vault' });
+  // 276 wide, and its 1px border.
+  expect(Math.round((await nav.boundingBox())?.width ?? 0)).toBe(277);
+  await page.keyboard.press('Home');
+  await expect.poll(() => token('--sidebar-width')).toBe('260px');
+});

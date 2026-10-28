@@ -6,7 +6,8 @@
  * app settings.
  */
 
-export type ThemePreset = 'forest' | 'classic';
+export type ThemePreset =
+  'forest' | 'classic' | 'ocean' | 'heather' | 'clay' | 'graphite' | 'sepia';
 export type Scheme = 'light' | 'dark';
 export type SidebarStyle = 'dark' | 'light';
 export type FontChoice = 'serif' | 'sans';
@@ -31,9 +32,35 @@ export interface Appearance {
   sidePanel: boolean;
   /** The toolbar of formatting and things to insert, above pages. */
   ribbon: boolean;
+  /** The colour behind pages, such as `#fbf4de`, or null for the theme's own. */
+  paper: string | null;
+  /** What is drawn on free layout pages. */
+  pattern: PaperPattern;
+  /** Whether document pages show the pattern too. */
+  patternOnDocuments: boolean;
+  /** Widths in pixels, set by dragging the edge of each. */
+  sidebarWidth: number;
+  panelWidth: number;
+  /** A short animation as the app opens. */
+  startupAnimation: boolean;
 }
 
+export type PaperPattern = 'plain' | 'dots' | 'lines' | 'grid';
+export const PAPER_PATTERNS: readonly PaperPattern[] = ['plain', 'dots', 'lines', 'grid'];
+
 export const TEXT_SIZE_RANGE = { min: 13, max: 20 } as const;
+export const SIDEBAR_WIDTH = { min: 200, max: 440, initial: 260 } as const;
+export const PANEL_WIDTH = { min: 240, max: 520, initial: 304 } as const;
+
+/** Page colours to pick from, besides the theme's own and any colour. */
+export const PAPER_CHOICES = [
+  { name: 'White', value: '#ffffff' },
+  { name: 'Cream', value: '#fbf4de' },
+  { name: 'Mint', value: '#e8f3ec' },
+  { name: 'Sky', value: '#e6eff9' },
+  { name: 'Blush', value: '#f9e9ee' },
+  { name: 'Stone', value: '#eceae4' },
+] as const;
 
 /** The colours of one preset in one scheme. */
 interface Palette {
@@ -139,7 +166,197 @@ const CLASSIC: PresetSpec = {
   bodyFont: 'sans',
 };
 
-export const PRESETS: Record<ThemePreset, PresetSpec> = { forest: FOREST, classic: CLASSIC };
+/** Cool blues and a deep sea sidebar. */
+const OCEAN: PresetSpec = {
+  name: 'Ocean',
+  light: {
+    bg: '#f5f8fa',
+    surface: '#eaf0f4',
+    border: '#d8e1e8',
+    text: '#16232e',
+    muted: '#5f6f7c',
+    accent: '#2f6f9f',
+    warnBg: '#fbf1e4',
+    warnText: '#7a4a12',
+  },
+  dark: {
+    bg: '#121a21',
+    surface: '#1b252e',
+    border: '#2a3742',
+    text: '#e3eaf0',
+    muted: '#93a3b1',
+    accent: '#6fa8d6',
+    warnBg: '#3a2c17',
+    warnText: '#f2cd94',
+  },
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#15293a',
+    hover: '#1d3549',
+    active: '#26425a',
+    text: '#e6eef5',
+    muted: '#8fa6ba',
+    border: '#24394d',
+  },
+  headingFont: 'serif',
+  bodyFont: 'sans',
+};
+
+/** Soft purples. */
+const HEATHER: PresetSpec = {
+  name: 'Heather',
+  light: {
+    bg: '#faf8fb',
+    surface: '#f1edf3',
+    border: '#e3dce8',
+    text: '#241d2a',
+    muted: '#6e6476',
+    accent: '#7d5ba6',
+    warnBg: '#fbf1e4',
+    warnText: '#7a4a12',
+  },
+  dark: {
+    bg: '#1a161e',
+    surface: '#241e2a',
+    border: '#352d3d',
+    text: '#ebe5f0',
+    muted: '#a397ad',
+    accent: '#b49ad8',
+    warnBg: '#3a2c17',
+    warnText: '#f2cd94',
+  },
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#2b2034',
+    hover: '#362a41',
+    active: '#43344f',
+    text: '#efe8f4',
+    muted: '#a596b2',
+    border: '#3b2f46',
+  },
+  headingFont: 'serif',
+  bodyFont: 'sans',
+};
+
+/** Warm earth and terracotta. */
+const CLAY: PresetSpec = {
+  name: 'Clay',
+  light: {
+    bg: '#fbf7f2',
+    surface: '#f3ebe2',
+    border: '#e6dacd',
+    text: '#2b211b',
+    muted: '#77685d',
+    accent: '#b8693f',
+    warnBg: '#fbf1e4',
+    warnText: '#7a4a12',
+  },
+  dark: {
+    bg: '#1c1714',
+    surface: '#271f1a',
+    border: '#3a2f28',
+    text: '#efe6de',
+    muted: '#ab9b8e',
+    accent: '#e0976c',
+    warnBg: '#3a2c17',
+    warnText: '#f2cd94',
+  },
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#3a261c',
+    hover: '#463026',
+    active: '#553b2f',
+    text: '#f5ebe3',
+    muted: '#c0a898',
+    border: '#4a3328',
+  },
+  headingFont: 'serif',
+  bodyFont: 'serif',
+};
+
+/** Neutral greys with a clear blue: high contrast. */
+const GRAPHITE: PresetSpec = {
+  name: 'Graphite',
+  light: {
+    bg: '#ffffff',
+    surface: '#f2f2f3',
+    border: '#dcdcdf',
+    text: '#111214',
+    muted: '#5d6068',
+    accent: '#2563c9',
+    warnBg: '#fff4e5',
+    warnText: '#7a4100',
+  },
+  dark: {
+    bg: '#141516',
+    surface: '#1e1f21',
+    border: '#303236',
+    text: '#ededee',
+    muted: '#9b9ea5',
+    accent: '#7aa7ef',
+    warnBg: '#3a2a12',
+    warnText: '#f5c98a',
+  },
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#1d1e21',
+    hover: '#28292d',
+    active: '#33353a',
+    text: '#ececee',
+    muted: '#9a9ca3',
+    border: '#2c2e32',
+  },
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
+/** Old paper and brown ink, easy on the eyes for long reading. */
+const SEPIA: PresetSpec = {
+  name: 'Sepia',
+  light: {
+    bg: '#f6efe1',
+    surface: '#ede3d0',
+    border: '#ddd0b8',
+    text: '#3b2f22',
+    muted: '#7a6a55',
+    accent: '#8a5a2b',
+    warnBg: '#fbe9cf',
+    warnText: '#7a4a12',
+  },
+  dark: {
+    bg: '#1f1a14',
+    surface: '#2a231b',
+    border: '#3b3226',
+    text: '#e9dcc6',
+    muted: '#a8977d',
+    accent: '#d1a066',
+    warnBg: '#3a2c17',
+    warnText: '#f2cd94',
+  },
+  sidebar: 'light',
+  darkSidebar: {
+    bg: '#2e251b',
+    hover: '#3a2f23',
+    active: '#46392b',
+    text: '#f0e4cf',
+    muted: '#ad9b80',
+    border: '#3f3427',
+  },
+  headingFont: 'serif',
+  bodyFont: 'serif',
+};
+
+export const PRESETS: Record<ThemePreset, PresetSpec> = {
+  forest: FOREST,
+  classic: CLASSIC,
+  ocean: OCEAN,
+  heather: HEATHER,
+  clay: CLAY,
+  graphite: GRAPHITE,
+  sepia: SEPIA,
+};
+
+const PRESET_IDS = Object.keys(PRESETS) as ThemePreset[];
 
 /** Accent colours to pick from, besides the preset's own and any colour. */
 export const ACCENT_CHOICES = [
@@ -175,7 +392,18 @@ export function defaultAppearance(preset: ThemePreset = 'forest'): Appearance {
     pageWidth: 'normal',
     sidePanel: true,
     ribbon: true,
+    paper: null,
+    pattern: 'dots',
+    patternOnDocuments: false,
+    sidebarWidth: SIDEBAR_WIDTH.initial,
+    panelWidth: PANEL_WIDTH.initial,
+    startupAnimation: true,
   };
+}
+
+/** A whole number of pixels within `range`. */
+export function clampWidth(value: number, range: { min: number; max: number }): number {
+  return Math.round(Math.min(range.max, Math.max(range.min, value)));
 }
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -188,9 +416,7 @@ export function parseAppearance(data: unknown): Appearance {
     typeof data === 'object' && data !== null && !Array.isArray(data)
       ? (data as Record<string, unknown>)
       : {};
-  const preset = oneOf(record['preset'], ['forest', 'classic'] as const)
-    ? record['preset']
-    : 'forest';
+  const preset = oneOf(record['preset'], PRESET_IDS) ? record['preset'] : 'forest';
   const result = defaultAppearance(preset);
   const accent = record['accent'];
   if (typeof accent === 'string' && HEX.test(accent)) result.accent = accent.toLowerCase();
@@ -210,6 +436,20 @@ export function parseAppearance(data: unknown): Appearance {
     result.pageWidth = record['pageWidth'];
   if (typeof record['sidePanel'] === 'boolean') result.sidePanel = record['sidePanel'];
   if (typeof record['ribbon'] === 'boolean') result.ribbon = record['ribbon'];
+  const paper = record['paper'];
+  if (typeof paper === 'string' && HEX.test(paper)) result.paper = paper.toLowerCase();
+  if (oneOf(record['pattern'], PAPER_PATTERNS)) result.pattern = record['pattern'];
+  if (typeof record['patternOnDocuments'] === 'boolean')
+    result.patternOnDocuments = record['patternOnDocuments'];
+  for (const [key, range] of [
+    ['sidebarWidth', SIDEBAR_WIDTH],
+    ['panelWidth', PANEL_WIDTH],
+  ] as const) {
+    const width = record[key];
+    if (typeof width === 'number' && Number.isFinite(width)) result[key] = clampWidth(width, range);
+  }
+  if (typeof record['startupAnimation'] === 'boolean')
+    result.startupAnimation = record['startupAnimation'];
   return result;
 }
 
@@ -236,11 +476,26 @@ function forScheme(accent: string, scheme: Scheme): string {
   return `#${rgb.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
 }
 
+/** Lines and dots: the page's text colour, faint. */
+const INK = 'color-mix(in srgb, var(--text) 13%, transparent)';
+
+/** Each pattern as a background image and its size. */
+const PATTERNS: Record<PaperPattern, { image: string; size: string }> = {
+  plain: { image: 'none', size: 'auto' },
+  dots: { image: `radial-gradient(circle, ${INK} 1px, transparent 1.2px)`, size: '24px 24px' },
+  lines: { image: `linear-gradient(to bottom, transparent 27px, ${INK} 27px)`, size: '100% 28px' },
+  grid: {
+    image: `linear-gradient(${INK} 1px, transparent 1px), linear-gradient(90deg, ${INK} 1px, transparent 1px)`,
+    size: '24px 24px',
+  },
+};
+
 /** The CSS custom properties for an appearance in a scheme. */
 export function appearanceTokens(appearance: Appearance, scheme: Scheme): Record<string, string> {
   const spec = PRESETS[appearance.preset];
   const palette = spec[scheme];
   const accent = appearance.accent === null ? palette.accent : forScheme(appearance.accent, scheme);
+  const pattern = PATTERNS[appearance.pattern];
   // A dark sidebar on a dark page takes the page's own colours, a shade apart.
   const sidebarStyle = appearance.sidebar ?? spec.sidebar;
   const sidebar: SidebarPalette =
@@ -277,5 +532,17 @@ export function appearanceTokens(appearance: Appearance, scheme: Scheme): Record
     '--text-size': `${String(appearance.textSize)}px`,
     '--space': SPACE[appearance.density],
     '--page-width': WIDTH[appearance.pageWidth],
+    // A chosen page colour is a tint on dark pages, so text still reads.
+    '--paper':
+      appearance.paper === null
+        ? palette.bg
+        : scheme === 'light'
+          ? appearance.paper
+          : `color-mix(in srgb, ${appearance.paper} 12%, ${palette.bg})`,
+    '--paper-pattern': pattern.image,
+    '--paper-size': pattern.size,
+    '--document-pattern': appearance.patternOnDocuments ? pattern.image : 'none',
+    '--sidebar-width': `${String(appearance.sidebarWidth)}px`,
+    '--panel-width': `${String(appearance.panelWidth)}px`,
   };
 }

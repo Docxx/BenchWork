@@ -1,5 +1,12 @@
 // @vitest-environment node
-import { appearanceTokens, defaultAppearance, parseAppearance, textOn } from './appearance';
+import {
+  appearanceTokens,
+  defaultAppearance,
+  parseAppearance,
+  PRESETS,
+  textOn,
+  type ThemePreset,
+} from './appearance';
 
 describe('appearance settings', () => {
   it('starts with the Forest look: serif pages, a dark sidebar', () => {
@@ -60,6 +67,48 @@ describe('appearance settings', () => {
     const dark = appearanceTokens({ ...defaultAppearance(), accent: '#3a6fb0' }, 'dark');
     expect(dark['--accent']).not.toBe('#3a6fb0');
     expect(dark['--bg']).toBe('#171d1c');
+  });
+
+  it('reads the page colour, pattern and widths, keeping widths in range', () => {
+    const read = parseAppearance({
+      preset: 'ocean',
+      paper: '#FBF4DE',
+      pattern: 'grid',
+      patternOnDocuments: true,
+      sidebarWidth: 9999,
+      panelWidth: 333.4,
+      startupAnimation: false,
+    });
+    expect(read).toMatchObject({
+      preset: 'ocean',
+      paper: '#fbf4de',
+      pattern: 'grid',
+      patternOnDocuments: true,
+      sidebarWidth: 440,
+      panelWidth: 333,
+      startupAnimation: false,
+    });
+    expect(parseAppearance({ pattern: 'stripes', paper: 'cream' })).toEqual(defaultAppearance());
+  });
+
+  it('gives every theme a full set of tokens', () => {
+    for (const preset of Object.keys(PRESETS) as ThemePreset[]) {
+      for (const scheme of ['light', 'dark'] as const) {
+        const tokens = appearanceTokens(defaultAppearance(preset), scheme);
+        expect(tokens['--bg']).toMatch(/^#[0-9a-f]{6}$/);
+        expect(tokens['--paper']).toBe(tokens['--bg']);
+      }
+    }
+  });
+
+  it('turns the page colour and pattern into tokens, tinting the colour on dark pages', () => {
+    const appearance = { ...defaultAppearance(), paper: '#fbf4de', pattern: 'lines' as const };
+    expect(appearanceTokens(appearance, 'light')['--paper']).toBe('#fbf4de');
+    expect(appearanceTokens(appearance, 'dark')['--paper']).toContain('color-mix');
+    const tokens = appearanceTokens(appearance, 'light');
+    expect(tokens['--paper-pattern']).toContain('linear-gradient');
+    expect(tokens['--document-pattern']).toBe('none');
+    expect(tokens['--sidebar-width']).toBe('260px');
   });
 
   it('puts dark or light text on an accent, whichever reads better', () => {

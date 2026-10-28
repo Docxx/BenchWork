@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useApp } from './AppStoreContext';
 import { Shell } from './Shell';
+import { Splash } from './Splash';
 import { applyAppearance } from './theme';
 import { ConfirmFolder, ConfirmNested, VaultPicker } from './VaultPicker';
 
@@ -56,6 +57,10 @@ export function App() {
   const theme = useApp((s) => s.settings.theme);
   const appearance = useApp((s) => s.settings.appearance);
   const systemDark = useSystemDark();
+  // The settings change from the defaults once read from disk.
+  const settings = useApp((s) => s.settings);
+  const [firstSettings] = useState(settings);
+  const settingsKnown = settings !== firstSettings;
 
   useEffect(() => {
     applyAppearance(appearance, theme, systemDark);
@@ -63,6 +68,21 @@ export function App() {
 
   useEffect(blockStrayFileDrops, []);
 
+  return (
+    <>
+      <Screen />
+      <Splash
+        settingsKnown={settingsKnown || status.kind !== 'starting'}
+        enabled={appearance.startupAnimation}
+        ready={status.kind !== 'starting'}
+      />
+    </>
+  );
+}
+
+/** What the app shows: the vault picker, or the open vault. */
+function Screen() {
+  const status = useApp((s) => s.status);
   switch (status.kind) {
     case 'starting':
       return <main className="app" aria-busy="true" />;
