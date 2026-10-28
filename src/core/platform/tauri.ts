@@ -34,6 +34,7 @@ async function call<T>(command: string, args?: () => Record<string, unknown>): P
 
 /** What MainActivity.kt gives the page on Android. */
 interface AndroidBridge {
+  setHandwriting(on: boolean): void;
   hasAllFilesAccess(): boolean;
   askAllFilesAccess(): void;
   sharedStorage(): string;
@@ -94,6 +95,10 @@ const tauriIndex: SearchIndex = {
 export class TauriAdapter implements PlatformAdapter {
   readonly kind: DeviceKind = detectKind();
   readonly folderBrowser: FolderBrowser | null = androidFolderBrowser();
+
+  setStylusHandwriting(on: boolean): void {
+    window.BenchWorkAndroid?.setHandwriting(on);
+  }
   readonly index = tauriIndex;
   /** Full path of the open vault, as Rust reported it. */
   private root: string | null = null;

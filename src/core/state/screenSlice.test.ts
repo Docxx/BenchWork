@@ -32,3 +32,16 @@ describe('pen tools', () => {
     expect(s().penSeen).toBe(true);
   });
 });
+
+describe('what the pen does', () => {
+  it('draws by default, and turns handwriting into text only when chosen, saved per device', async () => {
+    const platform = new MemoryAdapter();
+    const store = createAppStore(platform);
+    const s = () => store.getState();
+    s().applyPenMode();
+    expect(platform.stylusHandwriting).toBe(false);
+    await s().setPenMode('text');
+    expect(platform.stylusHandwriting).toBe(true);
+    expect(await platform.loadAppSettings()).toMatchObject({ penMode: 'text' });
+  });
+});

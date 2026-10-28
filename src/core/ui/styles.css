@@ -3419,3 +3419,26 @@ button.quick-capture {
     grid-template-columns: 1fr;
   }
 }
+
+/*
+ * While the pen draws, the browser's own handwriting-to-text is left out
+ * of what a touch may do on pages; fingers still scroll and zoom.
+ */
+.pen-draw .page-editor {
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+/* Draw or Write as text: two buttons with words, one chosen. */
+button.tool.labelled {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: auto;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.8rem;
+}
+
+button.tool[aria-checked='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}

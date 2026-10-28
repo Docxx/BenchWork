@@ -92,6 +92,8 @@ function byName(a: string, b: string): number {
 export class MemoryAdapter implements PlatformAdapter {
   readonly kind: DeviceKind;
   folderBrowser: FolderBrowser | null = null;
+  /** Whether the system would turn pen writing into text, as last set. */
+  stylusHandwriting = true;
   private readonly folders = new Map<string, Map<string, MemoryNode>>();
   private readonly external = new Map<string, { bytes: Uint8Array; modified: number }>();
   private readonly pickQueue: (string | null)[] = [];
@@ -218,6 +220,10 @@ export class MemoryAdapter implements PlatformAdapter {
   }
 
   // ---- PlatformAdapter ----
+
+  setStylusHandwriting(on: boolean): void {
+    this.stylusHandwriting = on;
+  }
 
   pickFolder(): Promise<string | null> {
     return this.run(() => {

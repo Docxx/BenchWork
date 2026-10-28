@@ -7,6 +7,9 @@ import { defaultAppearance, parseAppearance, type Appearance } from './appearanc
  */
 export type Theme = 'system' | 'light' | 'dark';
 
+/** What writing with a pen does: draws ink, or lets the system turn handwriting into text. */
+export type PenMode = 'draw' | 'text';
+
 export interface AppSettings {
   version: 1;
   /** Full path of the last vault opened on this device. */
@@ -16,12 +19,20 @@ export interface AppSettings {
   showAllFiles: boolean;
   /** Theme preset, colours, fonts and sizes. */
   appearance: Appearance;
+  penMode: PenMode;
   /** Keys this version does not know about, kept on save. */
   extra: Record<string, unknown>;
 }
 
 const THEMES: readonly Theme[] = ['system', 'light', 'dark'];
-const KNOWN_KEYS = new Set(['version', 'lastVault', 'theme', 'showAllFiles', 'appearance']);
+const KNOWN_KEYS = new Set([
+  'version',
+  'lastVault',
+  'theme',
+  'showAllFiles',
+  'appearance',
+  'penMode',
+]);
 
 export function defaultAppSettings(): AppSettings {
   return {
@@ -30,6 +41,7 @@ export function defaultAppSettings(): AppSettings {
     theme: 'system',
     showAllFiles: false,
     appearance: defaultAppearance(),
+    penMode: 'draw',
     extra: {},
   };
 }
@@ -50,6 +62,9 @@ export function parseAppSettings(data: unknown): AppSettings {
 
   if (typeof record['showAllFiles'] === 'boolean') settings.showAllFiles = record['showAllFiles'];
   settings.appearance = parseAppearance(record['appearance']);
+  if (record['penMode'] === 'draw' || record['penMode'] === 'text') {
+    settings.penMode = record['penMode'];
+  }
 
   for (const [key, value] of Object.entries(record)) {
     if (!KNOWN_KEYS.has(key)) settings.extra[key] = value;

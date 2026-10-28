@@ -46,11 +46,24 @@ class MainActivity : TauriActivity() {
     controller.isAppearanceLightNavigationBars = !dark
   }
 
+  private var webView: WebView? = null
+
   override fun onWebViewCreate(webView: WebView) {
+    this.webView = webView
     webView.addJavascriptInterface(StorageAccess(), "BenchWorkAndroid")
   }
 
   inner class StorageAccess {
+    /**
+     * Whether a pen writing in text becomes typed text (Android's own
+     * handwriting input). Off while BenchWork's pen draws ink instead.
+     */
+    @JavascriptInterface
+    fun setHandwriting(on: Boolean) {
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+      runOnUiThread { webView?.setAutoHandwritingEnabled(on) }
+    }
+
     /** Whether BenchWork may read and write any folder. */
     @JavascriptInterface
     fun hasAllFilesAccess(): Boolean =

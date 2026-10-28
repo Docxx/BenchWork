@@ -19,6 +19,13 @@ export interface PlatformAdapter {
   readonly folderBrowser: FolderBrowser | null;
 
   /**
+   * Turns the system's handwriting-to-text on or off for the app's window,
+   * where there is one (Android): with it on, a pen writing in text becomes
+   * typed text. Does nothing elsewhere.
+   */
+  setStylusHandwriting(on: boolean): void;
+
+  /**
    * The vault a folder belongs to: the nearest folder at or above it that has
    * a `.benchwork` folder, skipping `.benchwork` folders themselves. Null if
    * it is not inside a vault.

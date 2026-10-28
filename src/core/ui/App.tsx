@@ -74,6 +74,13 @@ export function App() {
 
   useEffect(blockStrayFileDrops, []);
 
+  // Whether the system turns pen writing into text, as chosen in the pen tools.
+  const penMode = settings.penMode;
+  const applyPenMode = useApp((s) => s.applyPenMode);
+  useEffect(() => {
+    applyPenMode();
+  }, [penMode, applyPenMode]);
+
   // The pen tools show once a pen is seen anywhere, hovering or touching.
   const notePen = useApp((s) => s.notePen);
   useEffect(() => {

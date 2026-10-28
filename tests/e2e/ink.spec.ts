@@ -137,3 +137,19 @@ test('the pen on empty space on a free layout page starts an ink box there', asy
     .poll(async () => (await snapshot(page))['Lab/Board.md'])
     .toMatch(/<!-- box x=\d+ y=\d+ w=480 -->\n!\[\[attachments\/Ink /);
 });
+
+test('the pen can be set to write as text, leaving the page to the system', async ({ page }) => {
+  await openPage(page, 'Notes');
+  await penStroke(page, '.page-editor p:first-of-type', [[10, 5]]);
+  await expect(page.locator('.ink-embed')).toHaveCount(1);
+  const draw = page.getByRole('toolbar', { name: 'Draw' });
+  await draw.getByRole('radio', { name: 'Write as text' }).click();
+  await expect(draw.getByRole('radio', { name: 'Write as text' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  // Now the pen on text makes no drawing.
+  await penStroke(page, '.page-editor p:last-of-type', [[10, 5]]);
+  await expect(page.locator('.ink-embed')).toHaveCount(1);
+  expect(await page.evaluate(() => window.__benchworkMemory?.stylusHandwriting)).toBe(true);
+});

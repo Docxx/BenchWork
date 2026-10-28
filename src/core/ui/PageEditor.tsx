@@ -38,6 +38,7 @@ export function PageEditor({ page }: { page: OpenPage }) {
   const embedTable = useApp((s) => s.embedTable);
   const pickAndAddFiles = useApp((s) => s.pickAndAddFiles);
   const store = useAppStore();
+  const penMode = useApp((s) => s.settings.penMode);
   const [slash, setSlash] = useState<SlashMenuState | null>(null);
   const [linkMenu, setLinkMenu] = useState<LinkMenuState | null>(null);
   const [citeMenu, setCiteMenu] = useState<CiteMenuState | null>(null);
@@ -86,7 +87,8 @@ export function PageEditor({ page }: { page: OpenPage }) {
         FreeLayout.configure({ onFiles: addFiles }),
         InkInput.configure({
           newTarget: () => store.getState().newInkTarget(),
-          writing: () => store.getState().pen.tool !== 'eraser',
+          writing: () =>
+            store.getState().pen.tool !== 'eraser' && store.getState().settings.penMode === 'draw',
         }),
         PageLinks.configure({
           suggest: suggestLinks,
@@ -201,7 +203,7 @@ export function PageEditor({ page }: { page: OpenPage }) {
 
   return (
     <>
-      <EditorContent editor={editor} className={`page-content layout-${layout}`} />
+      <EditorContent editor={editor} className={`page-content layout-${layout} pen-${penMode}`} />
       {slash !== null && <SlashMenu state={slash} />}
       {linkMenu !== null && <LinkMenu state={linkMenu} />}
       {citeMenu !== null && (

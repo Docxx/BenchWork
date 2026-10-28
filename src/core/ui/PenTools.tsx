@@ -1,4 +1,4 @@
-import { Eraser, Highlighter, PenLine, type LucideIcon } from 'lucide-react';
+import { Eraser, Highlighter, PenLine, Type, type LucideIcon } from 'lucide-react';
 import type { PenTool } from '../ink/surface';
 import { HIGHLIGHTER_COLOURS, PEN_COLOURS, PEN_WIDTHS } from '../state/inkSlice';
 import { useApp } from './AppStoreContext';
@@ -15,74 +15,107 @@ const ICON = { size: 17, strokeWidth: 1.8, 'aria-hidden': true } as const;
 export function PenTools() {
   const pen = useApp((s) => s.pen);
   const setPen = useApp((s) => s.setPen);
+  const penMode = useApp((s) => s.settings.penMode);
+  const setPenMode = useApp((s) => s.setPenMode);
   const colours = pen.tool === 'highlighter' ? HIGHLIGHTER_COLOURS : PEN_COLOURS;
 
   return (
     <>
-      <div className="tool-group">
-        {TOOLS.map(({ tool, label, icon: Icon }) => (
+      <div className="tool-group pen-mode" role="radiogroup" aria-label="What the pen does">
+        {(
+          [
+            { mode: 'draw', label: 'Draw', title: 'The pen draws ink', icon: PenLine },
+            {
+              mode: 'text',
+              label: 'Write as text',
+              title: 'Handwriting in text becomes typed text',
+              icon: Type,
+            },
+          ] as const
+        ).map(({ mode, label, title, icon: Icon }) => (
           <button
-            key={tool}
+            key={mode}
             type="button"
-            className="tool"
-            title={label}
-            aria-label={label}
-            aria-pressed={pen.tool === tool}
+            role="radio"
+            className="tool labelled"
+            title={title}
+            aria-checked={penMode === mode}
             onMouseDown={(e) => {
               e.preventDefault();
             }}
-            onClick={() => {
-              setPen({ tool });
-            }}
+            onClick={() => void setPenMode(mode)}
           >
             <Icon {...ICON} />
+            {label}
           </button>
         ))}
       </div>
-      {pen.tool !== 'eraser' && (
-        <>
-          <div className="tool-group">
-            <span className="tool-label">Colour</span>
-            {colours.map((c) => (
-              <button
-                key={c.value}
-                type="button"
-                className="colour-chip ink"
-                title={c.name}
-                aria-label={c.name}
-                aria-pressed={pen.colour === c.value}
-                style={{ background: c.value }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                }}
-                onClick={() => {
-                  setPen({ colour: c.value });
-                }}
-              />
-            ))}
-          </div>
-          <div className="tool-group">
-            {PEN_WIDTHS.map((w) => (
-              <button
-                key={w.value}
-                type="button"
-                className="tool pen-width"
-                title={w.name}
-                aria-label={w.name}
-                aria-pressed={pen.width === w.value}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                }}
-                onClick={() => {
-                  setPen({ width: w.value });
-                }}
-              >
-                <span style={{ height: `${String(w.value * 1.5)}px` }} />
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+      <>
+        <div className="tool-group">
+          {TOOLS.map(({ tool, label, icon: Icon }) => (
+            <button
+              key={tool}
+              type="button"
+              className="tool"
+              title={label}
+              aria-label={label}
+              aria-pressed={pen.tool === tool}
+              onMouseDown={(e) => {
+                e.preventDefault();
+              }}
+              onClick={() => {
+                setPen({ tool });
+              }}
+            >
+              <Icon {...ICON} />
+            </button>
+          ))}
+        </div>
+        {pen.tool !== 'eraser' && (
+          <>
+            <div className="tool-group">
+              <span className="tool-label">Colour</span>
+              {colours.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  className="colour-chip ink"
+                  title={c.name}
+                  aria-label={c.name}
+                  aria-pressed={pen.colour === c.value}
+                  style={{ background: c.value }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                  }}
+                  onClick={() => {
+                    setPen({ colour: c.value });
+                  }}
+                />
+              ))}
+            </div>
+            <div className="tool-group">
+              {PEN_WIDTHS.map((w) => (
+                <button
+                  key={w.value}
+                  type="button"
+                  className="tool pen-width"
+                  title={w.name}
+                  aria-label={w.name}
+                  aria-pressed={pen.width === w.value}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                  }}
+                  onClick={() => {
+                    setPen({ width: w.value });
+                  }}
+                >
+                  <span style={{ height: `${String(w.value * 1.5)}px` }} />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </>
     </>
   );
 }

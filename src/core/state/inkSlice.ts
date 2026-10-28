@@ -1,7 +1,8 @@
 import { emptyInk, newInkName, parseInk, serialiseInk, type Ink } from '../ink/inkFile';
 import type { PenSettings } from '../ink/surface';
+import { saveAppSettings, type PenMode } from '../settings/appSettings';
 import { ATTACHMENTS_DIR, embedPath } from '../pages/attachments';
-import type { StoreContext } from './context';
+import { describeError, type StoreContext } from './context';
 
 /** Pen colours to pick from: dark ink shows light on dark pages. */
 export const PEN_COLOURS = [
@@ -32,6 +33,10 @@ export interface InkSlice {
   /** Whether a pen has been seen since the app opened: the pen tools show from then on. */
   penSeen: boolean;
   setPen: (changes: Partial<PenSettings>) => void;
+  /** Draw with the pen, or let the system turn handwriting into text; saved on this device. */
+  setPenMode: (mode: PenMode) => Promise<void>;
+  /** Tells the system whether to turn pen writing into text, as the saved mode says. */
+  applyPenMode: () => void;
   /** Called when a pen is seen; cheap to call on every pen movement. */
   notePen: () => void;
   /** Whether a drawing has been shown: the pen tools then show for the mouse too. */
@@ -64,6 +69,21 @@ export function createInkSlice(ctx: StoreContext): InkSlice {
       if (changes.tool === 'pen' && !PEN_COLOURS.some((c) => c.value === pen.colour))
         pen.colour = PEN_COLOURS[0].value;
       set({ pen });
+    },
+
+    setPenMode: async (penMode) => {
+      const settings = { ...get().settings, penMode };
+      set({ settings });
+      get().applyPenMode();
+      try {
+        await saveAppSettings(platform, settings);
+      } catch (err) {
+        set({ settingsError: `The pen setting could not be saved. ${describeError(err)}` });
+      }
+    },
+
+    applyPenMode: () => {
+      platform.setStylusHandwriting(get().settings.penMode === 'text');
     },
 
     notePen: () => {
