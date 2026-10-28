@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { createElement, useState } from 'react';
 import { createContributions } from '../modules/contributions';
 import { ModuleRegistry } from '../modules/registry';
@@ -56,7 +56,16 @@ describe('module panels in the sidebar', () => {
     expect(screen.queryByRole('region', { name: 'Quick notes' })).toBeNull();
 
     await act(() => store.getState().setModuleEnabled('notes', true));
+    // Folded at first, to its heading; opened, it stays open.
+    expect(screen.getByRole('region', { name: 'Quick notes' }).textContent).not.toContain(
+      'Panel body',
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Quick notes' }));
+      await Promise.resolve();
+    });
     expect(screen.getByRole('region', { name: 'Quick notes' }).textContent).toContain('Panel body');
+    expect(store.getState().settings.openPanels).toEqual(['notes.panel']);
 
     await act(() => store.getState().setModuleEnabled('notes', false));
     expect(screen.queryByRole('region', { name: 'Quick notes' })).toBeNull();
@@ -81,6 +90,10 @@ describe('module panels in the sidebar', () => {
       ],
     ]);
     await act(() => store.getState().setModuleEnabled('bad', true));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Bad panel' }));
+      await Promise.resolve();
+    });
     expect(screen.getByRole('region', { name: 'Bad panel' }).textContent).toContain(
       'This panel could not be shown.',
     );

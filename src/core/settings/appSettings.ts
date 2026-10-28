@@ -20,6 +20,8 @@ export interface AppSettings {
   /** Theme preset, colours, fonts and sizes. */
   appearance: Appearance;
   penMode: PenMode;
+  /** Module panels in the sidebar that are open; the rest stay folded. */
+  openPanels: string[];
   /** Keys this version does not know about, kept on save. */
   extra: Record<string, unknown>;
 }
@@ -32,6 +34,7 @@ const KNOWN_KEYS = new Set([
   'showAllFiles',
   'appearance',
   'penMode',
+  'openPanels',
 ]);
 
 export function defaultAppSettings(): AppSettings {
@@ -42,6 +45,7 @@ export function defaultAppSettings(): AppSettings {
     showAllFiles: false,
     appearance: defaultAppearance(),
     penMode: 'draw',
+    openPanels: [],
     extra: {},
   };
 }
@@ -64,6 +68,10 @@ export function parseAppSettings(data: unknown): AppSettings {
   settings.appearance = parseAppearance(record['appearance']);
   if (record['penMode'] === 'draw' || record['penMode'] === 'text') {
     settings.penMode = record['penMode'];
+  }
+  const openPanels = record['openPanels'];
+  if (Array.isArray(openPanels)) {
+    settings.openPanels = openPanels.filter((p): p is string => typeof p === 'string');
   }
 
   for (const [key, value] of Object.entries(record)) {

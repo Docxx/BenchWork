@@ -966,7 +966,11 @@ button.switch[aria-checked='true'] .switch-knob {
 }
 
 .module-panel {
-  padding: 0.5rem 1rem 0.75rem;
+  padding: 0.4rem 1rem;
+}
+
+.module-panel.open {
+  padding-bottom: 0.75rem;
 }
 
 .module-panel + .module-panel {
@@ -974,12 +978,41 @@ button.switch[aria-checked='true'] .switch-knob {
 }
 
 .module-panel-title {
-  margin: 0 0 0.35rem;
+  margin: 0;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/* The heading opens and folds the panel. */
+.module-panel-title button,
+.module-panel-title button:first-child {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  padding: 0.15rem 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+}
+
+.module-panel-title svg {
+  transition: transform 120ms ease;
+}
+
+.module-panel.open .module-panel-title {
+  margin-bottom: 0.35rem;
+}
+
+.module-panel.open .module-panel-title svg {
+  transform: rotate(90deg);
 }
 
 .module-panel-body {

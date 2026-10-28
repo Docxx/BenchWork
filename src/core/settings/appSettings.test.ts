@@ -23,6 +23,7 @@ describe('app settings', () => {
       theme: 'dark',
       showAllFiles: true,
       penMode: 'text',
+      openPanels: ['references.library'],
       window: { w: 900 },
     };
     const settings = parseAppSettings(stored);
