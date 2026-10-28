@@ -9,14 +9,30 @@
  * first need them.
  */
 import type { ReactNode } from 'react';
+import type { PdfDocument } from '../files/pdf';
 import type { InkPoint, InkStroke, InkTool } from '../ink/inkFile';
-import type { DeviceKind, DirEntry, FileInfo, VaultChange } from '../platform/types';
+import type {
+  DeviceKind,
+  DirEntry,
+  FileInfo,
+  HandwritingRecognizer,
+  ProgramArg,
+  ProgramResult,
+  ProgramRun,
+  ProgramRunner,
+  VaultChange,
+} from '../platform/types';
 import type { ModuleManifest } from '../modules/manifest';
 
 export type {
   DeviceKind,
   DirEntry,
   FileInfo,
+  HandwritingRecognizer,
+  ProgramArg,
+  ProgramResult,
+  ProgramRun,
+  ProgramRunner,
   InkPoint,
   InkStroke,
   InkTool,
@@ -24,6 +40,8 @@ export type {
   VaultChange,
 };
 export { newStrokeId } from '../ink/inkFile';
+export type { PdfRender } from '../files/pdf';
+export type { PdfDocument };
 
 /** What a module's `index.ts` exports as its default. */
 export interface ModuleDefinition {
@@ -53,6 +71,8 @@ export interface ModuleContext {
   readonly citations: ModuleCitations;
   /** Pen writing: changing strokes as they are finished, and tools of its own. */
   readonly ink: ModuleInk;
+  /** Running the person's own programs, such as Python scripts; null on the tablet. */
+  readonly programs: ProgramRunner | null;
   /** Converting Markdown with Pandoc, if it is installed. Desktop only. */
   readonly pandoc: ModulePandoc;
   /** JSON files in `.benchwork/modules/<id>/`, the module's private folder. */
@@ -157,6 +177,8 @@ export interface CommandTarget {
 
 export interface ModuleFiles {
   register(spec: FileHandlerSpec): Disposable;
+  /** Opens a PDF's bytes for drawing its pages, with pdf.js. */
+  openPdf(bytes: Uint8Array): Promise<PdfDocument>;
 }
 
 /** Shows files of a custom type when they are opened from the sidebar. */
@@ -173,6 +195,8 @@ export interface FileHandlerSpec {
    * save the file.
    */
   watchesFile?: boolean;
+  /** Shows the pen tools above the view, for views written on with the pen. */
+  penTools?: boolean;
   render: (file: { path: string }) => ReactNode;
 }
 
@@ -348,10 +372,46 @@ export interface SettingsPanelSpec {
 // ---- Ink ----
 
 export interface ModuleInk {
+  /**
+   * Makes `element` a place to write with the pen, using the app's pen
+   * tools, stroke filters and module tools, as in drawings on pages. The
+   * element must have a size; strokes are in its CSS pixels. Removed when
+   * the module is switched off, or with `dispose`.
+   */
+  attach(element: HTMLElement, options: InkAttachOptions): InkAttachment;
+  /** The device's handwriting to text, such as on the tablet; null where there is none. */
+  readonly handwriting: HandwritingRecognizer | null;
+  /**
+   * Reads the text in drawings on pages, shortly after writing stops; the
+   * core saves it in the drawing's file, where search finds it. The first
+   * registered is used.
+   */
+  registerRecogniser(spec: InkRecogniserSpec): Disposable;
   /** Changes each stroke as it is finished, such as straightening a line. */
   registerStrokeFilter(spec: StrokeFilterSpec): Disposable;
   /** A tool beside the pen, highlighter and eraser, such as a lasso. */
   registerTool(spec: InkToolSpec): Disposable;
+}
+
+export interface InkRecogniserSpec {
+  /** Must start with the module id and a dot. */
+  id: string;
+  /** The text written in strokes; empty if none. */
+  recognise(strokes: readonly InkStroke[]): Promise<string>;
+}
+
+export interface InkAttachOptions {
+  strokes: readonly InkStroke[];
+  /** The strokes after each change, to save. */
+  onChange: (strokes: InkStroke[]) => void;
+  /** False for ink that can only be read. */
+  editable?: boolean;
+}
+
+export interface InkAttachment extends Disposable {
+  /** Shows strokes changed elsewhere. */
+  setStrokes(strokes: readonly InkStroke[]): void;
+  setEditable(editable: boolean): void;
 }
 
 export interface StrokeFilterSpec {
@@ -392,6 +452,8 @@ export interface InkToolArea {
   clearOverlay(): void;
   /** The drawing's element, for buttons the tool shows beside a selection. */
   readonly element: HTMLElement;
+  /** Puts typed text in the page below the drawing; missing where there is no page, as on a PDF. */
+  readonly addText?: (text: string) => void;
 }
 
 export interface InkToolSpec {

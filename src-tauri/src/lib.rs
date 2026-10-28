@@ -1,9 +1,11 @@
+mod backup;
 mod error;
 mod file_info;
 mod folders;
 mod index;
 mod pandoc;
 mod path_guard;
+mod programs;
 mod vault_fs;
 mod vault_root;
 mod watcher;
@@ -23,6 +25,8 @@ struct VaultState {
     root: Mutex<Option<PathBuf>>,
     watcher: Mutex<Option<watcher::VaultWatcher>>,
     index: Mutex<Option<index::SearchIndex>>,
+    /// Programs running for modules, by run id, each with its stop flag.
+    runs: Mutex<std::collections::HashMap<String, std::sync::Arc<std::sync::atomic::AtomicBool>>>,
 }
 
 fn unavailable() -> VaultError {
@@ -160,6 +164,84 @@ struct VaultOwnerDto {
     root: String,
     folder: String,
     via: vault_root::Via,
+}
+
+/// Backs the open vault up into `folder` as a dated zip, then puts away
+/// older backups beyond the newest `keep`.
+#[tauri::command]
+async fn backup_vault(
+    folder: String,
+    name: String,
+    stamp: String,
+    keep: usize,
+    state: State<'_, VaultState>,
+) -> VaultResult<backup::BackupFile> {
+    let root = state.root()?;
+    let folder = PathBuf::from(folder);
+    let made = backup::backup_vault(&root, &folder, &name, &stamp)?;
+    for old in backup::surplus(&backup::list_backups(&folder, &name)?, keep) {
+        put_away_backup(&old)?;
+    }
+    Ok(made)
+}
+
+/// An old backup beyond the number to keep: to the Recycle Bin, where there is one.
+#[cfg(not(target_os = "android"))]
+fn put_away_backup(path: &Path) -> VaultResult<()> {
+    trash::delete(path)
+        .map_err(|e| VaultError::new(ErrorKind::Io, format!("Cannot put an old backup away: {e}")))
+}
+
+#[cfg(target_os = "android")]
+fn put_away_backup(path: &Path) -> VaultResult<()> {
+    std::fs::remove_file(path).map_err(|e| VaultError::io("Cannot put an old backup away", &e))
+}
+
+/// Backups of the vault named `name` in `folder`, oldest first.
+#[tauri::command]
+async fn list_backups(folder: String, name: String) -> VaultResult<Vec<backup::BackupFile>> {
+    backup::list_backups(Path::new(&folder), &name)
+}
+
+/// Unpacks a backup into a new folder beside it, and returns that folder.
+#[tauri::command]
+async fn restore_backup(path: String) -> VaultResult<String> {
+    backup::restore_backup(Path::new(&path))
+}
+
+/// Runs a program for a module, with vault paths in `args` made full,
+/// in the vault folder `cwd`. Resolves when it ends or is stopped.
+#[tauri::command]
+async fn run_program(
+    id: String,
+    program: String,
+    args: Vec<programs::Arg>,
+    cwd: String,
+    state: State<'_, VaultState>,
+) -> VaultResult<programs::RunResult> {
+    let root = state.root()?;
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    state
+        .runs
+        .lock()
+        .map_err(|_| unavailable())?
+        .insert(id.clone(), stop.clone());
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        programs::run(&root, &program, &args, &cwd, &stop)
+    })
+    .await
+    .map_err(|e| VaultError::new(ErrorKind::Io, format!("The run failed: {e}")))?;
+    state.runs.lock().map_err(|_| unavailable())?.remove(&id);
+    result
+}
+
+/// Stops a program started with run_program.
+#[tauri::command]
+async fn stop_program(id: String, state: State<'_, VaultState>) -> VaultResult<()> {
+    if let Some(stop) = state.runs.lock().map_err(|_| unavailable())?.get(&id) {
+        stop.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+    Ok(())
 }
 
 /// Folders inside a full path, for choosing a vault inside the app.
@@ -411,6 +493,11 @@ pub fn run() {
             find_vault_root,
             list_folders,
             make_folder,
+            backup_vault,
+            run_program,
+            stop_program,
+            list_backups,
+            restore_backup,
             list_dir,
             read_text,
             write_text_atomic,

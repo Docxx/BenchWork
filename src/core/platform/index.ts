@@ -8,6 +8,13 @@ export { MATCH_END, MATCH_START } from './types';
 export type {
   DeviceKind,
   FolderBrowser,
+  BackupFile,
+  VaultBackups,
+  HandwritingRecognizer,
+  ProgramArg,
+  ProgramResult,
+  ProgramRun,
+  ProgramRunner,
   DirEntry,
   FileInfo,
   IndexedLink,

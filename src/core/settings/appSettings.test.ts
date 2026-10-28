@@ -23,6 +23,7 @@ describe('app settings', () => {
       theme: 'dark',
       showAllFiles: true,
       penMode: 'text',
+      openPanels: ['references.library'],
       window: { w: 900 },
     };
     const settings = parseAppSettings(stored);
@@ -30,7 +31,11 @@ describe('app settings', () => {
     expect(parseAppSettings({ penMode: 'scribble' }).penMode).toBe('draw');
     expect(settings.lastVault).toBe('C:\\Vault');
     expect(settings.theme).toBe('dark');
-    expect(toStoredAppSettings(settings)).toEqual({ ...stored, appearance: defaultAppearance() });
+    expect(toStoredAppSettings(settings)).toEqual({
+      ...stored,
+      appearance: defaultAppearance(),
+      backups: {},
+    });
   });
 
   it('saves and loads through the platform', async () => {

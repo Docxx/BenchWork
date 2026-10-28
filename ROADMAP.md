@@ -74,16 +74,27 @@ Back on 28 Oct 2026, after 0.6.0. Pen writing goes on free layout pages and in i
 - [x] Page colour and pattern (plain, dots, lines, grid)
 - [x] Short opening animation
 
-## Phase 6: Sync and polish
+## Phase 6: Lab tools and polish
 
-- [ ] Native CRDT sync (Yjs), then live co-editing with accounts
-- [ ] Backups and version history
-- [ ] Inventory, Analysis bridge, Tasks
-- [ ] Onboarding with role-based module packs (Research pack first)
-- [ ] Handwriting-to-text search and PDF annotation
-- [ ] Rethink the References Library panel: it is always open in the sidebar and takes up room (for example folded until opened, or shown in the references notebook)
+Planned 28 Oct 2026. Syncthing keeps devices in step, so BenchWork's own sync moves to Phase 7.
 
-## Phase 7: Apple port
+- [x] 6a. References Library panel folded until opened
+- [x] 6a. Vault backups: dated copies of the whole vault on a schedule, and restore
+- [x] 6b. Tasks and Kanban module: checklists from every page, due dates, a board
+- [x] 6c. Inventory module: stocks, reagents, antibodies, fly stocks and crosses, flip reminders
+- [x] 6d. PDF reading with the pen: highlights and ink in a sidecar file, the PDF untouched
+- [x] 6e. Handwriting to text on the tablet (ML Kit), found by search on every device
+- [x] 6f. Analysis bridge module: run a Python script on a dataset and attach its outputs (PC only)
+- [x] 6g. First-run setup with module packs (Research, General notes)
+- [ ] Exit check: a week of lab work: flips and tasks on today's page, a paper annotated with the pen on the tablet and its notes found on the PC, analysis outputs attached to a dataset, and a backup restored
+
+## Phase 7: Own sync and co-editing
+
+- [ ] Native CRDT sync (Yjs) with end-to-end encryption, without Syncthing
+- [ ] Live co-editing with accounts
+- [ ] Choose the server host (self-hosted or a low-cost cloud host)
+
+## Phase 8: Apple port
 
 - [ ] macOS build (needs a Mac or macOS CI runner)
 - [ ] iPad build with Apple Pencil support

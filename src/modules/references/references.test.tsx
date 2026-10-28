@@ -279,6 +279,8 @@ describe('References module', () => {
       </AppStoreProvider>,
     );
     await settle();
+    // Panels start folded to their heading.
+    fireEvent.click(screen.getByRole('button', { name: 'Library' }));
     const list = screen.getByRole('list', { name: 'References' });
     expect(
       within(list)
@@ -318,6 +320,8 @@ describe('References module', () => {
       </AppStoreProvider>,
     );
     await settle();
+    // Panels start folded to their heading.
+    fireEvent.click(screen.getByRole('button', { name: 'Library' }));
     expect(screen.getByText(/No library yet/)).toBeDefined();
   });
 

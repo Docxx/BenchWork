@@ -9,6 +9,7 @@ import { createFilesSlice, type FilesSlice } from './filesSlice';
 import { createInkSlice, type InkSlice } from './inkSlice';
 import { createScreenSlice, type ScreenSlice } from './screenSlice';
 import { createSyncSlice, type SyncSlice } from './syncSlice';
+import { createBackupSlice, type BackupSlice } from './backupSlice';
 import { createLinksSlice, type LinksSlice } from './linksSlice';
 import { createModuleBridge } from './moduleBridge';
 import { createModulesSlice, type ModulesSlice } from './modulesSlice';
@@ -42,7 +43,8 @@ export type AppState = VaultSlice &
   ModulesSlice &
   InkSlice &
   ScreenSlice &
-  SyncSlice;
+  SyncSlice &
+  BackupSlice;
 
 export type AppStore = StoreApi<AppState>;
 
@@ -77,6 +79,7 @@ export function createAppStore(
       ...createInkSlice(ctx),
       ...createScreenSlice(ctx),
       ...createSyncSlice(ctx),
+      ...createBackupSlice(ctx),
     };
   });
 
@@ -94,6 +97,7 @@ export function createAppStore(
       sideTabs,
       strokeFilters,
       inkTools,
+      inkRecognisers,
       citationProviders,
       citationVersion,
     }) => {
@@ -102,6 +106,7 @@ export function createAppStore(
         sideTabs,
         strokeFilters,
         inkTools,
+        inkRecognisers,
         panels,
         pageTypes,
         commands,

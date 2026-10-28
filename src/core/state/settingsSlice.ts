@@ -26,6 +26,8 @@ export interface SettingsSlice {
   setAppearance: (changes: Partial<Appearance>) => Promise<void>;
   /** Per-device: back to a preset's own look. */
   resetAppearance: () => Promise<void>;
+  /** Per-device: opens or folds a module's panel in the sidebar. */
+  togglePanel: (id: string) => Promise<void>;
   /** Per-device: show every file in the sidebar, not just pages. */
   setShowAllFiles: (show: boolean) => Promise<void>;
   /** Per-vault; saved in .benchwork/config.json. */
@@ -85,6 +87,18 @@ export function createSettingsSlice(ctx: StoreContext): SettingsSlice {
 
     resetAppearance: async () => {
       await get().setAppearance(defaultAppearance(get().settings.appearance.preset));
+    },
+
+    togglePanel: async (id) => {
+      const open = get().settings.openPanels;
+      const openPanels = open.includes(id) ? open.filter((p) => p !== id) : [...open, id];
+      const settings = { ...get().settings, openPanels };
+      set({ settings });
+      try {
+        await saveAppSettings(platform, settings);
+      } catch (err) {
+        set({ settingsError: `The setting could not be saved. ${describeError(err)}` });
+      }
     },
 
     setShowAllFiles: async (showAllFiles) => {

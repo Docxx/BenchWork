@@ -8,6 +8,11 @@ import type {
   DirEntry,
   FileInfo,
   FolderBrowser,
+  BackupFile,
+  VaultBackups,
+  HandwritingRecognizer,
+  ProgramResult,
+  ProgramRunner,
   PandocWordOptions,
   PlatformAdapter,
   SearchIndex,
@@ -35,6 +40,9 @@ async function call<T>(command: string, args?: () => Record<string, unknown>): P
 /** What MainActivity.kt gives the page on Android. */
 interface AndroidBridge {
   setHandwriting(on: boolean): void;
+  inkModelReady(id: string): void;
+  inkPrepare(id: string): void;
+  inkRecognise(id: string, strokesJson: string): void;
   hasAllFilesAccess(): boolean;
   askAllFilesAccess(): void;
   sharedStorage(): string;
@@ -43,7 +51,48 @@ interface AndroidBridge {
 declare global {
   interface Window {
     BenchWorkAndroid?: AndroidBridge;
+    /** MainActivity.kt answers handwriting requests through this. */
+    __benchworkInkReply?: (id: string, ok: boolean, value: unknown) => void;
   }
+}
+
+/** Handwriting to text with ML Kit, through MainActivity.kt; null off Android. */
+function androidHandwriting(): HandwritingRecognizer | null {
+  const bridge = window.BenchWorkAndroid;
+  if (!bridge) return null;
+  const waiting = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
+  let next = 0;
+  window.__benchworkInkReply = (id, ok, value) => {
+    const w = waiting.get(id);
+    if (!w) return;
+    waiting.delete(id);
+    if (ok) w.resolve(value);
+    else w.reject(new Error(typeof value === 'string' ? value : 'Handwriting could not be read'));
+  };
+  const ask = (send: (id: string) => void) =>
+    new Promise<unknown>((resolve, reject) => {
+      next += 1;
+      const id = String(next);
+      waiting.set(id, { resolve, reject });
+      send(id);
+    });
+  return {
+    ready: async () =>
+      (await ask((id) => {
+        bridge.inkModelReady(id);
+      })) === true,
+    prepare: async () => {
+      await ask((id) => {
+        bridge.inkPrepare(id);
+      });
+    },
+    recognise: async (strokes) => {
+      const text = await ask((id) => {
+        bridge.inkRecognise(id, JSON.stringify(strokes));
+      });
+      return typeof text === 'string' ? text : '';
+    },
+  };
 }
 
 /** On Android, vault folders are chosen inside the app, by full path. */
@@ -95,6 +144,31 @@ const tauriIndex: SearchIndex = {
 export class TauriAdapter implements PlatformAdapter {
   readonly kind: DeviceKind = detectKind();
   readonly folderBrowser: FolderBrowser | null = androidFolderBrowser();
+  readonly handwriting: HandwritingRecognizer | null = androidHandwriting();
+  readonly programs: ProgramRunner | null =
+    detectKind() === 'desktop'
+      ? {
+          run: (r) =>
+            call<ProgramResult>('run_program', () => ({
+              id: r.id,
+              program: r.program,
+              args: r.args,
+              cwd: normaliseVaultPath(r.cwd),
+            })),
+          stop: (id) => call<undefined>('stop_program', () => ({ id })),
+        }
+      : null;
+
+  // Backup folders are picked with the system's folder picker, so not on Android.
+  readonly backups: VaultBackups | null =
+    detectKind() === 'desktop'
+      ? {
+          backUp: (folder, name, stamp, keep) =>
+            call<BackupFile>('backup_vault', () => ({ folder, name, stamp, keep })),
+          list: (folder, name) => call<BackupFile[]>('list_backups', () => ({ folder, name })),
+          restore: (path) => call<string>('restore_backup', () => ({ path })),
+        }
+      : null;
 
   setStylusHandwriting(on: boolean): void {
     window.BenchWorkAndroid?.setHandwriting(on);

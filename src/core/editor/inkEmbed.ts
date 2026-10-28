@@ -16,7 +16,12 @@ export interface InkAccess {
   hooks: Omit<SurfaceHooks, 'onChange'>;
   /** Called when a drawing shows, so the pen tools can show too. */
   shown?: () => void;
+  /** Reads the text in strokes, where a module offers it; null where none does. */
+  recogniser?: () => ((strokes: readonly InkStroke[]) => Promise<string>) | null;
 }
+
+/** How long after writing stops before the drawing's text is read, in ms. */
+export const READ_DELAY_MS = 1500;
 
 /** A new drawing's size, and how much it grows when writing nears its bottom. */
 export const NEW_INK_HEIGHT = 200;
@@ -61,6 +66,8 @@ export function inkEmbedView(
     remove: () => void;
     /** The drawing grew upwards by dy: its box, if it is in one, moves up to match. */
     grewUp?: (dy: number) => void;
+    /** Puts typed text in a new paragraph below the drawing. */
+    addText?: (text: string) => void;
   },
 ): { dom: HTMLElement; destroy: () => void } {
   const { editable } = page;
@@ -106,6 +113,28 @@ export function inkEmbedView(
     saving = saving.then(() => access.save(target, copy)).catch(() => undefined);
   };
 
+  // The text written in the drawing, read once writing stops, kept in its file for search.
+  let reading: ReturnType<typeof setTimeout> | null = null;
+  const readLater = () => {
+    if (!access.recogniser?.()) return;
+    if (reading !== null) clearTimeout(reading);
+    reading = setTimeout(() => {
+      reading = null;
+      const recognise = access.recogniser?.();
+      if (!recognise) return;
+      const written = ink.strokes.filter((s) => s.tool === 'pen');
+      void (written.length === 0 ? Promise.resolve('') : recognise(written)).then(
+        (text) => {
+          const clean = text.trim();
+          if (!live || clean === (ink.recognisedText ?? '')) return;
+          ink = { ...ink, recognisedText: clean === '' ? null : clean };
+          save();
+        },
+        () => undefined,
+      );
+    }, READ_DELAY_MS);
+  };
+
   void access.load(target).then((loaded) => {
     if (!live) return;
     if (loaded === null) {
@@ -117,6 +146,7 @@ export function inkEmbedView(
     show(Math.max(MIN_HEIGHT, loaded.height || NEW_INK_HEIGHT));
     surface = new InkSurface(host, loaded.strokes, {
       ...access.hooks,
+      ...(page.addText ? { addText: page.addText } : {}),
       onChange: (written) => {
         // Writing above the top grows the drawing upwards, so nothing is cut off.
         const dy = roomAbove(written);
@@ -128,8 +158,11 @@ export function inkEmbedView(
           page.grewUp?.(dy);
         }
         save();
+        readLater();
       },
     });
+    // A drawing written before its text was read is read now.
+    if (loaded.recognisedText === null && loaded.strokes.length > 0) readLater();
     surface.setEditable(editable());
     host.classList.toggle('editable', editable());
     access.shown?.();
@@ -159,6 +192,7 @@ export function inkEmbedView(
     dom,
     destroy: () => {
       live = false;
+      if (reading !== null) clearTimeout(reading);
       surface?.destroy();
     },
   };

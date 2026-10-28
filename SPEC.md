@@ -26,7 +26,7 @@ Single user first, with live co-editing designed in from the start and built lat
 | Area         | Decision                                            | Consequence for the build                                                                                                                                              |
 | ------------ | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Audience     | Single user (Ray) first                             | No accounts at launch; public-release polish later                                                                                                                     |
-| Sharing      | Live co-editing, later                              | Editor built on TipTap's Yjs (CRDT) binding from phase 1, so co-editing reuses the same document model; sync server and accounts from phase 6                          |
+| Sharing      | Live co-editing, later                              | Editor built on TipTap's Yjs (CRDT) binding from phase 1, so co-editing reuses the same document model; sync server and accounts from phase 7                          |
 | Data files   | Ask each time                                       | Small files copied into the vault, large ones linked with path and checksum; size threshold in Settings (default 50 MB)                                                |
 | Data types   | CSV and Excel, images, PDFs                         | Previews for all three in core                                                                                                                                         |
 | Spreadsheets | Light editing                                       | Edit cells, add columns, simple formulas; save back to CSV or XLSX                                                                                                     |
@@ -113,7 +113,7 @@ Ten modules, all off by default, ordered by build priority. Onboarding enables a
 | Analysis bridge      | Run local Python scripts (for example Buzzz) on a dataset and attach outputs; desktop only                        | Tauri shell API     | Data viewer |
 | Tasks and Kanban     | Checklists across notes, a Kanban board, due dates                                                                | Core only           | None        |
 
-**Later, outside the module list:** full multi-device sync (see Architecture), the Apple port (iPad and macOS) and PDF annotation with the Handwriting module.
+**Later, outside the module list:** full multi-device sync (see Architecture) and the Apple port (iPad and macOS).
 
 ## Architecture
 
@@ -172,7 +172,7 @@ MyVault/
 **Sync, in two stages**
 
 1. **Folder sync (phase 4):** the vault syncs between PC and Android tablet with Syncthing. The app excludes `index.sqlite`, detects conflict copies created by the sync service and offers a side-by-side merge.
-2. **Native sync (phase 6):** a small sync service using the Yjs documents for conflict-free merging of edits and ink strokes, with end-to-end encryption; then live co-editing with accounts. Self-hosted or a low-cost cloud host.
+2. **Native sync (phase 7):** a small sync service using the Yjs documents for conflict-free merging of edits and ink strokes, with end-to-end encryption; then live co-editing with accounts. Self-hosted or a low-cost cloud host.
 
 **Large data:** raw imaging, DAM and video files stay on lab or university storage. The vault holds a dataset record with path, checksum and metadata, so notes link to data without copying it into sync.
 
@@ -218,7 +218,7 @@ Flies transferred 10:30. ![[2026-10-21-sketch.ink]]
 
 ## Build roadmap
 
-Eight phases, each ending in something usable. Phase 2 is the first point of daily use; tablet and handwriting arrive in phase 4. The live checklist is `ROADMAP.md`.
+Nine phases, each ending in something usable. Phase 2 is the first point of daily use; tablet and handwriting arrive in phase 4. The live checklist is `ROADMAP.md`.
 
 0. **Skeleton.** Tauri + React app; open or create a vault; file tree; Settings page; module registry with a Modules panel and on/off toggles. _Exit: app builds on desktop, a dummy module toggles on and off._
 1. **Notes core.** Block editor (TipTap on Yjs) saving Markdown, notebook and section sidebar, Daily notebook, sample notebook on first launch, frontmatter, wikilinks, backlinks, tags, templates, SQLite index and full-text search. _Exit: lab notes written and searched on desktop._
@@ -226,8 +226,9 @@ Eight phases, each ending in something usable. Phase 2 is the first point of dai
 3. **First modules.** Lab notebook and References (Zotero). _Exit: daily pages with citations from the Zotero library._
 4. **Tablet and ink.** Android tablet build with S Pen support, touch-friendly layout, pen writing in ink blocks and on free layout pages, Handwriting module, folder sync with conflict handling. _Exit: a note started on desktop is finished with a pen on the tablet._
 5. **Writing and planning.** Manuscript export via Pandoc, Planner (Gantt), Mind maps and canvas, Data viewer with light editing. _Exit: a chapter draft exported to Word with formatted citations._
-6. **Sync and polish.** Native Yjs sync then co-editing, backups and version history, Inventory, Analysis bridge, onboarding with module packs, handwriting-to-text and PDF annotation. _Exit: two devices edit the same vault without conflict copies._
-7. **Apple port.** macOS and iPad builds with Apple Pencil, signing and TestFlight. _Exit: BenchWork runs on an iPad from the same codebase._
+6. **Lab tools and polish.** Vault backups, Tasks and Kanban, Inventory, PDF annotation and handwriting-to-text, Analysis bridge, onboarding with module packs. _Exit: a week of lab work, from flips on today's page to a backup restored._
+7. **Own sync and co-editing.** Native Yjs sync with end-to-end encryption, then live co-editing with accounts. Comes before the Apple port, as iPads cannot run Syncthing. _Exit: two devices edit the same vault without conflict copies._
+8. **Apple port.** macOS and iPad builds with Apple Pencil, signing and TestFlight. _Exit: BenchWork runs on an iPad from the same codebase._
 
 ## Working with Claude Code
 
@@ -275,7 +276,7 @@ The two biggest risks are sync conflicts and ink responsiveness on tablets; both
 
 **Open decisions**
 
-- [x] Folder sync for phase 4: Syncthing (decided 28 Oct 2026); native sync stays in phase 6
+- [x] Folder sync for phase 4: Syncthing (decided 28 Oct 2026); native sync moved to phase 7 (decided 28 Oct 2026)
 - [x] Tablet vault access: All files access, so the vault is an ordinary folder that Syncthing also writes to (decided 28 Oct 2026); revisit for a store release
 - [x] No separate canvas page type: pen writing goes on free layout pages and in ink blocks (decided 28 Oct 2026)
 - [ ] Licence: undecided; private repo for now

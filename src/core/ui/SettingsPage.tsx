@@ -3,6 +3,7 @@ import { LINK_THRESHOLD_RANGE } from '../state/appStore';
 import type { PageLayout } from '../vault/vaultConfig';
 import type { OpenVault } from '../vault/vaultService';
 import { AppearanceSettings } from './AppearanceSettings';
+import { BackupSettings } from './BackupSettings';
 import { useApp } from './AppStoreContext';
 import { ModulesPanel } from './ModulesPanel';
 
@@ -162,6 +163,7 @@ function VaultSettings({ vault }: { vault: OpenVault }) {
       </div>
 
       <NewPageSettings layout={vault.config.pages.layout} />
+      <BackupSettings root={vault.root} />
       <TemplateSettings />
       <SearchIndexSettings />
     </>

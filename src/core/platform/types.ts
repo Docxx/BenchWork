@@ -25,6 +25,15 @@ export interface PlatformAdapter {
    */
   setStylusHandwriting(on: boolean): void;
 
+  /** Running the person's own programs, such as Python scripts; null on the tablet. */
+  readonly programs: ProgramRunner | null;
+
+  /** Handwriting to text, where the device offers it (the tablet); null elsewhere. */
+  readonly handwriting: HandwritingRecognizer | null;
+
+  /** Whole-vault backups to a folder outside the vault; null where folders cannot be picked. */
+  readonly backups: VaultBackups | null;
+
   /**
    * The vault a folder belongs to: the nearest folder at or above it that has
    * a `.benchwork` folder, skipping `.benchwork` folders themselves. Null if
@@ -198,6 +207,66 @@ export interface PandocWordOptions {
 }
 
 export type DeviceKind = 'desktop' | 'tablet';
+
+/** An argument to a program: text as it is, or a vault path passed as a full path. */
+export type ProgramArg = { kind: 'text'; value: string } | { kind: 'vault'; value: string };
+
+export interface ProgramRun {
+  /** Any text, used to stop the run. */
+  id: string;
+  /** A program on this computer, such as `python` or a full path. */
+  program: string;
+  args: readonly ProgramArg[];
+  /** The vault folder it runs in. */
+  cwd: string;
+}
+
+export interface ProgramResult {
+  /** The exit code; null if stopped. */
+  code: number | null;
+  /** What it printed, up to 1 MB each. */
+  stdout: string;
+  stderr: string;
+  stopped: boolean;
+}
+
+export interface ProgramRunner {
+  /** Runs a program; resolves when it ends or is stopped. Fails if it cannot be started. */
+  run(run: ProgramRun): Promise<ProgramResult>;
+  stop(id: string): Promise<void>;
+}
+
+/** Handwriting to text, on the device. */
+export interface HandwritingRecognizer {
+  /** Whether the language model is on the device yet. */
+  ready(): Promise<boolean>;
+  /** Downloads the language model; resolves once it is there. */
+  prepare(): Promise<void>;
+  /** The text written in strokes, each a list of `[x, y, ms]`; empty if none is read. */
+  recognise(strokes: readonly (readonly [number, number, number])[][]): Promise<string>;
+}
+
+/** A backup of a vault: a dated zip file. */
+export interface BackupFile {
+  /** Full path. */
+  path: string;
+  /** Such as `Lab vault backup 2026-10-28 1330.zip`. */
+  name: string;
+  size: number;
+}
+
+export interface VaultBackups {
+  /**
+   * Backs the open vault up into `folder` (a full path outside it), named
+   * with `stamp`, leaving out each device's own files; then puts away older
+   * backups beyond the newest `keep`.
+   */
+  backUp(folder: string, name: string, stamp: string, keep: number): Promise<BackupFile>;
+  /** The vault `name`'s backups in `folder`, oldest first. */
+  list(folder: string, name: string): Promise<BackupFile[]>;
+  /** Unpacks a backup into a new folder beside it; resolves to that folder. */
+  restore(path: string): Promise<string>;
+}
 
 /** Folders by full path, for choosing a vault inside the app. */
 export interface FolderBrowser {

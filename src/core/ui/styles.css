@@ -966,7 +966,11 @@ button.switch[aria-checked='true'] .switch-knob {
 }
 
 .module-panel {
-  padding: 0.5rem 1rem 0.75rem;
+  padding: 0.4rem 1rem;
+}
+
+.module-panel.open {
+  padding-bottom: 0.75rem;
 }
 
 .module-panel + .module-panel {
@@ -974,12 +978,41 @@ button.switch[aria-checked='true'] .switch-knob {
 }
 
 .module-panel-title {
-  margin: 0 0 0.35rem;
+  margin: 0;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/* The heading opens and folds the panel. */
+.module-panel-title button,
+.module-panel-title button:first-child {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  padding: 0.15rem 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+}
+
+.module-panel-title svg {
+  transition: transform 120ms ease;
+}
+
+.module-panel.open .module-panel-title {
+  margin-bottom: 0.35rem;
+}
+
+.module-panel.open .module-panel-title svg {
+  transform: rotate(90deg);
 }
 
 .module-panel-body {
@@ -3453,4 +3486,142 @@ button.tool[aria-checked='true'] {
 .resize-edge,
 .resize-handle {
   touch-action: none;
+}
+
+/* ---- Backups ---- */
+
+.backup-folder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.backup-folder .path {
+  margin: 0;
+}
+
+.backups .with-unit {
+  margin-top: 0.75rem;
+}
+
+.backup-list {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  list-style: none;
+}
+
+.backup-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+}
+
+.backup-list li + li {
+  border-top: 1px solid var(--border);
+}
+
+.backup-name {
+  flex: 1;
+  min-width: 12rem;
+  font-size: 0.9rem;
+}
+
+/* Text laid over a PDF page by pdf.js: invisible, but selectable for highlights. */
+.pdf-text {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  transform-origin: 0 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+
+.pdf-text :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+
+.pdf-text > :not(.markedContent),
+.pdf-text .markedContent span:not(.markedContent) {
+  --font-height: 0;
+  --scale-x: 1;
+  --rotate: 0deg;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+.pdf-text .markedContent {
+  display: contents;
+}
+
+.pdf-text ::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.file-pen-bar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--bg);
+}
+
+/* ---- What do you do? (module packs) ---- */
+
+.pack-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  background: rgb(0 0 0 / 0.3);
+}
+
+.floating-dialog.pack-chooser {
+  top: 12vh;
+  width: min(30rem, calc(100vw - 2rem));
+}
+
+.pack-list {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+button.pack-card,
+button.pack-card:first-child {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  text-align: left;
+}
+
+button.pack-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+button.pack-card span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.pack-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
 }

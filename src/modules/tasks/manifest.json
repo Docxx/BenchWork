@@ -1,0 +1,9 @@
+{
+  "id": "tasks",
+  "name": "Tasks and board",
+  "version": "0.1.0",
+  "description": "Checklist items from every page in one list, with due dates, and as a board of To do, Doing and Done",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

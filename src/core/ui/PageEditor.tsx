@@ -68,6 +68,10 @@ export function PageEditor({ page }: { page: OpenPage }) {
               shown: () => {
                 store.getState().noteInkShown();
               },
+              recogniser: () => {
+                const r = store.getState().inkRecognisers[0];
+                return r ? (strokes) => r.recognise(strokes) : null;
+              },
             },
           },
           { citations: citationProvider, onMenu: setCiteMenu },

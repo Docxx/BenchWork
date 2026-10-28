@@ -186,6 +186,17 @@ export const WikiLink = Node.create<AssetOptions>({
             editor.view.dispatch(editor.state.tr.delete(pos, pos + node.nodeSize));
             editor.view.focus();
           },
+          addText: (text) => {
+            const pos = getPos();
+            if (typeof pos !== 'number') return;
+            const $pos = editor.state.doc.resolve(pos);
+            const after = $pos.after($pos.depth);
+            const paragraph = editor.schema.nodes['paragraph'];
+            if (!paragraph) return;
+            editor.view.dispatch(
+              editor.state.tr.insert(after, paragraph.create(null, editor.schema.text(text))),
+            );
+          },
           grewUp: (dy) => {
             const pos = getPos();
             if (typeof pos !== 'number') return;

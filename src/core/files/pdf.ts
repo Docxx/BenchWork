@@ -11,6 +11,14 @@ export interface PdfDocument {
    * wanted; `done` then resolves to false.
    */
   render(n: number, canvas: HTMLCanvasElement, width: number): PdfRender;
+  /** Page `n`'s size in PDF points, at 100%. */
+  size(n: number): Promise<{ width: number; height: number }>;
+  /**
+   * Lays page `n`'s text over it, invisible but selectable, in `container`
+   * (which should sit over the page, `width` CSS pixels wide). Give the
+   * container the class `pdf-text`.
+   */
+  text(n: number, container: HTMLElement, width: number): Promise<void>;
   destroy(): void;
 }
 
@@ -72,6 +80,23 @@ export async function openPdf(bytes: Uint8Array): Promise<PdfDocument> {
           task?.cancel();
         },
       };
+    },
+    async size(n) {
+      const viewport = (await doc.getPage(n)).getViewport({ scale: 1 });
+      return { width: viewport.width, height: viewport.height };
+    },
+    async text(n, container, width) {
+      const page = await doc.getPage(n);
+      const base = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: width / base.width });
+      container.replaceChildren();
+      container.style.setProperty('--total-scale-factor', String(viewport.scale));
+      const layer = new lib.TextLayer({
+        textContentSource: page.streamTextContent(),
+        container,
+        viewport,
+      });
+      await layer.render();
     },
     destroy() {
       void task.destroy();

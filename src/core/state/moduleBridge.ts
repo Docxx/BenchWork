@@ -21,6 +21,15 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
   }
 
   return {
+    inkHooks: () => ({
+      settings: () => state().pen,
+      onPen: () => {
+        state().notePen();
+      },
+      dark: () => document.documentElement.style.colorScheme === 'dark',
+      filters: () => state().strokeFilters,
+      tool: (id) => state().inkTools.find((t) => t.id === id) ?? null,
+    }),
     vaultRoot: () => {
       const status = state().status;
       return status.kind === 'open' ? status.vault.root : null;

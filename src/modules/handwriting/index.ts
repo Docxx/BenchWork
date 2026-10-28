@@ -11,6 +11,8 @@ import {
   type Box,
 } from './lasso';
 import { isScribble, scribbledOver } from './scratchOut';
+import { PdfReader } from './PdfReader';
+import { makeReader } from './recognise';
 import { snapShape } from './shapes';
 import './handwriting.css';
 
@@ -21,7 +23,9 @@ import './handwriting.css';
  *   them with the buttons that appear;
  * - shapes: hold the pen still at the end of a stroke to make it a
  *   straight line, rectangle or ellipse;
- * - scratching out: scribble back and forth over strokes to erase them.
+ * - scratching out: scribble back and forth over strokes to erase them;
+ * - reading PDFs: highlight text and write on pages, with the notes kept
+ *   beside the PDF in `<file>.pdf.annot.json`; the PDF is never changed.
  * Both only change strokes, which are saved as usual; switched off, every
  * drawing stays as it is.
  */
@@ -92,7 +96,15 @@ function putAway(area: InkToolArea, state: LassoState): void {
 }
 
 /** Buttons beside the chosen strokes: colours, and delete. */
-function showActions(area: InkToolArea, state: LassoState): void {
+/** Reads strokes as text, where the device can; null where it cannot. */
+type Reader = ((strokes: readonly InkStroke[]) => Promise<string>) | null;
+
+function showActions(
+  area: InkToolArea,
+  state: LassoState,
+  read: Reader,
+  notify: (message: string) => void,
+): void {
   state.actions?.remove();
   const box = boxOf(area.strokes(), state.chosen);
   if (!box) return;
@@ -115,8 +127,8 @@ function showActions(area: InkToolArea, state: LassoState): void {
       b.className = 'lasso-colour';
       b.style.background = colour;
     } else {
-      b.className = 'lasso-delete';
-      b.textContent = 'Delete';
+      b.className = label === 'Delete' ? 'lasso-delete' : 'lasso-text';
+      b.textContent = label;
     }
     b.addEventListener('click', (e) => {
       e.preventDefault();
@@ -133,6 +145,32 @@ function showActions(area: InkToolArea, state: LassoState): void {
       c.value,
     );
   }
+  if (read !== null) {
+    button('Convert to text', () => {
+      const chosen = state.chosen;
+      const strokes = area.strokes().filter((s) => chosen.has(s.id));
+      void read(strokes).then(
+        (text) => {
+          if (text === '') {
+            notify('No writing could be read there.');
+            return;
+          }
+          if (area.addText) {
+            // Into the page, below the drawing, in place of the strokes.
+            area.addText(text);
+            area.setStrokes(withoutStrokes(area.strokes(), chosen));
+            putAway(area, state);
+          } else {
+            void navigator.clipboard.writeText(text);
+            notify(`Copied: ${text}`);
+          }
+        },
+        () => {
+          notify('The writing could not be read. Try again when online, the first time.');
+        },
+      );
+    });
+  }
   button('Delete', () => {
     area.setStrokes(withoutStrokes(area.strokes(), state.chosen));
     putAway(area, state);
@@ -143,6 +181,22 @@ function showActions(area: InkToolArea, state: LassoState): void {
 
 export default defineModule({
   activate(ctx) {
+    // Handwriting to text, where the device offers it: drawings on pages are
+    // read as they are written, and the lasso can convert writing to text.
+    const read: Reader = ctx.ink.handwriting ? makeReader(ctx, ctx.ink.handwriting) : null;
+    if (read !== null) {
+      ctx.ink.registerRecogniser({ id: 'handwriting.read', recognise: read });
+    }
+
+    ctx.files.register({
+      id: 'handwriting.pdf',
+      extensions: ['.pdf'],
+      name: 'PDF',
+      watchesFile: true,
+      penTools: true,
+      render: ({ path }) => createElement(PdfReader, { ctx, path }),
+    });
+
     ctx.ink.registerStrokeFilter({
       id: 'handwriting.scratch-out',
       filter: (stroke, info) => {
@@ -221,7 +275,9 @@ export default defineModule({
         }
         state.phase = 'chosen';
         drawBox(area, boxOf(area.strokes(), state.chosen));
-        showActions(area, state);
+        showActions(area, state, read, (m) => {
+          ctx.app.notify(m);
+        });
       },
       end(area) {
         const state = lassos.get(area);

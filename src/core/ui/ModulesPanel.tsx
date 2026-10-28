@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { PACKS } from '../modules/packs';
 import type { ModuleInfo } from '../modules/registry';
 import { useApp } from './AppStoreContext';
 
@@ -20,12 +22,45 @@ export function ModulesPanel() {
   const notice = useApp((s) => s.moduleNotice);
   const busy = useApp((s) => s.moduleBusy);
   const setModuleEnabled = useApp((s) => s.setModuleEnabled);
+  const enablePack = useApp((s) => s.enablePack);
+  const [packNote, setPackNote] = useState<string | null>(null);
 
   const nameOf = (id: string) => modules.find((m) => m.manifest.id === id)?.manifest.name ?? id;
 
   return (
     <div className="modules">
       <p className="hint">Switching a module off never deletes its files.</p>
+
+      <fieldset className="field">
+        <legend>Packs</legend>
+        <p className="hint">Switch on the modules that suit a kind of work, all at once.</p>
+        <div className="pack-row">
+          {PACKS.map((pack) => (
+            <button
+              key={pack.id}
+              type="button"
+              title={pack.description}
+              disabled={busy}
+              onClick={() => {
+                void enablePack(pack.modules).then((left) => {
+                  setPackNote(
+                    left.length === 0
+                      ? `${pack.name} pack switched on.`
+                      : `${pack.name} pack switched on. Left off, as they do not run on this device: ${left.join(', ')}.`,
+                  );
+                });
+              }}
+            >
+              Switch on {pack.name}
+            </button>
+          ))}
+        </div>
+        {packNote !== null && (
+          <p className="hint" role="status">
+            {packNote}
+          </p>
+        )}
+      </fieldset>
 
       {notice !== null && (
         <p className="notice" role="alert">

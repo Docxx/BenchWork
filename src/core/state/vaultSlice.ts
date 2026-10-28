@@ -55,6 +55,8 @@ export interface VaultSlice {
    * picker. The last vault is still remembered.
    */
   closeVault: () => Promise<void>;
+  /** Closes the open vault and opens the one at `path`, such as a restored backup. */
+  switchToVault: (path: string) => Promise<void>;
 }
 
 const PICK_TITLES: Record<PickMode, string> = {
@@ -82,6 +84,17 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
     }
   }
 
+  /** Lets every slice finish with the open vault, then closes it. */
+  async function closeOpen(): Promise<void> {
+    if (get().status.kind !== 'open') return;
+    // Everything finishes with this vault before the platform can point at another.
+    await ctx.configSaved();
+    for (const hooks of [...ctx.lifecycle].reverse()) await hooks.closing?.();
+    ctx.bumpSession();
+    set({ status: { kind: 'no-vault' }, notice: null });
+    for (const hooks of ctx.lifecycle) hooks.closed?.();
+  }
+
   /** Runs a vault action unless one is already running. */
   async function guarded(action: () => Promise<void>): Promise<void> {
     if (get().busy) return;
@@ -106,6 +119,8 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
     ctx.bumpSession();
     set({ status: { kind: 'open', vault: { root, config } }, notice: null });
     for (const hooks of ctx.lifecycle) await hooks.opened?.(config);
+    // A vault just set up asks what it is for, to switch on the modules that suit.
+    if (empty) set({ choosingPack: true });
 
     const settings = { ...get().settings, lastVault: root };
     set({ settings });
@@ -206,15 +221,12 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
       }
     },
 
-    closeVault: () =>
+    closeVault: () => guarded(closeOpen),
+
+    switchToVault: (path) =>
       guarded(async () => {
-        if (get().status.kind !== 'open') return;
-        // Everything finishes with this vault before the platform can point at another.
-        await ctx.configSaved();
-        for (const hooks of [...ctx.lifecycle].reverse()) await hooks.closing?.();
-        ctx.bumpSession();
-        set({ status: { kind: 'no-vault' }, notice: null });
-        for (const hooks of ctx.lifecycle) hooks.closed?.();
+        await closeOpen();
+        await goOnWith(path);
       }),
   };
 }

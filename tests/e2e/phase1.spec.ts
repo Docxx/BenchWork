@@ -27,6 +27,11 @@ test.beforeEach(async ({ page }) => {
     memory.queuePick('C:/Lab vault');
   });
   await page.getByRole('button', { name: 'New vault' }).click();
+  // A new vault asks what it is for; these tests use the core alone.
+  await page
+    .getByRole('dialog', { name: 'What do you do?' })
+    .getByRole('button', { name: /^Just notes/ })
+    .click();
   await expect(tree(page)).toBeVisible();
 });
 

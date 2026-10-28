@@ -1,0 +1,9 @@
+{
+  "id": "inventory",
+  "name": "Inventory",
+  "version": "0.1.0",
+  "description": "Fly stocks and crosses, reagents and antibodies, with reminders when stocks are due to be flipped",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

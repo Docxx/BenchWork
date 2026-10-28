@@ -38,6 +38,12 @@ async function benchworkFiles(page: Page) {
 }
 
 const helloPanel = (page: Page) => page.getByRole('region', { name: 'Hello' });
+
+/** Panels start folded; opens Hello's, once it is there. */
+async function openHello(page: Page) {
+  const heading = helloPanel(page).getByRole('button', { name: 'Hello' });
+  if ((await heading.getAttribute('aria-expanded')) !== 'true') await heading.click();
+}
 const helloSwitch = (page: Page) => page.getByRole('switch', { name: /Hello/ });
 
 test.beforeEach(async ({ page }) => {
@@ -62,6 +68,7 @@ test('Hello is listed, off by default, and adds a sidebar panel when switched on
 
   await helloSwitch(page).click();
   await expect(helloSwitch(page)).toHaveAttribute('aria-checked', 'true');
+  await openHello(page);
   await expect(helloPanel(page)).toContainText('switched on once');
 
   await helloSwitch(page).click();
@@ -101,6 +108,7 @@ test('switching off keeps the module data, and the switch is saved in config.jso
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('tab', { name: 'Modules' }).click();
   await helloSwitch(page).click();
+  await openHello(page);
   await expect(helloPanel(page)).toContainText('once');
   await helloSwitch(page).click();
   await expect(helloPanel(page)).toHaveCount(0);
@@ -126,5 +134,6 @@ test('Hello comes back on when the vault is reopened', async ({ page }) => {
     window.__benchworkMemory?.queuePick('C:/Vault');
   });
   await page.getByRole('button', { name: 'Open vault' }).click();
+  await openHello(page);
   await expect(helloPanel(page)).toContainText('2 times');
 });

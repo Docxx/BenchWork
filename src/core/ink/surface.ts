@@ -37,6 +37,8 @@ export interface ToolArea {
   readonly overlay: CanvasRenderingContext2D;
   clearOverlay(): void;
   readonly element: HTMLElement;
+  /** Puts typed text in the page beside the drawing; missing where there is no page, as on a PDF. */
+  readonly addText?: (text: string) => void;
 }
 
 /** A module's tool, such as a lasso. Matches InkToolSpec in the module API. */
@@ -84,6 +86,8 @@ export interface SurfaceHooks {
   filters?: () => readonly SurfaceFilter[];
   /** A module's tool by its id, or null. */
   tool?: (id: string) => SurfaceTool | null;
+  /** Puts typed text in the page beside this ink, where there is one. */
+  addText?: (text: string) => void;
 }
 
 /** How long the pen stays still before lifting for a stroke to count as held, in ms. */
@@ -212,6 +216,7 @@ export class InkSurface {
         this.liveCtx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
       },
       element: host,
+      ...(hooks.addText ? { addText: hooks.addText } : {}),
     };
     this.listen(host, 'pointerdown', (e) => {
       this.onDown(e);
