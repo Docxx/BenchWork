@@ -3442,3 +3442,15 @@ button.tool[aria-checked='true'] {
   background: var(--accent-soft);
   color: var(--accent);
 }
+
+/*
+ * Handles that are dragged take the pen and fingers themselves; otherwise
+ * the browser may take a drag as scrolling partway through.
+ */
+.box-handle,
+.box-resize,
+.ink-resize,
+.resize-edge,
+.resize-handle {
+  touch-action: none;
+}

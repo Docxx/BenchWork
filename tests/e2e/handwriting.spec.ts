@@ -106,3 +106,21 @@ test('a stroke held still at the end becomes a straight line', async ({ page }) 
     ).toBeLessThan(1);
   }
 });
+
+test('scribbling over a stroke erases it, and the scribble', async ({ page }) => {
+  const a = await area(page);
+  await page.mouse.move(a.x + 40, a.y + 60);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i += 1) await page.mouse.move(a.x + 40 + i * 10, a.y + 60 + (i % 2) * 6);
+  await page.mouse.up();
+  await expect.poll(() => strokeCount(page)).toBe(1);
+
+  await page.mouse.move(a.x + 30, a.y + 55);
+  await page.mouse.down();
+  for (let leg = 0; leg < 6; leg += 1) {
+    const x = leg % 2 === 0 ? 130 : 30;
+    await page.mouse.move(a.x + x, a.y + 55 + leg * 2, { steps: 5 });
+  }
+  await page.mouse.up();
+  await expect.poll(() => inkFile(page)).toContain('"strokes": []');
+});

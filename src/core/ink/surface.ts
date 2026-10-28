@@ -47,9 +47,20 @@ export interface SurfaceTool {
   end?(area: ToolArea): void;
 }
 
+/** What a filter knows about a stroke as it is finished. */
+export interface FilterInfo {
+  /** The pen stayed still for a moment before it lifted. */
+  held: boolean;
+  /** The drawing's other strokes. */
+  others: readonly InkStroke[];
+  /** Removes other strokes from the drawing, such as those scribbled over. */
+  erase: (ids: readonly string[]) => void;
+}
+
 /** Changes a stroke as it is finished. Matches StrokeFilterSpec in the module API. */
 export interface SurfaceFilter {
-  filter(stroke: InkStroke, info: { held: boolean }): InkStroke;
+  /** The stroke to keep, with the same id, or null to keep none. */
+  filter(stroke: InkStroke, info: FilterInfo): InkStroke | null;
 }
 
 export interface PenSettings {
@@ -422,18 +433,35 @@ export class InkSurface {
       recorded.points.length > 2 &&
       this.lastMove !== null &&
       e.timeStamp - this.lastMove.time >= HOLD_MS;
-    let stroke = recorded;
+    let stroke: InkStroke | null = recorded;
+    const erased = new Set<string>();
     for (const f of this.hooks.filters?.() ?? []) {
+      if (stroke === null) break;
       try {
-        const next = f.filter(stroke, { held });
-        if (next.points.length > 0) stroke = { ...next, id: recorded.id };
+        const next = f.filter(stroke, {
+          held,
+          others: this.strokes,
+          erase: (ids) => {
+            for (const id of ids) erased.add(id);
+          },
+        });
+        stroke =
+          next === null ? null : next.points.length > 0 ? { ...next, id: recorded.id } : stroke;
       } catch {
         // A module's filter failing leaves the stroke as written.
       }
     }
-    this.strokes.push(stroke);
-    this.baseCtx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    drawStroke(this.baseCtx, stroke, this.hooks.dark?.() ?? false);
+    if (erased.size > 0) {
+      this.strokes = this.strokes.filter((s) => !erased.has(s.id));
+      if (stroke !== null) this.strokes.push(stroke);
+      this.redraw();
+    } else if (stroke !== null) {
+      this.strokes.push(stroke);
+      this.baseCtx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      drawStroke(this.baseCtx, stroke, this.hooks.dark?.() ?? false);
+    } else {
+      return;
+    }
     this.hooks.onChange([...this.strokes]);
   }
 

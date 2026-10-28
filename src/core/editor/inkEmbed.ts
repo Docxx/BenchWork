@@ -1,4 +1,4 @@
-import { emptyInk, inkBounds, type Ink, type InkStroke } from '../ink/inkFile';
+import { emptyInk, inkBounds, type Ink, type InkPoint, type InkStroke } from '../ink/inkFile';
 import { InkSurface, type SurfaceHooks } from '../ink/surface';
 
 /**
@@ -24,6 +24,26 @@ const GROW_BY = 160;
 const GROW_MARGIN = 48;
 const MIN_HEIGHT = 80;
 
+/** Writing nearer the top than this makes the drawing grow upwards, in CSS pixels. */
+const TOP_MARGIN = 6;
+/** How much room it then leaves above the highest stroke. */
+const TOP_ROOM = 24;
+
+/** How far to move strokes down so none is cut off at the top; 0 if none is. */
+export function roomAbove(strokes: readonly InkStroke[]): number {
+  const bounds = inkBounds(strokes);
+  if (!bounds || bounds.y >= TOP_MARGIN) return 0;
+  return Math.ceil(TOP_ROOM - bounds.y);
+}
+
+/** The strokes moved down by dy. */
+export function shiftDown(strokes: readonly InkStroke[], dy: number): InkStroke[] {
+  return strokes.map((s) => ({
+    ...s,
+    points: s.points.map(([x, y, p, t]): InkPoint => [x, Math.round((y + dy) * 100) / 100, p, t]),
+  }));
+}
+
 /** The ink's height after strokes: taller when they come near the bottom. */
 export function grownHeight(height: number, strokes: readonly InkStroke[]): number {
   const bounds = inkBounds(strokes);
@@ -39,6 +59,8 @@ export function inkEmbedView(
     editable: () => boolean;
     /** Takes the drawing out of the page; its file stays, as with any embed. */
     remove: () => void;
+    /** The drawing grew upwards by dy: its box, if it is in one, moves up to match. */
+    grewUp?: (dy: number) => void;
   },
 ): { dom: HTMLElement; destroy: () => void } {
   const { editable } = page;
@@ -95,9 +117,16 @@ export function inkEmbedView(
     show(Math.max(MIN_HEIGHT, loaded.height || NEW_INK_HEIGHT));
     surface = new InkSurface(host, loaded.strokes, {
       ...access.hooks,
-      onChange: (strokes) => {
+      onChange: (written) => {
+        // Writing above the top grows the drawing upwards, so nothing is cut off.
+        const dy = roomAbove(written);
+        const strokes = dy > 0 ? shiftDown(written, dy) : written;
         ink = { ...ink, strokes };
-        show(grownHeight(ink.height, strokes));
+        show(grownHeight(ink.height + dy, strokes));
+        if (dy > 0) {
+          surface?.setStrokes(strokes);
+          page.grewUp?.(dy);
+        }
         save();
       },
     });

@@ -11,7 +11,7 @@ import { isImage } from '../pages/attachments';
 import { Citation, type CitationOptions } from './citationNode';
 import { joinLabel, splitLabel } from './imageSize';
 import { fileEmbedElement, isFileEmbed, type TableLoader } from './fileEmbed';
-import { Box, Highlight, PageDocument } from './freeLayout';
+import { Box, Highlight, moveBox, PageDocument } from './freeLayout';
 import { imageView } from './imageView';
 import { inkEmbedView, type InkAccess } from './inkEmbed';
 import { BOX, RAW_BLOCK, RAW_INLINE, SOURCE_ATTR, WIKI_LINK } from './markdown/model';
@@ -185,6 +185,16 @@ export const WikiLink = Node.create<AssetOptions>({
             if (typeof pos !== 'number') return;
             editor.view.dispatch(editor.state.tr.delete(pos, pos + node.nodeSize));
             editor.view.focus();
+          },
+          grewUp: (dy) => {
+            const pos = getPos();
+            if (typeof pos !== 'number') return;
+            const $pos = editor.state.doc.resolve(pos);
+            if ($pos.depth < 1 || $pos.node(1).type.name !== BOX) return;
+            const y = Number($pos.node(1).attrs['y'] ?? 0);
+            editor.view.dispatch(
+              moveBox(editor.state.tr, $pos.before(1), { y: Math.max(0, y - dy) }),
+            );
           },
         });
         return {

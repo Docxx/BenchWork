@@ -201,4 +201,25 @@ describe('modules on the ink surface', () => {
     expect(calls).toEqual(['down 5', 'move 15', 'up']);
     expect(changes.at(-1)?.map((s) => s.id)).toEqual(['b']);
   });
+
+  it('let a filter drop the stroke as a gesture, erasing others', () => {
+    const { send, changes } = setup(
+      [line('a', 10), line('b', 50)],
+      {},
+      {
+        filters: () => [
+          {
+            filter: (_stroke, info) => {
+              info.erase(info.others.filter((o) => o.id === 'a').map((o) => o.id));
+              return null;
+            },
+          },
+        ],
+      },
+    );
+    send(pointer('pointerdown', 'pen', 10, 10));
+    send(pointer('pointermove', 'pen', 40, 12));
+    send(pointer('pointerup', 'pen', 60, 10, { buttons: 0 }));
+    expect(changes.at(-1)?.map((s) => s.id)).toEqual(['b']);
+  });
 });

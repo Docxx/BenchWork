@@ -39,6 +39,21 @@ describe('shapes', () => {
     ).toBe('ellipse');
   });
 
+  it('know shapes drawn as people draw them: wobbly, rounded, running past the start', () => {
+    // Round a box with rounded corners, then on past the start.
+    const rough = (t: number): [number, number] => {
+      const [x, y] = aroundBox((t * 1.1) % 1);
+      const corner = Math.min(x, 200 - x, y, 100 - y) < 12 ? 6 : 0;
+      return [x + (x < 100 ? corner : -corner), y + (y < 50 ? corner : -corner)];
+    };
+    expect(recognise(drawn(rough, 140, 4))).toBe('rectangle');
+    const oval = (t: number): [number, number] => {
+      const a = t * Math.PI * 2.15;
+      return [100 + 90 * Math.cos(a) + Math.sin(a * 5) * 4, 60 + 50 * Math.sin(a)];
+    };
+    expect(recognise(drawn(oval, 90, 3))).toBe('ellipse');
+  });
+
   it('leave scribbles, writing and small marks alone', () => {
     // A zigzag, like handwriting.
     expect(recognise(drawn((t) => [t * 200, (Math.floor(t * 12) % 2) * 40], 80, 0))).toBeNull();

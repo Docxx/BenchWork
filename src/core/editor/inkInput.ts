@@ -19,6 +19,9 @@ export interface InkInputOptions {
   writing: () => boolean;
 }
 
+/** How far below a new ink box's top the pen lands, in CSS pixels. */
+const PEN_ROOM_ABOVE = 90;
+
 /** A drawing's width on a free layout page. */
 const FREE_INK_WIDTH = 480;
 
@@ -70,7 +73,8 @@ export function drawAt(
       view,
       {
         x: Math.max(0, Math.round(point.clientX - rect.left - 24)),
-        y: Math.max(0, Math.round(point.clientY - rect.top - 36)),
+        // Room above the pen for tall letters, and below for the next lines.
+        y: Math.max(0, Math.round(point.clientY - rect.top - PEN_ROOM_ABOVE)),
         w: FREE_INK_WIDTH,
       },
       Fragment.from(block),

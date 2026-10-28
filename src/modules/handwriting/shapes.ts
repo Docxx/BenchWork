@@ -21,11 +21,11 @@ const MIN_SIZE = 24;
 /** How straight a line must be: its widest wobble against its length. */
 const LINE_WOBBLE = 0.08;
 /** How near its start a loop must end, against its size. */
-const LOOP_GAP = 0.3;
+const LOOP_GAP = 0.35;
 /** How closely a loop must follow a rectangle's sides, against its smaller side. */
-const RECTANGLE_FIT = 0.08;
+const RECTANGLE_FIT = 0.13;
 /** How closely a loop must follow an ellipse, as a share of its radius. */
-const ELLIPSE_FIT = 0.14;
+const ELLIPSE_FIT = 0.2;
 /** Points along a tidied shape, every few pixels, so it draws smoothly. */
 const SPACING = 4;
 
@@ -63,7 +63,10 @@ export function recognise(points: readonly InkPoint[]): Shape | null {
   const span = Math.hypot(last[0] - first[0], last[1] - first[1]);
   const wobble = Math.max(...points.map((p) => offLine(p, first, last)));
   if (span > size * 0.8 && wobble < span * LINE_WOBBLE) return 'line';
-  if (span > size * LOOP_GAP || Math.min(w, h) < MIN_SIZE / 2) return null;
+  // A loop ends near where it began; a hand often carries on past the start.
+  const start = points.slice(0, Math.max(2, Math.ceil(points.length / 4)));
+  const gap = Math.min(...start.map((p) => Math.hypot(last[0] - p[0], last[1] - p[1])));
+  if (gap > size * LOOP_GAP || Math.min(w, h) < MIN_SIZE / 2) return null;
 
   // Mean distance to the nearest side, against the smaller side.
   const rectangle =

@@ -358,11 +358,19 @@ export interface StrokeFilterSpec {
   /** Must start with the module id and a dot. */
   id: string;
   /**
-   * The stroke as it should be kept: the same one, or a new one with the
-   * same id. `held` is true when the pen stayed still for a moment before
-   * it lifted.
+   * The stroke as it should be kept: the same one, a new one with the same
+   * id, or null for none, as when the stroke was a gesture.
    */
-  filter: (stroke: InkStroke, info: { held: boolean }) => InkStroke;
+  filter: (stroke: InkStroke, info: StrokeFilterInfo) => InkStroke | null;
+}
+
+export interface StrokeFilterInfo {
+  /** The pen stayed still for a moment before it lifted. */
+  held: boolean;
+  /** The drawing's other strokes. */
+  others: readonly InkStroke[];
+  /** Removes other strokes from the drawing, such as those scribbled over. */
+  erase: (ids: readonly string[]) => void;
 }
 
 /** A point on a drawing, in CSS pixels from its top left. */

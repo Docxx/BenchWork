@@ -10,6 +10,7 @@ import {
   withoutStrokes,
   type Box,
 } from './lasso';
+import { isScribble, scribbledOver } from './scratchOut';
 import { snapShape } from './shapes';
 import './handwriting.css';
 
@@ -19,7 +20,8 @@ import './handwriting.css';
  *   strokes to choose them, then drag to move them, or recolour or delete
  *   them with the buttons that appear;
  * - shapes: hold the pen still at the end of a stroke to make it a
- *   straight line, rectangle or ellipse.
+ *   straight line, rectangle or ellipse;
+ * - scratching out: scribble back and forth over strokes to erase them.
  * Both only change strokes, which are saved as usual; switched off, every
  * drawing stays as it is.
  */
@@ -141,6 +143,16 @@ function showActions(area: InkToolArea, state: LassoState): void {
 
 export default defineModule({
   activate(ctx) {
+    ctx.ink.registerStrokeFilter({
+      id: 'handwriting.scratch-out',
+      filter: (stroke, info) => {
+        if (info.held || !isScribble(stroke.points)) return stroke;
+        const under = scribbledOver(stroke, info.others);
+        if (under.length === 0) return stroke;
+        info.erase(under);
+        return null;
+      },
+    });
     ctx.ink.registerStrokeFilter({
       id: 'handwriting.shapes',
       filter: (stroke, { held }) => (held ? (snapShape(stroke) ?? stroke) : stroke),
