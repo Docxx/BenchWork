@@ -1,6 +1,6 @@
 # BenchWork roadmap
 
-Current phase: **Phase 5** (Phase 4 is deferred)
+Current phase: **Phase 4**
 
 ## Phase 0: Skeleton
 
@@ -61,6 +61,15 @@ Deferred on 23 Oct 2026 until Android Studio and the tablet are set up. Phase 5 
 - [x] Mind maps and canvas
 - [x] Data viewer: CSV and Excel light editing (cells, columns, simple formulas), quick plots
 - [x] Exit check: a chapter draft exported to Word with formatted citations
+
+## Between phases: new look and free layout (0.6.0)
+
+- [x] New look: themes, accent colour, fonts, text size, spacing, page width, light or dark
+- [x] Sidebar and side panel (outline, linked from), both resizable
+- [x] Free layout pages: boxes placed anywhere, sticky notes, chosen per page with a per-vault default
+- [x] Toolbar above pages: Home and Insert, can be hidden
+- [x] Page colour and pattern (plain, dots, lines, grid)
+- [x] Short opening animation
 
 ## Phase 6: Sync and polish
 
