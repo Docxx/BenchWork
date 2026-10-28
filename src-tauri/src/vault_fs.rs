@@ -340,12 +340,36 @@ pub fn trash(root: &Path, rel: &str) -> VaultResult<()> {
     }
     let path = resolve(root, &normal)?;
     fs::symlink_metadata(&path).map_err(|e| VaultError::io("Cannot find item", &e))?;
-    trash::delete(&path).map_err(|e| {
+    to_recycle_bin(root, &normal, &path)
+}
+
+#[cfg(not(target_os = "android"))]
+fn to_recycle_bin(_root: &Path, _rel: &str, path: &Path) -> VaultResult<()> {
+    trash::delete(path).map_err(|e| {
         VaultError::new(
             ErrorKind::Io,
             format!("Cannot move to the Recycle Bin: {e}"),
         )
     })
+}
+
+/// Where deleted items go on Android, which has no Recycle Bin: a folder
+/// per deletion, keeping the item's place in the vault.
+#[cfg(target_os = "android")]
+pub const TRASH_DIR: &str = ".benchwork/trash";
+
+#[cfg(target_os = "android")]
+fn to_recycle_bin(root: &Path, rel: &str, path: &Path) -> VaultResult<()> {
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let target = root.join(TRASH_DIR).join(stamp.to_string()).join(rel);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| VaultError::io("Cannot make the trash folder", &e))?;
+    }
+    fs::rename(path, &target).map_err(|e| VaultError::io("Cannot move to the trash folder", &e))
 }
 
 pub fn exists(root: &Path, rel: &str) -> VaultResult<bool> {

@@ -35,23 +35,23 @@ Single user first, with live co-editing designed in from the start and built lat
 | References   | Zotero                                              | References module targets Zotero only at first                                                                                                                         |
 | Interface    | Minimal                                             | Clean page, tools on demand; pen toolbar appears when the S Pen is detected                                                                                            |
 | Organisation | Projects plus daily pages                           | A notebook per project; a Daily notebook with a page per day linking into projects                                                                                     |
-| Tablet use   | Bench notes, papers, meetings, sketching            | Large touch targets, quick-capture button, PDF reader with pen, canvas pages                                                                                           |
+| Tablet use   | Bench notes, papers, meetings, sketching            | Large touch targets, quick-capture button, PDF reader with pen, free layout pages                                                                                      |
 | Licence      | Undecided                                           | Private repo; avoid GPL-only dependencies so any licence stays open                                                                                                    |
 
 ## Core app scope
 
 The core is a generic notebook app that works on first launch with no setup. Research features arrive as modules.
 
-| Capability             | What it includes                                                                                                                                                                             |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Navigation             | Notebook > Section > Page sidebar, mapped to folders and files; drag to reorder; section colours; recent pages                                                                               |
-| Editor                 | Block editor with no visible Markdown; `/` menu for headings, tables, checklists, images, ink and embeds; `[[` or `@` link autocomplete; paste screenshots; drag in files; autosave          |
-| Page types             | **Document page** (default): flowing text, where touching the pen to the page inserts an ink block at that point. **Canvas page:** freeform surface for sketches, diagrams and whiteboarding |
-| Ink                    | Pen, highlighter and eraser in ink blocks and canvas pages; pressure; palm rejection                                                                                                         |
-| Links and organisation | Backlinks, tags, page properties and templates, hidden until first used                                                                                                                      |
-| Files                  | Images, PDFs and any file embedded or attached; previews for common types                                                                                                                    |
-| Search and settings    | Full-text search across pages; Settings with theme, vault options and the **Modules** panel                                                                                                  |
-| First launch           | Creates a vault with a sample notebook; asks "What do you do?" and enables the matching module pack                                                                                          |
+| Capability             | What it includes                                                                                                                                                                                                                                                        |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Navigation             | Notebook > Section > Page sidebar, mapped to folders and files; drag to reorder; section colours; recent pages                                                                                                                                                          |
+| Editor                 | Block editor with no visible Markdown; `/` menu for headings, tables, checklists, images, ink and embeds; `[[` or `@` link autocomplete; paste screenshots; drag in files; autosave                                                                                     |
+| Page types             | **Document page** (default): flowing text, where touching the pen to the page inserts an ink block at that point. **Free layout page:** text, pictures and ink in boxes placed anywhere, for sketches, diagrams and meetings; chosen per page, with a default per vault |
+| Ink                    | Pen, highlighter and eraser in ink blocks and on free layout pages; pressure; palm rejection                                                                                                                                                                            |
+| Links and organisation | Backlinks, tags, page properties and templates, hidden until first used                                                                                                                                                                                                 |
+| Files                  | Images, PDFs and any file embedded or attached; previews for common types                                                                                                                                                                                               |
+| Search and settings    | Full-text search across pages; Settings with theme, vault options and the **Modules** panel                                                                                                                                                                             |
+| First launch           | Creates a vault with a sample notebook; asks "What do you do?" and enables the matching module pack                                                                                                                                                                     |
 
 **Out of core:** experiments, datasets, references, manuscripts, Gantt, mind maps, inventories, advanced ink and sync beyond a shared folder. These arrive as modules, grouped into packs, with the Research pack first.
 
@@ -180,19 +180,20 @@ MyVault/
 
 Every object is a file with a stable UUID in its frontmatter, so links survive renames and moves.
 
-| Object             | Stored as                                  | Key fields                                                                                                   |
-| ------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| Page               | `.md` with YAML frontmatter                | `id`, `type`, `project`, `tags`, `created`, `modified`                                                       |
-| Notebook / section | Folder + optional `_section.yaml`          | `colour`, `order`                                                                                            |
-| Canvas page        | `.canvas.json`                             | `items[]` (text boxes, ink strokes, images, page embeds) with `x`, `y`, `width`, `height`                    |
-| Experiment         | `.md`, `type: experiment` (Research pack)  | `aim`, `date`, `protocol`, `conditions`, `genotypes`, `datasets[]`, `status`                                 |
-| Dataset            | `.dataset.yaml` sidecar (Research pack)    | `id`, `files[]` (path, size, sha256), `external` path, `instrument`, `acquired`, `experiment`, `description` |
-| Ink                | `.ink.json`, embedded with `![[...]]`      | `strokes[]` (points: x, y, pressure, t), `tool`, `colour`, `width`, `recognisedText`                         |
-| PDF annotations    | `<file>.pdf.annot.json` sidecar            | `page`, `strokes[]`, `highlights[]`; original PDF untouched                                                  |
-| Reference          | `references/<citekey>.md` + `library.bib`  | `citekey`, `zoteroKey`, `doi`, `title`, `authors`, `year`                                                    |
-| Protocol           | `.md`, `type: protocol`                    | `version`, `supersedes`, `steps`                                                                             |
-| Link               | `[[wikilink]]` or `![[embed]]` in Markdown | Resolved by UUID or path in the index                                                                        |
-| Index              | `.benchwork/index.sqlite`                  | Tables: `notes`, `links`, `tags`, `datasets`, `fts`; derived, rebuildable                                    |
+| Object             | Stored as                                  | Key fields                                                                                                    |
+| ------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| Page               | `.md` with YAML frontmatter                | `id`, `type`, `project`, `tags`, `created`, `modified`                                                        |
+| Notebook / section | Folder + optional `_section.yaml`          | `colour`, `order`                                                                                             |
+| Free layout page   | `.md` with `layout: free`                  | A hidden `<!-- box x y w h colour -->` marker before each box's blocks                                        |
+| Canvas             | `.canvas.json` (Mind maps module)          | Cards linking notes, images and datasets, with `x`, `y`, `width`, `height`                                    |
+| Experiment         | `.md`, `type: experiment` (Research pack)  | `aim`, `date`, `protocol`, `conditions`, `genotypes`, `datasets[]`, `status`                                  |
+| Dataset            | `.dataset.yaml` sidecar (Research pack)    | `id`, `files[]` (path, size, sha256), `external` path, `instrument`, `acquired`, `experiment`, `description`  |
+| Ink                | `.ink.json`, embedded with `![[...]]`      | `strokes[]` (`id`, `tool`, `colour`, `width`, points: x, y, pressure, t), `width`, `height`, `recognisedText` |
+| PDF annotations    | `<file>.pdf.annot.json` sidecar            | `page`, `strokes[]`, `highlights[]`; original PDF untouched                                                   |
+| Reference          | `references/<citekey>.md` + `library.bib`  | `citekey`, `zoteroKey`, `doi`, `title`, `authors`, `year`                                                     |
+| Protocol           | `.md`, `type: protocol`                    | `version`, `supersedes`, `steps`                                                                              |
+| Link               | `[[wikilink]]` or `![[embed]]` in Markdown | Resolved by UUID or path in the index                                                                         |
+| Index              | `.benchwork/index.sqlite`                  | Tables: `notes`, `links`, `tags`, `datasets`, `fts`; derived, rebuildable                                     |
 
 **Experiment page (example)**
 
@@ -223,7 +224,7 @@ Eight phases, each ending in something usable. Phase 2 is the first point of dai
 1. **Notes core.** Block editor (TipTap on Yjs) saving Markdown, notebook and section sidebar, Daily notebook, sample notebook on first launch, frontmatter, wikilinks, backlinks, tags, templates, SQLite index and full-text search. _Exit: lab notes written and searched on desktop._
 2. **Research core.** Projects, experiment page type, dataset records with checksums, copy-or-link attachments, CSV, Excel, image and PDF previews. _Exit: an experiment links to its data and both turn up in search._
 3. **First modules.** Lab notebook and References (Zotero). _Exit: daily pages with citations from the Zotero library._
-4. **Tablet and ink.** Android tablet build with S Pen support, touch-friendly layout, pen writing in ink blocks, canvas pages, Handwriting module, folder sync with conflict handling. _Exit: a note started on desktop is finished with a pen on the tablet._
+4. **Tablet and ink.** Android tablet build with S Pen support, touch-friendly layout, pen writing in ink blocks and on free layout pages, Handwriting module, folder sync with conflict handling. _Exit: a note started on desktop is finished with a pen on the tablet._
 5. **Writing and planning.** Manuscript export via Pandoc, Planner (Gantt), Mind maps and canvas, Data viewer with light editing. _Exit: a chapter draft exported to Word with formatted citations._
 6. **Sync and polish.** Native Yjs sync then co-editing, backups and version history, Inventory, Analysis bridge, onboarding with module packs, handwriting-to-text and PDF annotation. _Exit: two devices edit the same vault without conflict copies._
 7. **Apple port.** macOS and iPad builds with Apple Pencil, signing and TestFlight. _Exit: BenchWork runs on an iPad from the same codebase._
@@ -274,6 +275,8 @@ The two biggest risks are sync conflicts and ink responsiveness on tablets; both
 
 **Open decisions**
 
-- [ ] Folder sync for phase 4: Syncthing, or bring native sync forward
+- [x] Folder sync for phase 4: Syncthing (decided 28 Oct 2026); native sync stays in phase 6
+- [x] Tablet vault access: All files access, so the vault is an ordinary folder that Syncthing also writes to (decided 28 Oct 2026); revisit for a store release
+- [x] No separate canvas page type: pen writing goes on free layout pages and in ink blocks (decided 28 Oct 2026)
 - [ ] Licence: undecided; private repo for now
 - [x] Zotero connection: Web API key or local Better BibTeX. Decided 23 Oct 2026: Better BibTeX keeps a CSL JSON export in the vault, which the References module reads

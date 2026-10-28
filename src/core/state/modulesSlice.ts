@@ -6,6 +6,8 @@ import type {
   PageType,
   PageView,
   SideTab,
+  StrokeFilter,
+  InkToolContribution,
   SettingsPanel,
   SidebarPanel,
 } from '../modules/contributions';
@@ -42,6 +44,10 @@ export interface ModulesSlice {
   pageViews: PageView[];
   /** Side panel tabs of modules that are on. */
   sideTabs: SideTab[];
+  /** Changes made to strokes as they are finished, by modules. */
+  strokeFilters: StrokeFilter[];
+  /** Pen tools from modules, beside the pen, highlighter and eraser. */
+  inkTools: InkToolContribution[];
   /** The module that names cited works, if one is on; at most one. */
   citationProviders: CitationProvider[];
   /** Goes up when citations should be redrawn. */
@@ -109,6 +115,8 @@ export function createModulesSlice(ctx: StoreContext): ModulesSlice {
     settingsPanels: registry.contributions.getState().settingsPanels,
     pageViews: registry.contributions.getState().pageViews,
     sideTabs: registry.contributions.getState().sideTabs,
+    strokeFilters: registry.contributions.getState().strokeFilters,
+    inkTools: registry.contributions.getState().inkTools,
     citationProviders: registry.contributions.getState().citationProviders,
     citationVersion: registry.contributions.getState().citationVersion,
     citationProvider: () => get().citationProviders[0] ?? null,

@@ -9,6 +9,7 @@ import { HistoryPanel } from './HistoryPanel';
 import { ModuleView } from './ModuleView';
 import { PageEditor } from './PageEditor';
 import { PropertiesPanel } from './PropertiesPanel';
+import { PenTools } from './PenTools';
 import { Ribbon } from './Ribbon';
 import { updatedText } from './updated';
 
@@ -137,8 +138,15 @@ function PageTopBar({
 function PageRibbon({ free }: { free: boolean }) {
   const handle = useApp((s) => s.pageEditor);
   const shown = useApp((s) => s.settings.appearance.ribbon);
-  if (!shown || handle === null) return null;
-  return <Ribbon handle={handle} free={free} />;
+  const penSeen = useApp((s) => s.penSeen);
+  if (handle === null) return null;
+  if (shown) return <Ribbon handle={handle} free={free} />;
+  // With the toolbar hidden, the pen tools still show once a pen is used.
+  return penSeen ? (
+    <div className="ribbon-tools pen-bar" role="toolbar" aria-label="Draw">
+      <PenTools />
+    </div>
+  ) : null;
 }
 
 /** Document or free layout, for this page. */
@@ -171,8 +179,13 @@ function LayoutSwitch() {
 }
 
 function SidePanelToggle() {
-  const shown = useApp((s) => s.settings.appearance.sidePanel);
+  const setting = useApp((s) => s.settings.appearance.sidePanel);
   const setAppearance = useApp((s) => s.setAppearance);
+  // On a compact screen the panel slides over the page, just for now.
+  const compact = useApp((s) => s.compact);
+  const drawer = useApp((s) => s.drawer);
+  const setDrawer = useApp((s) => s.setDrawer);
+  const shown = compact ? drawer === 'panel' : setting;
   const label = shown ? 'Hide the side panel' : 'Show the side panel';
   return (
     <button
@@ -181,7 +194,10 @@ function SidePanelToggle() {
       title={label}
       aria-label={label}
       aria-pressed={shown}
-      onClick={() => void setAppearance({ sidePanel: !shown })}
+      onClick={() => {
+        if (compact) setDrawer(shown ? null : 'panel');
+        else void setAppearance({ sidePanel: !shown });
+      }}
     >
       <PanelRight size={17} strokeWidth={1.75} aria-hidden />
     </button>

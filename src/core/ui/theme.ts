@@ -27,3 +27,8 @@ export function applyAppearance(
     root.style.setProperty(name, value);
   }
 }
+
+/** Whether the app is showing dark colours now. */
+export function pageIsDark(): boolean {
+  return document.documentElement.style.colorScheme === 'dark';
+}

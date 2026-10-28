@@ -22,6 +22,18 @@ describe('checkFolder', () => {
     });
   });
 
+  it('knows a synced folder that nothing has arrived in yet', async () => {
+    const platform = adapterWith({
+      'C:/Waiting': { '.stfolder': null, '.stignore': '', '.stversions': null },
+      'C:/Synced': { '.stfolder': null, 'notes.md': 'x' },
+    });
+    expect(await checkFolder(platform, 'C:/Waiting')).toEqual({
+      root: 'C:/Waiting',
+      kind: 'awaiting-sync',
+    });
+    expect((await checkFolder(platform, 'C:/Synced')).kind).toBe('folder');
+  });
+
   const docsVault = {
     '.benchwork/config.json': '{"version":1}',
     '.benchwork/.benchwork/Test': null,

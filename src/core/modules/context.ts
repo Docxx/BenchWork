@@ -37,6 +37,8 @@ type ListKey =
   | 'settingsPanels'
   | 'pageViews'
   | 'sideTabs'
+  | 'strokeFilters'
+  | 'inkTools'
   | 'citationProviders';
 
 export interface ModuleContextHandle {
@@ -162,6 +164,26 @@ export function createModuleContext(
           { ...spec, moduleId: id },
           (t) => t.id === spec.id,
           `A side tab with id '${spec.id}'`,
+        );
+      },
+    },
+    ink: {
+      registerStrokeFilter(spec) {
+        checkId('Stroke filter', spec.id);
+        return contribute(
+          'strokeFilters',
+          { ...spec, moduleId: id },
+          (f) => f.id === spec.id,
+          `A stroke filter with id '${spec.id}'`,
+        );
+      },
+      registerTool(spec) {
+        checkId('Ink tool', spec.id);
+        return contribute(
+          'inkTools',
+          { ...spec, moduleId: id },
+          (t) => t.id === spec.id,
+          `An ink tool with id '${spec.id}'`,
         );
       },
     },

@@ -3,6 +3,8 @@ import type {
   CitationProviderSpec,
   CommandSpec,
   FileHandlerSpec,
+  InkToolSpec,
+  StrokeFilterSpec,
   SideTabSpec,
   PageTypeSpec,
   PageViewSpec,
@@ -42,6 +44,14 @@ export interface SideTab extends SideTabSpec {
   moduleId: string;
 }
 
+export interface StrokeFilter extends StrokeFilterSpec {
+  moduleId: string;
+}
+
+export interface InkToolContribution extends InkToolSpec {
+  moduleId: string;
+}
+
 export interface ContributionsState {
   /** Sidebar panels from modules that are on, in the order they registered. */
   panels: SidebarPanel[];
@@ -51,6 +61,8 @@ export interface ContributionsState {
   settingsPanels: SettingsPanel[];
   pageViews: PageView[];
   sideTabs: SideTab[];
+  strokeFilters: StrokeFilter[];
+  inkTools: InkToolContribution[];
   /** At most one: the first module to register wins. */
   citationProviders: CitationProvider[];
   /** Goes up when a module asks for citations to be redrawn. */
@@ -69,6 +81,8 @@ export function createContributions(): Contributions {
     settingsPanels: [],
     pageViews: [],
     sideTabs: [],
+    strokeFilters: [],
+    inkTools: [],
     citationProviders: [],
     citationVersion: 0,
   }));

@@ -1,0 +1,41 @@
+/* Buttons beside strokes chosen with the lasso. */
+.lasso-actions {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.15);
+  font-family: var(--font-ui);
+}
+
+.lasso-actions button.lasso-colour {
+  width: 1.4rem;
+  height: 1.4rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+
+.lasso-actions button.lasso-delete {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--section-red);
+  font-size: 0.8rem;
+}
+
+@media (pointer: coarse) {
+  .lasso-actions button.lasso-colour {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .lasso-actions button.lasso-delete {
+    padding: 0.45rem 0.8rem;
+  }
+}

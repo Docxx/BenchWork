@@ -1,5 +1,6 @@
 mod error;
 mod file_info;
+mod folders;
 mod index;
 mod pandoc;
 mod path_guard;
@@ -159,6 +160,18 @@ struct VaultOwnerDto {
     root: String,
     folder: String,
     via: vault_root::Via,
+}
+
+/// Folders inside a full path, for choosing a vault inside the app.
+#[tauri::command]
+async fn list_folders(path: String) -> VaultResult<Vec<String>> {
+    folders::list_folders(Path::new(&path))
+}
+
+/// Makes a new folder at a full path, for a new vault chosen inside the app.
+#[tauri::command]
+async fn make_folder(path: String) -> VaultResult<()> {
+    folders::make_folder(Path::new(&path))
 }
 
 /// The vault a chosen folder belongs to, or `null` if it is not in one.
@@ -396,6 +409,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             set_vault_root,
             find_vault_root,
+            list_folders,
+            make_folder,
             list_dir,
             read_text,
             write_text_atomic,

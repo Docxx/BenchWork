@@ -6,6 +6,9 @@ import { createStoreContext } from './context';
 import { createAttachmentsSlice, type AttachmentsSlice } from './attachmentsSlice';
 import { createDailySlice, type DailySlice } from './dailySlice';
 import { createFilesSlice, type FilesSlice } from './filesSlice';
+import { createInkSlice, type InkSlice } from './inkSlice';
+import { createScreenSlice, type ScreenSlice } from './screenSlice';
+import { createSyncSlice, type SyncSlice } from './syncSlice';
 import { createLinksSlice, type LinksSlice } from './linksSlice';
 import { createModuleBridge } from './moduleBridge';
 import { createModulesSlice, type ModulesSlice } from './modulesSlice';
@@ -36,7 +39,10 @@ export type AppState = VaultSlice &
   LinksSlice &
   DailySlice &
   SettingsSlice &
-  ModulesSlice;
+  ModulesSlice &
+  InkSlice &
+  ScreenSlice &
+  SyncSlice;
 
 export type AppStore = StoreApi<AppState>;
 
@@ -68,6 +74,9 @@ export function createAppStore(
       ...createDailySlice(ctx),
       ...createSettingsSlice(ctx),
       ...createModulesSlice(ctx),
+      ...createInkSlice(ctx),
+      ...createScreenSlice(ctx),
+      ...createSyncSlice(ctx),
     };
   });
 
@@ -83,12 +92,16 @@ export function createAppStore(
       settingsPanels,
       pageViews,
       sideTabs,
+      strokeFilters,
+      inkTools,
       citationProviders,
       citationVersion,
     }) => {
       store.setState({
         pageViews,
         sideTabs,
+        strokeFilters,
+        inkTools,
         panels,
         pageTypes,
         commands,

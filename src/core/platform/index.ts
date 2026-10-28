@@ -7,6 +7,7 @@ export { PlatformError, type PlatformErrorKind } from './errors';
 export { MATCH_END, MATCH_START } from './types';
 export type {
   DeviceKind,
+  FolderBrowser,
   DirEntry,
   FileInfo,
   IndexedLink,

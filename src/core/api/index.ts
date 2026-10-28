@@ -9,10 +9,21 @@
  * first need them.
  */
 import type { ReactNode } from 'react';
+import type { InkPoint, InkStroke, InkTool } from '../ink/inkFile';
 import type { DeviceKind, DirEntry, FileInfo, VaultChange } from '../platform/types';
 import type { ModuleManifest } from '../modules/manifest';
 
-export type { DeviceKind, DirEntry, FileInfo, ModuleManifest, VaultChange };
+export type {
+  DeviceKind,
+  DirEntry,
+  FileInfo,
+  InkPoint,
+  InkStroke,
+  InkTool,
+  ModuleManifest,
+  VaultChange,
+};
+export { newStrokeId } from '../ink/inkFile';
 
 /** What a module's `index.ts` exports as its default. */
 export interface ModuleDefinition {
@@ -40,6 +51,8 @@ export interface ModuleContext {
   readonly commands: ModuleCommands;
   readonly files: ModuleFiles;
   readonly citations: ModuleCitations;
+  /** Pen writing: changing strokes as they are finished, and tools of its own. */
+  readonly ink: ModuleInk;
   /** Converting Markdown with Pandoc, if it is installed. Desktop only. */
   readonly pandoc: ModulePandoc;
   /** JSON files in `.benchwork/modules/<id>/`, the module's private folder. */
@@ -330,6 +343,69 @@ export interface SettingsPanelSpec {
   /** Must start with the module id and a dot. */
   id: string;
   render: () => ReactNode;
+}
+
+// ---- Ink ----
+
+export interface ModuleInk {
+  /** Changes each stroke as it is finished, such as straightening a line. */
+  registerStrokeFilter(spec: StrokeFilterSpec): Disposable;
+  /** A tool beside the pen, highlighter and eraser, such as a lasso. */
+  registerTool(spec: InkToolSpec): Disposable;
+}
+
+export interface StrokeFilterSpec {
+  /** Must start with the module id and a dot. */
+  id: string;
+  /**
+   * The stroke as it should be kept: the same one, a new one with the same
+   * id, or null for none, as when the stroke was a gesture.
+   */
+  filter: (stroke: InkStroke, info: StrokeFilterInfo) => InkStroke | null;
+}
+
+export interface StrokeFilterInfo {
+  /** The pen stayed still for a moment before it lifted. */
+  held: boolean;
+  /** The drawing's other strokes. */
+  others: readonly InkStroke[];
+  /** Removes other strokes from the drawing, such as those scribbled over. */
+  erase: (ids: readonly string[]) => void;
+}
+
+/** A point on a drawing, in CSS pixels from its top left. */
+export interface InkToolPoint {
+  x: number;
+  y: number;
+}
+
+/** One drawing, as a tool sees it while the pen is on it. */
+export interface InkToolArea {
+  /** The drawing's strokes now. */
+  strokes(): readonly InkStroke[];
+  /** Replaces the strokes, shows them and saves the drawing. */
+  setStrokes(strokes: readonly InkStroke[]): void;
+  /** Shows strokes without saving, while something is being dragged. */
+  previewStrokes(strokes: readonly InkStroke[]): void;
+  /** A layer over the drawing for the tool's own marks, in CSS pixels; cleared by clearOverlay. */
+  readonly overlay: CanvasRenderingContext2D;
+  clearOverlay(): void;
+  /** The drawing's element, for buttons the tool shows beside a selection. */
+  readonly element: HTMLElement;
+}
+
+export interface InkToolSpec {
+  /** Must start with the module id and a dot. */
+  id: string;
+  /** Shown as the tool button's tooltip and read out by screen readers. */
+  title: string;
+  /** A small icon for the button, about 17 pixels. */
+  icon: ReactNode;
+  down(area: InkToolArea, point: InkToolPoint): void;
+  move(area: InkToolArea, point: InkToolPoint): void;
+  up(area: InkToolArea, point: InkToolPoint): void;
+  /** Another tool was chosen, or the drawing closed: put away anything shown. */
+  end?(area: InkToolArea): void;
 }
 
 // ---- Citations ----

@@ -13,3 +13,10 @@ export function useApp<T>(selector: (state: AppState) => T): T {
   if (!store) throw new Error('useApp must be used inside AppStoreProvider');
   return useStore(store, selector);
 }
+
+/** The store itself, for reading state in event handlers without re-rendering. */
+export function useAppStore(): AppStore {
+  const store = useContext(AppStoreContext);
+  if (!store) throw new Error('useAppStore must be used inside AppStoreProvider');
+  return store;
+}

@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   CalendarDays,
+  Columns2,
   PanelLeftClose,
   Plus,
   RotateCw,
@@ -44,6 +45,7 @@ export function Sidebar({
   const closeVault = useApp((s) => s.closeVault);
   const view = useApp((s) => s.view);
   const showView = useApp((s) => s.showView);
+  const conflicts = useApp((s) => s.conflicts.length);
   const createNotebook = useApp((s) => s.createNotebook);
   const setRenaming = useApp((s) => s.setRenaming);
   const notice = useApp((s) => s.sidebarNotice);
@@ -114,6 +116,23 @@ export function Sidebar({
             <kbd>Ctrl K</kbd>
           </button>
         </li>
+        {conflicts > 0 && (
+          <li>
+            <button
+              type="button"
+              className="nav-item differences"
+              title="Pages changed on two devices before they synced"
+              aria-pressed={view === 'conflicts'}
+              onClick={() => {
+                showView('conflicts');
+              }}
+            >
+              <Columns2 {...ICON} />
+              Differences
+              <span className="nav-count">{conflicts}</span>
+            </button>
+          </li>
+        )}
       </ul>
 
       <div className="sidebar-section-head">

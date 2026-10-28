@@ -3,7 +3,8 @@ import { saveAppSettings, type Theme } from '../settings/appSettings';
 import type { PageLayout } from '../vault/vaultConfig';
 import { describeError, type StoreContext } from './context';
 
-export type View = 'files' | 'settings';
+/** What the main area shows: pages, Settings, or pages that differ between devices. */
+export type View = 'files' | 'settings' | 'conflicts';
 
 /** Limits for the copy-or-link threshold, in MB. */
 export const LINK_THRESHOLD_RANGE = { min: 1, max: 100_000 } as const;

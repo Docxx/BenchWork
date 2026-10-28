@@ -2,14 +2,19 @@ import { PanelLeftOpen } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { PANEL_WIDTH, SIDEBAR_WIDTH } from '../settings/appearance';
 import type { OpenVault } from '../vault/vaultService';
-import { useApp } from './AppStoreContext';
+import { useApp, useAppStore } from './AppStoreContext';
 import { AttachDialog } from './AttachDialog';
+import { ConflictsView } from './ConflictsView';
 import { CommandList, TextPromptDialog } from './ModuleDialogs';
 import { PageView } from './PageView';
+import { QuickCapture } from './QuickCapture';
 import { ResizeEdge } from './ResizeEdge';
 import { SettingsPage } from './SettingsPage';
 import { SidePanel } from './SidePanel';
 import { Sidebar } from './Sidebar';
+
+/** Narrower than this, the sidebar and side panel slide over the page. */
+const COMPACT_QUERY = '(max-width: 960px)';
 
 /** The sidebar, and the main area: Settings when open, otherwise the open page. */
 export function Shell({ vault }: { vault: OpenVault }) {
@@ -22,6 +27,7 @@ export function Shell({ vault }: { vault: OpenVault }) {
   const setAppearance = useApp((s) => s.setAppearance);
   const focusSearch = useApp((s) => s.focusSearch);
   const openToday = useApp((s) => s.openToday);
+  const store = useAppStore();
   const [showCommands, setShowCommands] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const closeCommands = useCallback(() => {
@@ -31,10 +37,15 @@ export function Shell({ vault }: { vault: OpenVault }) {
   // Ctrl+E searches, as in OneNote; Ctrl+Shift+D opens today's page; Ctrl+K lists commands.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && store.getState().drawer !== null) {
+        store.getState().setDrawer(null);
+        return;
+      }
       if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
       const key = e.key.toLowerCase();
       if (!e.shiftKey && key === 'e') {
         e.preventDefault();
+        if (store.getState().compact) store.getState().setDrawer('sidebar');
         focusSearch();
       } else if (e.shiftKey && key === 'd') {
         e.preventDefault();
@@ -48,29 +59,71 @@ export function Shell({ vault }: { vault: OpenVault }) {
     return () => {
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [focusSearch, openToday]);
+  }, [focusSearch, openToday, store]);
+
+  // A narrow window, such as a tablet held upright, is compact.
+  const setCompact = useApp((s) => s.setCompact);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia(COMPACT_QUERY);
+    setCompact(query.matches);
+    const onChange = (e: MediaQueryListEvent) => {
+      setCompact(e.matches);
+    };
+    query.addEventListener('change', onChange);
+    return () => {
+      query.removeEventListener('change', onChange);
+    };
+  }, [setCompact]);
+
+  // Sidebar and side panel slide over the page on a narrow screen.
+  const compact = useApp((s) => s.compact);
+  const drawer = useApp((s) => s.drawer);
+  const setDrawer = useApp((s) => s.setDrawer);
+  const showSidebar = compact ? drawer === 'sidebar' : sidebarOpen;
+  const showPanel = compact ? drawer === 'panel' : sidePanel;
+
+  // Choosing a page, or Settings, puts away whatever slid over the page;
+  // with no page open, the sidebar slides in to choose one.
+  const pagePath = page?.path ?? null;
+  useEffect(() => {
+    setDrawer(compact && pagePath === null && view === 'files' ? 'sidebar' : null);
+  }, [pagePath, view, compact, setDrawer]);
 
   return (
-    <div className="shell">
-      {sidebarOpen ? (
+    <div className={compact ? 'shell compact' : 'shell'}>
+      {compact && drawer !== null && (
+        <button
+          type="button"
+          className="drawer-scrim"
+          aria-label={drawer === 'sidebar' ? 'Hide the sidebar' : 'Hide the side panel'}
+          onClick={() => {
+            setDrawer(null);
+          }}
+        />
+      )}
+      {showSidebar ? (
         <>
           <Sidebar
             vault={vault}
             onCollapse={() => {
-              setSidebarOpen(false);
+              if (compact) setDrawer(null);
+              else setSidebarOpen(false);
             }}
             onCommands={() => {
               setShowCommands(true);
             }}
           />
-          <ResizeEdge
-            label="Sidebar width"
-            grows="right"
-            width={sidebarWidth}
-            range={SIDEBAR_WIDTH}
-            token="--sidebar-width"
-            onChange={(w) => void setAppearance({ sidebarWidth: w })}
-          />
+          {!compact && (
+            <ResizeEdge
+              label="Sidebar width"
+              grows="right"
+              width={sidebarWidth}
+              range={SIDEBAR_WIDTH}
+              token="--sidebar-width"
+              onChange={(w) => void setAppearance({ sidebarWidth: w })}
+            />
+          )}
         </>
       ) : (
         <button
@@ -79,30 +132,40 @@ export function Shell({ vault }: { vault: OpenVault }) {
           title="Show the sidebar"
           aria-label="Show the sidebar"
           onClick={() => {
-            setSidebarOpen(true);
+            if (compact) setDrawer('sidebar');
+            else setSidebarOpen(true);
           }}
         >
           <PanelLeftOpen size={17} strokeWidth={1.75} aria-hidden />
         </button>
       )}
       <main className="shell-main">
-        {view === 'settings' ? <SettingsPage vault={vault} /> : <PageView />}
+        {view === 'settings' ? (
+          <SettingsPage vault={vault} />
+        ) : view === 'conflicts' ? (
+          <ConflictsView />
+        ) : (
+          <PageView />
+        )}
       </main>
-      {sidePanel && view === 'files' && page !== null && moduleView === null && (
+      {showPanel && view === 'files' && page !== null && moduleView === null && (
         <>
-          <ResizeEdge
-            label="Side panel width"
-            grows="left"
-            width={panelWidth}
-            range={PANEL_WIDTH}
-            token="--panel-width"
-            onChange={(w) => void setAppearance({ panelWidth: w })}
-          />
+          {!compact && (
+            <ResizeEdge
+              label="Side panel width"
+              grows="left"
+              width={panelWidth}
+              range={PANEL_WIDTH}
+              token="--panel-width"
+              onChange={(w) => void setAppearance({ panelWidth: w })}
+            />
+          )}
           {/* Keyed by page, so each page starts on its outline. */}
           <SidePanel key={page.path} page={page} />
         </>
       )}
       {showCommands && <CommandList onClose={closeCommands} />}
+      <QuickCapture />
       <TextPromptDialog />
       <AttachDialog />
     </div>

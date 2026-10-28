@@ -19,11 +19,14 @@ export interface OpenVault {
  * - `vault`: a vault, or a `.benchwork` folder whose vault is `root`
  * - `empty`: nothing in it, safe to set up straight away
  * - `folder`: has other files, so ask before adding `.benchwork`
+ * - `awaiting-sync`: a folder a sync app syncs, with nothing in it yet but
+ *   the app's own files; most likely a vault still on its way from
+ *   another device, so wait rather than set up a new one
  * - `inside-vault`: an ordinary folder inside the vault `owner`, so ask
  *   whether to open that vault or make this folder a vault of its own
  */
 export type FolderCheck =
-  | { kind: 'vault' | 'empty' | 'folder'; root: string }
+  | { kind: 'vault' | 'empty' | 'folder' | 'awaiting-sync'; root: string }
   | { kind: 'inside-vault'; root: string; owner: string };
 
 /**
@@ -38,7 +41,12 @@ export async function checkFolder(platform: PlatformAdapter, path: string): Prom
   const root = await platform.setVaultRoot(owner?.root ?? path);
   if (owner !== null) return { root, kind: 'vault' };
   const entries = await platform.listDir('');
-  return { root, kind: entries.length === 0 ? 'empty' : 'folder' };
+  if (entries.length === 0) return { root, kind: 'empty' };
+  // Syncthing's own: .stfolder, .stignore, .stversions.
+  const syncthing = entries.every((e) => e.name.startsWith('.st'));
+  if (syncthing && entries.some((e) => e.name === '.stfolder'))
+    return { root, kind: 'awaiting-sync' };
+  return { root, kind: 'folder' };
 }
 
 /**

@@ -161,8 +161,8 @@ compare against later.
 
 Still to check in Phase 4:
 
-- **Tauri Android build:** confirm the feel is the same in Android's web
-  view as in Chrome, since they draw to the screen slightly differently.
+- **Tauri Android build:** confirmed 28 Oct 2026. Ray wrote with the S Pen
+  in the Phase 4 build on the Galaxy Tab S10 Ultra: "Feels good".
 - **Baseline numbers:** export results for setup A once, so later changes
   to the ink code can be checked against them.
 - **Palm rejection:** test the three rules properly when ink blocks go into

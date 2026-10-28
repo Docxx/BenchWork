@@ -4,6 +4,7 @@ import type {
   DeviceKind,
   DirEntry,
   FileInfo,
+  FolderBrowser,
   PandocWordOptions,
   PlatformAdapter,
   VaultChange,
@@ -90,6 +91,9 @@ function byName(a: string, b: string): number {
  */
 export class MemoryAdapter implements PlatformAdapter {
   readonly kind: DeviceKind;
+  folderBrowser: FolderBrowser | null = null;
+  /** Whether the system would turn pen writing into text, as last set. */
+  stylusHandwriting = true;
   private readonly folders = new Map<string, Map<string, MemoryNode>>();
   private readonly external = new Map<string, { bytes: Uint8Array; modified: number }>();
   private readonly pickQueue: (string | null)[] = [];
@@ -138,6 +142,46 @@ export class MemoryAdapter implements PlatformAdapter {
     this.filePickQueue.push(...results);
   }
 
+  /**
+   * Chooses folders inside the app, as on Android, starting at `start`, a
+   * folder added with addFolder. Access is refused until `grant` is called.
+   */
+  useFolderBrowser(start: string): { grant: () => void } {
+    let allowed = false;
+    this.folderBrowser = {
+      start,
+      folders: (path) =>
+        this.run(() => {
+          const { nodes, prefix } = this.locate(path);
+          const names: string[] = [];
+          for (const [p, node] of nodes) {
+            if (node.kind === 'dir' && p !== '' && parentVaultPath(p) === (prefix || '')) {
+              const name = baseName(p);
+              if (!name.startsWith('.')) names.push(name);
+            }
+          }
+          return names.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+        }),
+      makeFolder: (path) =>
+        this.run(() => {
+          const cut = path.lastIndexOf('/');
+          const { nodes, prefix } = this.locate(path.slice(0, cut));
+          const rel = normaliseVaultPath(
+            prefix === '' ? path.slice(cut + 1) : `${prefix}/${path.slice(cut + 1)}`,
+          );
+          if (nodes.has(rel)) throw new PlatformError('AlreadyExists', `Already exists: ${path}`);
+          this.makeDirs(nodes, rel);
+        }),
+      hasAccess: () => allowed,
+      askAccess: () => undefined,
+    };
+    return {
+      grant: () => {
+        allowed = true;
+      },
+    };
+  }
+
   /** Sets what the next pickFolder calls return; null means the user cancelled. */
   queuePick(...results: (string | null)[]): void {
     this.pickQueue.push(...results);
@@ -176,6 +220,10 @@ export class MemoryAdapter implements PlatformAdapter {
   }
 
   // ---- PlatformAdapter ----
+
+  setStylusHandwriting(on: boolean): void {
+    this.stylusHandwriting = on;
+  }
 
   pickFolder(): Promise<string | null> {
     return this.run(() => {
