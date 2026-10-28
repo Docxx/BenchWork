@@ -43,6 +43,7 @@ type ListKey =
   | 'sideTabs'
   | 'strokeFilters'
   | 'inkTools'
+  | 'inkRecognisers'
   | 'citationProviders';
 
 export interface ModuleContextHandle {
@@ -172,6 +173,16 @@ export function createModuleContext(
       },
     },
     ink: {
+      handwriting: deps.platform.handwriting,
+      registerRecogniser(spec) {
+        checkId('Recogniser', spec.id);
+        return contribute(
+          'inkRecognisers',
+          { ...spec, moduleId: id },
+          (r) => r.id === spec.id,
+          `A recogniser with id '${spec.id}'`,
+        );
+      },
       attach(element, options) {
         const surface = new InkSurface(element, options.strokes, {
           ...app().inkHooks(),

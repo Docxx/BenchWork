@@ -1,4 +1,7 @@
+import { isInk, parseInk } from '../ink/inkFile';
+import { suffixKeys } from '../links/resolve';
 import { isPage } from '../notebooks/notebookTree';
+import { embedPath } from '../pages/attachments';
 import {
   baseName,
   normaliseVaultPath,
@@ -169,8 +172,8 @@ export class IndexService {
     this.events.progress(progress);
   }
 
-  /** Every searched page in `folder` and below. */
-  private async walk(folder: string): Promise<DirEntry[]> {
+  /** Every searched page in `folder` and below; drawings found on the way go in `drawings`. */
+  private async walk(folder: string, drawings: DirEntry[] = []): Promise<DirEntry[]> {
     if (!searchedFolder(folder)) return [];
     const found: DirEntry[] = [];
     const visit = async (dir: string) => {
@@ -180,11 +183,40 @@ export class IndexService {
           if (searchedFolder(entry.path)) await visit(entry.path);
         } else if (searchedPage(entry.path)) {
           found.push(entry);
+        } else if (isInk(entry.path)) {
+          drawings.push(entry);
         }
       }
     };
     await visit(folder);
     return found;
+  }
+
+  /** The pages that show a drawing. */
+  private async pagesShowing(drawing: string): Promise<string[]> {
+    try {
+      const refs = await this.platform.index.backlinks(suffixKeys(drawing));
+      return [...new Set(refs.map((r) => r.source))];
+    } catch {
+      return [];
+    }
+  }
+
+  /** The text recognised in the drawings a page shows, to search with the page. */
+  private async drawingText(page: IndexedPage): Promise<string> {
+    const texts: string[] = [];
+    for (const link of page.links) {
+      if (!link.embed || !isInk(link.target)) continue;
+      const path = embedPath(link.target);
+      if (path === null) continue;
+      try {
+        const text = parseInk(await this.platform.readText(path)).ink.recognisedText;
+        if (text) texts.push(text);
+      } catch {
+        // A drawing not there yet adds nothing.
+      }
+    }
+    return texts.join('\n');
   }
 
   /** Reads pages and sends them to the index in batches. */
@@ -196,7 +228,9 @@ export class IndexService {
       for (const file of files.slice(i, i + BATCH_SIZE)) {
         try {
           const text = await this.platform.readText(file.path);
-          pages.push(extractFile(file.path, text, { mtime: file.modified, size: file.size }));
+          const page = extractFile(file.path, text, { mtime: file.modified, size: file.size });
+          const drawn = await this.drawingText(page);
+          pages.push(drawn === '' ? page : { ...page, body: `${page.body}\n${drawn}` });
         } catch (err) {
           // A page that vanished or cannot be read is left out; the
           // watcher will report it again if it comes back.
@@ -218,12 +252,30 @@ export class IndexService {
 
   /** Brings the whole index up to date by comparing it with the vault. */
   private async sync(): Promise<void> {
-    const files = await this.walk('');
+    const drawings: DirEntry[] = [];
+    const files = await this.walk('', drawings);
     const known = new Map((await this.platform.index.entries()).map((e) => [e.path, e]));
     const changed = files.filter((f) => {
       const entry = known.get(f.path);
       return !entry || entry.mtime !== f.modified || entry.size !== f.size;
     });
+    // Pages whose drawings changed since, such as text recognised on another device.
+    const byPath = new Map(files.map((f) => [f.path, f]));
+    for (const drawing of drawings) {
+      for (const source of await this.pagesShowing(drawing.path)) {
+        const entry = known.get(source);
+        const file = byPath.get(source);
+        if (
+          file &&
+          !changed.includes(file) &&
+          entry?.mtime != null &&
+          drawing.modified != null &&
+          drawing.modified > entry.mtime
+        ) {
+          changed.push(file);
+        }
+      }
+    }
     const present = new Set(files.map((f) => f.path));
     const removes = [...known.keys()].filter((p) => !present.has(p));
     this.report({ state: 'indexing', done: 0, total: changed.length, error: null });
@@ -261,6 +313,14 @@ export class IndexService {
         files.push(...(await this.walk(path)));
       } else if (searchedPage(path)) {
         files.push(entry);
+      } else if (isInk(path)) {
+        // A drawing changed: its pages are searched with its text.
+        for (const source of await this.pagesShowing(path)) {
+          const sourceEntry = (await list(parentVaultPath(source) ?? ''))?.find(
+            (e) => e.path === source,
+          );
+          if (sourceEntry && !files.some((f) => f.path === source)) files.push(sourceEntry);
+        }
       }
     }
     if (files.length > 0 || removes.length > 0) await this.index(files, removes);

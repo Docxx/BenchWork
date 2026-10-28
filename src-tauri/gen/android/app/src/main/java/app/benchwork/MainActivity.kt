@@ -12,6 +12,15 @@ import android.webkit.WebView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import com.google.mlkit.common.model.DownloadConditions
+import com.google.mlkit.common.model.RemoteModelManager
+import com.google.mlkit.vision.digitalink.recognition.DigitalInkRecognition
+import com.google.mlkit.vision.digitalink.recognition.DigitalInkRecognitionModel
+import com.google.mlkit.vision.digitalink.recognition.DigitalInkRecognitionModelIdentifier
+import com.google.mlkit.vision.digitalink.recognition.DigitalInkRecognizerOptions
+import com.google.mlkit.vision.digitalink.recognition.Ink
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * BenchWork's window on Android. The vault is an ordinary folder in shared
@@ -53,7 +62,74 @@ class MainActivity : TauriActivity() {
     webView.addJavascriptInterface(StorageAccess(), "BenchWorkAndroid")
   }
 
+  /** British English handwriting, or American if that is not offered. */
+  private val inkModel by lazy {
+    val id =
+      DigitalInkRecognitionModelIdentifier.fromLanguageTag("en-GB")
+        ?: DigitalInkRecognitionModelIdentifier.fromLanguageTag("en-US")
+    DigitalInkRecognitionModel.builder(id!!).build()
+  }
+  private val inkRecognizer by lazy {
+    DigitalInkRecognition.getClient(DigitalInkRecognizerOptions.builder(inkModel).build())
+  }
+
+  /** Answers the page: `window.__benchworkInkReply(id, ok, value)`, with value as JSON. */
+  private fun reply(id: String, ok: Boolean, json: String) {
+    runOnUiThread {
+      webView?.evaluateJavascript(
+        "window.__benchworkInkReply && window.__benchworkInkReply(${JSONObject.quote(id)}, $ok, $json)",
+        null,
+      )
+    }
+  }
+
+  private fun failed(id: String, e: Exception) = reply(id, false, JSONObject.quote(e.message ?: "Failed"))
+
   inner class StorageAccess {
+    /** Whether the handwriting model is on the tablet. */
+    @JavascriptInterface
+    fun inkModelReady(id: String) {
+      RemoteModelManager.getInstance()
+        .isModelDownloaded(inkModel)
+        .addOnSuccessListener { reply(id, true, it.toString()) }
+        .addOnFailureListener { failed(id, it) }
+    }
+
+    /** Downloads the handwriting model, once. */
+    @JavascriptInterface
+    fun inkPrepare(id: String) {
+      RemoteModelManager.getInstance()
+        .download(inkModel, DownloadConditions.Builder().build())
+        .addOnSuccessListener { reply(id, true, "true") }
+        .addOnFailureListener { failed(id, it) }
+    }
+
+    /** The text in strokes given as JSON: `[[[x, y, t], ...], ...]`. */
+    @JavascriptInterface
+    fun inkRecognise(id: String, strokesJson: String) {
+      try {
+        val strokes = JSONArray(strokesJson)
+        val ink = Ink.builder()
+        for (i in 0 until strokes.length()) {
+          val points = strokes.getJSONArray(i)
+          val stroke = Ink.Stroke.builder()
+          for (j in 0 until points.length()) {
+            val p = points.getJSONArray(j)
+            stroke.addPoint(Ink.Point.create(p.getDouble(0).toFloat(), p.getDouble(1).toFloat(), p.getLong(2)))
+          }
+          ink.addStroke(stroke.build())
+        }
+        inkRecognizer
+          .recognize(ink.build())
+          .addOnSuccessListener { result ->
+            reply(id, true, JSONObject.quote(result.candidates.firstOrNull()?.text ?: ""))
+          }
+          .addOnFailureListener { failed(id, it) }
+      } catch (e: Exception) {
+        failed(id, e)
+      }
+    }
+
     /**
      * Whether a pen writing in text becomes typed text (Android's own
      * handwriting input). Off while BenchWork's pen draws ink instead.

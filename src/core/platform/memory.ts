@@ -5,6 +5,7 @@ import type {
   DirEntry,
   FileInfo,
   FolderBrowser,
+  HandwritingRecognizer,
   BackupFile,
   VaultBackups,
   PandocWordOptions,
@@ -94,6 +95,8 @@ function byName(a: string, b: string): number {
 export class MemoryAdapter implements PlatformAdapter {
   readonly kind: DeviceKind;
   folderBrowser: FolderBrowser | null = null;
+  /** None, as on a computer, until a test gives one with useHandwriting. */
+  handwriting: HandwritingRecognizer | null = null;
   /**
    * Backups as JSON files in another fake folder: the open vault's files,
    * leaving out each device's own, as the Rust version does.
@@ -234,6 +237,15 @@ export class MemoryAdapter implements PlatformAdapter {
       grant: () => {
         allowed = true;
       },
+    };
+  }
+
+  /** Reads handwriting as `read` says, as a tablet would; the model starts downloaded. */
+  useHandwriting(read: (strokes: number) => string): void {
+    this.handwriting = {
+      ready: () => Promise.resolve(true),
+      prepare: () => Promise.resolve(),
+      recognise: (strokes) => Promise.resolve(read(strokes.length)),
     };
   }
 

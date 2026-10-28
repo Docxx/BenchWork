@@ -25,6 +25,9 @@ export interface PlatformAdapter {
    */
   setStylusHandwriting(on: boolean): void;
 
+  /** Handwriting to text, where the device offers it (the tablet); null elsewhere. */
+  readonly handwriting: HandwritingRecognizer | null;
+
   /** Whole-vault backups to a folder outside the vault; null where folders cannot be picked. */
   readonly backups: VaultBackups | null;
 
@@ -201,6 +204,16 @@ export interface PandocWordOptions {
 }
 
 export type DeviceKind = 'desktop' | 'tablet';
+
+/** Handwriting to text, on the device. */
+export interface HandwritingRecognizer {
+  /** Whether the language model is on the device yet. */
+  ready(): Promise<boolean>;
+  /** Downloads the language model; resolves once it is there. */
+  prepare(): Promise<void>;
+  /** The text written in strokes, each a list of `[x, y, ms]`; empty if none is read. */
+  recognise(strokes: readonly (readonly [number, number, number])[][]): Promise<string>;
+}
 
 /** A backup of a vault: a dated zip file. */
 export interface BackupFile {

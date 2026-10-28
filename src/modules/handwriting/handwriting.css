@@ -21,6 +21,14 @@
   border-radius: 50%;
 }
 
+.lasso-actions button.lasso-text {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
 .lasso-actions button.lasso-delete {
   padding: 0.2rem 0.6rem;
   border: 1px solid var(--border);
@@ -35,7 +43,8 @@
     height: 2rem;
   }
 
-  .lasso-actions button.lasso-delete {
+  .lasso-actions button.lasso-delete,
+  .lasso-actions button.lasso-text {
     padding: 0.45rem 0.8rem;
   }
 }

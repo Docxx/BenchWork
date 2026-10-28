@@ -97,6 +97,7 @@ export function createAppStore(
       sideTabs,
       strokeFilters,
       inkTools,
+      inkRecognisers,
       citationProviders,
       citationVersion,
     }) => {
@@ -105,6 +106,7 @@ export function createAppStore(
         sideTabs,
         strokeFilters,
         inkTools,
+        inkRecognisers,
         panels,
         pageTypes,
         commands,

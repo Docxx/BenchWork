@@ -11,13 +11,20 @@
 import type { ReactNode } from 'react';
 import type { PdfDocument } from '../files/pdf';
 import type { InkPoint, InkStroke, InkTool } from '../ink/inkFile';
-import type { DeviceKind, DirEntry, FileInfo, VaultChange } from '../platform/types';
+import type {
+  DeviceKind,
+  DirEntry,
+  FileInfo,
+  HandwritingRecognizer,
+  VaultChange,
+} from '../platform/types';
 import type { ModuleManifest } from '../modules/manifest';
 
 export type {
   DeviceKind,
   DirEntry,
   FileInfo,
+  HandwritingRecognizer,
   InkPoint,
   InkStroke,
   InkTool,
@@ -362,10 +369,25 @@ export interface ModuleInk {
    * the module is switched off, or with `dispose`.
    */
   attach(element: HTMLElement, options: InkAttachOptions): InkAttachment;
+  /** The device's handwriting to text, such as on the tablet; null where there is none. */
+  readonly handwriting: HandwritingRecognizer | null;
+  /**
+   * Reads the text in drawings on pages, shortly after writing stops; the
+   * core saves it in the drawing's file, where search finds it. The first
+   * registered is used.
+   */
+  registerRecogniser(spec: InkRecogniserSpec): Disposable;
   /** Changes each stroke as it is finished, such as straightening a line. */
   registerStrokeFilter(spec: StrokeFilterSpec): Disposable;
   /** A tool beside the pen, highlighter and eraser, such as a lasso. */
   registerTool(spec: InkToolSpec): Disposable;
+}
+
+export interface InkRecogniserSpec {
+  /** Must start with the module id and a dot. */
+  id: string;
+  /** The text written in strokes; empty if none. */
+  recognise(strokes: readonly InkStroke[]): Promise<string>;
 }
 
 export interface InkAttachOptions {
@@ -420,6 +442,8 @@ export interface InkToolArea {
   clearOverlay(): void;
   /** The drawing's element, for buttons the tool shows beside a selection. */
   readonly element: HTMLElement;
+  /** Puts typed text in the page below the drawing; missing where there is no page, as on a PDF. */
+  readonly addText?: (text: string) => void;
 }
 
 export interface InkToolSpec {

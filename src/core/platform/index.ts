@@ -10,6 +10,7 @@ export type {
   FolderBrowser,
   BackupFile,
   VaultBackups,
+  HandwritingRecognizer,
   DirEntry,
   FileInfo,
   IndexedLink,

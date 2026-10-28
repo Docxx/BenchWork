@@ -12,6 +12,7 @@ import {
 } from './lasso';
 import { isScribble, scribbledOver } from './scratchOut';
 import { PdfReader } from './PdfReader';
+import { makeReader } from './recognise';
 import { snapShape } from './shapes';
 import './handwriting.css';
 
@@ -95,7 +96,15 @@ function putAway(area: InkToolArea, state: LassoState): void {
 }
 
 /** Buttons beside the chosen strokes: colours, and delete. */
-function showActions(area: InkToolArea, state: LassoState): void {
+/** Reads strokes as text, where the device can; null where it cannot. */
+type Reader = ((strokes: readonly InkStroke[]) => Promise<string>) | null;
+
+function showActions(
+  area: InkToolArea,
+  state: LassoState,
+  read: Reader,
+  notify: (message: string) => void,
+): void {
   state.actions?.remove();
   const box = boxOf(area.strokes(), state.chosen);
   if (!box) return;
@@ -118,8 +127,8 @@ function showActions(area: InkToolArea, state: LassoState): void {
       b.className = 'lasso-colour';
       b.style.background = colour;
     } else {
-      b.className = 'lasso-delete';
-      b.textContent = 'Delete';
+      b.className = label === 'Delete' ? 'lasso-delete' : 'lasso-text';
+      b.textContent = label;
     }
     b.addEventListener('click', (e) => {
       e.preventDefault();
@@ -136,6 +145,32 @@ function showActions(area: InkToolArea, state: LassoState): void {
       c.value,
     );
   }
+  if (read !== null) {
+    button('Convert to text', () => {
+      const chosen = state.chosen;
+      const strokes = area.strokes().filter((s) => chosen.has(s.id));
+      void read(strokes).then(
+        (text) => {
+          if (text === '') {
+            notify('No writing could be read there.');
+            return;
+          }
+          if (area.addText) {
+            // Into the page, below the drawing, in place of the strokes.
+            area.addText(text);
+            area.setStrokes(withoutStrokes(area.strokes(), chosen));
+            putAway(area, state);
+          } else {
+            void navigator.clipboard.writeText(text);
+            notify(`Copied: ${text}`);
+          }
+        },
+        () => {
+          notify('The writing could not be read. Try again when online, the first time.');
+        },
+      );
+    });
+  }
   button('Delete', () => {
     area.setStrokes(withoutStrokes(area.strokes(), state.chosen));
     putAway(area, state);
@@ -146,6 +181,13 @@ function showActions(area: InkToolArea, state: LassoState): void {
 
 export default defineModule({
   activate(ctx) {
+    // Handwriting to text, where the device offers it: drawings on pages are
+    // read as they are written, and the lasso can convert writing to text.
+    const read: Reader = ctx.ink.handwriting ? makeReader(ctx, ctx.ink.handwriting) : null;
+    if (read !== null) {
+      ctx.ink.registerRecogniser({ id: 'handwriting.read', recognise: read });
+    }
+
     ctx.files.register({
       id: 'handwriting.pdf',
       extensions: ['.pdf'],
@@ -233,7 +275,9 @@ export default defineModule({
         }
         state.phase = 'chosen';
         drawBox(area, boxOf(area.strokes(), state.chosen));
-        showActions(area, state);
+        showActions(area, state, read, (m) => {
+          ctx.app.notify(m);
+        });
       },
       end(area) {
         const state = lassos.get(area);
