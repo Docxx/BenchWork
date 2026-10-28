@@ -1,4 +1,6 @@
 import type { Disposable, ModuleApp, ModuleContext, ModuleLogger } from '../api';
+import { openPdf } from '../files/pdf';
+import { InkSurface, type SurfaceHooks } from '../ink/surface';
 import { freeName } from '../notebooks/notebookService';
 import { localTimestamp } from '../pages/frontmatter';
 import { FILE_SNAPSHOT_LIMIT, saveFileSnapshot } from '../pages/snapshots';
@@ -16,6 +18,8 @@ import type { ModuleManifest } from './manifest';
 /** What the app gives modules: ModuleApp, plus the open vault's full path. */
 export interface AppBridge extends ModuleApp {
   vaultRoot(): string | null;
+  /** The pen tools, filters and module tools, for a writing surface a module attaches. */
+  inkHooks(): Omit<SurfaceHooks, 'onChange'>;
 }
 
 export interface ContextDeps {
@@ -168,6 +172,27 @@ export function createModuleContext(
       },
     },
     ink: {
+      attach(element, options) {
+        const surface = new InkSurface(element, options.strokes, {
+          ...app().inkHooks(),
+          onChange: options.onChange,
+        });
+        surface.setEditable(options.editable ?? true);
+        const handle = track(() => {
+          surface.destroy();
+        });
+        return {
+          setStrokes: (strokes) => {
+            surface.setStrokes(strokes);
+          },
+          setEditable: (editable) => {
+            surface.setEditable(editable);
+          },
+          dispose: () => {
+            handle.dispose();
+          },
+        };
+      },
       registerStrokeFilter(spec) {
         checkId('Stroke filter', spec.id);
         return contribute(
@@ -234,6 +259,7 @@ export function createModuleContext(
       },
     },
     files: {
+      openPdf: (bytes) => openPdf(bytes),
       register(spec) {
         checkId('File handler', spec.id);
         const extensions = spec.extensions.map((e) => e.toLowerCase());

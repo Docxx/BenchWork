@@ -11,6 +11,7 @@ import {
   type Box,
 } from './lasso';
 import { isScribble, scribbledOver } from './scratchOut';
+import { PdfReader } from './PdfReader';
 import { snapShape } from './shapes';
 import './handwriting.css';
 
@@ -21,7 +22,9 @@ import './handwriting.css';
  *   them with the buttons that appear;
  * - shapes: hold the pen still at the end of a stroke to make it a
  *   straight line, rectangle or ellipse;
- * - scratching out: scribble back and forth over strokes to erase them.
+ * - scratching out: scribble back and forth over strokes to erase them;
+ * - reading PDFs: highlight text and write on pages, with the notes kept
+ *   beside the PDF in `<file>.pdf.annot.json`; the PDF is never changed.
  * Both only change strokes, which are saved as usual; switched off, every
  * drawing stays as it is.
  */
@@ -143,6 +146,15 @@ function showActions(area: InkToolArea, state: LassoState): void {
 
 export default defineModule({
   activate(ctx) {
+    ctx.files.register({
+      id: 'handwriting.pdf',
+      extensions: ['.pdf'],
+      name: 'PDF',
+      watchesFile: true,
+      penTools: true,
+      render: ({ path }) => createElement(PdfReader, { ctx, path }),
+    });
+
     ctx.ink.registerStrokeFilter({
       id: 'handwriting.scratch-out',
       filter: (stroke, info) => {

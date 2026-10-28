@@ -39,3 +39,154 @@
     padding: 0.45rem 0.8rem;
   }
 }
+
+/* ---- Reading PDFs ---- */
+
+.pdf-reader {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pdf-bar {
+  position: sticky;
+  top: 2.6rem;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0;
+  background: var(--bg);
+  font-family: var(--font-ui);
+}
+
+.pdf-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.pdf-zoom > button:not(.quiet),
+.pdf-zoom > button:not(.quiet):first-child {
+  min-width: 2rem;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.pdf-bar .layout-switch button {
+  padding: 0.3rem 0.7rem;
+}
+
+.pdf-body {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.pdf-thumbs {
+  position: sticky;
+  top: 5.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: calc(100vh - 7rem);
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+button.pdf-thumb,
+button.pdf-thumb:first-child {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  width: calc(96px + 0.6rem);
+  padding: 0.3rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.pdf-pages {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 3rem;
+}
+
+.pdf-page {
+  position: relative;
+  flex-shrink: 0;
+  background: #fff;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.18);
+}
+
+.pdf-page > canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.pdf-highlights {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pdf-highlight {
+  position: absolute;
+  border-radius: 2px;
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+
+.pdf-highlight.chosen {
+  outline: 2px solid var(--accent);
+}
+
+.pdf-ink {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+/* Selecting text, the ink stays in view but lets presses through to the text. */
+.pdf-page.select .pdf-ink {
+  pointer-events: none;
+}
+
+.pdf-page.write .pdf-text {
+  pointer-events: none;
+}
+
+button.pdf-highlight-offer,
+button.pdf-remove-highlight {
+  position: absolute;
+  z-index: 3;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.15);
+  font: 0.8rem var(--font-ui);
+}
+
+button.pdf-remove-highlight {
+  top: 0.5rem;
+  right: 0.5rem;
+  color: var(--section-red);
+}
+
+@media (pointer: coarse) {
+  .pdf-thumbs {
+    display: none;
+  }
+}

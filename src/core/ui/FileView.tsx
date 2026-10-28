@@ -5,6 +5,7 @@ import { fileKind, kindLabel } from '../files/fileKinds';
 import { openPdf, type PdfDocument, type PdfRender } from '../files/pdf';
 import { readSpreadsheet, type SheetData } from '../files/spreadsheet';
 import { handlerFor } from '../modules/contributions';
+import { PenTools } from './PenTools';
 import { CANVAS_EXTENSION } from '../notebooks/notebookTree';
 import { baseName, PlatformError } from '../platform';
 import { parseRecord, recordName } from '../records/records';
@@ -35,6 +36,11 @@ export function FileView({ path }: { path: string }) {
         <h1 className="file-title">{title}</h1>
         <span className="file-kind">{handler?.name ?? kindLabel(path)}</span>
       </header>
+      {handler?.penTools === true && (
+        <div className="ribbon-tools pen-bar file-pen-bar" role="toolbar" aria-label="Draw">
+          <PenTools />
+        </div>
+      )}
       {/* Keyed so a change on disk, or another file, starts afresh, unless the view watches its file. */}
       <div
         className="file-body"
