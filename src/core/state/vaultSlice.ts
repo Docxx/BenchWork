@@ -11,6 +11,7 @@ import {
   loadVaultConfig,
   type OpenVault,
 } from '../vault/vaultService';
+import type { FolderBrowser } from '../platform';
 import { describeError, type StoreContext } from './context';
 
 export type VaultStatus =
@@ -20,6 +21,8 @@ export type VaultStatus =
   | { kind: 'confirm-folder'; root: string }
   /** The chosen folder is inside the vault `owner`; waiting for the user to choose. */
   | { kind: 'confirm-nested'; folder: string; owner: string }
+  /** Choosing a folder inside the app, where the system has no folder picker (Android). */
+  | { kind: 'browse'; mode: PickMode }
   | { kind: 'open'; vault: OpenVault };
 
 export type PickMode = 'new' | 'open';
@@ -35,6 +38,10 @@ export interface VaultSlice {
 
   start: () => Promise<void>;
   chooseFolder: (mode: PickMode) => Promise<void>;
+  /** Folders by full path, where they are chosen inside the app; null elsewhere. */
+  folderBrowser: FolderBrowser | null;
+  /** For browse: use the folder chosen inside the app. */
+  chooseBrowsedFolder: (path: string) => Promise<void>;
   confirmFolder: () => Promise<void>;
   /** For confirm-nested: open the vault the chosen folder is inside. */
   openOwnerVault: () => Promise<void>;
@@ -55,6 +62,21 @@ const PICK_TITLES: Record<PickMode, string> = {
 
 export function createVaultSlice(ctx: StoreContext): VaultSlice {
   const { platform, set, get } = ctx;
+
+  /** Goes on with a chosen folder: asks first if it has other files or is inside a vault. */
+  async function goOnWith(picked: string): Promise<void> {
+    const check = await checkFolder(platform, picked);
+    if (check.kind === 'folder') {
+      set({ status: { kind: 'confirm-folder', root: check.root }, notice: null });
+    } else if (check.kind === 'inside-vault') {
+      set({
+        status: { kind: 'confirm-nested', folder: check.root, owner: check.owner },
+        notice: null,
+      });
+    } else {
+      await openCurrent(check.root, check.kind === 'empty');
+    }
+  }
 
   /** Runs a vault action unless one is already running. */
   async function guarded(action: () => Promise<void>): Promise<void> {
@@ -92,6 +114,7 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
 
   return {
     status: { kind: 'starting' },
+    folderBrowser: platform.folderBrowser,
     settings: defaultAppSettings(),
     busy: false,
     notice: null,
@@ -126,21 +149,24 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
         }
       }),
 
-    chooseFolder: (mode) =>
-      guarded(async () => {
+    chooseFolder: (mode) => {
+      if (platform.folderBrowser !== null) {
+        set({
+          status: { kind: 'browse', mode },
+          folderBrowser: platform.folderBrowser,
+          notice: null,
+        });
+        return Promise.resolve();
+      }
+      return guarded(async () => {
         const picked = await platform.pickFolder({ title: PICK_TITLES[mode] });
-        if (picked === null) return;
-        const check = await checkFolder(platform, picked);
-        if (check.kind === 'folder') {
-          set({ status: { kind: 'confirm-folder', root: check.root }, notice: null });
-        } else if (check.kind === 'inside-vault') {
-          set({
-            status: { kind: 'confirm-nested', folder: check.root, owner: check.owner },
-            notice: null,
-          });
-        } else {
-          await openCurrent(check.root, check.kind === 'empty');
-        }
+        if (picked !== null) await goOnWith(picked);
+      });
+    },
+
+    chooseBrowsedFolder: (path) =>
+      guarded(async () => {
+        if (get().status.kind === 'browse') await goOnWith(path);
       }),
 
     openOwnerVault: () =>
@@ -166,7 +192,7 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
 
     cancelFolder: () => {
       const kind = get().status.kind;
-      if (kind === 'confirm-folder' || kind === 'confirm-nested') {
+      if (kind === 'confirm-folder' || kind === 'confirm-nested' || kind === 'browse') {
         set({ status: { kind: 'no-vault' } });
       }
     },

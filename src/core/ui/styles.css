@@ -3301,3 +3301,47 @@ button.quick-capture {
     width: 20px;
   }
 }
+
+/* Choosing the vault folder inside the app, on a tablet. */
+.choose-folder {
+  width: min(32rem, 100%);
+}
+
+.folder-list {
+  max-height: 50vh;
+  margin: 0.75rem 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  list-style: none;
+}
+
+.folder-list li + li {
+  border-top: 1px solid var(--border);
+}
+
+.folder-list button,
+.folder-list button:first-child {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  text-align: left;
+}
+
+.folder-list button:hover {
+  background: var(--surface);
+}
+
+.folder-list .hint {
+  padding: 0.75rem 1rem;
+}
+
+.new-folder {
+  display: flex;
+  gap: 0.5rem;
+}

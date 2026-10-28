@@ -7,6 +7,7 @@ import type {
   DeviceKind,
   DirEntry,
   FileInfo,
+  FolderBrowser,
   PandocWordOptions,
   PlatformAdapter,
   SearchIndex,
@@ -29,6 +30,34 @@ async function call<T>(command: string, args?: () => Record<string, unknown>): P
   } catch (err) {
     throw PlatformError.from(err);
   }
+}
+
+/** What MainActivity.kt gives the page on Android. */
+interface AndroidBridge {
+  hasAllFilesAccess(): boolean;
+  askAllFilesAccess(): void;
+  sharedStorage(): string;
+}
+
+declare global {
+  interface Window {
+    BenchWorkAndroid?: AndroidBridge;
+  }
+}
+
+/** On Android, vault folders are chosen inside the app, by full path. */
+function androidFolderBrowser(): FolderBrowser | null {
+  const bridge = window.BenchWorkAndroid;
+  if (!bridge) return null;
+  return {
+    start: bridge.sharedStorage(),
+    folders: (path) => call<string[]>('list_folders', () => ({ path })),
+    makeFolder: (path) => call<undefined>('make_folder', () => ({ path })),
+    hasAccess: () => bridge.hasAllFilesAccess(),
+    askAccess: () => {
+      bridge.askAllFilesAccess();
+    },
+  };
 }
 
 function detectKind(): DeviceKind {
@@ -64,6 +93,7 @@ const tauriIndex: SearchIndex = {
 
 export class TauriAdapter implements PlatformAdapter {
   readonly kind: DeviceKind = detectKind();
+  readonly folderBrowser: FolderBrowser | null = androidFolderBrowser();
   readonly index = tauriIndex;
   /** Full path of the open vault, as Rust reported it. */
   private root: string | null = null;

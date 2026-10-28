@@ -13,6 +13,12 @@ export interface PlatformAdapter {
   pickFolder(options: { title: string }): Promise<string | null>;
 
   /**
+   * For choosing folders inside the app, where the system's own picker
+   * gives no folder paths (Android). Null where pickFolder works.
+   */
+  readonly folderBrowser: FolderBrowser | null;
+
+  /**
    * The vault a folder belongs to: the nearest folder at or above it that has
    * a `.benchwork` folder, skipping `.benchwork` folders themselves. Null if
    * it is not inside a vault.
@@ -185,6 +191,20 @@ export interface PandocWordOptions {
 }
 
 export type DeviceKind = 'desktop' | 'tablet';
+
+/** Folders by full path, for choosing a vault inside the app. */
+export interface FolderBrowser {
+  /** Where to start: the device's shared storage. */
+  readonly start: string;
+  /** The folders inside one, by name and sorted, leaving out hidden ones. */
+  folders(fullPath: string): Promise<string[]>;
+  /** Makes a new folder; fails if it is there already. */
+  makeFolder(fullPath: string): Promise<void>;
+  /** Whether the app may read and write any folder; until then it can only ask. */
+  hasAccess(): boolean;
+  /** Opens the system screen to allow that. */
+  askAccess(): void;
+}
 
 export interface VaultOwner {
   /** Full path of the vault folder. */
