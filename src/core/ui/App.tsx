@@ -3,7 +3,13 @@ import { useApp } from './AppStoreContext';
 import { Shell } from './Shell';
 import { Splash } from './Splash';
 import { applyAppearance } from './theme';
-import { ChooseFolder, ConfirmFolder, ConfirmNested, VaultPicker } from './VaultPicker';
+import {
+  ChooseFolder,
+  ConfirmFolder,
+  ConfirmNested,
+  ConfirmSyncing,
+  VaultPicker,
+} from './VaultPicker';
 
 /**
  * A file dropped anywhere but the page editor would otherwise make the
@@ -104,6 +110,8 @@ function Screen() {
       return <VaultPicker />;
     case 'confirm-folder':
       return <ConfirmFolder root={status.root} />;
+    case 'confirm-syncing':
+      return <ConfirmSyncing root={status.root} />;
     case 'confirm-nested':
       return <ConfirmNested folder={status.folder} owner={status.owner} />;
     case 'browse':

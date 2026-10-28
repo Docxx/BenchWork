@@ -236,6 +236,35 @@ export function ConfirmFolder({ root }: { root: string }) {
   );
 }
 
+/** A synced folder with nothing in it yet: most likely a vault still on its way. */
+export function ConfirmSyncing({ root }: { root: string }) {
+  const confirmFolder = useApp((s) => s.confirmFolder);
+  const cancelFolder = useApp((s) => s.cancelFolder);
+  const busy = useApp((s) => s.busy);
+
+  return (
+    <main className="app picker">
+      <section role="dialog" aria-modal="true" aria-labelledby="syncing-title">
+        <h1 id="syncing-title">Nothing has synced here yet</h1>
+        <p className="path">{root}</p>
+        <p>
+          A sync app is syncing this folder, but none of your notebooks have arrived. If your vault
+          is on its way from another device, wait until the sync app shows it is up to date, then
+          open the folder again.
+        </p>
+        <div className="actions">
+          <button type="button" disabled={busy} onClick={cancelFolder}>
+            Wait for the sync
+          </button>
+          <button type="button" disabled={busy} onClick={() => void confirmFolder()}>
+            Start a new vault here
+          </button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 export function ConfirmNested({ folder, owner }: { folder: string; owner: string }) {
   const openOwnerVault = useApp((s) => s.openOwnerVault);
   const makeSeparateVault = useApp((s) => s.makeSeparateVault);

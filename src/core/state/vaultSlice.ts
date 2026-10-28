@@ -19,6 +19,8 @@ export type VaultStatus =
   | { kind: 'no-vault' }
   /** The chosen folder has other files; waiting for the user to agree. */
   | { kind: 'confirm-folder'; root: string }
+  /** The chosen folder is synced but nothing has arrived yet; waiting for the user to choose. */
+  | { kind: 'confirm-syncing'; root: string }
   /** The chosen folder is inside the vault `owner`; waiting for the user to choose. */
   | { kind: 'confirm-nested'; folder: string; owner: string }
   /** Choosing a folder inside the app, where the system has no folder picker (Android). */
@@ -68,6 +70,8 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
     const check = await checkFolder(platform, picked);
     if (check.kind === 'folder') {
       set({ status: { kind: 'confirm-folder', root: check.root }, notice: null });
+    } else if (check.kind === 'awaiting-sync') {
+      set({ status: { kind: 'confirm-syncing', root: check.root }, notice: null });
     } else if (check.kind === 'inside-vault') {
       set({
         status: { kind: 'confirm-nested', folder: check.root, owner: check.owner },
@@ -186,13 +190,18 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
     confirmFolder: () =>
       guarded(async () => {
         const status = get().status;
-        if (status.kind !== 'confirm-folder') return;
+        if (status.kind !== 'confirm-folder' && status.kind !== 'confirm-syncing') return;
         await openCurrent(status.root);
       }),
 
     cancelFolder: () => {
       const kind = get().status.kind;
-      if (kind === 'confirm-folder' || kind === 'confirm-nested' || kind === 'browse') {
+      if (
+        kind === 'confirm-folder' ||
+        kind === 'confirm-syncing' ||
+        kind === 'confirm-nested' ||
+        kind === 'browse'
+      ) {
         set({ status: { kind: 'no-vault' } });
       }
     },

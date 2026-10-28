@@ -46,3 +46,23 @@ test('a page changed on two devices is shown side by side, and settled', async (
   // In a folder Syncthing syncs, the index is kept out of syncing.
   expect(files['.stignore']).toContain('.benchwork/index.sqlite*');
 });
+
+test.describe('a synced folder that nothing has arrived in yet', () => {
+  test('asks to wait for the sync, rather than starting a new vault', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      const memory = window.__benchworkMemory;
+      if (!memory) throw new Error('Run Playwright with VITE_PLATFORM=memory');
+      memory.addFolder('C:/Lab vault', { '.stfolder': null, '.stignore': '' });
+      memory.queuePick('C:/Lab vault');
+    });
+    await page.getByRole('button', { name: 'Open vault' }).click();
+    await expect(page.getByRole('heading', { name: 'Nothing has synced here yet' })).toBeVisible();
+    await page.getByRole('button', { name: 'Wait for the sync' }).click();
+    await expect(page.getByRole('button', { name: 'Open vault' })).toBeVisible();
+    const files = await page.evaluate(
+      () => window.__benchworkMemory?.snapshot('C:/Lab vault') ?? {},
+    );
+    expect(Object.keys(files)).toEqual(['.stfolder', '.stignore']);
+  });
+});
