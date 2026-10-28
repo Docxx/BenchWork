@@ -67,6 +67,12 @@ function messageFor(err: unknown): string {
 export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
   const { platform, set, get } = ctx;
 
+  /** The layout new pages start with, set for the vault. */
+  const newPageLayout = () => {
+    const status = get().status;
+    return status.kind === 'open' ? status.vault.config.pages.layout : 'document';
+  };
+
   /** Runs a sidebar action, turning failures into a notice. */
   async function attempt<T>(action: () => Promise<T>): Promise<T | null> {
     if (get().status.kind !== 'open') return null;
@@ -156,7 +162,10 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
 
     createPage: (folder, title) =>
       attempt(async () => {
-        const path = await createPage(platform, folder, title === undefined ? {} : { title });
+        const path = await createPage(platform, folder, {
+          ...(title === undefined ? {} : { title }),
+          layout: newPageLayout(),
+        });
         await reveal(path);
         await get().openPage(path);
         return path;
@@ -180,6 +189,7 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
         const path = await createPage(platform, folder, {
           title: name,
           text: (id, created) => typedPageText(type, content, id, created),
+          layout: newPageLayout(),
         });
         await reveal(path);
         await get().openPage(path);

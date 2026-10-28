@@ -38,11 +38,18 @@ interface WikiLinkNode extends MdNode {
   embed: boolean;
 }
 
+/** Highlighted or underlined text, which Markdown itself has no syntax for. */
+interface MarkedNode extends MdNode {
+  type: 'bwHighlight' | 'bwUnderline';
+  children: PhrasingContent[];
+}
+
 declare module 'mdast' {
   interface PhrasingContentMap {
     bwRaw: RawNode;
     wikiLink: WikiLinkNode;
     citation: CitationNode;
+    bwMarked: MarkedNode;
   }
   interface RootContentMap {
     bwRaw: RawNode;
@@ -55,6 +62,24 @@ declare module 'mdast' {
 }
 
 const rawHandler: Handle = (node) => (node as RawNode).value;
+
+/** `==highlight==` and `<u>underline</u>`, as other Markdown apps write them. */
+function markedHandler(open: string, close: string): Handle {
+  return (node, _parent, state, info) => {
+    const exit = state.enter('phrasing');
+    const marked = node as MarkedNode;
+    const inner = state.containerPhrasing(
+      marked as unknown as Parameters<typeof state.containerPhrasing>[0],
+      {
+        ...info,
+        before: open.slice(-1),
+        after: close.charAt(0),
+      },
+    );
+    exit();
+    return `${open}${inner}${close}`;
+  };
+}
 
 /** Citations are written back exactly as they were typed between the brackets. */
 const citationHandler: Handle = (node) => `[${(node as CitationNode).inner}]`;
@@ -93,6 +118,11 @@ export const MARKDOWN_STYLE: Options = {
     wikiLink: wikiHandler,
     citation: citationHandler,
     text: textHandler,
+    // Not mdast's own kinds of node, so not in its list of handler names.
+    ...({
+      bwHighlight: markedHandler('==', '=='),
+      bwUnderline: markedHandler('<u>', '</u>'),
+    } as Record<string, Handle>),
   },
 };
 
@@ -128,6 +158,10 @@ function markNode(mark: PMMark, children: PhrasingContent[]): PhrasingContent {
       return { type: 'strong', children };
     case 'italic':
       return { type: 'emphasis', children };
+    case 'highlight':
+      return { type: 'bwHighlight', children };
+    case 'underline':
+      return { type: 'bwUnderline', children };
     default:
       return { type: 'delete', children };
   }

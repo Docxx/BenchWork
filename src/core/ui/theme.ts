@@ -1,10 +1,29 @@
+import { appearanceTokens, type Appearance, type Scheme } from '../settings/appearance';
 import type { Theme } from '../settings/appSettings';
 
+/** Light or dark, with `system` following the operating system. */
+export function schemeFor(theme: Theme, systemDark: boolean): Scheme {
+  if (theme === 'system') return systemDark ? 'dark' : 'light';
+  return theme;
+}
+
 /**
- * Applies a theme to the page. `system` removes the attribute so the CSS
- * follows the operating system's light or dark setting.
+ * Applies the appearance to the page as CSS custom properties. `system`
+ * leaves `data-theme` off, so anything styled by the operating system's
+ * setting follows it too.
  */
-export function applyTheme(theme: Theme, root: HTMLElement = document.documentElement): void {
+export function applyAppearance(
+  appearance: Appearance,
+  theme: Theme,
+  systemDark: boolean,
+  root: HTMLElement = document.documentElement,
+): void {
   if (theme === 'system') delete root.dataset['theme'];
   else root.dataset['theme'] = theme;
+  const scheme = schemeFor(theme, systemDark);
+  root.dataset['preset'] = appearance.preset;
+  root.style.colorScheme = scheme;
+  for (const [name, value] of Object.entries(appearanceTokens(appearance, scheme))) {
+    root.style.setProperty(name, value);
+  }
 }

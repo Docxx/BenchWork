@@ -10,8 +10,9 @@ import { isImage } from '../pages/attachments';
 import { Citation, type CitationOptions } from './citationNode';
 import { joinLabel, splitLabel } from './imageSize';
 import { fileEmbedElement, isFileEmbed, type TableLoader } from './fileEmbed';
+import { Box, Highlight, PageDocument } from './freeLayout';
 import { imageView } from './imageView';
-import { RAW_BLOCK, RAW_INLINE, SOURCE_ATTR, WIKI_LINK } from './markdown/model';
+import { BOX, RAW_BLOCK, RAW_INLINE, SOURCE_ATTR, WIKI_LINK } from './markdown/model';
 
 /**
  * The editor's building blocks. The same list defines the document schema,
@@ -30,6 +31,8 @@ const TOP_LEVEL_TYPES = [
   'horizontalRule',
   'table',
   RAW_BLOCK,
+  // A box remembers its marker, so an unmoved box saves exactly as written.
+  BOX,
 ];
 
 /** Hidden attributes: each block's original Markdown, and table column alignment. */
@@ -261,12 +264,18 @@ export function baseExtensions(
 ): AnyExtension[] {
   return [
     StarterKit.configure({
+      // A page's own document, which also allows free layout boxes.
+      document: false,
       // Undo and redo come from the Yjs document instead.
       undoRedo: false,
-      // Markdown has no underline.
-      underline: false,
+      // An empty paragraph is kept at the end of a page, but never after a box:
+      // a free layout page has room below its boxes anyway.
+      trailingNode: { notAfter: ['paragraph', BOX] },
       link: { openOnClick: false, autolink: true, linkOnPaste: true },
     }),
+    PageDocument,
+    Box,
+    Highlight,
     TaskList,
     TaskItem.configure({ nested: true }),
     Table.configure({ resizable: false }),

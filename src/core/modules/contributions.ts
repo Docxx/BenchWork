@@ -3,6 +3,7 @@ import type {
   CitationProviderSpec,
   CommandSpec,
   FileHandlerSpec,
+  SideTabSpec,
   PageTypeSpec,
   PageViewSpec,
   SettingsPanelSpec,
@@ -37,6 +38,10 @@ export interface PageView extends PageViewSpec {
   moduleId: string;
 }
 
+export interface SideTab extends SideTabSpec {
+  moduleId: string;
+}
+
 export interface ContributionsState {
   /** Sidebar panels from modules that are on, in the order they registered. */
   panels: SidebarPanel[];
@@ -45,6 +50,7 @@ export interface ContributionsState {
   fileHandlers: FileHandler[];
   settingsPanels: SettingsPanel[];
   pageViews: PageView[];
+  sideTabs: SideTab[];
   /** At most one: the first module to register wins. */
   citationProviders: CitationProvider[];
   /** Goes up when a module asks for citations to be redrawn. */
@@ -62,6 +68,7 @@ export function createContributions(): Contributions {
     fileHandlers: [],
     settingsPanels: [],
     pageViews: [],
+    sideTabs: [],
     citationProviders: [],
     citationVersion: 0,
   }));

@@ -1,3 +1,4 @@
+import type { Editor } from '@tiptap/core';
 import type * as Y from 'yjs';
 import { loadPage, savePage } from '../editor/markdown/markdown';
 import type { BodySource } from '../editor/markdown/model';
@@ -44,8 +45,23 @@ export interface PageConflict {
   diskText: string | null;
 }
 
+/**
+ * The open page's editor, with what the toolbar needs that only the
+ * editor's own component can do. Set while a page is open in the editor.
+ */
+export interface PageEditorHandle {
+  editor: Editor;
+  /** Asks which template to put in at `pos`. */
+  chooseTemplate: (pos: number) => void;
+  /** Asks for files, adds them to the vault, and puts them in at `pos`. */
+  addFilesAt: (pos: number) => void;
+}
+
 export interface PageSlice {
   page: OpenPage | null;
+  /** The open page's editor, for the toolbar; null while none is showing. */
+  pageEditor: PageEditorHandle | null;
+  setPageEditor: (handle: PageEditorHandle | null) => void;
   /**
    * The open page's frontmatter as data, every key. Null when the page has
    * none, or when it cannot be read (then it is never changed).
@@ -352,6 +368,10 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
 
   return {
     page: null,
+    pageEditor: null,
+    setPageEditor: (handle) => {
+      set({ pageEditor: handle });
+    },
     pageProperties: null,
     propertiesBroken: false,
     addingProperty: false,

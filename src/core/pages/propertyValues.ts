@@ -6,8 +6,19 @@ import type { PropertyField, PropertyKind } from '../api';
  * the way Obsidian writes them, so the files read well in both.
  */
 
-/** Keys every page has, kept out of the panel: the core looks after them. */
-export const QUIET_PROPERTIES = new Set(['id', 'type', 'created', 'modified', 'tags']);
+/**
+ * Kept out of the Properties panel: keys the core looks after, the
+ * `description` shown under the title, and the `layout` set from the top bar.
+ */
+export const QUIET_PROPERTIES = new Set([
+  'id',
+  'type',
+  'created',
+  'modified',
+  'tags',
+  'description',
+  'layout',
+]);
 
 export interface PropertyRow extends PropertyField {
   value: unknown;

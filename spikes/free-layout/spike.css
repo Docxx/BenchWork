@@ -1,0 +1,425 @@
+/* Free layout spike: the Forest look, so it reads like the app. */
+
+:root {
+  --bg: #f8f7f3;
+  --surface: #efede7;
+  --border: #e2dfd7;
+  --text: #1d2725;
+  --muted: #6b7470;
+  --accent: #5b8a76;
+  font-family: 'Inter Variable', system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  accent-color: var(--accent);
+}
+
+body {
+  margin: 0;
+}
+
+.spike {
+  display: grid;
+  grid-template-columns: 1fr 22rem;
+  grid-template-rows: auto auto 1fr;
+  height: 100vh;
+}
+
+/* ---- The ribbon ---- */
+
+.spike-ribbon {
+  grid-column: 1;
+  border-bottom: 1px solid var(--border);
+}
+
+.ribbon-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.3rem 1rem 0;
+}
+
+.ribbon-tabs button {
+  padding: 0.35rem 0.8rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.ribbon-tabs button[aria-selected='true'] {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+.ribbon-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  padding: 0.4rem 1rem 0.5rem;
+}
+
+.tool-group {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  padding-right: 0.5rem;
+  border-right: 1px solid var(--border);
+}
+
+.tool-group:last-child {
+  border-right: none;
+}
+
+.tool {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.tool:hover {
+  background: var(--surface);
+}
+
+.tool[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+
+.tool:disabled {
+  opacity: 0.4;
+}
+
+.ribbon-tools select {
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.tool-label {
+  margin-right: 0.3rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.colour-chip {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0 0.1rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--chip, #fff);
+  cursor: pointer;
+}
+
+.colour-chip.none {
+  background: linear-gradient(135deg, #fff 45%, #d1495b 45%, #d1495b 55%, #fff 55%);
+}
+
+.colour-chip[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--text);
+}
+
+.colour-chip:disabled {
+  opacity: 0.35;
+}
+
+[data-colour='yellow'] {
+  --chip: #fff3b0;
+}
+
+[data-colour='pink'] {
+  --chip: #ffd6e0;
+}
+
+[data-colour='green'] {
+  --chip: #d4f0d6;
+}
+
+[data-colour='blue'] {
+  --chip: #d3e6fb;
+}
+
+[data-colour='purple'] {
+  --chip: #e6dcf7;
+}
+
+.spike-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.layout-switch {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.layout-switch button {
+  padding: 0.4rem 0.9rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.layout-switch button[aria-checked='true'] {
+  background: var(--accent);
+  color: #fff;
+}
+
+.spike-page {
+  grid-column: 1;
+  overflow: auto;
+}
+
+.spike-side {
+  grid-column: 2;
+  grid-row: 2 / 4;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  overflow: auto;
+  border-left: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.spike-side h2 {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
+}
+
+.spike-side ol {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.spike-side li {
+  margin: 0.2rem 0;
+}
+
+.spike-side textarea {
+  min-height: 16rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.78rem;
+}
+
+/* ---- The free page ---- */
+
+.free-page {
+  position: relative;
+  /* Grows with its lowest box, so there is always room below to write. */
+  min-height: var(--free-height, 1600px);
+  min-width: 1400px;
+  outline: none;
+  cursor: text;
+  font-family: 'Source Serif 4 Variable', Georgia, serif;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  /* Faint dots, to show the page is a surface to write anywhere on. */
+  background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.free-box {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 0.6rem 0.9rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: auto;
+}
+
+.free-box:hover,
+.free-box:focus-within,
+.free-box.moving {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+}
+
+.free-box.moving {
+  opacity: 0.85;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.12);
+}
+
+.box-handle {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  height: 10px;
+  border-radius: 6px 6px 0 0;
+  background: var(--surface);
+  cursor: grab;
+  opacity: 0;
+  user-select: none;
+}
+
+.box-resize {
+  position: absolute;
+  user-select: none;
+}
+
+.box-resize.right {
+  top: 0;
+  right: -4px;
+  width: 8px;
+  height: 100%;
+  cursor: ew-resize;
+}
+
+.box-resize.bottom {
+  left: 0;
+  bottom: -4px;
+  width: 100%;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.box-resize.corner {
+  right: -6px;
+  bottom: -6px;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+}
+
+.free-box:hover .box-resize.corner,
+.free-box:focus-within .box-resize.corner {
+  background: linear-gradient(
+    135deg,
+    transparent 55%,
+    var(--muted) 55%,
+    var(--muted) 65%,
+    transparent 65%,
+    transparent 75%,
+    var(--muted) 75%,
+    var(--muted) 85%,
+    transparent 85%
+  );
+}
+
+/* Sticky notes: a coloured card that keeps its size. */
+.free-box.sticky {
+  border-color: color-mix(in srgb, var(--chip) 70%, #000 8%);
+  background: var(--chip);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.08);
+}
+
+.free-box.sticky:hover,
+.free-box.sticky:focus-within {
+  background: var(--chip);
+}
+
+/* The rectangle drawn while dragging across empty page. */
+.free-band {
+  position: fixed;
+  z-index: 10;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  pointer-events: none;
+}
+
+.box-content p {
+  margin: 0.35em 0;
+}
+
+.box-content img {
+  max-width: 100%;
+  height: auto;
+  vertical-align: middle;
+}
+
+.box-content mark {
+  background: #fff1a8;
+  color: inherit;
+  border-radius: 2px;
+}
+
+.box-content .selectedCell {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.free-box:hover .box-handle,
+.free-box:focus-within .box-handle,
+.free-box.moving .box-handle {
+  opacity: 1;
+}
+
+.box-content > :first-child {
+  margin-top: 0;
+}
+
+.box-content > :last-child {
+  margin-bottom: 0;
+}
+
+.box-content table {
+  border-collapse: collapse;
+}
+
+.box-content th,
+.box-content td {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border);
+}
+
+.box-content p.is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* ---- The same page as a document ---- */
+
+.document .free-page {
+  min-width: 0;
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 2rem;
+  background-image: none;
+}
+
+.document .free-box {
+  position: static;
+  width: auto !important;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+/* A paragraph's space between boxes, so they read as one document. */
+.document .free-box + .free-box {
+  margin-top: 0.75em;
+}
+
+.document .box-handle,
+.document .box-resize {
+  display: none;
+}

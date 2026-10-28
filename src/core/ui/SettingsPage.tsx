@@ -1,12 +1,14 @@
 import { useEffect, useState, type KeyboardEvent } from 'react';
-import type { Theme } from '../settings/appSettings';
 import { LINK_THRESHOLD_RANGE } from '../state/appStore';
+import type { PageLayout } from '../vault/vaultConfig';
 import type { OpenVault } from '../vault/vaultService';
+import { AppearanceSettings } from './AppearanceSettings';
 import { useApp } from './AppStoreContext';
 import { ModulesPanel } from './ModulesPanel';
 
 const TABS = [
   { id: 'general', label: 'General' },
+  { id: 'appearance', label: 'Appearance' },
   { id: 'vault', label: 'Vault' },
   { id: 'modules', label: 'Modules' },
 ] as const;
@@ -16,7 +18,10 @@ type TabId = (typeof TABS)[number]['id'];
 export function SettingsPage({ vault }: { vault: OpenVault }) {
   const showView = useApp((s) => s.showView);
   const settingsError = useApp((s) => s.settingsError);
-  const [tab, setTab] = useState<TabId>('general');
+  const requested = useApp((s) => s.settingsTab);
+  const [tab, setTab] = useState<TabId>(
+    () => TABS.find((t) => t.id === requested)?.id ?? 'general',
+  );
 
   function onTabKey(event: KeyboardEvent<HTMLDivElement>): void {
     const index = TABS.findIndex((t) => t.id === tab);
@@ -76,46 +81,12 @@ export function SettingsPage({ vault }: { vault: OpenVault }) {
         id={`settings-panel-${tab}`}
         aria-labelledby={`settings-tab-${tab}`}
       >
-        {tab === 'general' && (
-          <>
-            <GeneralSettings />
-            <SidebarSettings />
-          </>
-        )}
+        {tab === 'general' && <SidebarSettings />}
+        {tab === 'appearance' && <AppearanceSettings />}
         {tab === 'vault' && <VaultSettings vault={vault} />}
         {tab === 'modules' && <ModulesPanel />}
       </div>
     </section>
-  );
-}
-
-const THEMES: { value: Theme; label: string }[] = [
-  { value: 'system', label: 'Match system' },
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-];
-
-function GeneralSettings() {
-  const theme = useApp((s) => s.settings.theme);
-  const setTheme = useApp((s) => s.setTheme);
-
-  return (
-    <fieldset className="field">
-      <legend>Theme</legend>
-      {THEMES.map((t) => (
-        <label key={t.value} className="choice">
-          <input
-            type="radio"
-            name="theme"
-            value={t.value}
-            checked={theme === t.value}
-            onChange={() => void setTheme(t.value)}
-          />
-          {t.label}
-        </label>
-      ))}
-      <p className="hint">Saved on this device only.</p>
-    </fieldset>
   );
 }
 
@@ -190,9 +161,43 @@ function VaultSettings({ vault }: { vault: OpenVault }) {
         </p>
       </div>
 
+      <NewPageSettings layout={vault.config.pages.layout} />
       <TemplateSettings />
       <SearchIndexSettings />
     </>
+  );
+}
+
+function NewPageSettings({ layout }: { layout: PageLayout }) {
+  const setNewPageLayout = useApp((s) => s.setNewPageLayout);
+  const options: { value: PageLayout; label: string; hint: string }[] = [
+    { value: 'document', label: 'Document', hint: 'Text flows down the page.' },
+    {
+      value: 'free',
+      label: 'Free layout',
+      hint: 'Click anywhere to write; boxes can be moved and resized.',
+    },
+  ];
+  return (
+    <fieldset className="field">
+      <legend>New pages start as</legend>
+      {options.map((o) => (
+        <label key={o.value} className="choice">
+          <input
+            type="radio"
+            name="new-page-layout"
+            value={o.value}
+            checked={layout === o.value}
+            onChange={() => void setNewPageLayout(o.value)}
+          />
+          {o.label}
+          <span className="hint">{o.hint}</span>
+        </label>
+      ))}
+      <p className="hint">
+        Each page can be switched from its top bar at any time. Saved in this vault.
+      </p>
+    </fieldset>
   );
 }
 

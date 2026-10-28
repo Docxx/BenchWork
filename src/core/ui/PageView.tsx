@@ -1,3 +1,4 @@
+import { ChevronRight, FileText, History, LayoutDashboard, PanelRight } from 'lucide-react';
 import { useState } from 'react';
 import { dayOfPath } from '../pages/daily';
 import type { OpenPage, SaveState } from '../state/pageSlice';
@@ -8,6 +9,8 @@ import { HistoryPanel } from './HistoryPanel';
 import { ModuleView } from './ModuleView';
 import { PageEditor } from './PageEditor';
 import { PropertiesPanel } from './PropertiesPanel';
+import { Ribbon } from './Ribbon';
+import { updatedText } from './updated';
 
 const SAVE_LABELS: Record<SaveState, string> = {
   saved: 'Saved',
@@ -24,57 +27,215 @@ export function PageView() {
   const openFile = useApp((s) => s.openFile);
   const moduleView = useApp((s) => s.moduleView);
   const [showHistory, setShowHistory] = useState(false);
+  const sidePanel = useApp((s) => s.settings.appearance.sidePanel);
+  const free = useApp((s) => s.pageProperties?.['layout']) === 'free';
 
   if (page === null && moduleView !== null) return <ModuleView open={moduleView} />;
   if (page === null && openFile !== null) return <FileView path={openFile} />;
 
   return (
-    <article className="page-view" aria-label={page ? page.title : 'No page open'}>
-      {notice !== null && (
-        <div className="notice page-notice" role="alert">
-          <span>{notice}</span>
-          <button type="button" className="quiet" aria-label="Dismiss" onClick={dismissNotice}>
-            ×
-          </button>
+    <>
+      {page !== null && (
+        // The top bar and toolbar stay in view while the page scrolls.
+        <div className="page-chrome">
+          <PageTopBar
+            page={page}
+            historyOpen={showHistory}
+            onHistory={() => {
+              setShowHistory((open) => !open);
+            }}
+          />
+          <PageRibbon free={free} />
         </div>
       )}
-      {page === null ? (
-        <p className="page-empty">
-          Pick a page in the sidebar, or create one from a notebook’s menu.
-        </p>
-      ) : (
-        <>
-          <header className="page-header">
-            {/* Keyed by path so a rename elsewhere resets the field. */}
-            <TitleField key={page.path} page={page} />
-            {dayOfPath(page.path) !== null && <DayArrows />}
-            <SaveStatus />
-            <button
-              type="button"
-              className="quiet history-button"
-              onClick={() => {
-                setShowHistory(true);
-              }}
-            >
-              History
+      <article
+        className={free ? 'page-view free' : 'page-view'}
+        aria-label={page ? page.title : 'No page open'}
+      >
+        {notice !== null && (
+          <div className="notice page-notice" role="alert">
+            <span>{notice}</span>
+            <button type="button" className="quiet" aria-label="Dismiss" onClick={dismissNotice}>
+              ×
             </button>
-          </header>
-          <ConflictBanner />
-          {showHistory && (
-            <HistoryPanel
-              key={page.path}
-              onClose={() => {
-                setShowHistory(false);
-              }}
-            />
-          )}
-          <PropertiesPanel />
-          {/* A new document after a reload from disk starts a fresh editor. */}
-          <PageEditor key={page.ydoc.guid} page={page} />
-          <Backlinks />
-        </>
+          </div>
+        )}
+        {page === null ? (
+          <p className="page-empty">
+            Pick a page in the sidebar, or create one from a notebook’s menu.
+          </p>
+        ) : (
+          <>
+            <PageStatus />
+            <header className="page-header">
+              {/* Keyed by path so a rename elsewhere resets the field. */}
+              <TitleField key={page.path} page={page} />
+              {dayOfPath(page.path) !== null && <DayArrows />}
+            </header>
+            <PageLead />
+            <ConflictBanner />
+            {showHistory && (
+              <HistoryPanel
+                key={page.path}
+                onClose={() => {
+                  setShowHistory(false);
+                }}
+              />
+            )}
+            <PropertiesPanel />
+            {/* A new document after a reload from disk starts a fresh editor. */}
+            <PageEditor key={page.ydoc.guid} page={page} />
+            {!sidePanel && <Backlinks />}
+          </>
+        )}
+      </article>
+    </>
+  );
+}
+
+/** Across the top: where the page is, whether it is saved, and its history. */
+function PageTopBar({
+  page,
+  historyOpen,
+  onHistory,
+}: {
+  page: OpenPage;
+  historyOpen: boolean;
+  onHistory: () => void;
+}) {
+  const folders = page.path.split('/').slice(0, -1);
+  return (
+    <div className="top-bar">
+      <nav className="breadcrumb" aria-label="Where this page is">
+        {folders.map((folder, i) => (
+          <span key={folders.slice(0, i + 1).join('/')} className="crumb">
+            {folder}
+            <ChevronRight size={14} strokeWidth={1.75} aria-hidden />
+          </span>
+        ))}
+        <span className="crumb current" aria-current="page">
+          {page.title}
+        </span>
+      </nav>
+      <SaveStatus />
+      <button
+        type="button"
+        className="quiet top-button"
+        aria-pressed={historyOpen}
+        onClick={onHistory}
+      >
+        <History size={16} strokeWidth={1.75} aria-hidden />
+        History
+      </button>
+      <LayoutSwitch />
+      <SidePanelToggle />
+    </div>
+  );
+}
+
+/** The toolbar, once the page's editor is showing, unless it is switched off. */
+function PageRibbon({ free }: { free: boolean }) {
+  const handle = useApp((s) => s.pageEditor);
+  const shown = useApp((s) => s.settings.appearance.ribbon);
+  if (!shown || handle === null) return null;
+  return <Ribbon handle={handle} free={free} />;
+}
+
+/** Document or free layout, for this page. */
+function LayoutSwitch() {
+  const layout = useApp((s) => s.pageProperties?.['layout']) === 'free' ? 'free' : 'document';
+  const setProperties = useApp((s) => s.setPageProperties);
+  const options = [
+    { value: 'document', label: 'Document', icon: FileText },
+    { value: 'free', label: 'Free layout', icon: LayoutDashboard },
+  ] as const;
+  return (
+    <div className="layout-switch" role="radiogroup" aria-label="Page layout">
+      {options.map(({ value, label, icon: Icon }) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={layout === value}
+          title={label}
+          aria-label={label}
+          onClick={() => {
+            if (value !== layout) setProperties({ layout: value === 'free' ? 'free' : null });
+          }}
+        >
+          <Icon size={16} strokeWidth={1.75} aria-hidden />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SidePanelToggle() {
+  const shown = useApp((s) => s.settings.appearance.sidePanel);
+  const setAppearance = useApp((s) => s.setAppearance);
+  const label = shown ? 'Hide the side panel' : 'Show the side panel';
+  return (
+    <button
+      type="button"
+      className="icon-button"
+      title={label}
+      aria-label={label}
+      aria-pressed={shown}
+      onClick={() => void setAppearance({ sidePanel: !shown })}
+    >
+      <PanelRight size={17} strokeWidth={1.75} aria-hidden />
+    </button>
+  );
+}
+
+/** A page's status, as a pill, and when it last changed. */
+function PageStatus() {
+  const properties = useApp((s) => s.pageProperties);
+  const status = properties?.['status'];
+  const updated = updatedText(properties?.['modified']);
+  if (typeof status !== 'string' && updated === null) return null;
+  return (
+    <p className="page-status">
+      {typeof status === 'string' && status.trim() !== '' && (
+        <span className="status-pill">{status}</span>
       )}
-    </article>
+      {updated !== null && <span className="page-updated">{updated}</span>}
+    </p>
+  );
+}
+
+/** The page's `description`, as an introduction under the title. */
+function PageLead() {
+  const description = useApp((s) => s.pageProperties?.['description']);
+  if (typeof description !== 'string') return null;
+  // Starts afresh when the description changes elsewhere, such as on disk.
+  return <LeadField key={description} description={description} />;
+}
+
+function LeadField({ description }: { description: string }) {
+  const setProperties = useApp((s) => s.setPageProperties);
+  const [draft, setDraft] = useState(description);
+  return (
+    <textarea
+      className="page-lead"
+      aria-label="Description"
+      rows={1}
+      value={draft}
+      placeholder="Add a short description"
+      ref={(el) => {
+        // Grows with its text, like a paragraph.
+        if (el) {
+          el.style.height = 'auto';
+          el.style.height = `${String(el.scrollHeight)}px`;
+        }
+      }}
+      onChange={(e) => {
+        setDraft(e.target.value);
+      }}
+      onBlur={() => {
+        if (draft !== description) setProperties({ description: draft });
+      }}
+    />
   );
 }
 
@@ -94,10 +255,18 @@ function TitleField({ page }: { page: OpenPage }) {
   };
 
   return (
-    <input
+    <textarea
       className="page-title"
       aria-label="Page title"
+      rows={1}
       value={draft}
+      ref={(el) => {
+        // Wraps onto more lines for a long title, like a heading.
+        if (el) {
+          el.style.height = 'auto';
+          el.style.height = `${String(el.scrollHeight)}px`;
+        }
+      }}
       onChange={(e) => {
         setDraft(e.target.value);
       }}

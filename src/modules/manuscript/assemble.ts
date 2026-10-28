@@ -199,6 +199,9 @@ export function wordCount(text: string): number {
   }
   const plain = lines
     .join('\n')
+    // Hidden comments (such as a free layout box's place) and tags such as <u>.
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<\/?[a-z][^>]*>/gi, ' ')
     .replace(/!\[\[[^\]]*\]\]/g, ' ')
     .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
     .replace(/\[[^[\]\n]*@[^[\]\n]*\]/g, ' ')

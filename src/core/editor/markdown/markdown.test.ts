@@ -2,22 +2,23 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadPage, parseBody, savePage, serialiseBody } from './markdown';
-import { RAW_BLOCK, SOURCE_ATTR, type PMNode } from './model';
+import { BOX, RAW_BLOCK, SOURCE_ATTR, type PMNode } from './model';
 
 const FIXTURES = join(__dirname, 'fixtures');
 const fixture = (name: string) => readFileSync(join(FIXTURES, name), 'utf8');
 
 /** The document with every block's remembered source removed, as if all were edited. */
 function forgetSources(doc: PMNode): PMNode {
-  return {
-    ...doc,
-    content: (doc.content ?? []).map((block) => {
-      const attrs = { ...block.attrs };
-      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-      delete attrs[SOURCE_ATTR];
-      return { ...block, attrs };
-    }),
+  const forget = (block: PMNode): PMNode => {
+    const attrs = { ...block.attrs };
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete attrs[SOURCE_ATTR];
+    // A box's blocks remember their sources too.
+    return block.type === BOX
+      ? { ...block, attrs, content: (block.content ?? []).map(forget) }
+      : { ...block, attrs };
   };
+  return { ...doc, content: (doc.content ?? []).map(forget) };
 }
 
 /** The document without source attributes anywhere, for comparing content. */
@@ -208,5 +209,88 @@ describe('Windows line endings', () => {
     const saved = savePage(loaded.page, { ...loaded.doc, content }, loaded.source);
     expect(saved).toBe(text.replace(/\r\n$/, '\r\n\r\nAdded\r\n'));
     expect(saved.replace(/\r\n/g, '')).not.toContain('\n');
+  });
+});
+
+describe('highlight and underline', () => {
+  const marksOf = (body: string) =>
+    (parseBody(body).doc.content?.[0]?.content ?? []).map((n) => [
+      n.text,
+      (n.marks ?? []).map((m) => m.type),
+    ]);
+
+  it('reads ==highlight==, also around other formatting', () => {
+    expect(marksOf('A ==bright **bold** idea== here.')).toEqual([
+      ['A ', []],
+      ['bright ', ['highlight']],
+      ['bold', ['highlight', 'bold']],
+      [' idea', ['highlight']],
+      [' here.', []],
+    ]);
+  });
+
+  it('leaves a lone or escaped == as text', () => {
+    expect(marksOf('a == b')).toEqual([['a == b', []]]);
+    expect(marksOf('x \\==not== y')).toEqual([['x ==not== y', []]]);
+  });
+
+  it('reads <u>underline</u>', () => {
+    expect(marksOf('Do <u>this</u> first.')).toEqual([
+      ['Do ', []],
+      ['this', ['underline']],
+      [' first.', []],
+    ]);
+  });
+
+  it('writes both back as written', () => {
+    expect(normalForm('A ==bright **bold** idea== and <u>this</u>.\n')).toBe(
+      'A ==bright **bold** idea== and <u>this</u>.\n',
+    );
+  });
+});
+
+describe('free layout boxes', () => {
+  const page = fixture('free-layout.md');
+
+  it('groups each marker and the blocks after it into a box', () => {
+    const boxes = parseBody(page).doc.content ?? [];
+    expect(boxes.map((b) => b.type)).toEqual([BOX, BOX, BOX, BOX]);
+    expect(boxes.map((b) => ({ ...b.attrs, [SOURCE_ATTR]: undefined }))).toEqual([
+      { x: 40, y: 40, w: 440, h: 0, colour: null, [SOURCE_ATTR]: undefined },
+      { x: 540, y: 40, w: 240, h: 180, colour: 'yellow', [SOURCE_ATTR]: undefined },
+      { x: 60, y: 300, w: 520, h: 0, colour: null, [SOURCE_ATTR]: undefined },
+      { x: 600, y: 320, w: 200, h: 120, colour: 'pink', [SOURCE_ATTR]: undefined },
+    ]);
+    expect(boxes[0]?.content?.map((b) => b.type)).toEqual(['heading', 'bulletList']);
+    // An empty sticky note still holds somewhere to type.
+    expect(boxes[3]?.content).toEqual([{ type: 'paragraph' }]);
+  });
+
+  it('rewrites only the marker of a box that moved', () => {
+    const loaded = parseBody(page);
+    const boxes = loaded.doc.content ?? [];
+    const moved = { ...boxes[1], type: BOX, attrs: { ...boxes[1]?.attrs, x: 700, y: 500 } };
+    const doc = { ...loaded.doc, content: [boxes[0], boxes[2], moved, boxes[3]] as PMNode[] };
+    const saved = serialiseBody(doc, loaded.source);
+    expect(saved).toContain(
+      '<!-- box x=700 y=500 w=240 h=180 colour=yellow -->\nOrder fly food before Friday.',
+    );
+    expect(saved).toContain('## Meeting with Sam\n\n- Pilot ran on **Tuesday**: 20 flies');
+  });
+
+  it('puts text written before the first marker in a box at the top', () => {
+    const boxes =
+      parseBody('Written elsewhere.\n\n<!-- box x=300 y=200 w=200 -->\nLater.\n').doc.content ?? [];
+    expect(boxes.map((b) => [b.type, b.attrs?.['x'], b.attrs?.['y']])).toEqual([
+      [BOX, 40, 40],
+      [BOX, 300, 200],
+    ]);
+  });
+
+  it('leaves pages without markers as they were', () => {
+    expect(parseBody('# Plain\n\nText.\n').doc.content?.map((b) => b.type)).toEqual([
+      'heading',
+      'paragraph',
+    ]);
   });
 });

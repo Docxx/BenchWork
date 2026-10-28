@@ -85,12 +85,109 @@ function textNodes(value: string, raw: string, marks: readonly PMMark[]): PMNode
   return out;
 }
 
-function inline(ctx: Ctx, nodes: readonly PhrasingContent[], marks: PMMark[] = []): PMNode[] {
+/** Siblings between `<u>` and `</u>`, or between `==` and `==`, to take that mark. */
+interface Wrap {
+  type: 'bwWrap';
+  mark: 'underline' | 'highlight';
+  children: Inline[];
+}
+
+/** A `==` found in text, before it is paired with another. */
+interface Equals {
+  type: 'bwEquals';
+}
+
+type Inline = PhrasingContent | Wrap | Equals;
+
+const isTag = (node: Inline, tag: string) =>
+  node.type === 'html' && node.value.trim().toLowerCase() === tag;
+
+/** `<u>underlined</u>`, as other Markdown apps write underline. */
+function wrapUnderline(nodes: readonly Inline[]): Inline[] {
+  const out: Inline[] = [];
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i];
+    if (!node) continue;
+    if (isTag(node, '<u>')) {
+      const close = nodes.findIndex((n, j) => j > i && isTag(n, '</u>'));
+      if (close > i + 1) {
+        out.push({
+          type: 'bwWrap',
+          mark: 'underline',
+          children: wrapUnderline(nodes.slice(i + 1, close)),
+        });
+        i = close;
+        continue;
+      }
+    }
+    out.push(node);
+  }
+  return out;
+}
+
+/** How many times `==` appears in Markdown without a backslash before it. */
+function unescapedEquals(raw: string): number {
+  return (raw.match(/(?<!\\)==/g) ?? []).length;
+}
+
+/** `==highlighted==`: text split at each `==`, then pairs of them wrapped around what is between. */
+function wrapHighlight(ctx: Ctx, nodes: readonly Inline[]): Inline[] {
+  const tokens: Inline[] = [];
+  for (const node of nodes) {
+    if (node.type !== 'text' || !node.value.includes('==')) {
+      tokens.push(node);
+      continue;
+    }
+    const parts = node.value.split('==');
+    // An escaped \== reads as == too; then this text is left as it is.
+    // With the character before it, as a backslash just before splits the text there.
+    const start = node.position?.start.offset ?? 0;
+    const before = start > 0 ? ctx.source.slice(start - 1, start) : '';
+    if (unescapedEquals(before + slice(ctx, node)) !== parts.length - 1) {
+      tokens.push(node);
+      continue;
+    }
+    parts.forEach((part, i) => {
+      if (i > 0) tokens.push({ type: 'bwEquals' });
+      if (part !== '') tokens.push({ ...node, value: part });
+    });
+  }
+  if (!tokens.some((t) => t.type === 'bwEquals')) return [...nodes];
+
+  const out: Inline[] = [];
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i];
+    if (!token) continue;
+    if (token.type === 'bwEquals') {
+      const close = tokens.findIndex((t, j) => j > i && t.type === 'bwEquals');
+      if (close > i + 1) {
+        out.push({ type: 'bwWrap', mark: 'highlight', children: tokens.slice(i + 1, close) });
+        i = close;
+        continue;
+      }
+      // Unpaired, or ==== with nothing between: plain text.
+      out.push({ type: 'text', value: '==' });
+      continue;
+    }
+    out.push(token);
+  }
+  return out;
+}
+
+function inline(ctx: Ctx, given: readonly Inline[], marks: PMMark[] = []): PMNode[] {
   const out: PMNode[] = [];
+  const nodes = wrapHighlight(ctx, wrapUnderline(given));
   for (const node of nodes) {
     switch (node.type) {
+      case 'bwWrap':
+        out.push(...inline(ctx, node.children, [...marks, { type: node.mark }]));
+        break;
+      case 'bwEquals':
+        out.push(withMarks({ type: 'text', text: '==' }, marks));
+        break;
       case 'text':
-        out.push(...textNodes(node.value, slice(ctx, node), marks));
+        // Text made here (a lone `==`) has no place in the file, so nothing to check against.
+        out.push(...textNodes(node.value, node.position ? slice(ctx, node) : node.value, marks));
         break;
       case 'emphasis':
         out.push(...inline(ctx, node.children, [...marks, { type: 'italic' }]));
@@ -136,8 +233,22 @@ function inline(ctx: Ctx, nodes: readonly PhrasingContent[], marks: PMMark[] = [
       }
     }
   }
-  // Empty text nodes are not allowed in ProseMirror.
-  return out.filter((n) => n.type !== 'text' || (n.text ?? '') !== '');
+  // Empty text nodes are not allowed in ProseMirror; neighbours with the same marks are one.
+  const merged: PMNode[] = [];
+  for (const node of out) {
+    if (node.type === 'text' && (node.text ?? '') === '') continue;
+    const last = merged.at(-1);
+    if (
+      node.type === 'text' &&
+      last?.type === 'text' &&
+      JSON.stringify(last.marks ?? []) === JSON.stringify(node.marks ?? [])
+    ) {
+      merged[merged.length - 1] = { ...last, text: `${last.text ?? ''}${node.text ?? ''}` };
+    } else {
+      merged.push(node);
+    }
+  }
+  return merged;
 }
 
 function paragraph(ctx: Ctx, children: readonly PhrasingContent[]): PMNode {

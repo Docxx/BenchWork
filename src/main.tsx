@@ -7,6 +7,9 @@ import { createPlatform } from '@core/platform';
 import { createAppStore } from '@core/state/appStore';
 import { App } from '@core/ui/App';
 import { AppStoreProvider } from '@core/ui/AppStoreContext';
+// Bundled, so the app looks the same offline.
+import '@fontsource-variable/inter';
+import '@fontsource-variable/source-serif-4';
 import '@core/ui/styles.css';
 
 const root = document.getElementById('root');

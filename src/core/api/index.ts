@@ -283,6 +283,19 @@ export interface ModuleViews {
   registerSettingsPanel(spec: SettingsPanelSpec): Disposable;
   /** A view filling the main area, opened with app.openView, such as a timeline. */
   registerPageView(spec: PageViewSpec): Disposable;
+  /** A tab in the side panel beside pages, such as the open page's tasks. */
+  registerSideTab(spec: SideTabSpec): Disposable;
+}
+
+export interface SideTabSpec {
+  /** Must start with the module id and a dot. */
+  id: string;
+  /** The tab's name, shown as its tooltip and read out by screen readers. */
+  title: string;
+  /** A small icon for the tab, about 17 pixels; the first letter of the title if left out. */
+  icon?: ReactNode;
+  /** `page` is the open page's path, or null when none is open. */
+  render: (page: string | null) => ReactNode;
 }
 
 export interface PageViewSpec {

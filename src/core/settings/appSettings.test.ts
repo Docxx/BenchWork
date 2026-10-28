@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { defaultAppearance } from './appearance';
 import { MemoryAdapter } from '../platform/memory';
 import {
   defaultAppSettings,
@@ -26,7 +27,7 @@ describe('app settings', () => {
     const settings = parseAppSettings(stored);
     expect(settings.lastVault).toBe('C:\\Vault');
     expect(settings.theme).toBe('dark');
-    expect(toStoredAppSettings(settings)).toEqual(stored);
+    expect(toStoredAppSettings(settings)).toEqual({ ...stored, appearance: defaultAppearance() });
   });
 
   it('saves and loads through the platform', async () => {

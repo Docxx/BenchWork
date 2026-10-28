@@ -1,4 +1,13 @@
 import {
+  ChevronRight,
+  File,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  LayoutDashboard,
+  type LucideIcon,
+} from 'lucide-react';
+import {
   useEffect,
   useMemo,
   useRef,
@@ -7,7 +16,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from 'react';
-import { kindLabel } from '../files/fileKinds';
+import { fileKind, kindLabel } from '../files/fileKinds';
 import {
   folderNodes,
   notebookRows,
@@ -26,6 +35,22 @@ type DropPlace = 'before' | 'after' | 'into';
 
 const INDENT_PX = 16;
 const DRAG_TYPE = 'application/x-benchwork-path';
+
+/** The icon beside a page or file in the tree. */
+function iconFor(node: NotebookNode): LucideIcon {
+  if (node.kind === 'page') return FileText;
+  switch (fileKind(node.path)) {
+    case 'image':
+      return FileImage;
+    case 'table':
+    case 'spreadsheet':
+      return FileSpreadsheet;
+    case 'canvas':
+      return LayoutDashboard;
+    default:
+      return File;
+  }
+}
 
 /** CSS colour for a section colour name or a colour written by hand. */
 export function colourValue(colour: string): string {
@@ -431,15 +456,19 @@ export function NotebookTree() {
               }}
               onDragEnd={endDrag}
             >
-              <span className="twisty" aria-hidden="true">
-                {node.isDir ? (row.expanded ? '▾' : '▸') : ''}
-              </span>
-              {node.colour !== null && (
+              {node.isDir ? (
                 <span
                   className={`colour-mark ${node.kind}`}
                   aria-hidden="true"
-                  style={{ background: colourValue(node.colour) }}
+                  style={
+                    node.colour === null ? undefined : { background: colourValue(node.colour) }
+                  }
                 />
+              ) : (
+                (() => {
+                  const Icon = iconFor(node);
+                  return <Icon className="tree-icon" size={15} strokeWidth={1.75} aria-hidden />;
+                })()
               )}
               {isRenaming ? (
                 <RenameField
@@ -474,6 +503,14 @@ export function NotebookTree() {
                 >
                   …
                 </button>
+              )}
+              {node.isDir && (
+                <ChevronRight
+                  className={row.expanded ? 'twisty open' : 'twisty'}
+                  size={15}
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
               )}
             </li>
           );

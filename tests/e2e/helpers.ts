@@ -1,4 +1,4 @@
-import { expect, type Locator } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 interface EditorDom extends Element {
   editor?: {
@@ -10,6 +10,13 @@ interface EditorDom extends Element {
       };
     };
   };
+}
+
+/** Opens the side panel's Linked from tab, and returns what it shows. */
+export async function linkedFrom(page: Page): Promise<Locator> {
+  const panel = page.getByRole('complementary', { name: 'Side panel' });
+  await panel.getByRole('tab', { name: 'Linked from' }).click();
+  return panel.getByRole('tabpanel');
 }
 
 /**

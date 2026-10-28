@@ -36,6 +36,7 @@ type ListKey =
   | 'fileHandlers'
   | 'settingsPanels'
   | 'pageViews'
+  | 'sideTabs'
   | 'citationProviders';
 
 export interface ModuleContextHandle {
@@ -152,6 +153,15 @@ export function createModuleContext(
           { ...spec, moduleId: id },
           (v) => v.id === spec.id,
           `A view with id '${spec.id}'`,
+        );
+      },
+      registerSideTab(spec) {
+        checkId('Side tab', spec.id);
+        return contribute(
+          'sideTabs',
+          { ...spec, moduleId: id },
+          (t) => t.id === spec.id,
+          `A side tab with id '${spec.id}'`,
         );
       },
     },

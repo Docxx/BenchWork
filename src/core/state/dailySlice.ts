@@ -1,4 +1,4 @@
-import { createPage, NameError } from '../notebooks/notebookService';
+import { createPage, NameError, withLayout } from '../notebooks/notebookService';
 import { pageTitle } from '../notebooks/notebookTree';
 import {
   dailyPath,
@@ -60,6 +60,12 @@ export function createDailySlice(ctx: StoreContext): DailySlice {
   const { platform, set, get } = ctx;
   let neighboursToken = 0;
 
+  /** The layout new pages start with, set for the vault. */
+  const newLayout = () => {
+    const status = get().status;
+    return status.kind === 'open' ? status.vault.config.pages.layout : 'document';
+  };
+
   /** Shows a page in the sidebar and opens it. */
   async function show(path: string): Promise<void> {
     const folder = parentVaultPath(path) ?? '';
@@ -106,10 +112,13 @@ export function createDailySlice(ctx: StoreContext): DailySlice {
         const id = crypto.randomUUID();
         const created = localTimestamp(now);
         const template = await readTemplate(DAILY_TEMPLATE);
-        const text =
+        const layout = newLayout();
+        const text = withLayout(
           template === null
             ? `---\nid: ${id}\ncreated: ${created}\n---\n# ${dayHeading(day)}\n\n`
-            : pageFromTemplate(template, { title: day, date, now }, id, created);
+            : pageFromTemplate(template, { title: day, date, now }, id, created),
+          layout,
+        );
         await platform.ensureDir(parentVaultPath(path) ?? '');
         try {
           await platform.createNew(path, text);
@@ -164,6 +173,7 @@ export function createDailySlice(ctx: StoreContext): DailySlice {
           ...(title === undefined || title.trim() === '' ? {} : { title: title.trim() }),
           text: (id, created, pageName) =>
             pageFromTemplate(source, { title: pageName, date: now, now }, id, created),
+          layout: newLayout(),
         });
         await show(path);
         return path;

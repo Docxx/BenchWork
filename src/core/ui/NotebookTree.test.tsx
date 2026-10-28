@@ -28,7 +28,7 @@ async function renderSidebar() {
   if (status.kind !== 'open') throw new Error('vault did not open');
   render(
     <AppStoreProvider store={store}>
-      <Sidebar vault={status.vault} />
+      <Sidebar vault={status.vault} onCollapse={() => undefined} onCommands={() => undefined} />
     </AppStoreProvider>,
   );
   return { platform, store };

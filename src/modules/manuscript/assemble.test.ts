@@ -124,6 +124,11 @@ describe('word counts', () => {
   it('are nought for an empty page', () => {
     expect(wordCount('')).toBe(0);
   });
+
+  it('leave out free layout markers and tags such as underline', () => {
+    const text = '<!-- box x=40 y=40 w=420 -->\nAn <u>underlined</u> ==bright== idea.\n';
+    expect(wordCount(text)).toBe(4);
+  });
 });
 
 describe('paths', () => {
