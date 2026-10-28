@@ -300,8 +300,11 @@ export interface NewBox {
   colour?: BoxColour | null;
 }
 
-/** A new box, holding `content` or an empty paragraph, with the cursor at its end. */
-export function addBox(view: EditorView, place: NewBox, content?: Fragment): void {
+/**
+ * A new box, holding `content` or an empty paragraph, with the cursor at
+ * its end. `focus` false leaves the keyboard alone, as when the pen draws.
+ */
+export function addBox(view: EditorView, place: NewBox, content?: Fragment, focus = true): void {
   const { state } = view;
   const paragraph = state.schema.nodes['paragraph'];
   const box = state.schema.nodes[BOX];
@@ -313,7 +316,7 @@ export function addBox(view: EditorView, place: NewBox, content?: Fragment): voi
   const tr = state.tr.insert(at, node);
   tr.setSelection(TextSelection.near(tr.doc.resolve(at + node.nodeSize - 2), -1));
   view.dispatch(tr.scrollIntoView());
-  view.focus();
+  if (focus) view.focus();
 }
 
 /** The box the cursor is in, with its position, or null. */

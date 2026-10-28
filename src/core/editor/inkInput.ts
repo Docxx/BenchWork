@@ -74,6 +74,8 @@ export function drawAt(
         w: FREE_INK_WIDTH,
       },
       Fragment.from(block),
+      // Focus would wake the tablet's handwriting-to-text; the pen draws here.
+      false,
     );
     return;
   }

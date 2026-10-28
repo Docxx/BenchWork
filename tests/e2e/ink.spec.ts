@@ -153,3 +153,38 @@ test('the pen can be set to write as text, leaving the page to the system', asyn
   await expect(page.locator('.ink-embed')).toHaveCount(1);
   expect(await page.evaluate(() => window.__benchworkMemory?.stylusHandwriting)).toBe(true);
 });
+
+test('a pen coming near a page lets go of the text, so the tablet does not turn it to text', async ({
+  page,
+}) => {
+  await openPage(page, 'Notes');
+  const editor = page.locator('.page-editor');
+  const hover = () =>
+    page.evaluate(() => {
+      const p = document.querySelector('.page-editor p');
+      const r = p?.getBoundingClientRect();
+      p?.dispatchEvent(
+        new PointerEvent('pointermove', {
+          bubbles: true,
+          pointerType: 'pen',
+          buttons: 0,
+          clientX: (r?.left ?? 0) + 5,
+          clientY: (r?.top ?? 0) + 5,
+        }),
+      );
+    });
+  await page.locator('.page-editor p').first().click();
+  await expect(editor).toBeFocused();
+  await hover();
+  await expect(editor).not.toBeFocused();
+
+  // Writing as text, the page keeps its focus for the tablet to write into.
+  await page.getByRole('tab', { name: 'Draw' }).click();
+  await page
+    .getByRole('toolbar', { name: 'Draw' })
+    .getByRole('radio', { name: 'Write as text' })
+    .click();
+  await page.locator('.page-editor p').first().click();
+  await hover();
+  await expect(editor).toBeFocused();
+});

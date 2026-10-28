@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { PenMode } from '../settings/appSettings';
 import { useApp } from './AppStoreContext';
 import { Shell } from './Shell';
 import { Splash } from './Splash';
@@ -33,6 +34,18 @@ function blockStrayFileDrops(): () => void {
     window.removeEventListener('dragover', onDragOver);
     window.removeEventListener('drop', onDrop);
   };
+}
+
+/**
+ * A tablet's keyboard may turn pen writing into typed text, but only in
+ * text that has focus. While the pen draws, a page with focus lets go of
+ * it as the pen comes near, so the pen draws every time.
+ */
+function letGoForPen(e: PointerEvent, penMode: PenMode): void {
+  if (penMode !== 'draw') return;
+  const focused = document.activeElement;
+  if (!(focused instanceof HTMLElement) || !focused.classList.contains('page-editor')) return;
+  if (e.target instanceof Element && e.target.closest('.page-editor')) focused.blur();
 }
 
 function darkQuery(): MediaQueryList | null {
@@ -85,7 +98,9 @@ export function App() {
   const notePen = useApp((s) => s.notePen);
   useEffect(() => {
     const onPointer = (e: PointerEvent) => {
-      if (e.pointerType === 'pen') notePen();
+      if (e.pointerType !== 'pen') return;
+      notePen();
+      if (e.type === 'pointermove' && e.buttons === 0) letGoForPen(e, penMode);
     };
     window.addEventListener('pointerdown', onPointer, true);
     window.addEventListener('pointermove', onPointer, true);
@@ -93,7 +108,7 @@ export function App() {
       window.removeEventListener('pointerdown', onPointer, true);
       window.removeEventListener('pointermove', onPointer, true);
     };
-  }, [notePen]);
+  }, [notePen, penMode]);
 
   return (
     <>
