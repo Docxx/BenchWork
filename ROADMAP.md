@@ -84,7 +84,7 @@ Planned 28 Oct 2026. Syncthing keeps devices in step, so BenchWork's own sync mo
 - [x] 6c. Inventory module: stocks, reagents, antibodies, fly stocks and crosses, flip reminders
 - [x] 6d. PDF reading with the pen: highlights and ink in a sidecar file, the PDF untouched
 - [x] 6e. Handwriting to text on the tablet (ML Kit), found by search on every device
-- [ ] 6f. Analysis bridge module: run a Python script on a dataset and attach its outputs (PC only)
+- [x] 6f. Analysis bridge module: run a Python script on a dataset and attach its outputs (PC only)
 - [ ] 6g. First-run setup with module packs (Research, General notes)
 - [ ] Exit check: a week of lab work: flips and tasks on today's page, a paper annotated with the pen on the tablet and its notes found on the PC, analysis outputs attached to a dataset, and a backup restored
 

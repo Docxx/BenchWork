@@ -172,6 +172,7 @@ export function createModuleContext(
         );
       },
     },
+    programs: deps.platform.programs,
     ink: {
       handwriting: deps.platform.handwriting,
       registerRecogniser(spec) {

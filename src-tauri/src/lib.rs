@@ -5,6 +5,7 @@ mod folders;
 mod index;
 mod pandoc;
 mod path_guard;
+mod programs;
 mod vault_fs;
 mod vault_root;
 mod watcher;
@@ -24,6 +25,8 @@ struct VaultState {
     root: Mutex<Option<PathBuf>>,
     watcher: Mutex<Option<watcher::VaultWatcher>>,
     index: Mutex<Option<index::SearchIndex>>,
+    /// Programs running for modules, by run id, each with its stop flag.
+    runs: Mutex<std::collections::HashMap<String, std::sync::Arc<std::sync::atomic::AtomicBool>>>,
 }
 
 fn unavailable() -> VaultError {
@@ -204,6 +207,41 @@ async fn list_backups(folder: String, name: String) -> VaultResult<Vec<backup::B
 #[tauri::command]
 async fn restore_backup(path: String) -> VaultResult<String> {
     backup::restore_backup(Path::new(&path))
+}
+
+/// Runs a program for a module, with vault paths in `args` made full,
+/// in the vault folder `cwd`. Resolves when it ends or is stopped.
+#[tauri::command]
+async fn run_program(
+    id: String,
+    program: String,
+    args: Vec<programs::Arg>,
+    cwd: String,
+    state: State<'_, VaultState>,
+) -> VaultResult<programs::RunResult> {
+    let root = state.root()?;
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    state
+        .runs
+        .lock()
+        .map_err(|_| unavailable())?
+        .insert(id.clone(), stop.clone());
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        programs::run(&root, &program, &args, &cwd, &stop)
+    })
+    .await
+    .map_err(|e| VaultError::new(ErrorKind::Io, format!("The run failed: {e}")))?;
+    state.runs.lock().map_err(|_| unavailable())?.remove(&id);
+    result
+}
+
+/// Stops a program started with run_program.
+#[tauri::command]
+async fn stop_program(id: String, state: State<'_, VaultState>) -> VaultResult<()> {
+    if let Some(stop) = state.runs.lock().map_err(|_| unavailable())?.get(&id) {
+        stop.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+    Ok(())
 }
 
 /// Folders inside a full path, for choosing a vault inside the app.
@@ -456,6 +494,8 @@ pub fn run() {
             list_folders,
             make_folder,
             backup_vault,
+            run_program,
+            stop_program,
             list_backups,
             restore_backup,
             list_dir,

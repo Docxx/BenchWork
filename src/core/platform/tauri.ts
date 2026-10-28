@@ -11,6 +11,8 @@ import type {
   BackupFile,
   VaultBackups,
   HandwritingRecognizer,
+  ProgramResult,
+  ProgramRunner,
   PandocWordOptions,
   PlatformAdapter,
   SearchIndex,
@@ -143,6 +145,19 @@ export class TauriAdapter implements PlatformAdapter {
   readonly kind: DeviceKind = detectKind();
   readonly folderBrowser: FolderBrowser | null = androidFolderBrowser();
   readonly handwriting: HandwritingRecognizer | null = androidHandwriting();
+  readonly programs: ProgramRunner | null =
+    detectKind() === 'desktop'
+      ? {
+          run: (r) =>
+            call<ProgramResult>('run_program', () => ({
+              id: r.id,
+              program: r.program,
+              args: r.args,
+              cwd: normaliseVaultPath(r.cwd),
+            })),
+          stop: (id) => call<undefined>('stop_program', () => ({ id })),
+        }
+      : null;
 
   // Backup folders are picked with the system's folder picker, so not on Android.
   readonly backups: VaultBackups | null =

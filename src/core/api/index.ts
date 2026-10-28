@@ -16,6 +16,10 @@ import type {
   DirEntry,
   FileInfo,
   HandwritingRecognizer,
+  ProgramArg,
+  ProgramResult,
+  ProgramRun,
+  ProgramRunner,
   VaultChange,
 } from '../platform/types';
 import type { ModuleManifest } from '../modules/manifest';
@@ -25,6 +29,10 @@ export type {
   DirEntry,
   FileInfo,
   HandwritingRecognizer,
+  ProgramArg,
+  ProgramResult,
+  ProgramRun,
+  ProgramRunner,
   InkPoint,
   InkStroke,
   InkTool,
@@ -63,6 +71,8 @@ export interface ModuleContext {
   readonly citations: ModuleCitations;
   /** Pen writing: changing strokes as they are finished, and tools of its own. */
   readonly ink: ModuleInk;
+  /** Running the person's own programs, such as Python scripts; null on the tablet. */
+  readonly programs: ProgramRunner | null;
   /** Converting Markdown with Pandoc, if it is installed. Desktop only. */
   readonly pandoc: ModulePandoc;
   /** JSON files in `.benchwork/modules/<id>/`, the module's private folder. */

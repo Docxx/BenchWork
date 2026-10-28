@@ -25,6 +25,9 @@ export interface PlatformAdapter {
    */
   setStylusHandwriting(on: boolean): void;
 
+  /** Running the person's own programs, such as Python scripts; null on the tablet. */
+  readonly programs: ProgramRunner | null;
+
   /** Handwriting to text, where the device offers it (the tablet); null elsewhere. */
   readonly handwriting: HandwritingRecognizer | null;
 
@@ -204,6 +207,34 @@ export interface PandocWordOptions {
 }
 
 export type DeviceKind = 'desktop' | 'tablet';
+
+/** An argument to a program: text as it is, or a vault path passed as a full path. */
+export type ProgramArg = { kind: 'text'; value: string } | { kind: 'vault'; value: string };
+
+export interface ProgramRun {
+  /** Any text, used to stop the run. */
+  id: string;
+  /** A program on this computer, such as `python` or a full path. */
+  program: string;
+  args: readonly ProgramArg[];
+  /** The vault folder it runs in. */
+  cwd: string;
+}
+
+export interface ProgramResult {
+  /** The exit code; null if stopped. */
+  code: number | null;
+  /** What it printed, up to 1 MB each. */
+  stdout: string;
+  stderr: string;
+  stopped: boolean;
+}
+
+export interface ProgramRunner {
+  /** Runs a program; resolves when it ends or is stopped. Fails if it cannot be started. */
+  run(run: ProgramRun): Promise<ProgramResult>;
+  stop(id: string): Promise<void>;
+}
 
 /** Handwriting to text, on the device. */
 export interface HandwritingRecognizer {

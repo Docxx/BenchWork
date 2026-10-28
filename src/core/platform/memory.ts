@@ -6,6 +6,9 @@ import type {
   FileInfo,
   FolderBrowser,
   HandwritingRecognizer,
+  ProgramResult,
+  ProgramRun,
+  ProgramRunner,
   BackupFile,
   VaultBackups,
   PandocWordOptions,
@@ -95,6 +98,22 @@ function byName(a: string, b: string): number {
 export class MemoryAdapter implements PlatformAdapter {
   readonly kind: DeviceKind;
   folderBrowser: FolderBrowser | null = null;
+  /** Runs programs as `usePrograms` says; none until then. */
+  programs: ProgramRunner | null = null;
+
+  /**
+   * Runs programs with `handler`, as a computer would; it gets the run
+   * with vault paths left as they are, and may write files into the vault.
+   */
+  usePrograms(
+    handler: (run: ProgramRun, vault: MemoryAdapter) => Promise<ProgramResult> | ProgramResult,
+  ): void {
+    this.programs = {
+      run: async (r) => handler(r, this),
+      stop: () => Promise.resolve(),
+    };
+  }
+
   /** None, as on a computer, until a test gives one with useHandwriting. */
   handwriting: HandwritingRecognizer | null = null;
   /**
