@@ -179,8 +179,13 @@ function LayoutSwitch() {
 }
 
 function SidePanelToggle() {
-  const shown = useApp((s) => s.settings.appearance.sidePanel);
+  const setting = useApp((s) => s.settings.appearance.sidePanel);
   const setAppearance = useApp((s) => s.setAppearance);
+  // On a compact screen the panel slides over the page, just for now.
+  const compact = useApp((s) => s.compact);
+  const drawer = useApp((s) => s.drawer);
+  const setDrawer = useApp((s) => s.setDrawer);
+  const shown = compact ? drawer === 'panel' : setting;
   const label = shown ? 'Hide the side panel' : 'Show the side panel';
   return (
     <button
@@ -189,7 +194,10 @@ function SidePanelToggle() {
       title={label}
       aria-label={label}
       aria-pressed={shown}
-      onClick={() => void setAppearance({ sidePanel: !shown })}
+      onClick={() => {
+        if (compact) setDrawer(shown ? null : 'panel');
+        else void setAppearance({ sidePanel: !shown });
+      }}
     >
       <PanelRight size={17} strokeWidth={1.75} aria-hidden />
     </button>
