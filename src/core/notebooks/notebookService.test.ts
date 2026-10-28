@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { MemoryAdapter, type MemoryFolderContents } from '../platform/memory';
 import {
+  withLayout,
   createFolder,
   createPage,
   moveItem,
@@ -149,5 +150,15 @@ describe('colour and recycling', () => {
     await recycleItem(platform, 'Lab/a.md');
     expect(platform.trashed()).toEqual(['Lab/a.md']);
     expect((await readSectionMeta(platform, 'Lab'))?.order).toEqual(['b.md']);
+  });
+});
+
+describe('the layout new pages start with', () => {
+  it('adds layout: free to a new page, unless it already says', () => {
+    expect(withLayout('---\nid: 1\n---\nText.\n', 'free')).toBe(
+      '---\nid: 1\nlayout: free\n---\nText.\n',
+    );
+    expect(withLayout('---\nlayout: document\n---\n', 'free')).toBe('---\nlayout: document\n---\n');
+    expect(withLayout('---\nid: 1\n---\n', 'document')).toBe('---\nid: 1\n---\n');
   });
 });

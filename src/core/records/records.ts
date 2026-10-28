@@ -74,8 +74,8 @@ export function updateRecord(text: string, changes: Record<string, unknown>): st
 
 const WIKI = /\[\[([^[\]\n|#^]+)(?:[#^][^[\]\n|]*)?(?:\|[^[\]\n]+)?\]\]/g;
 
-/** Keys every page and record has, which are not shown or searched as text. */
-const QUIET_KEYS = new Set(['id', 'type', 'created', 'modified', 'tags']);
+/** Keys every page and record has, and a page's layout, which are not shown or searched as text. */
+const QUIET_KEYS = new Set(['id', 'type', 'created', 'modified', 'tags', 'layout']);
 
 /** Every string, number and boolean in a value, depth first. */
 function scalars(value: unknown, out: string[]): void {
