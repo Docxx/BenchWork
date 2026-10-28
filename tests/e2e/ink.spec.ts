@@ -188,3 +188,24 @@ test('a pen coming near a page lets go of the text, so the tablet does not turn 
   await hover();
   await expect(editor).toBeFocused();
 });
+
+test('while the pen draws, the page’s text is out of the keyboard’s reach until a tap', async ({
+  page,
+}) => {
+  await openPage(page, 'Notes');
+  const editor = page.locator('.page-editor');
+  await expect(editor).toHaveAttribute('contenteditable', 'true');
+  await page.evaluate(() => {
+    document
+      .querySelector('.page-editor p')
+      ?.dispatchEvent(
+        new PointerEvent('pointermove', { bubbles: true, pointerType: 'pen', buttons: 0 }),
+      );
+  });
+  await expect(editor).toHaveAttribute('contenteditable', 'false');
+  // A tap with the mouse or a finger gives the text back, to type in.
+  await page.locator('.page-editor p').first().click();
+  await expect(editor).toHaveAttribute('contenteditable', 'true');
+  await page.keyboard.type('!');
+  await expect(page.locator('.page-editor p').first()).toContainText('!');
+});

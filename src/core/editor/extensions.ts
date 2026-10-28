@@ -178,7 +178,8 @@ export const WikiLink = Node.create<AssetOptions>({
       }
       if (embed && isInk(target) && assets.ink) {
         const drawing = inkEmbedView(target, assets.ink, {
-          editable: () => editor.isEditable,
+          // The page's own setting: its text is not editable for a moment while the pen draws.
+          editable: () => editor.options.editable,
           remove: () => {
             const pos = getPos();
             if (typeof pos !== 'number') return;

@@ -1,6 +1,6 @@
 import { Extension, type Editor } from '@tiptap/core';
 import { Fragment, type Node as PMNode } from '@tiptap/pm/model';
-import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
+import { Plugin, PluginKey, TextSelection, type EditorState } from '@tiptap/pm/state';
 import type { EditorView } from '@tiptap/pm/view';
 import { addBox, freeSpot, hasBoxes, type FreeLayoutStorage } from './freeLayout';
 import { BOX, WIKI_LINK } from './markdown/model';
@@ -96,7 +96,23 @@ export function drawAtCursor(editor: Editor, target: string): void {
   view.focus();
 }
 
-const inkKey = new PluginKey('inkInput');
+/**
+ * Whether the pen is near the page while it draws. Then the page's text is
+ * not editable: a tablet's keyboard turns pen writing into typed text in
+ * any editable text under the pen, and puts the cursor there to do so.
+ * A finger, the mouse, or the pen going elsewhere makes it editable again.
+ */
+const inkKey = new PluginKey<boolean>('inkInput');
+
+/** Whether the page lets the pen draw rather than type: its text is not editable for now. */
+export function penNear(state: EditorState): boolean {
+  return inkKey.getState(state) === true;
+}
+
+function setPenNear(view: EditorView, near: boolean): void {
+  if (penNear(view.state) === near) return;
+  view.dispatch(view.state.tr.setMeta(inkKey, near).setMeta('addToHistory', false));
+}
 
 export const InkInput = Extension.create<InkInputOptions>({
   name: 'inkInput',
@@ -108,19 +124,47 @@ export const InkInput = Extension.create<InkInputOptions>({
   addProseMirrorPlugins() {
     const { newTarget, writing } = this.options;
     const editor = this.editor;
+    /** Whether the pen draws on this page: the page can be edited, and the pen is set to draw. */
+    const drawing = () => newTarget !== null && editor.options.editable && writing();
     return [
-      new Plugin({
+      new Plugin<boolean>({
         key: inkKey,
+        state: {
+          init: () => false,
+          apply: (tr, near) => (tr.getMeta(inkKey) as boolean | undefined) ?? near,
+        },
+        view: (view) => {
+          // Before anything else sees the press: the pen on the page keeps its
+          // text out of the keyboard's reach; anything else gives it back.
+          const onDown = (e: PointerEvent) => {
+            const onPage = e.target instanceof Node && view.dom.contains(e.target);
+            setPenNear(view, onPage && e.pointerType === 'pen' && drawing());
+          };
+          window.addEventListener('pointerdown', onDown, true);
+          return {
+            destroy: () => {
+              window.removeEventListener('pointerdown', onDown, true);
+            },
+          };
+        },
         props: {
+          editable: (state) => !penNear(state),
           handleDOMEvents: {
+            // A pen hovering over the page, before it touches.
+            pointermove: (view, event) => {
+              if (event.pointerType === 'pen' && event.buttons === 0) {
+                setPenNear(view, drawing());
+              }
+              return false;
+            },
             pointerdown: (view, event) => {
-              if (event.pointerType !== 'pen' || newTarget === null || !view.editable) return false;
-              if (!writing() || event.button === 5 || (event.buttons & 32) !== 0) return false;
+              if (event.pointerType !== 'pen' || !drawing()) return false;
+              if (event.button === 5 || (event.buttons & 32) !== 0) return false;
               const el = event.target as Element | null;
               // Drawings and the boxes' own handles take the pen themselves.
               if (el?.closest('.ink-embed, .box-handle, .box-resize, .box-delete')) return false;
               event.preventDefault();
-              drawAt(editor, newTarget(), {
+              drawAt(editor, newTarget ? newTarget() : '', {
                 clientX: event.clientX,
                 clientY: event.clientY,
                 onEmptyPage: event.target === view.dom,
