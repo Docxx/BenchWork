@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  BenchWork keeps your notes on your devices. Google's ML Kit, which reads
+  handwriting on the tablet, also sends anonymous usage statistics to
+  Firebase logging. Pinning that address to a certificate that can never
+  match makes every such upload fail, so nothing is sent. The handwriting
+  model itself comes from other addresses and is unaffected.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">firebaselogging.googleapis.com</domain>
+        <domain includeSubdomains="true">firebaselogging-pa.googleapis.com</domain>
+        <pin-set>
+            <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>
