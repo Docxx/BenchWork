@@ -126,10 +126,17 @@ export const Box = Node.create({
       const right = part('box-resize right', 'Drag to change the width');
       const bottom = part('box-resize bottom', 'Drag to change the height');
       const corner = part('box-resize corner', 'Drag to change the size');
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'box-delete';
+      remove.contentEditable = 'false';
+      remove.title = 'Delete box';
+      remove.setAttribute('aria-label', 'Delete box');
+      remove.textContent = '×';
       const content = document.createElement('div');
       content.className = 'box-content';
-      dom.append(handle, content, right, bottom, corner);
-      const handles: HTMLElement[] = [handle, right, bottom, corner];
+      dom.append(handle, remove, content, right, bottom, corner);
+      const handles: HTMLElement[] = [handle, remove, right, bottom, corner];
 
       let current = node;
       const place = (p: BoxAttrs) => {
@@ -205,6 +212,17 @@ export const Box = Node.create({
       corner.addEventListener('pointerdown', (e) => {
         const base = drawnHeight();
         drag(e, (f, dx, dy) => ({ w: width(f, dx), h: height(base, dy) }));
+      });
+      // Pressing would move the cursor out of the box first; only the click counts.
+      remove.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+      });
+      remove.addEventListener('click', (e) => {
+        e.preventDefault();
+        const pos = getPos();
+        if (typeof pos !== 'number') return;
+        editor.view.dispatch(deleteBox(editor.state.tr, pos));
+        editor.view.focus();
       });
 
       return {
@@ -303,6 +321,24 @@ export function boxAtCursor(state: EditorState): { node: PMNode; pos: number } |
   const { $from } = state.selection;
   if ($from.depth < 1 || $from.node(1).type.name !== BOX) return null;
   return { node: $from.node(1), pos: $from.before(1) };
+}
+
+/**
+ * Deletes the box at `pos` and everything in it, in one step that undo
+ * brings back. The page's last box is emptied instead, as a free page
+ * keeps one.
+ */
+export function deleteBox(tr: Transaction, pos: number): Transaction {
+  const node = tr.doc.nodeAt(pos);
+  const paragraph = tr.doc.type.schema.nodes['paragraph'];
+  if (node?.type.name !== BOX || !paragraph) return tr;
+  if (tr.doc.childCount === 1) {
+    tr.setNodeMarkup(pos, undefined, { ...node.attrs, colour: null });
+    tr.replaceWith(pos + 1, pos + node.nodeSize - 1, paragraph.create());
+    return tr.setSelection(TextSelection.create(tr.doc, pos + 2));
+  }
+  tr.delete(pos, pos + node.nodeSize);
+  return tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(pos, tr.doc.content.size))));
 }
 
 /** Sets the colour of the box the cursor is in; any colour makes it a sticky note. */

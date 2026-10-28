@@ -5,6 +5,7 @@ import { TextSelection } from '@tiptap/pm/state';
 import { baseExtensions } from './extensions';
 import {
   deleteAcross,
+  deleteBox,
   FreeLayout,
   hasBoxes,
   moveBox,
@@ -152,6 +153,18 @@ describe('free layout pages', () => {
     editor.commands.setTextSelection(at(editor, 'Third'));
     expect(editor.state.doc.childCount).toBe(4);
     expect(editor.state.doc.lastChild?.attrs['colour']).toBe('yellow');
+  });
+
+  it('delete a whole box in one step, and empty the last one instead', () => {
+    const { editor, saved } = editorWith(PAGE);
+    const second = editor.state.doc.child(0).nodeSize;
+    editor.view.dispatch(deleteBox(editor.state.tr, second));
+    expect(editor.state.doc.childCount).toBe(2);
+    expect(saved()).not.toContain('Second box');
+    editor.view.dispatch(deleteBox(editor.state.tr, 0));
+    editor.view.dispatch(deleteBox(editor.state.tr, 0));
+    expect(editor.state.doc.childCount).toBe(1);
+    expect(editor.state.doc.textContent).toBe('');
   });
 
   it('make no boxes on a click in document view', () => {

@@ -193,10 +193,18 @@ test('the toolbar formats text, and adds sticky notes on free pages', async ({ p
   await openPage(page, 'Plain');
   const home = page.getByRole('toolbar', { name: 'Home' });
   // Select "text" in the paragraph, then make it bold and highlighted.
-  await page.locator('.page-editor p').click();
-  await page.keyboard.press('End');
-  await page.keyboard.press('ArrowLeft');
-  for (let i = 0; i < 4; i += 1) await page.keyboard.press('Shift+ArrowLeft');
+  const word = await page.evaluate(() => {
+    const p = document.querySelector('.page-editor p');
+    const node = p?.lastChild;
+    const at = node?.textContent?.indexOf('text') ?? -1;
+    if (!node || at < 0) throw new Error('No word to select');
+    const range = document.createRange();
+    range.setStart(node, at);
+    range.setEnd(node, at + 4);
+    const r = range.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  await page.mouse.dblclick(word.x, word.y);
   await home.getByRole('button', { name: /^Bold/ }).click();
   await home.getByRole('button', { name: /^Highlight/ }).click();
   await expect(home.getByRole('button', { name: /^Bold/ })).toHaveAttribute('aria-pressed', 'true');
@@ -226,4 +234,34 @@ test('the toolbar can be hidden', async ({ page }) => {
   await page.getByRole('button', { name: 'Settings' }).click();
   await openPage(page, 'Plain');
   await expect(page.getByRole('toolbar', { name: 'Home' })).toHaveCount(0);
+});
+
+test('a box is deleted with its button, and undo brings it back', async ({ page }) => {
+  await openPage(page, 'Meeting');
+  const sticky = boxes(page).filter({ hasText: 'Order fly food!' });
+  await sticky.hover();
+  await sticky.getByRole('button', { name: 'Delete box' }).click();
+  await expect(boxes(page)).toHaveCount(2);
+  await expect.poll(() => file(page, 'Lab/Meeting.md')).not.toContain('Order fly food!');
+  await page.keyboard.press('Control+z');
+  await expect(boxes(page)).toHaveCount(3);
+});
+
+test('the text style menu shows each style, and sets it', async ({ page }) => {
+  await openPage(page, 'Plain');
+  await page.locator('.page-editor p').click();
+  await page.getByRole('button', { name: 'Text style: Normal text' }).click();
+  const styles = page.getByRole('menu', { name: 'Text styles' });
+  await expect(styles.getByRole('menuitemradio')).toHaveText([
+    'Normal text',
+    'Heading 1',
+    'Heading 2',
+    'Heading 3',
+    'Quote',
+    'Code block',
+  ]);
+  await styles.getByRole('menuitemradio', { name: 'Heading 2' }).click();
+  await expect(styles).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Text style: Heading 2' })).toBeVisible();
+  await expect.poll(() => file(page, 'Lab/Plain.md')).toContain('## Some <u>underlined</u> text.');
 });

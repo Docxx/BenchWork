@@ -1,8 +1,10 @@
+import type { Editor } from '@tiptap/core';
 import { useEditorState } from '@tiptap/react';
 import {
   Bold,
   BookMarked,
   CalendarDays,
+  ChevronDown,
   Clock,
   Code,
   FileStack,
@@ -23,12 +25,13 @@ import {
   Strikethrough,
   Table,
   TextCursorInput,
+  Trash2,
   Underline,
   Undo2,
   type LucideIcon,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
-import { addBox, boxAtCursor, freeSpot, setBoxColour } from '../editor/freeLayout';
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { addBox, boxAtCursor, deleteBox, freeSpot, setBoxColour } from '../editor/freeLayout';
 import { BOX_COLOURS, type BoxColour } from '../editor/markdown/model';
 import type { PageEditorHandle } from '../state/pageSlice';
 import { useApp } from './AppStoreContext';
@@ -49,12 +52,112 @@ const COLOUR_NAMES: Record<BoxColour, string> = {
   purple: 'Purple',
 };
 
-const STYLES = [
+type StyleId = 'p' | '1' | '2' | '3' | 'quote' | 'code';
+
+/** Text styles, each shown in the menu as it looks on the page. */
+const STYLES: { value: StyleId; label: string }[] = [
   { value: 'p', label: 'Normal text' },
   { value: '1', label: 'Heading 1' },
   { value: '2', label: 'Heading 2' },
   { value: '3', label: 'Heading 3' },
-] as const;
+  { value: 'quote', label: 'Quote' },
+  { value: 'code', label: 'Code block' },
+];
+
+function setStyle(editor: Editor, style: StyleId): void {
+  const chain = editor.chain().focus();
+  // Out of a quote first, so a quoted heading becomes a plain one.
+  if (style !== 'quote' && editor.isActive('blockquote')) chain.lift('blockquote');
+  if (style === 'p') chain.setParagraph();
+  else if (style === 'quote') chain.setParagraph().setBlockquote();
+  else if (style === 'code') chain.setCodeBlock();
+  else chain.setHeading({ level: Number(style) as 1 | 2 | 3 });
+  chain.run();
+}
+
+/** A drop-down of text styles, each previewed in its own look. */
+function StyleMenu({ editor, current }: { editor: Editor; current: StyleId }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const label = STYLES.find((st) => st.value === current)?.label ?? 'Normal text';
+
+  useEffect(() => {
+    if (!open) return;
+    const list = ref.current?.querySelector<HTMLElement>('[role="menu"]');
+    (
+      list?.querySelector<HTMLElement>('[aria-checked="true"]') ??
+      list?.querySelector<HTMLElement>('[role="menuitemradio"]')
+    )?.focus();
+    const close = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => {
+      document.removeEventListener('mousedown', close);
+    };
+  }, [open]);
+
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const items = [...(ref.current?.querySelectorAll<HTMLElement>('[role="menuitemradio"]') ?? [])];
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    if (e.key === 'Escape' || e.key === 'Tab') {
+      setOpen(false);
+      if (e.key === 'Escape') editor.commands.focus();
+      if (e.key === 'Tab') return;
+    } else if (e.key === 'ArrowDown') {
+      items[(i + 1) % items.length]?.focus();
+    } else if (e.key === 'ArrowUp') {
+      items[(i - 1 + items.length) % items.length]?.focus();
+    } else {
+      return;
+    }
+    e.preventDefault();
+  };
+
+  return (
+    <div className="style-menu" ref={ref} onKeyDown={onKeyDown}>
+      <button
+        type="button"
+        className="style-button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Text style: ${label}`}
+        title="Text style"
+        onMouseDown={(e) => {
+          e.preventDefault();
+        }}
+        onClick={() => {
+          setOpen((o) => !o);
+        }}
+      >
+        {label}
+        <ChevronDown size={14} strokeWidth={1.8} aria-hidden />
+      </button>
+      {open && (
+        <div className="menu style-list" role="menu" aria-label="Text styles">
+          {STYLES.map((st) => (
+            <button
+              key={st.value}
+              type="button"
+              role="menuitemradio"
+              aria-checked={st.value === current}
+              className={`menu-item style-preview style-${st.value}`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+              }}
+              onClick={() => {
+                setOpen(false);
+                setStyle(editor, st.value);
+              }}
+            >
+              {st.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Tool({
   icon: Icon,
@@ -86,6 +189,16 @@ function Tool({
       <Icon {...ICON} />
     </button>
   );
+}
+
+/** The style of the block the cursor is in. */
+function styleAt(e: Editor): StyleId {
+  for (const level of [1, 2, 3] as const) {
+    if (e.isActive('heading', { level })) return String(level) as StyleId;
+  }
+  if (e.isActive('codeBlock')) return 'code';
+  if (e.isActive('blockquote')) return 'quote';
+  return 'p';
 }
 
 function Group({ children }: { children: ReactNode }) {
@@ -125,13 +238,7 @@ export function Ribbon({ handle, free }: { handle: PageEditorHandle; free: boole
       numbers: e.isActive('orderedList'),
       tasks: e.isActive('taskList'),
       quote: e.isActive('blockquote'),
-      style: e.isActive('heading', { level: 1 })
-        ? '1'
-        : e.isActive('heading', { level: 2 })
-          ? '2'
-          : e.isActive('heading', { level: 3 })
-            ? '3'
-            : 'p',
+      style: styleAt(e),
       inBox: boxAtCursor(e.state) !== null,
       colour: (boxAtCursor(e.state)?.node.attrs['colour'] as BoxColour | null | undefined) ?? null,
     }),
@@ -167,24 +274,7 @@ export function Ribbon({ handle, free }: { handle: PageEditorHandle; free: boole
             <Tool icon={Redo2} label="Redo (Ctrl+Y)" onClick={() => chain().redo().run()} />
           </Group>
           <Group>
-            <select
-              aria-label="Text style"
-              value={state.style}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === 'p') chain().setParagraph().run();
-                else
-                  chain()
-                    .setHeading({ level: Number(v) as 1 | 2 | 3 })
-                    .run();
-              }}
-            >
-              {STYLES.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+            <StyleMenu editor={editor} current={state.style} />
           </Group>
           <Group>
             <Tool
@@ -276,6 +366,17 @@ export function Ribbon({ handle, free }: { handle: PageEditorHandle; free: boole
                   }}
                 />
               ))}
+              <Tool
+                icon={Trash2}
+                label="Delete box"
+                disabled={!state.inBox}
+                onClick={() => {
+                  const box = boxAtCursor(editor.state);
+                  if (!box) return;
+                  editor.view.dispatch(deleteBox(editor.state.tr, box.pos));
+                  editor.view.focus();
+                }}
+              />
             </Group>
           )}
         </div>
