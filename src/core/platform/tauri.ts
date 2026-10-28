@@ -8,6 +8,8 @@ import type {
   DirEntry,
   FileInfo,
   FolderBrowser,
+  BackupFile,
+  VaultBackups,
   PandocWordOptions,
   PlatformAdapter,
   SearchIndex,
@@ -95,6 +97,17 @@ const tauriIndex: SearchIndex = {
 export class TauriAdapter implements PlatformAdapter {
   readonly kind: DeviceKind = detectKind();
   readonly folderBrowser: FolderBrowser | null = androidFolderBrowser();
+
+  // Backup folders are picked with the system's folder picker, so not on Android.
+  readonly backups: VaultBackups | null =
+    detectKind() === 'desktop'
+      ? {
+          backUp: (folder, name, stamp, keep) =>
+            call<BackupFile>('backup_vault', () => ({ folder, name, stamp, keep })),
+          list: (folder, name) => call<BackupFile[]>('list_backups', () => ({ folder, name })),
+          restore: (path) => call<string>('restore_backup', () => ({ path })),
+        }
+      : null;
 
   setStylusHandwriting(on: boolean): void {
     window.BenchWorkAndroid?.setHandwriting(on);

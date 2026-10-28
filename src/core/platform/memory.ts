@@ -5,6 +5,8 @@ import type {
   DirEntry,
   FileInfo,
   FolderBrowser,
+  BackupFile,
+  VaultBackups,
   PandocWordOptions,
   PlatformAdapter,
   VaultChange,
@@ -92,6 +94,59 @@ function byName(a: string, b: string): number {
 export class MemoryAdapter implements PlatformAdapter {
   readonly kind: DeviceKind;
   folderBrowser: FolderBrowser | null = null;
+  /**
+   * Backups as JSON files in another fake folder: the open vault's files,
+   * leaving out each device's own, as the Rust version does.
+   */
+  readonly backups: VaultBackups = {
+    backUp: (folder, name, stamp, keep) =>
+      this.run(() => {
+        const files = Object.fromEntries(
+          Object.entries(this.snapshot()).filter(
+            ([p]) =>
+              !/^\.benchwork\/(index\.sqlite|snapshots|trash)/.test(p) && !p.startsWith('.st'),
+          ),
+        );
+        const fileName = `${name} backup ${stamp}.zip`;
+        const store = this.folders.get(folder);
+        if (!store) throw new PlatformError('NotFound', `No folder '${folder}'`);
+        const bytes = encoder.encode(JSON.stringify(files));
+        store.set(fileName, { kind: 'file', bytes, modified: this.tick() });
+        const all = [...store.keys()]
+          .filter((p) => p.startsWith(`${name} backup `) && p.endsWith('.zip'))
+          .sort();
+        for (const old of all.slice(0, Math.max(0, all.length - Math.max(1, keep)))) {
+          store.delete(old);
+        }
+        return { path: `${folder}/${fileName}`, name: fileName, size: bytes.length };
+      }),
+    list: (folder, name) =>
+      this.run(() =>
+        [...(this.folders.get(folder) ?? new Map<string, MemoryNode>())]
+          .filter(([p]) => p.startsWith(`${name} backup `) && p.endsWith('.zip'))
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([p, node]): BackupFile => ({
+            path: `${folder}/${p}`,
+            name: p,
+            size: node.kind === 'file' ? node.bytes.length : 0,
+          })),
+      ),
+    restore: (path) =>
+      this.run(() => {
+        const cut = path.lastIndexOf('/');
+        const folder = path.slice(0, cut);
+        const node = this.folders.get(folder)?.get(path.slice(cut + 1));
+        if (node?.kind !== 'file') throw new PlatformError('NotFound', `No backup '${path}'`);
+        const target = `${folder}/${path.slice(cut + 1, -'.zip'.length).replace(' backup ', ' restored from ')}`;
+        if (this.folders.has(target)) {
+          throw new PlatformError('AlreadyExists', `${target} is already there`);
+        }
+        const files = JSON.parse(new TextDecoder().decode(node.bytes)) as MemoryFolderContents;
+        this.addFolder(target, files);
+        return target;
+      }),
+  };
+
   /** Whether the system would turn pen writing into text, as last set. */
   stylusHandwriting = true;
   private readonly folders = new Map<string, Map<string, MemoryNode>>();

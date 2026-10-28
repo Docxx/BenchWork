@@ -25,6 +25,9 @@ export interface PlatformAdapter {
    */
   setStylusHandwriting(on: boolean): void;
 
+  /** Whole-vault backups to a folder outside the vault; null where folders cannot be picked. */
+  readonly backups: VaultBackups | null;
+
   /**
    * The vault a folder belongs to: the nearest folder at or above it that has
    * a `.benchwork` folder, skipping `.benchwork` folders themselves. Null if
@@ -198,6 +201,28 @@ export interface PandocWordOptions {
 }
 
 export type DeviceKind = 'desktop' | 'tablet';
+
+/** A backup of a vault: a dated zip file. */
+export interface BackupFile {
+  /** Full path. */
+  path: string;
+  /** Such as `Lab vault backup 2026-10-28 1330.zip`. */
+  name: string;
+  size: number;
+}
+
+export interface VaultBackups {
+  /**
+   * Backs the open vault up into `folder` (a full path outside it), named
+   * with `stamp`, leaving out each device's own files; then puts away older
+   * backups beyond the newest `keep`.
+   */
+  backUp(folder: string, name: string, stamp: string, keep: number): Promise<BackupFile>;
+  /** The vault `name`'s backups in `folder`, oldest first. */
+  list(folder: string, name: string): Promise<BackupFile[]>;
+  /** Unpacks a backup into a new folder beside it; resolves to that folder. */
+  restore(path: string): Promise<string>;
+}
 
 /** Folders by full path, for choosing a vault inside the app. */
 export interface FolderBrowser {

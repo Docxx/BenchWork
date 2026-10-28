@@ -8,6 +8,8 @@ export { MATCH_END, MATCH_START } from './types';
 export type {
   DeviceKind,
   FolderBrowser,
+  BackupFile,
+  VaultBackups,
   DirEntry,
   FileInfo,
   IndexedLink,

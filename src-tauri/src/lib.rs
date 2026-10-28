@@ -1,3 +1,4 @@
+mod backup;
 mod error;
 mod file_info;
 mod folders;
@@ -160,6 +161,49 @@ struct VaultOwnerDto {
     root: String,
     folder: String,
     via: vault_root::Via,
+}
+
+/// Backs the open vault up into `folder` as a dated zip, then puts away
+/// older backups beyond the newest `keep`.
+#[tauri::command]
+async fn backup_vault(
+    folder: String,
+    name: String,
+    stamp: String,
+    keep: usize,
+    state: State<'_, VaultState>,
+) -> VaultResult<backup::BackupFile> {
+    let root = state.root()?;
+    let folder = PathBuf::from(folder);
+    let made = backup::backup_vault(&root, &folder, &name, &stamp)?;
+    for old in backup::surplus(&backup::list_backups(&folder, &name)?, keep) {
+        put_away_backup(&old)?;
+    }
+    Ok(made)
+}
+
+/// An old backup beyond the number to keep: to the Recycle Bin, where there is one.
+#[cfg(not(target_os = "android"))]
+fn put_away_backup(path: &Path) -> VaultResult<()> {
+    trash::delete(path)
+        .map_err(|e| VaultError::new(ErrorKind::Io, format!("Cannot put an old backup away: {e}")))
+}
+
+#[cfg(target_os = "android")]
+fn put_away_backup(path: &Path) -> VaultResult<()> {
+    std::fs::remove_file(path).map_err(|e| VaultError::io("Cannot put an old backup away", &e))
+}
+
+/// Backups of the vault named `name` in `folder`, oldest first.
+#[tauri::command]
+async fn list_backups(folder: String, name: String) -> VaultResult<Vec<backup::BackupFile>> {
+    backup::list_backups(Path::new(&folder), &name)
+}
+
+/// Unpacks a backup into a new folder beside it, and returns that folder.
+#[tauri::command]
+async fn restore_backup(path: String) -> VaultResult<String> {
+    backup::restore_backup(Path::new(&path))
 }
 
 /// Folders inside a full path, for choosing a vault inside the app.
@@ -411,6 +455,9 @@ pub fn run() {
             find_vault_root,
             list_folders,
             make_folder,
+            backup_vault,
+            list_backups,
+            restore_backup,
             list_dir,
             read_text,
             write_text_atomic,

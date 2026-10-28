@@ -7,6 +7,41 @@ import { defaultAppearance, parseAppearance, type Appearance } from './appearanc
  */
 export type Theme = 'system' | 'light' | 'dark';
 
+/** How often a vault is backed up. */
+export type BackupEvery = 'off' | 'day' | 'week';
+
+/** Backups of one vault, from this device. */
+export interface BackupPlan {
+  /** Full path of the folder backups go in, outside the vault; null until chosen. */
+  folder: string | null;
+  every: BackupEvery;
+  /** How many backups to keep; older ones go to the Recycle Bin. */
+  keep: number;
+  /** When the last backup was made, as an ISO time; null for never. */
+  last: string | null;
+}
+
+export const BACKUP_KEEP_RANGE = { min: 1, max: 100 } as const;
+
+export function defaultBackupPlan(): BackupPlan {
+  return { folder: null, every: 'week', keep: 10, last: null };
+}
+
+function parseBackupPlan(data: unknown): BackupPlan | null {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return null;
+  const r = data as Record<string, unknown>;
+  const plan = defaultBackupPlan();
+  if (typeof r['folder'] === 'string' && r['folder'] !== '') plan.folder = r['folder'];
+  if (r['every'] === 'off' || r['every'] === 'day' || r['every'] === 'week')
+    plan.every = r['every'];
+  const keep = r['keep'];
+  if (typeof keep === 'number' && Number.isInteger(keep)) {
+    plan.keep = Math.min(BACKUP_KEEP_RANGE.max, Math.max(BACKUP_KEEP_RANGE.min, keep));
+  }
+  if (typeof r['last'] === 'string' && !Number.isNaN(Date.parse(r['last']))) plan.last = r['last'];
+  return plan;
+}
+
 /** What writing with a pen does: draws ink, or lets the system turn handwriting into text. */
 export type PenMode = 'draw' | 'text';
 
@@ -22,6 +57,8 @@ export interface AppSettings {
   penMode: PenMode;
   /** Module panels in the sidebar that are open; the rest stay folded. */
   openPanels: string[];
+  /** Backups from this device, by the vault's full path. */
+  backups: Record<string, BackupPlan>;
   /** Keys this version does not know about, kept on save. */
   extra: Record<string, unknown>;
 }
@@ -35,6 +72,7 @@ const KNOWN_KEYS = new Set([
   'appearance',
   'penMode',
   'openPanels',
+  'backups',
 ]);
 
 export function defaultAppSettings(): AppSettings {
@@ -46,6 +84,7 @@ export function defaultAppSettings(): AppSettings {
     appearance: defaultAppearance(),
     penMode: 'draw',
     openPanels: [],
+    backups: {},
     extra: {},
   };
 }
@@ -68,6 +107,13 @@ export function parseAppSettings(data: unknown): AppSettings {
   settings.appearance = parseAppearance(record['appearance']);
   if (record['penMode'] === 'draw' || record['penMode'] === 'text') {
     settings.penMode = record['penMode'];
+  }
+  const backups = record['backups'];
+  if (typeof backups === 'object' && backups !== null && !Array.isArray(backups)) {
+    for (const [root, plan] of Object.entries(backups)) {
+      const parsed = parseBackupPlan(plan);
+      if (parsed) settings.backups[root] = parsed;
+    }
   }
   const openPanels = record['openPanels'];
   if (Array.isArray(openPanels)) {
