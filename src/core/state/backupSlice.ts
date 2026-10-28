@@ -35,6 +35,8 @@ function folderName(path: string): string {
 }
 
 export interface BackupSlice {
+  /** Whether this device makes backups; not where folders cannot be picked, such as Android. */
+  backupsAvailable: boolean;
   /** The open vault's backups in its backup folder, oldest first; null until read. */
   backupList: BackupFile[] | null;
   backupBusy: boolean;
@@ -90,6 +92,7 @@ export function createBackupSlice(ctx: StoreContext): BackupSlice {
   });
 
   return {
+    backupsAvailable: platform.backups !== null,
     backupList: null,
     backupBusy: false,
     backupMessage: null,

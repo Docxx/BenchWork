@@ -79,7 +79,7 @@ Back on 28 Oct 2026, after 0.6.0. Pen writing goes on free layout pages and in i
 Planned 28 Oct 2026. Syncthing keeps devices in step, so BenchWork's own sync moves to Phase 7.
 
 - [x] 6a. References Library panel folded until opened
-- [ ] 6a. Vault backups: dated copies of the whole vault on a schedule, and restore
+- [x] 6a. Vault backups: dated copies of the whole vault on a schedule, and restore
 - [ ] 6b. Tasks and Kanban module: checklists from every page, due dates, a board
 - [ ] 6c. Inventory module: stocks, reagents, antibodies, fly stocks and crosses, flip reminders
 - [ ] 6d. PDF reading with the pen: highlights and ink in a sidecar file, the PDF untouched

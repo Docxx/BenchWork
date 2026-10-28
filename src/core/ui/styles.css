@@ -3487,3 +3487,46 @@ button.tool[aria-checked='true'] {
 .resize-handle {
   touch-action: none;
 }
+
+/* ---- Backups ---- */
+
+.backup-folder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.backup-folder .path {
+  margin: 0;
+}
+
+.backups .with-unit {
+  margin-top: 0.75rem;
+}
+
+.backup-list {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  list-style: none;
+}
+
+.backup-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+}
+
+.backup-list li + li {
+  border-top: 1px solid var(--border);
+}
+
+.backup-name {
+  flex: 1;
+  min-width: 12rem;
+  font-size: 0.9rem;
+}
