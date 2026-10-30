@@ -18,9 +18,10 @@ export const PACKS: readonly ModulePack[] = [
     id: 'research',
     name: 'Research',
     description:
-      'Lab notebooks, experiments and datasets, references from Zotero, inventory and fly flips, tasks, plans and writing up.',
+      'Lab notebooks, experiments and datasets, references from Zotero, inventory and fly flips, lab calculators and timers, tasks, plans and writing up.',
     modules: [
       'lab-notebook',
+      'lab-tools',
       'research',
       'references',
       'data-viewer',

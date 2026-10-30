@@ -344,6 +344,7 @@ export function createModuleContext(
       createFolder: (folder, title) => app().createFolder(folder, title),
       createPage: (folder, title, type, content) => app().createPage(folder, title, type, content),
       openPage: () => app().openPage(),
+      insertText: (text) => app().insertText(text),
       openView: (viewId, param) => app().openView(viewId, param),
       pageProperties: (path) => app().pageProperties(path),
       setPageProperties: (path, changes) => app().setPageProperties(path, changes),

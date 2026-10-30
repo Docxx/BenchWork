@@ -42,6 +42,11 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
         ? state().createPage(folder, title)
         : state().createTypedPage(folder, type, title, content),
     openPage: () => state().page?.path ?? null,
+    insertText: (text) => {
+      const editor = state().pageEditor?.editor;
+      if (!editor || editor.isDestroyed || !editor.isEditable) return false;
+      return editor.chain().focus().insertContent({ type: 'text', text }).run();
+    },
     openView: (id, param) => state().openModuleView(id, param ?? null),
     pageProperties: async (path) => {
       const page = parsePage(await platform.readText(path));

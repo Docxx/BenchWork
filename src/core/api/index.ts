@@ -293,6 +293,11 @@ export interface ModuleApp {
   ): Promise<string | null>;
   /** The page open in the editor, or null. */
   openPage(): string | null;
+  /**
+   * Types plain text into the open page at the cursor, as if typed there.
+   * False if no page is open in the editor.
+   */
+  insertText(text: string): boolean;
   /** Opens a module's full-page view, with an optional parameter such as a page path. */
   openView(id: string, param?: string): Promise<void>;
   /** A page's properties (its frontmatter keys), or null if they cannot be read. */
