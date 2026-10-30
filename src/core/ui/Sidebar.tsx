@@ -12,6 +12,7 @@ import {
 import { useState } from 'react';
 import type { OpenVault } from '../vault/vaultService';
 import { useApp } from './AppStoreContext';
+import { Logo } from './Logo';
 import { Menu } from './Menu';
 import { ModulePanels } from './ModulePanels';
 import { NotebookTree } from './NotebookTree';
@@ -71,10 +72,8 @@ export function Sidebar({
 
   return (
     <nav className="sidebar" aria-label="Vault">
-      <header className="sidebar-header">
-        <span className="brand-mark" aria-hidden="true">
-          B
-        </span>
+      <header className="sidebar-header" data-tauri-drag-region>
+        <Logo className="brand-mark" size={32} />
         <div className="brand-text">
           <span className="brand-name">BenchWork</span>
           <h1 className="vault-name" title={vault.root}>

@@ -18,6 +18,7 @@ import type {
   SearchIndex,
   VaultChange,
   VaultOwner,
+  WindowFrame,
 } from './types';
 import { normaliseVaultPath } from './vaultPath';
 
@@ -165,8 +166,36 @@ export async function fetchWebText(url: string): Promise<string> {
   return response.text();
 }
 
+/** The window's own buttons, as the system title bar is hidden on the computer. */
+function desktopFrame(): WindowFrame {
+  const win = () => getCurrentWindow();
+  return {
+    minimise: () => win().minimize(),
+    toggleMaximise: () => win().toggleMaximize(),
+    close: () => win().close(),
+    isMaximised: () => win().isMaximized(),
+    onResized: (listener) => {
+      let stop: (() => void) | null = null;
+      let stopped = false;
+      void win()
+        .onResized(() => {
+          listener();
+        })
+        .then((unlisten) => {
+          if (stopped) unlisten();
+          else stop = unlisten;
+        });
+      return () => {
+        stopped = true;
+        stop?.();
+      };
+    },
+  };
+}
+
 export class TauriAdapter implements PlatformAdapter {
   readonly kind: DeviceKind = detectKind();
+  readonly windowFrame: WindowFrame | null = detectKind() === 'desktop' ? desktopFrame() : null;
   readonly folderBrowser: FolderBrowser | null = androidFolderBrowser();
   readonly handwriting: HandwritingRecognizer | null = androidHandwriting();
   readonly programs: ProgramRunner | null =

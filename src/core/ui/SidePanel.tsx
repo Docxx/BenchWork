@@ -120,7 +120,13 @@ export function SidePanel({ page }: { page: OpenPage }) {
 
   return (
     <aside className="side-panel" aria-label="Side panel">
-      <div className="side-tabs" role="tablist" aria-label="Side panel" onKeyDown={onKey}>
+      <div
+        className="side-tabs"
+        role="tablist"
+        aria-label="Side panel"
+        data-tauri-drag-region
+        onKeyDown={onKey}
+      >
         {tabs.map((t) => (
           <button
             key={t.id}

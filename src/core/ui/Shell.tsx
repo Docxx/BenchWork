@@ -13,6 +13,7 @@ import { ResizeEdge } from './ResizeEdge';
 import { SettingsPage } from './SettingsPage';
 import { SidePanel } from './SidePanel';
 import { Sidebar } from './Sidebar';
+import { WindowControls } from './WindowControls';
 
 /** Narrower than this, the sidebar and side panel slide over the page. */
 const COMPACT_QUERY = '(max-width: 960px)';
@@ -30,6 +31,7 @@ export function Shell({ vault }: { vault: OpenVault }) {
   const openToday = useApp((s) => s.openToday);
   const store = useAppStore();
   const choosingPack = useApp((s) => s.choosingPack);
+  const framed = useApp((s) => s.windowFrame !== null);
   const [showCommands, setShowCommands] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const closeCommands = useCallback(() => {
@@ -93,7 +95,8 @@ export function Shell({ vault }: { vault: OpenVault }) {
   }, [pagePath, openFile, view, moduleView, setDrawer]);
 
   return (
-    <div className={compact ? 'shell compact' : 'shell'}>
+    <div className={['shell', compact ? 'compact' : '', framed ? 'framed' : ''].join(' ').trim()}>
+      <WindowControls />
       {compact && drawer !== null && (
         <button
           type="button"

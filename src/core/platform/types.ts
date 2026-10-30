@@ -41,6 +41,12 @@ export interface PlatformAdapter {
   /** Opens a web address in the device's browser. */
   openWebLink(url: string): Promise<void>;
 
+  /**
+   * The app's own window buttons, where the system's title bar is hidden
+   * (the computer); null where the system draws the window (the tablet).
+   */
+  readonly windowFrame: WindowFrame | null;
+
   /** Whole-vault backups to a folder outside the vault; null where folders cannot be picked. */
   readonly backups: VaultBackups | null;
 
@@ -318,6 +324,15 @@ export interface FileInfo {
   size: number;
   /** Milliseconds since the Unix epoch, or null if unknown. */
   modified: number | null;
+}
+
+export interface WindowFrame {
+  minimise(): Promise<void>;
+  toggleMaximise(): Promise<void>;
+  close(): Promise<void>;
+  isMaximised(): Promise<boolean>;
+  /** Calls `listener` when the window is resized, such as when maximised. Returns a stop function. */
+  onResized(listener: () => void): () => void;
 }
 
 export interface DirEntry {

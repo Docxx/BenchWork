@@ -120,7 +120,7 @@ export function HomeView() {
 
   return (
     <article className="home" aria-label="Home">
-      <header className="home-header">
+      <header className="home-header" data-tauri-drag-region>
         <div>
           <h1>{greeting(now)}</h1>
           <p className="home-date">

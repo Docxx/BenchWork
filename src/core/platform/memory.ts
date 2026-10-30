@@ -3,6 +3,7 @@ import { MemoryIndex } from './memoryIndex';
 import type {
   DeviceKind,
   DirEntry,
+  WindowFrame,
   FileInfo,
   FolderBrowser,
   HandwritingRecognizer,
@@ -113,6 +114,9 @@ export class MemoryAdapter implements PlatformAdapter {
       stop: () => Promise.resolve(),
     };
   }
+
+  /** The system draws the window, as on the tablet, until a test gives a frame. */
+  windowFrame: WindowFrame | null = null;
 
   /** None, as on a computer, until a test gives one with useHandwriting. */
   handwriting: HandwritingRecognizer | null = null;

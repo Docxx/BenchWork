@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Logo } from './Logo';
 
 /** How long the animation plays before fading, and the fade, in milliseconds. */
 const PLAY_MS = 1100;
@@ -59,7 +60,7 @@ export function Splash({
     <div className={`splash ${phase}`} aria-hidden="true">
       {phase !== 'waiting' && (
         <div className="splash-content">
-          <span className="splash-mark">B</span>
+          <Logo className="splash-mark" size={88} />
           <span className="splash-name">
             {Array.from('BenchWork').map((letter, i) => (
               <span key={i} style={{ animationDelay: `${String(250 + i * 35)}ms` }}>

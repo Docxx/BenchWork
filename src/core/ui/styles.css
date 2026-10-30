@@ -223,18 +223,29 @@ button.quiet:hover {
   padding: 1.1rem 0.9rem 0.9rem 1.1rem;
 }
 
+/* The logo takes the theme's colours: a B outline, with accent liquid. */
+.logo .logo-tile {
+  fill: var(--logo-tile, var(--accent));
+}
+
+.logo .logo-b {
+  fill: none;
+  stroke: var(--logo-ink, var(--accent-text));
+  stroke-width: 9;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.logo .logo-liquid {
+  fill: var(--logo-liquid, color-mix(in srgb, var(--accent-text) 45%, var(--accent)));
+}
+
+.logo .logo-bubble {
+  fill: var(--logo-ink, var(--accent-text));
+}
+
 .brand-mark {
-  display: grid;
-  place-items: center;
   flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 7px;
-  background: var(--sidebar-text);
-  color: var(--sidebar-bg);
-  font-family: var(--font-heading);
-  font-size: 1.15rem;
-  font-weight: 700;
 }
 
 .brand-text {
@@ -3087,15 +3098,42 @@ button.backlink:focus-visible {
 }
 
 .splash-mark {
-  display: grid;
-  place-items: center;
-  width: 4.5rem;
-  height: 4.5rem;
-  border-radius: 16px;
-  background: var(--accent);
-  color: var(--accent-text);
-  font: 600 2.6rem/1 var(--font-heading);
   animation: splash-mark 550ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+
+/* The liquid fills, then the bubbles rise. */
+.splash-mark .logo-liquid {
+  transform-origin: 50% 100%;
+  animation: splash-fill 600ms 200ms ease-out both;
+}
+
+.splash-mark .logo-bubble {
+  animation: splash-bubble 700ms ease-out both;
+}
+
+.splash-mark .logo-bubble:nth-of-type(1) {
+  animation-delay: 550ms;
+}
+
+.splash-mark .logo-bubble:nth-of-type(2) {
+  animation-delay: 650ms;
+}
+
+.splash-mark .logo-bubble:nth-of-type(3) {
+  animation-delay: 750ms;
+}
+
+@keyframes splash-fill {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes splash-bubble {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
 }
 
 .splash-name {
@@ -3838,4 +3876,52 @@ button.home-tool {
   .home-card.wide {
     grid-column: auto;
   }
+}
+
+/* The app's own window buttons, where the system title bar is hidden. */
+.window-controls {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 60;
+  display: flex;
+}
+
+.window-controls button {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.window-controls button:hover {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  color: var(--text);
+}
+
+.window-controls button.close:hover {
+  background: #c42b1c;
+  color: #fff;
+}
+
+.window-drag-strip {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 50;
+  height: 32px;
+}
+
+/* Room for the window buttons in the top row of whatever is at the right. */
+.shell.framed .side-tabs,
+.shell.framed:not(:has(.side-panel)) .top-bar,
+.shell.framed .home-header,
+.shell.framed .module-view-header,
+.shell.framed .file-header,
+.shell.framed .settings-header {
+  padding-right: 150px;
 }
