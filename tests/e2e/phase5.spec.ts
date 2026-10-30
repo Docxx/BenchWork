@@ -250,3 +250,70 @@ test('cards on a canvas are written, moved and joined by arrows', async ({ page 
     .poll(async () => (await canvas()).links)
     .toEqual([expect.objectContaining({ from: 'q', to: 'p' })]);
 });
+
+test('cards and arrows can be coloured and shaped, and arrows turned round', async ({ page }) => {
+  await page.evaluate(() => {
+    const memory = window.__benchworkMemory;
+    if (!memory) throw new Error('No memory adapter');
+    void memory.writeTextAtomic(
+      'Lab/Styled.canvas.json',
+      JSON.stringify({
+        version: 1,
+        items: [
+          { id: 'a', kind: 'text', x: 0, y: 0, width: 200, height: 90, text: 'Question' },
+          { id: 'b', kind: 'text', x: 400, y: 0, width: 200, height: 90, text: 'Answer' },
+        ],
+        links: [{ id: 'l', from: 'a', to: 'b' }],
+      }),
+    );
+  });
+  await page.getByRole('button', { name: 'Refresh' }).click();
+  await tree(page).getByRole('treeitem', { name: 'Lab' }).click();
+  await tree(page).getByRole('treeitem', { name: 'Styled' }).click();
+  const board = page.getByLabel('Canvas', { exact: true });
+  await expect(board.locator('.react-flow__node')).toHaveCount(2);
+
+  const canvas = async () =>
+    JSON.parse(
+      (await page.evaluate(() => window.__benchworkMemory?.snapshot()['Lab/Styled.canvas.json'])) ??
+        '{}',
+    ) as { items: Record<string, unknown>[]; links: Record<string, unknown>[] };
+
+  // A card filled blue, as an oval.
+  await board.locator('.react-flow__node[data-id="a"]').click();
+  const style = page.getByRole('toolbar', { name: 'Style' });
+  await style.getByRole('group', { name: 'Fill' }).getByRole('button', { name: 'Blue' }).click();
+  await style.getByLabel('Shape').selectOption('ellipse');
+  await expect
+    .poll(async () => (await canvas()).items[0])
+    .toMatchObject({ id: 'a', fill: 'blue', shape: 'ellipse' });
+  await expect(board.locator('.react-flow__node[data-id="a"] .canvas-card')).toHaveClass(
+    /shape-ellipse/,
+  );
+
+  // The arrow dashed, with heads at both ends, then turned round.
+  const middle = await board
+    .locator('.react-flow__edge[data-id="l"] path.react-flow__edge-path')
+    .evaluate((path: SVGPathElement) => {
+      const point = path.getPointAtLength(path.getTotalLength() / 2);
+      const screen = path.getScreenCTM();
+      if (!screen) throw new Error('Arrow not drawn');
+      return {
+        x: screen.a * point.x + screen.c * point.y + screen.e,
+        y: screen.b * point.x + screen.d * point.y + screen.f,
+      };
+    });
+  await page.mouse.click(middle.x, middle.y);
+  await style.getByLabel('Arrowheads').selectOption('both');
+  await style.getByLabel('Line', { exact: true }).selectOption('dashed');
+  await style.getByRole('button', { name: 'Reverse' }).click();
+  await expect
+    .poll(async () => (await canvas()).links[0])
+    .toMatchObject({ from: 'b', to: 'a', ends: 'both', line: 'dashed' });
+
+  // Back to the usual look leaves nothing extra in the file.
+  await style.getByLabel('Arrowheads').selectOption('end');
+  await expect
+    .poll(async () => Object.keys((await canvas()).links[0] ?? {}).sort())
+    .toEqual(['from', 'id', 'line', 'to']);
+});

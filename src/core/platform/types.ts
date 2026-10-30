@@ -31,6 +31,16 @@ export interface PlatformAdapter {
   /** Handwriting to text, where the device offers it (the tablet); null elsewhere. */
   readonly handwriting: HandwritingRecognizer | null;
 
+  /**
+   * Reads a web address's text. Only modules that name the site in their
+   * manifest reach this, through ctx.web. Fails with a plain message when
+   * offline or when the site answers with an error.
+   */
+  fetchText(url: string): Promise<string>;
+
+  /** Opens a web address in the device's browser. */
+  openWebLink(url: string): Promise<void>;
+
   /** Whole-vault backups to a folder outside the vault; null where folders cannot be picked. */
   readonly backups: VaultBackups | null;
 
@@ -149,6 +159,8 @@ export interface PageRef {
   id: string | null;
   /** The page's `type`, or a record's kind, such as `dataset`. */
   type: string;
+  /** When the file last changed, in milliseconds, as last indexed. */
+  mtime?: number | null;
 }
 
 export interface TagCount {

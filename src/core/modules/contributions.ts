@@ -9,6 +9,7 @@ import type {
   SideTabSpec,
   PageTypeSpec,
   PageViewSpec,
+  HomeCardSpec,
   SettingsPanelSpec,
   SidebarPanelSpec,
 } from '../api';
@@ -45,6 +46,10 @@ export interface SideTab extends SideTabSpec {
   moduleId: string;
 }
 
+export interface HomeCard extends HomeCardSpec {
+  moduleId: string;
+}
+
 export interface StrokeFilter extends StrokeFilterSpec {
   moduleId: string;
 }
@@ -66,6 +71,7 @@ export interface ContributionsState {
   settingsPanels: SettingsPanel[];
   pageViews: PageView[];
   sideTabs: SideTab[];
+  homeCards: HomeCard[];
   strokeFilters: StrokeFilter[];
   inkTools: InkToolContribution[];
   inkRecognisers: InkRecogniser[];
@@ -87,6 +93,7 @@ export function createContributions(): Contributions {
     settingsPanels: [],
     pageViews: [],
     sideTabs: [],
+    homeCards: [],
     strokeFilters: [],
     inkTools: [],
     inkRecognisers: [],

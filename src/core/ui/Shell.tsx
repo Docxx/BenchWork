@@ -85,12 +85,12 @@ export function Shell({ vault }: { vault: OpenVault }) {
   const showSidebar = compact ? drawer === 'sidebar' : sidebarOpen;
   const showPanel = compact ? drawer === 'panel' : sidePanel;
 
-  // Choosing a page, or Settings, puts away whatever slid over the page;
-  // with no page open, the sidebar slides in to choose one.
+  // Choosing a page, a view or Settings puts away whatever slid over the page.
   const pagePath = page?.path ?? null;
+  const openFile = useApp((s) => s.openFile);
   useEffect(() => {
-    setDrawer(compact && pagePath === null && view === 'files' ? 'sidebar' : null);
-  }, [pagePath, view, compact, setDrawer]);
+    setDrawer(null);
+  }, [pagePath, openFile, view, moduleView, setDrawer]);
 
   return (
     <div className={compact ? 'shell compact' : 'shell'}>

@@ -1,4 +1,5 @@
 import { createElement } from 'react';
+import { SquareFunction } from 'lucide-react';
 import { defineModule } from '@core/api';
 import { AnalysisView } from './AnalysisView';
 import './analysis.css';
@@ -18,6 +19,10 @@ export default defineModule({
       id: VIEW,
       title: 'Analysis',
       render: (dataset) => createElement(AnalysisView, { ctx, dataset }),
+      tool: {
+        icon: createElement(SquareFunction, { size: 18, strokeWidth: 1.75, 'aria-hidden': true }),
+        hint: 'Run your scripts on a dataset',
+      },
     });
     ctx.commands.register({
       id: 'analysis.open',

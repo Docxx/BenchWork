@@ -2,6 +2,7 @@ import {
   ArrowLeftRight,
   CalendarDays,
   Columns2,
+  House,
   PanelLeftClose,
   Plus,
   RotateCw,
@@ -54,6 +55,11 @@ export function Sidebar({
   const openToday = useApp((s) => s.openToday);
   const newCommands = useApp((s) => s.commands).filter((c) => c.places?.includes('new'));
   const runCommand = useApp((s) => s.runCommand);
+  const tools = useApp((s) => s.pageViews).filter((v) => v.tool !== undefined);
+  const moduleView = useApp((s) => s.moduleView);
+  const openModuleView = useApp((s) => s.openModuleView);
+  const atHome = useApp((s) => s.atHome());
+  const goHome = useApp((s) => s.goHome);
   const [newMenu, setNewMenu] = useState<{ x: number; y: number } | null>(null);
   const name = vaultName(vault.root);
 
@@ -102,6 +108,17 @@ export function Sidebar({
           <button
             type="button"
             className="nav-item"
+            aria-pressed={atHome}
+            onClick={() => void goHome()}
+          >
+            <House {...ICON} />
+            Home
+          </button>
+        </li>
+        <li>
+          <button
+            type="button"
+            className="nav-item"
             title="Today's page (Ctrl+Shift+D)"
             onClick={() => void openToday()}
           >
@@ -116,6 +133,27 @@ export function Sidebar({
             <kbd>Ctrl K</kbd>
           </button>
         </li>
+        {tools.length > 0 && (
+          <li className="nav-group" aria-label="Tools">
+            <span className="nav-group-name">Tools</span>
+            <ul>
+              {tools.map((v) => (
+                <li key={v.id}>
+                  <button
+                    type="button"
+                    className="nav-item"
+                    title={v.tool?.hint}
+                    aria-pressed={moduleView?.id === v.id}
+                    onClick={() => void openModuleView(v.id)}
+                  >
+                    {v.tool?.icon}
+                    {v.title}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </li>
+        )}
         {conflicts > 0 && (
           <li>
             <button

@@ -21,7 +21,15 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import type { ModuleContext } from '@core/api';
 import {
   DEFAULT_SIZE,
@@ -35,6 +43,20 @@ import {
   type KnownKind,
 } from './canvasFile';
 import { plainText } from './outline';
+import { CanvasStyleBar } from './CanvasStyleBar';
+import {
+  ARROW_DEFAULTS,
+  arrowLook,
+  CARD_DEFAULTS,
+  cardClass,
+  cardLook,
+  cardStyle,
+  edgeLook,
+  SIDES,
+  withLook,
+  type ArrowLook,
+  type CardLook,
+} from './canvasStyle';
 
 /** Saves this long after the last change. */
 export const CANVAS_SAVE_MS = 800;
@@ -48,6 +70,19 @@ type ArrowEdge = Edge<{ link: CanvasLink }>;
 interface CanvasActions {
   ctx: ModuleContext;
   setText: (id: string, text: string) => void;
+}
+
+/** Opens what a card links to: a web address in the browser, or a vault page. */
+function openLink(ctx: ModuleContext, link: string): void {
+  if (/^https?:\/\//i.test(link)) void ctx.web.open(link);
+  else void ctx.app.open(link);
+}
+
+/** What a card's link shows: a site and path, or a page's name. */
+function linkName(link: string): string {
+  return /^https?:/i.test(link)
+    ? link.replace(/^https?:\/\/(www\.)?/i, '')
+    : (link.split('/').at(-1) ?? link).replace(/\.md$/i, '');
 }
 const Actions = createContext<CanvasActions | null>(null);
 function useActions(): CanvasActions {
@@ -74,14 +109,30 @@ function toNode(item: CanvasItem): CardNode {
 }
 
 function toEdge(link: CanvasLink): ArrowEdge {
+  const look = edgeLook(arrowLook(link));
+  const marker = {
+    type: MarkerType.ArrowClosed,
+    ...(look.colour === undefined ? {} : { color: look.colour }),
+  };
   return {
     id: link.id,
     source: link.from,
     target: link.to,
+    type: look.type,
+    style: look.style,
     ...(typeof link.label === 'string' && link.label !== '' ? { label: link.label } : {}),
-    markerEnd: { type: MarkerType.ArrowClosed },
+    ...(look.head ? { markerEnd: marker } : {}),
+    ...(look.tail ? { markerStart: marker } : {}),
     data: { link },
   };
+}
+
+/** An arrow's link as it now stands, with the label it was given here. */
+function linkOf(edge: ArrowEdge): CanvasLink {
+  const link: CanvasLink = { ...edge.data?.link, id: edge.id, from: edge.source, to: edge.target };
+  if (typeof edge.label === 'string' && edge.label !== '') link.label = edge.label;
+  else delete link.label;
+  return link;
 }
 
 /** The canvas as it now stands, keeping anything it does not know about. */
@@ -95,12 +146,7 @@ function toDoc(base: CanvasDoc, nodes: CardNode[], edges: ArrowEdge[]): CanvasDo
       width: Math.round(n.width ?? n.data.item.width),
       height: Math.round(n.height ?? n.data.item.height),
     })),
-    links: edges.map((e) => {
-      const link: CanvasLink = { ...e.data?.link, id: e.id, from: e.source, to: e.target };
-      if (typeof e.label === 'string' && e.label !== '') link.label = e.label;
-      else delete link.label;
-      return link;
-    }),
+    links: edges.map(linkOf),
   };
 }
 
@@ -134,8 +180,14 @@ function routed(edges: ArrowEdge[], nodes: CardNode[]): ArrowEdge[] {
     const from = box.get(e.source);
     const to = box.get(e.target);
     if (!from || !to) return e;
-    const sides = facingSides(from, to);
-    return { ...e, sourceHandle: sides.source, targetHandle: sides.target };
+    // Sides chosen when the arrow was drawn stay; otherwise the facing ones.
+    const facing = facingSides(from, to);
+    const look = e.data ? arrowLook(e.data.link) : null;
+    return {
+      ...e,
+      sourceHandle: look?.fromSide ?? facing.source,
+      targetHandle: look?.toSide ?? facing.target,
+    };
   });
 }
 
@@ -151,20 +203,73 @@ function Handles() {
   );
 }
 
+/** A card's outline, shape, colours and link, around what it shows. */
+function CardFrame({
+  item,
+  kind,
+  selected,
+  min,
+  title,
+  onDoubleClick,
+  children,
+}: {
+  item: CanvasItem;
+  kind: string;
+  selected: boolean;
+  min: { width: number; height: number };
+  title?: string;
+  onDoubleClick?: () => void;
+  children: ReactNode;
+}) {
+  const { ctx } = useActions();
+  const look = cardLook(item);
+  const link = look.link;
+  return (
+    <div
+      className={cardClass(look, kind)}
+      style={cardStyle(look)}
+      title={title}
+      onDoubleClick={onDoubleClick}
+    >
+      {look.shape === 'diamond' && (
+        <svg className="card-shape" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+          <polygon points="50,1 99,50 50,99 1,50" vectorEffect="non-scaling-stroke" />
+        </svg>
+      )}
+      <NodeResizer isVisible={selected} minWidth={min.width} minHeight={min.height} />
+      <Handles />
+      {children}
+      {link !== null && (
+        <button
+          type="button"
+          className="card-link nodrag"
+          title={`Open ${link}`}
+          onClick={() => {
+            openLink(ctx, link);
+          }}
+        >
+          {`\u2197 ${linkName(link)}`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function TextCard({ id, data, selected }: NodeProps<CardNode>) {
   const { setText } = useActions();
   const [editing, setEditing] = useState(data.item.text === '');
   const [draft, setDraft] = useState(data.item.text ?? '');
   return (
-    <div
-      className="canvas-card text-card"
+    <CardFrame
+      item={data.item}
+      kind="text-card"
+      selected={selected}
+      min={{ width: 80, height: 40 }}
       onDoubleClick={() => {
         setDraft(data.item.text ?? '');
         setEditing(true);
       }}
     >
-      <NodeResizer isVisible={selected} minWidth={80} minHeight={40} />
-      <Handles />
       {editing ? (
         <textarea
           className="nodrag nowheel"
@@ -187,7 +292,7 @@ function TextCard({ id, data, selected }: NodeProps<CardNode>) {
           {data.item.text === '' ? 'Double-click to write' : data.item.text}
         </p>
       )}
-    </div>
+    </CardFrame>
   );
 }
 
@@ -215,16 +320,17 @@ function PageCard({ data, selected }: NodeProps<CardNode>) {
     };
   }, [ctx, path]);
   return (
-    <div
-      className="canvas-card page-card"
+    <CardFrame
+      item={data.item}
+      kind="page-card"
+      selected={selected}
+      min={{ width: 120, height: 50 }}
       title="Double-click to open"
       onDoubleClick={() => void ctx.app.open(path)}
     >
-      <NodeResizer isVisible={selected} minWidth={120} minHeight={50} />
-      <Handles />
       <strong className="card-title">{fileName(path).replace(/\.md$/i, '')}</strong>
       <p className="card-preview">{preview ?? 'This page could not be found.'}</p>
-    </div>
+    </CardFrame>
   );
 }
 
@@ -233,19 +339,20 @@ function ImageCard({ data, selected }: NodeProps<CardNode>) {
   const path = data.item.path ?? '';
   const url = ctx.vault.fileUrl(path);
   return (
-    <div
-      className="canvas-card image-card"
+    <CardFrame
+      item={data.item}
+      kind="image-card"
+      selected={selected}
+      min={{ width: 60, height: 40 }}
       title="Double-click to open"
       onDoubleClick={() => void ctx.app.open(path)}
     >
-      <NodeResizer isVisible={selected} minWidth={60} minHeight={40} />
-      <Handles />
       {url === null ? (
         <p className="card-preview">{fileName(path)} could not be found.</p>
       ) : (
         <img src={url} alt={fileName(path)} draggable={false} />
       )}
-    </div>
+    </CardFrame>
   );
 }
 
@@ -253,16 +360,17 @@ function FileCard({ data, selected }: NodeProps<CardNode>) {
   const { ctx } = useActions();
   const path = data.item.path ?? '';
   return (
-    <div
-      className="canvas-card file-card"
+    <CardFrame
+      item={data.item}
+      kind="file-card"
+      selected={selected}
+      min={{ width: 120, height: 40 }}
       title="Double-click to open"
       onDoubleClick={() => void ctx.app.open(path)}
     >
-      <NodeResizer isVisible={selected} minWidth={120} minHeight={40} />
-      <Handles />
       <strong className="card-title">{fileName(path)}</strong>
       <p className="card-preview">{path}</p>
-    </div>
+    </CardFrame>
   );
 }
 
@@ -425,10 +533,15 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
   const onConnect = useCallback(
     (connection: Connection) => {
       if (connection.source === connection.target) return;
-      const next = addEdge(
-        { ...connection, id: newId(), markerEnd: { type: MarkerType.ArrowClosed } },
-        latest.current.edges,
-      );
+      // Drawn from one dot to another, the arrow keeps to those sides.
+      const isSide = (h: string | null | undefined): h is (typeof SIDES)[number] =>
+        typeof h === 'string' && (SIDES as readonly string[]).includes(h);
+      const link: CanvasLink = { id: newId(), from: connection.source, to: connection.target };
+      if (isSide(connection.sourceHandle) && isSide(connection.targetHandle)) {
+        link['fromSide'] = connection.sourceHandle;
+        link['toSide'] = connection.targetHandle;
+      }
+      const next = addEdge(toEdge(link), latest.current.edges);
       setEdges(next);
       changed({ ...latest.current, edges: next });
     },
@@ -461,6 +574,85 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
     },
     [changed],
   );
+
+  /** Changes the look of the selected cards. */
+  const restyleCards = (changes: Partial<CardLook>) => {
+    const next = latest.current.nodes.map((n) =>
+      n.selected === true
+        ? { ...n, data: { item: withLook(n.data.item, changes, CARD_DEFAULTS) } }
+        : n,
+    );
+    setNodes(next);
+    changed({ ...latest.current, nodes: next });
+  };
+
+  /** Changes the selected arrows' links, drawing them afresh. */
+  const relink = (change: (link: CanvasLink) => CanvasLink) => {
+    const next = latest.current.edges.map((e) =>
+      e.selected === true ? { ...toEdge(change(linkOf(e))), selected: true } : e,
+    );
+    setEdges(next);
+    changed({ ...latest.current, edges: next });
+  };
+
+  const restyleArrows = (changes: Partial<ArrowLook>) => {
+    relink((link) => withLook(link, changes, ARROW_DEFAULTS));
+  };
+
+  const reverseArrows = () => {
+    relink((link) => {
+      const look = arrowLook(link);
+      return withLook(
+        { ...link, from: link.to, to: link.from },
+        { fromSide: look.toSide, toSide: look.fromSide },
+        ARROW_DEFAULTS,
+      );
+    });
+  };
+
+  const nameArrow = (edge: ArrowEdge) => {
+    void ctx.app
+      .askText({
+        title: 'Name the arrow',
+        label: 'Arrow label',
+        initial: typeof edge.label === 'string' ? edge.label : '',
+      })
+      .then((label) => {
+        if (label === null) return;
+        const next = latest.current.edges.map((e) =>
+          e.id === edge.id ? { ...e, label: label.trim() } : e,
+        );
+        setEdges(next);
+        changed({ ...latest.current, edges: next });
+      });
+  };
+
+  const linkCard = async (node: CardNode) => {
+    const current = cardLook(node.data.item).link;
+    const answer = await ctx.app.askText({
+      title: 'Link the card',
+      label: 'Page name or web address (empty for none)',
+      initial: current ?? '',
+    });
+    if (answer === null) return;
+    const wanted = answer.trim();
+    let link: string | null = null;
+    if (/^https?:\/\//i.test(wanted)) link = wanted;
+    else if (wanted !== '') {
+      link = await ctx.app.resolveLink(wanted, path);
+      if (link === null) {
+        ctx.app.notify(`No page called "${wanted}" was found.`);
+        return;
+      }
+    }
+    const next = latest.current.nodes.map((n) =>
+      n.id === node.id
+        ? { ...n, data: { item: withLook(n.data.item, { link }, CARD_DEFAULTS) } }
+        : n,
+    );
+    setNodes(next);
+    changed({ ...latest.current, nodes: next });
+  };
 
   /** Adds a card in the middle of the view, or at `at`. */
   const add = (kind: KnownKind, fields: Partial<CanvasItem>, at?: { x: number; y: number }) => {
@@ -528,6 +720,8 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
   };
 
   const shownEdges = routed(edges, nodes);
+  const selectedCards = nodes.filter((n) => n.selected === true);
+  const selectedArrows = edges.filter((e) => e.selected === true);
 
   if (problem !== null) return <p className="notice">This canvas could not be read. {problem}</p>;
   if (!loaded) return <p className="hint">Reading the canvas…</p>;
@@ -552,9 +746,26 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
             Add image or file…
           </button>
           <span className="hint">
-            Drag from a dot to draw an arrow. Double-click an arrow to name it.
+            Drag from a dot to draw an arrow. Select cards or arrows to change their look.
           </span>
         </div>
+        {!changedElsewhere && (
+          <CanvasStyleBar
+            cards={selectedCards.map((n) => n.data.item)}
+            arrows={selectedArrows.map(linkOf)}
+            onCards={restyleCards}
+            onArrows={restyleArrows}
+            onReverse={reverseArrows}
+            onName={() => {
+              const [edge] = selectedArrows;
+              if (edge) nameArrow(edge);
+            }}
+            onLink={() => {
+              const [node] = selectedCards;
+              if (node) void linkCard(node);
+            }}
+          />
+        )}
         {changedElsewhere && (
           <div className="notice" role="alert">
             <span>
@@ -605,20 +816,7 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
               }
             }}
             onEdgeDoubleClick={(_e, edge) => {
-              void ctx.app
-                .askText({
-                  title: 'Name the arrow',
-                  label: 'Arrow label',
-                  initial: typeof edge.label === 'string' ? edge.label : '',
-                })
-                .then((label) => {
-                  if (label === null) return;
-                  const next = latest.current.edges.map((e) =>
-                    e.id === edge.id ? { ...e, label: label.trim() } : e,
-                  );
-                  setEdges(next);
-                  changed({ ...latest.current, edges: next });
-                });
+              nameArrow(edge);
             }}
           >
             <Background gap={24} />

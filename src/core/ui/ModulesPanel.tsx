@@ -75,7 +75,7 @@ export function ModulesPanel() {
       ) : (
         <ul className="module-list" aria-label="Modules">
           {modules.map((info) => {
-            const { id, name, version, description } = info.manifest;
+            const { id, name, version, description, network } = info.manifest;
             const on = info.status === 'on' || info.status === 'failed';
             return (
               <li key={id} className={`module ${info.status}`}>
@@ -84,6 +84,11 @@ export function ModulesPanel() {
                     {name} <span className="version">{version}</span>
                   </span>
                   {description !== '' && <span className="hint">{description}</span>}
+                  {network.length > 0 && (
+                    <span className="hint module-network">
+                      Uses the internet: {network.join(', ')}
+                    </span>
+                  )}
                   <span className="module-status" id={`module-${id}-status`}>
                     {statusText(info)}
                   </span>

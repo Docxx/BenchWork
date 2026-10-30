@@ -9,6 +9,7 @@ const GOOD = {
   dependsOn: [],
   platforms: ['desktop', 'tablet'],
   defaultEnabled: false,
+  network: [],
 };
 
 function errorsFor(data: unknown, folder = 'references'): string[] {
@@ -36,8 +37,14 @@ describe('validateManifest', () => {
         dependsOn: [],
         platforms: ['desktop', 'tablet'],
         defaultEnabled: false,
+        network: [],
       },
     });
+  });
+
+  it('lists the web sites a module reads from', () => {
+    const result = validateManifest({ ...GOOD, network: ['www.ebi.ac.uk'] }, 'references');
+    expect(result.ok && result.manifest.network).toEqual(['www.ebi.ac.uk']);
   });
 
   it('requires the id to match the folder', () => {
@@ -58,6 +65,8 @@ describe('validateManifest', () => {
     [{ ...GOOD, platforms: [] }, '"platforms"'],
     [{ ...GOOD, platforms: ['ios'] }, '"platforms"'],
     [{ ...GOOD, defaultEnabled: 'yes' }, '"defaultEnabled"'],
+    [{ ...GOOD, network: ['https://www.ebi.ac.uk'] }, '"network"'],
+    [{ ...GOOD, network: 'www.ebi.ac.uk' }, '"network"'],
   ])('rejects %j', (data, expected) => {
     expect(errorsFor(data).join(' ')).toContain(expected);
   });

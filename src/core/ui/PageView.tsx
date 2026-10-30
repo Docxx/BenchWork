@@ -1,4 +1,12 @@
-import { ChevronRight, FileText, History, LayoutDashboard, PanelRight } from 'lucide-react';
+import {
+  ChevronRight,
+  FileText,
+  History,
+  House,
+  LayoutDashboard,
+  PanelRight,
+  Pin,
+} from 'lucide-react';
 import { useState } from 'react';
 import { dayOfPath } from '../pages/daily';
 import type { OpenPage, SaveState } from '../state/pageSlice';
@@ -6,6 +14,7 @@ import { useApp } from './AppStoreContext';
 import { Backlinks } from './Backlinks';
 import { FileView } from './FileView';
 import { HistoryPanel } from './HistoryPanel';
+import { HomeView, useHomeLayout } from './HomeView';
 import { ModuleView } from './ModuleView';
 import { PageEditor } from './PageEditor';
 import { PropertiesPanel } from './PropertiesPanel';
@@ -20,7 +29,7 @@ const SAVE_LABELS: Record<SaveState, string> = {
   error: 'Not saved',
 };
 
-/** The main area: the open page, or a hint to pick one. */
+/** The main area: the open page, a file or module view, or Home. */
 export function PageView() {
   const page = useApp((s) => s.page);
   const notice = useApp((s) => s.pageNotice);
@@ -33,6 +42,7 @@ export function PageView() {
 
   if (page === null && moduleView !== null) return <ModuleView open={moduleView} />;
   if (page === null && openFile !== null) return <FileView path={openFile} />;
+  if (page === null && notice === null) return <HomeView />;
 
   return (
     <>
@@ -107,6 +117,7 @@ function PageTopBar({
   const folders = page.path.split('/').slice(0, -1);
   return (
     <div className="top-bar">
+      <HomeButton />
       <nav className="breadcrumb" aria-label="Where this page is">
         {folders.map((folder, i) => (
           <span key={folders.slice(0, i + 1).join('/')} className="crumb">
@@ -128,9 +139,63 @@ function PageTopBar({
         <History size={16} strokeWidth={1.75} aria-hidden />
         History
       </button>
+      <PageViewButtons path={page.path} />
+      <PinButton path={page.path} />
       <LayoutSwitch />
       <SidePanelToggle />
     </div>
+  );
+}
+
+export function HomeButton() {
+  const goHome = useApp((s) => s.goHome);
+  return (
+    <button
+      type="button"
+      className="icon-button"
+      title="Home"
+      aria-label="Home"
+      onClick={() => void goHome()}
+    >
+      <House size={16} strokeWidth={1.75} aria-hidden />
+    </button>
+  );
+}
+
+/** Buttons modules add to open a view about this page, such as its mind map. */
+function PageViewButtons({ path }: { path: string }) {
+  const views = useApp((s) => s.pageViews).filter((v) => v.pageButton !== undefined);
+  const openView = useApp((s) => s.openModuleView);
+  return views.map((v) => (
+    <button
+      key={v.id}
+      type="button"
+      className="icon-button"
+      title={v.title}
+      aria-label={v.title}
+      onClick={() => void openView(v.id, path)}
+    >
+      {v.pageButton?.icon}
+    </button>
+  ));
+}
+
+/** Pins the page to Home, or unpins it. */
+function PinButton({ path }: { path: string }) {
+  const pinned = useHomeLayout().pinned.includes(path);
+  const setPinned = useApp((s) => s.setPinned);
+  const label = pinned ? 'Unpin from Home' : 'Pin to Home';
+  return (
+    <button
+      type="button"
+      className="icon-button"
+      title={label}
+      aria-label={label}
+      aria-pressed={pinned}
+      onClick={() => void setPinned(path, !pinned)}
+    >
+      <Pin size={16} strokeWidth={1.75} aria-hidden />
+    </button>
   );
 }
 

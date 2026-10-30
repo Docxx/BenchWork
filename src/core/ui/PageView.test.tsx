@@ -33,9 +33,10 @@ async function settle(ms = 10): Promise<void> {
 }
 
 describe('PageView', () => {
-  it('suggests picking a page when none is open', async () => {
+  it('shows Home when no page is open', async () => {
     await renderPageView();
-    expect(screen.getByText(/Pick a page in the sidebar/)).toBeDefined();
+    expect(screen.getByRole('article', { name: 'Home' })).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Recent pages' })).toBeDefined();
   });
 
   it('shows the page title, its content and that it is saved', async () => {

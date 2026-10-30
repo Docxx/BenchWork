@@ -31,7 +31,7 @@ export function ModuleView({ open }: { open: OpenModuleView }) {
 }
 
 /** Stops a view that throws while drawing from breaking the rest of the app. */
-class ViewBoundary extends Component<
+export class ViewBoundary extends Component<
   { moduleId: string; children: ReactNode },
   { failed: boolean }
 > {

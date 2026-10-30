@@ -1,0 +1,9 @@
+{
+  "id": "lab-tools",
+  "name": "Lab tools",
+  "version": "0.1.0",
+  "description": "Calculators for solutions, DNA, protein and cells, a unit converter, buffer recipes and bench timers",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

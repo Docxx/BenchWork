@@ -45,6 +45,7 @@ interface AndroidBridge {
   inkRecognise(id: string, strokesJson: string): void;
   hasAllFilesAccess(): boolean;
   askAllFilesAccess(): void;
+  openLink(url: string): void;
   sharedStorage(): string;
 }
 
@@ -141,6 +142,29 @@ const tauriIndex: SearchIndex = {
   tagged: (tag, limit) => call('index_tagged', () => ({ tag, limit })),
 };
 
+/** How long to wait for a web site before giving up, in ms. */
+const WEB_TIMEOUT_MS = 20_000;
+
+/** A web address's text, with plain messages for the ways it can fail. */
+export async function fetchWebText(url: string): Promise<string> {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      signal: AbortSignal.timeout(WEB_TIMEOUT_MS),
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+    });
+  } catch {
+    throw new Error('The site could not be reached. Check the internet connection.');
+  }
+  if (!response.ok) {
+    throw new Error(
+      `The site answered with an error (${String(response.status)}). Try again later.`,
+    );
+  }
+  return response.text();
+}
+
 export class TauriAdapter implements PlatformAdapter {
   readonly kind: DeviceKind = detectKind();
   readonly folderBrowser: FolderBrowser | null = androidFolderBrowser();
@@ -172,6 +196,16 @@ export class TauriAdapter implements PlatformAdapter {
 
   setStylusHandwriting(on: boolean): void {
     window.BenchWorkAndroid?.setHandwriting(on);
+  }
+
+  fetchText(url: string): Promise<string> {
+    return fetchWebText(url);
+  }
+
+  async openWebLink(url: string): Promise<void> {
+    const bridge = window.BenchWorkAndroid;
+    if (bridge) bridge.openLink(url);
+    else await call<undefined>('open_web_link', () => ({ url }));
   }
   readonly index = tauriIndex;
   /** Full path of the open vault, as Rust reported it. */

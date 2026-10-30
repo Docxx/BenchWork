@@ -140,6 +140,20 @@ class MainActivity : TauriActivity() {
       runOnUiThread { webView?.setAutoHandwritingEnabled(on) }
     }
 
+    /** Opens a web address in the tablet's browser; anything but http or https is ignored. */
+    @JavascriptInterface
+    fun openLink(url: String) {
+      val uri = Uri.parse(url)
+      if (uri.scheme != "https" && uri.scheme != "http") return
+      runOnUiThread {
+        try {
+          startActivity(Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE))
+        } catch (_: Exception) {
+          // No browser to open it.
+        }
+      }
+    }
+
     /** Whether BenchWork may read and write any folder. */
     @JavascriptInterface
     fun hasAllFilesAccess(): Boolean =

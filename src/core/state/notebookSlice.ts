@@ -31,7 +31,8 @@ export interface NotebookSlice {
   createNotebook: (title?: string) => Promise<string | null>;
   createSection: (parent: string, title?: string) => Promise<string | null>;
   /** With no title, the page is called "Untitled page" (or "Untitled page 2", and so on). */
-  createPage: (folder: string, title?: string) => Promise<string | null>;
+  /** With `content`, the page starts with those properties and that text. */
+  createPage: (folder: string, title?: string, content?: NewPageContent) => Promise<string | null>;
   /**
    * Creates a page of a type a module registered, such as an experiment,
    * and opens it. With no title it is "Untitled experiment", numbered.
@@ -97,6 +98,10 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
   async function followMove(from: string, to: string): Promise<void> {
     get().pageMoved(from, to);
     get().fileMoved(from, to);
+    const pinned = get().homeLayout().pinned;
+    if (pinned.some((p) => p === from || p.startsWith(`${from}/`))) {
+      await get().setHomeLayout({ pinned: pinned.map((p) => rebasePath(p, from, to)) });
+    }
     const { tree } = get();
     const expanded = tree.expanded.map((p) => rebasePath(p, from, to));
     const folders = Object.fromEntries(
@@ -160,10 +165,13 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
         return path;
       }),
 
-    createPage: (folder, title) =>
+    createPage: (folder, title, content) =>
       attempt(async () => {
         const path = await createPage(platform, folder, {
           ...(title === undefined ? {} : { title }),
+          ...(content === undefined
+            ? {}
+            : { text: (id: string, created: string) => typedPageText(null, content, id, created) }),
           layout: newPageLayout(),
         });
         await reveal(path);

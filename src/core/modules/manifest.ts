@@ -13,6 +13,11 @@ export interface ModuleManifest {
   platforms: DeviceKind[];
   /** Whether a vault that has never seen this module starts with it on. */
   defaultEnabled: boolean;
+  /**
+   * Web sites the module reads from, by host name, such as `www.ebi.ac.uk`.
+   * Empty for most modules, which never use the internet.
+   */
+  network: string[];
 }
 
 export type ManifestResult =
@@ -21,6 +26,7 @@ export type ManifestResult =
 export const MODULE_ID_PATTERN = /^[a-z][a-z0-9-]{0,39}$/;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 const PLATFORMS: readonly DeviceKind[] = ['desktop', 'tablet'];
+const HOST_PATTERN = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -79,6 +85,14 @@ export function validateManifest(data: unknown, folder: string): ManifestResult 
   const defaultEnabled = data['defaultEnabled'] ?? false;
   if (typeof defaultEnabled !== 'boolean') errors.push('"defaultEnabled" must be true or false');
 
+  const network = data['network'] ?? [];
+  if (
+    !Array.isArray(network) ||
+    !network.every((h): h is string => typeof h === 'string' && HOST_PATTERN.test(h))
+  ) {
+    errors.push('"network" must be a list of site names, such as "www.ebi.ac.uk"');
+  }
+
   if (errors.length > 0) return { ok: false, errors };
   return {
     ok: true,
@@ -90,6 +104,7 @@ export function validateManifest(data: unknown, folder: string): ManifestResult 
       dependsOn: [...(dependsOn as string[])],
       platforms: [...new Set(platforms as DeviceKind[])],
       defaultEnabled: defaultEnabled as boolean,
+      network: [...new Set(network as string[])],
     },
   };
 }

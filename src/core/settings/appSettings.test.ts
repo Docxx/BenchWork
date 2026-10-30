@@ -35,6 +35,7 @@ describe('app settings', () => {
       ...stored,
       appearance: defaultAppearance(),
       backups: {},
+      home: {},
     });
   });
 

@@ -30,6 +30,42 @@ function FlipDue({ item }: { item: Item }) {
   return <span className={next <= day ? 'flip-due late' : 'flip-due'}>{dayLabel(next)}</span>;
 }
 
+/** For Home: stocks due to be flipped by today, with a button to record each flip. */
+export function FlipsDue({ ctx, store }: { ctx: ModuleContext; store: InventoryStore }) {
+  const day = today();
+  const due = useItems(store)
+    .filter((i) => i.kind === FLY_STOCK)
+    .map((item) => ({ item, next: nextFlip(flipStock(item.name, item.data), day) }))
+    .filter((s): s is { item: Item; next: string } => s.next !== null && s.next <= day)
+    .sort((a, b) => a.next.localeCompare(b.next));
+  if (!store.loaded) return <p className="hint">Reading…</p>;
+  return (
+    <div className="flips-card">
+      {due.length === 0 ? (
+        <p className="hint">No flips due today.</p>
+      ) : (
+        <ul>
+          {due.map(({ item, next }) => (
+            <li key={item.path}>
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => void ctx.app.open(item.path)}
+              >
+                {item.name}
+              </button>
+              <span className={next < day ? 'flip-due late' : 'flip-due'}>{dayLabel(next)}</span>
+              <button type="button" className="quiet" onClick={() => void store.flipped(item)}>
+                Flipped
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function Table({
   ctx,
   store,

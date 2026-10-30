@@ -9,6 +9,16 @@ import { PageView } from '@core/ui/PageView';
 import manifestJson from './manifest.json';
 import { facingSides } from './CanvasEditor';
 import { kindForPath, parseCanvas, serialiseCanvas } from './canvasFile';
+import {
+  ARROW_DEFAULTS,
+  arrowLook,
+  CARD_DEFAULTS,
+  cardClass,
+  cardLook,
+  cardStyle,
+  edgeLook,
+  withLook,
+} from './canvasStyle';
 import { countNodes, outlineOf, plainText, type OutlineNode } from './outline';
 
 // Tests may reach core internals to set the app up; the module itself may not.
@@ -191,6 +201,81 @@ describe('Mind maps: canvas files', () => {
   });
 });
 
+describe('Mind maps: canvas styles', () => {
+  const card = { id: 'a', kind: 'text', x: 0, y: 0, width: 100, height: 50 };
+  const link = { id: 'l', from: 'a', to: 'b' };
+
+  it('read the usual look when nothing is set, or something unknown is', () => {
+    expect(cardLook(card)).toEqual(CARD_DEFAULTS);
+    expect(cardLook({ ...card, fill: 'magenta', shape: 'star', link: '  ' })).toEqual(
+      CARD_DEFAULTS,
+    );
+    expect(arrowLook({ ...link, ends: 'many', fromSide: 'middle' })).toEqual(ARROW_DEFAULTS);
+  });
+
+  it('write only what differs from the usual look, keeping other keys', () => {
+    const styled = withLook(
+      { ...card, owner: 'Ray' },
+      { fill: 'blue', shape: 'rounded' },
+      CARD_DEFAULTS,
+    );
+    expect(styled).toEqual({ ...card, owner: 'Ray', fill: 'blue' });
+    expect(withLook(styled, { fill: null }, CARD_DEFAULTS)).toEqual({ ...card, owner: 'Ray' });
+    expect(withLook(link, { ends: 'both', fromSide: 'top' }, ARROW_DEFAULTS)).toEqual({
+      ...link,
+      ends: 'both',
+      fromSide: 'top',
+    });
+  });
+
+  it('draw cards in theme colours, with their shape and border as classes', () => {
+    const look = cardLook({
+      ...card,
+      fill: 'green',
+      borderColour: 'red',
+      shape: 'pill',
+      border: 'dashed',
+      textSize: 'huge',
+    });
+    expect(cardClass(look, 'text-card')).toBe(
+      'canvas-card text-card shape-pill border-dashed filled',
+    );
+    expect(cardStyle(look)).toEqual({
+      fontSize: '1.5rem',
+      '--card-fill': 'color-mix(in srgb, var(--section-green) 24%, var(--surface))',
+      '--card-border': 'var(--section-red)',
+    });
+  });
+
+  it('draw arrows with their line, heads and path', () => {
+    expect(edgeLook(arrowLook(link))).toEqual({
+      type: 'default',
+      style: { strokeWidth: 2 },
+      head: true,
+      tail: false,
+      colour: undefined,
+    });
+    expect(
+      edgeLook(
+        arrowLook({
+          ...link,
+          colour: 'purple',
+          line: 'dashed',
+          width: 'thick',
+          ends: 'start',
+          path: 'step',
+        }),
+      ),
+    ).toEqual({
+      type: 'step',
+      style: { strokeWidth: 4, strokeDasharray: '8 5', stroke: 'var(--section-purple)' },
+      head: false,
+      tail: true,
+      colour: 'var(--section-purple)',
+    });
+  });
+});
+
 async function openVault(enabled = true) {
   drawn.length = 0;
   const platform = new MemoryAdapter({
@@ -268,6 +353,29 @@ describe('Mind maps: canvases', () => {
       links: [],
     });
     expect(state().openFile).toBe('Lab/Ideas.canvas.json');
+  });
+
+  it('are listed in one place, where a new one can be made', async () => {
+    const { platform, store, state } = await openVault();
+    renderView(store);
+    await act(() => state().openModuleView('mind-maps.canvases'));
+    await settle();
+    expect(screen.getByRole('button', { name: /Board/ })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Plans' } });
+    fireEvent.click(screen.getByRole('button', { name: 'New canvas' }));
+    await settle();
+    expect(platform.snapshot()['Lab/Plans.canvas.json']).toBeDefined();
+    expect(state().openFile).toBe('Lab/Plans.canvas.json');
+  });
+
+  it('a page has a button for its mind map', async () => {
+    const { store, state } = await openVault();
+    renderView(store);
+    await act(() => state().openPage('Lab/Fly climbing.md'));
+    fireEvent.click(screen.getByRole('button', { name: 'Mind map' }));
+    await settle();
+    expect(state().moduleView).toEqual({ id: 'mind-maps.mindMap', param: 'Lab/Fly climbing.md' });
   });
 });
 

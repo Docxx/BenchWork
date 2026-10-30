@@ -6,7 +6,8 @@ import { parsePage, serialisePage, updateProperties } from './frontmatter';
  * type's own starting properties, then its body.
  */
 export function typedPageText(
-  type: string,
+  /** Null for a page of no particular type. */
+  type: string | null,
   content: NewPageContent,
   id: string,
   created: string,
@@ -16,6 +17,11 @@ export function typedPageText(
   const extra = Object.fromEntries(
     Object.entries(content.properties ?? {}).filter(([key]) => !reserved.has(key)),
   );
-  const page = updateProperties(empty, { id, type, created, ...extra });
+  const page = updateProperties(empty, {
+    id,
+    ...(type === null ? {} : { type }),
+    created,
+    ...extra,
+  });
   return serialisePage({ ...page, body: content.body ?? '' });
 }

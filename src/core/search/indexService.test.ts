@@ -61,6 +61,7 @@ describe('IndexService', () => {
     await service.start();
     expect(await found('camera')).toEqual(['Lab/Data/day7.dataset.yaml']);
     expect(await platform.index.pages()).toContainEqual({
+      mtime: expect.any(Number) as number,
       path: 'Lab/Data/day7.dataset.yaml',
       title: 'day7',
       id: null,

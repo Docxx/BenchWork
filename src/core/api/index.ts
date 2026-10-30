@@ -73,6 +73,8 @@ export interface ModuleContext {
   readonly ink: ModuleInk;
   /** Running the person's own programs, such as Python scripts; null on the tablet. */
   readonly programs: ProgramRunner | null;
+  /** The internet: reading from the sites named in manifest.json, and opening links. */
+  readonly web: ModuleWeb;
   /** Converting Markdown with Pandoc, if it is installed. Desktop only. */
   readonly pandoc: ModulePandoc;
   /** JSON files in `.benchwork/modules/<id>/`, the module's private folder. */
@@ -268,6 +270,8 @@ export interface VaultItem {
   title: string;
   /** The frontmatter `type`, or the record kind, such as `dataset`. */
   type: string;
+  /** When the file last changed, in milliseconds, or null if not known. */
+  changed: number | null;
 }
 
 export interface ModuleApp {
@@ -280,7 +284,7 @@ export interface ModuleApp {
   createFolder(folder: string, title: string): Promise<string | null>;
   /**
    * Creates a page, optionally of a registered type, and opens it. With
-   * `content`, a typed page starts with that instead of its type's usual
+   * `content`, the page starts with that, instead of a typed page's usual
    * start. Returns its path, or null.
    */
   createPage(
@@ -291,6 +295,11 @@ export interface ModuleApp {
   ): Promise<string | null>;
   /** The page open in the editor, or null. */
   openPage(): string | null;
+  /**
+   * Types plain text into the open page at the cursor, as if typed there.
+   * False if no page is open in the editor.
+   */
+  insertText(text: string): boolean;
   /** Opens a module's full-page view, with an optional parameter such as a page path. */
   openView(id: string, param?: string): Promise<void>;
   /** A page's properties (its frontmatter keys), or null if they cannot be read. */
@@ -322,6 +331,20 @@ export interface ModuleViews {
   registerPageView(spec: PageViewSpec): Disposable;
   /** A tab in the side panel beside pages, such as the open page's tasks. */
   registerSideTab(spec: SideTabSpec): Disposable;
+  /** A card on the Home page, such as tasks due today. */
+  registerHomeCard(spec: HomeCardSpec): Disposable;
+}
+
+export interface HomeCardSpec {
+  /** Must start with the module id and a dot. */
+  id: string;
+  /** The card's heading. */
+  title: string;
+  /** A small icon beside the heading, about 17 pixels. */
+  icon?: ReactNode;
+  /** Wide cards take two columns where there is room. */
+  wide?: boolean;
+  render: () => ReactNode;
 }
 
 export interface SideTabSpec {
@@ -342,6 +365,20 @@ export interface PageViewSpec {
   title: string;
   /** `param` is what openView was given, such as the page the view is about. */
   render: (param: string | null) => ReactNode;
+  /**
+   * Listed under Tools in the sidebar and on Home, opened without a
+   * parameter. Left out for views about one page, such as a mind map.
+   */
+  tool?: {
+    icon: ReactNode;
+    /** A few words on what it is for, shown on Home. */
+    hint: string;
+  };
+  /**
+   * A button at the top of every page, opening the view about that page,
+   * such as its mind map. The view's title is the button's label.
+   */
+  pageButton?: { icon: ReactNode };
 }
 
 // ---- Pandoc ----
@@ -517,6 +554,16 @@ export interface SidebarPanelSpec {
   id: string;
   title: string;
   render: () => ReactNode;
+}
+
+export interface ModuleWeb {
+  /**
+   * Reads a web address's text, such as a search's JSON. Only https
+   * addresses on the sites the manifest lists under "network"; others fail.
+   */
+  getText(url: string): Promise<string>;
+  /** Opens a web address in the device's browser. */
+  open(url: string): Promise<void>;
 }
 
 export interface ModuleStorage {

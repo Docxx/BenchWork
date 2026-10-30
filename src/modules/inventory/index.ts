@@ -1,7 +1,8 @@
 import { createElement } from 'react';
+import { Boxes, Repeat } from 'lucide-react';
 import { defineModule } from '@core/api';
 import { KINDS } from './kinds';
-import { InventoryView, ItemView } from './InventoryView';
+import { FlipsDue, InventoryView, ItemView } from './InventoryView';
 import { InventoryStore } from './store';
 import './inventory.css';
 
@@ -26,6 +27,16 @@ export default defineModule({
       id: VIEW,
       title: 'Inventory',
       render: () => createElement(InventoryView, { ctx, store }),
+      tool: {
+        icon: createElement(Boxes, { size: 18, strokeWidth: 1.75, 'aria-hidden': true }),
+        hint: 'Fly stocks, crosses, reagents, antibodies',
+      },
+    });
+    ctx.views.registerHomeCard({
+      id: 'inventory.flips',
+      title: 'Flips due',
+      icon: createElement(Repeat, { size: 17, strokeWidth: 1.75, 'aria-hidden': true }),
+      render: () => createElement(FlipsDue, { ctx, store }),
     });
     ctx.commands.register({
       id: 'inventory.open',

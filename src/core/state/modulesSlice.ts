@@ -6,6 +6,7 @@ import type {
   PageType,
   PageView,
   SideTab,
+  HomeCard,
   StrokeFilter,
   InkToolContribution,
   InkRecogniser,
@@ -45,6 +46,8 @@ export interface ModulesSlice {
   pageViews: PageView[];
   /** Side panel tabs of modules that are on. */
   sideTabs: SideTab[];
+  /** Home page cards of modules that are on. */
+  homeCards: HomeCard[];
   /** Changes made to strokes as they are finished, by modules. */
   strokeFilters: StrokeFilter[];
   /** Pen tools from modules, beside the pen, highlighter and eraser. */
@@ -131,6 +134,7 @@ export function createModulesSlice(ctx: StoreContext): ModulesSlice {
     settingsPanels: registry.contributions.getState().settingsPanels,
     pageViews: registry.contributions.getState().pageViews,
     sideTabs: registry.contributions.getState().sideTabs,
+    homeCards: registry.contributions.getState().homeCards,
     strokeFilters: registry.contributions.getState().strokeFilters,
     inkTools: registry.contributions.getState().inkTools,
     inkRecognisers: registry.contributions.getState().inkRecognisers,

@@ -305,10 +305,38 @@ export class MemoryAdapter implements PlatformAdapter {
     return node?.kind === 'file' ? node.bytes : null;
   }
 
+  /** Web pages a test serves: the first whose start matches the address answers. */
+  private readonly webPages: { prefix: string; text: string | Error }[] = [];
+  /** Addresses opened in the browser, for tests. */
+  readonly openedLinks: string[] = [];
+  /** Addresses read from the web, for tests. */
+  readonly fetched: string[] = [];
+
+  /** Serves `text` (or fails with an error) for addresses starting with `prefix`. */
+  serveWeb(prefix: string, text: string | Error): void {
+    this.webPages.unshift({ prefix, text });
+  }
+
   // ---- PlatformAdapter ----
 
   setStylusHandwriting(on: boolean): void {
     this.stylusHandwriting = on;
+  }
+
+  fetchText(url: string): Promise<string> {
+    return this.run(() => {
+      this.fetched.push(url);
+      const page = this.webPages.find((p) => url.startsWith(p.prefix));
+      if (!page) throw new Error('The site could not be reached. Check the internet connection.');
+      if (page.text instanceof Error) throw page.text;
+      return page.text;
+    });
+  }
+
+  openWebLink(url: string): Promise<void> {
+    return this.run(() => {
+      this.openedLinks.push(url);
+    });
   }
 
   pickFolder(): Promise<string | null> {

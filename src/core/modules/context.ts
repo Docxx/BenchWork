@@ -41,6 +41,7 @@ type ListKey =
   | 'settingsPanels'
   | 'pageViews'
   | 'sideTabs'
+  | 'homeCards'
   | 'strokeFilters'
   | 'inkTools'
   | 'inkRecognisers'
@@ -171,8 +172,37 @@ export function createModuleContext(
           `A side tab with id '${spec.id}'`,
         );
       },
+      registerHomeCard(spec) {
+        checkId('Home card', spec.id);
+        return contribute(
+          'homeCards',
+          { ...spec, moduleId: id },
+          (c) => c.id === spec.id,
+          `A home card with id '${spec.id}'`,
+        );
+      },
     },
     programs: deps.platform.programs,
+    web: {
+      getText: async (url) => {
+        let host: string;
+        try {
+          const parsed = new URL(url);
+          if (parsed.protocol !== 'https:') throw new Error();
+          host = parsed.hostname;
+        } catch {
+          throw new Error(`'${url}' is not an https web address`);
+        }
+        if (!manifest.network.includes(host)) {
+          throw new Error(`The module may only read from the sites in its manifest, not ${host}`);
+        }
+        return deps.platform.fetchText(url);
+      },
+      open: async (url) => {
+        if (!/^https?:\/\//i.test(url)) throw new Error(`'${url}' is not a web address`);
+        await deps.platform.openWebLink(url);
+      },
+    },
     ink: {
       handwriting: deps.platform.handwriting,
       registerRecogniser(spec) {
@@ -334,6 +364,7 @@ export function createModuleContext(
       createFolder: (folder, title) => app().createFolder(folder, title),
       createPage: (folder, title, type, content) => app().createPage(folder, title, type, content),
       openPage: () => app().openPage(),
+      insertText: (text) => app().insertText(text),
       openView: (viewId, param) => app().openView(viewId, param),
       pageProperties: (path) => app().pageProperties(path),
       setPageProperties: (path, changes) => app().setPageProperties(path, changes),

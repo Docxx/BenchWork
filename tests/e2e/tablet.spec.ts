@@ -29,7 +29,10 @@ test.beforeEach(async ({ page }) => {
 test('upright, the sidebar slides over the page and goes once a page is chosen', async ({
   page,
 }) => {
-  // With no page open, the sidebar is there to choose one.
+  // Home shows first; the sidebar slides in to choose a page.
+  await expect(page.getByRole('article', { name: 'Home' })).toBeVisible();
+  await expect(nav(page)).toBeHidden();
+  await page.getByRole('button', { name: 'Show the sidebar' }).tap();
   await expect(nav(page)).toBeVisible();
   const tree = page.getByRole('tree', { name: 'Notebooks' });
   await tree.getByRole('treeitem', { name: 'Lab' }).tap();

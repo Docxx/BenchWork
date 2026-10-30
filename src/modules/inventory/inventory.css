@@ -78,3 +78,28 @@ button.inventory-name:first-child {
   align-items: center;
   gap: 0.5rem;
 }
+
+.flips-card ul {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flips-card button.link-button {
+  border: none;
+  background: none;
+  color: var(--accent);
+  padding: 0;
+}
+
+.flips-card li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.flips-card li .quiet {
+  margin-left: auto;
+}

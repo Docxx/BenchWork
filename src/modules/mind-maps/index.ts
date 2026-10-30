@@ -1,6 +1,8 @@
 import { createElement, lazy, Suspense } from 'react';
+import { Network, Waypoints } from 'lucide-react';
 import { defineModule } from '@core/api';
-import { CANVAS_ENDING, emptyCanvas, serialiseCanvas } from './canvasFile';
+import { CANVAS_ENDING } from './canvasFile';
+import { CanvasList, createCanvas } from './CanvasList';
 import { MindMapView } from './MindMapView';
 import './mind-maps.css';
 
@@ -12,6 +14,7 @@ import './mind-maps.css';
  */
 
 const MIND_MAP = 'mind-maps.mindMap';
+const CANVASES = 'mind-maps.canvases';
 
 // React Flow is loaded only when a canvas is first opened.
 const CanvasEditor = lazy(() => import('./CanvasEditor'));
@@ -22,6 +25,18 @@ export default defineModule({
       id: MIND_MAP,
       title: 'Mind map',
       render: (path) => createElement(MindMapView, { ctx, path }),
+      pageButton: {
+        icon: createElement(Network, { size: 16, strokeWidth: 1.75, 'aria-hidden': true }),
+      },
+    });
+    ctx.views.registerPageView({
+      id: CANVASES,
+      title: 'Canvases',
+      render: () => createElement(CanvasList, { ctx }),
+      tool: {
+        icon: createElement(Waypoints, { size: 18, strokeWidth: 1.75, 'aria-hidden': true }),
+        hint: 'Free boards of cards and arrows',
+      },
     });
     ctx.commands.register({
       id: 'mind-maps.mindMap',
@@ -56,10 +71,7 @@ export default defineModule({
         }
         const name = await ctx.app.askText({ title: 'New canvas', label: 'Canvas name' });
         if (name === null || name.trim() === '') return;
-        const file = await ctx.vault.freeName(folder, name.trim(), CANVAS_ENDING);
-        const path = `${folder}/${file}`;
-        await ctx.vault.createNew(path, serialiseCanvas(emptyCanvas()));
-        await ctx.app.open(path);
+        await createCanvas(ctx, folder, name);
       },
     });
   },

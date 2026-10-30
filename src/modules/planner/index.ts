@@ -1,4 +1,5 @@
 import { createElement } from 'react';
+import { ChartGantt } from 'lucide-react';
 import { defineModule } from '@core/api';
 import { PlannerView } from './PlannerView';
 import './planner.css';
@@ -18,6 +19,10 @@ export default defineModule({
       id: VIEW,
       title: 'Planner',
       render: (notebook) => createElement(PlannerView, { ctx, notebook }),
+      tool: {
+        icon: createElement(ChartGantt, { size: 18, strokeWidth: 1.75, 'aria-hidden': true }),
+        hint: 'Dated pages on a timeline',
+      },
     });
 
     ctx.commands.register({
