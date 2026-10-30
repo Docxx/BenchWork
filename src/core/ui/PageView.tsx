@@ -14,7 +14,8 @@ import { useApp } from './AppStoreContext';
 import { Backlinks } from './Backlinks';
 import { FileView } from './FileView';
 import { HistoryPanel } from './HistoryPanel';
-import { HomeView, useHomeLayout } from './HomeView';
+import { HomeView } from './HomeView';
+import { useHomeLayout } from './widgets';
 import { ModuleView } from './ModuleView';
 import { PageEditor } from './PageEditor';
 import { PropertiesPanel } from './PropertiesPanel';
@@ -243,7 +244,8 @@ function LayoutSwitch() {
   );
 }
 
-function SidePanelToggle() {
+/** Shows or hides the docks on the right. */
+export function SidePanelToggle() {
   const setting = useApp((s) => s.settings.appearance.sidePanel);
   const setAppearance = useApp((s) => s.setAppearance);
   // On a compact screen the panel slides over the page, just for now.

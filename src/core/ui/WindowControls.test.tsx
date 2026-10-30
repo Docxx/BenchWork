@@ -69,9 +69,9 @@ describe('the window buttons', () => {
     expect(calls).toEqual(['minimise', 'maximise', 'close']);
 
     // The window is moved by the top of the sidebar.
-    expect(
-      container.querySelector('.sidebar-header')?.hasAttribute('data-tauri-drag-region'),
-    ).toBe(true);
+    expect(container.querySelector('.sidebar-header')?.hasAttribute('data-tauri-drag-region')).toBe(
+      true,
+    );
   });
 
   it('are left to the system where it draws the window, as on the tablet', async () => {

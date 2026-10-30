@@ -305,22 +305,12 @@ export function TasksView({ ctx, store }: { ctx: ModuleContext; store: TaskStore
 }
 
 /** Beside pages: what is due today or overdue, wherever it is written. */
-export function DueToday({
-  ctx,
-  store,
-  inCard = false,
-}: {
-  ctx: ModuleContext;
-  store: TaskStore;
-  /** On a Home card, which has its own heading. */
-  inCard?: boolean;
-}) {
+export function DueToday({ ctx, store }: { ctx: ModuleContext; store: TaskStore }) {
   const all = useTasks(store);
   const today = dayOf(new Date());
   const due = sortTasks(all.filter((t) => t.state !== 'done' && dueFits(t, 'today', today)));
   return (
     <div className="tasks-side">
-      {!inCard && <h2>Due today</h2>}
       {due.length === 0 ? (
         <p className="hint">Nothing due today.</p>
       ) : (

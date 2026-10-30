@@ -155,3 +155,44 @@ button.task-page:first-child {
     grid-template-columns: 1fr;
   }
 }
+
+/* The Reminders widget. */
+.reminder-list {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  list-style: none;
+}
+
+.reminder-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.reminder-list li.past:not(.done) .reminder-time {
+  color: var(--section-red);
+}
+
+.reminder-list li.done {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.reminder-time {
+  min-width: 3rem;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.reminder-form {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.reminder-form input:first-child {
+  flex: 1;
+  min-width: 0;
+}

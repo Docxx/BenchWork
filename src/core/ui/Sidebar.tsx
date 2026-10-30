@@ -9,14 +9,17 @@ import {
   Settings,
   SquareTerminal,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { OpenVault } from '../vault/vaultService';
 import { useApp } from './AppStoreContext';
+import { dockContents } from '../settings/layout';
+import { Dock, DockSplitter } from './Dock';
 import { Logo } from './Logo';
 import { Menu } from './Menu';
 import { ModulePanels } from './ModulePanels';
 import { NotebookTree } from './NotebookTree';
 import { SearchBox, SearchResults } from './SearchPanel';
+import { useHomeLayout, useWidgets } from './widgets';
 
 /** Name shown for a vault: the last part of its folder path. */
 export function vaultName(root: string): string {
@@ -224,6 +227,7 @@ export function Sidebar({
         {results === null ? <NotebookTree /> : <SearchResults results={results} />}
       </div>
       <ModulePanels />
+      <LeftDock />
 
       <footer className="sidebar-footer">
         <span className="vault-badge" aria-hidden="true">
@@ -256,5 +260,31 @@ export function Sidebar({
         </button>
       </footer>
     </nav>
+  );
+}
+
+/** Widgets under the notebooks, such as a calendar; just an add button while empty. */
+function LeftDock() {
+  const widgets = useWidgets();
+  const { docks } = useHomeLayout();
+  const setDockSize = useApp((s) => s.setDockSize);
+  const ids = dockContents(docks, widgets).left;
+  const box = useRef<HTMLDivElement>(null);
+  if (ids.length === 0) {
+    return <Dock place="left" ids={ids} widgets={widgets} className="dock-left" />;
+  }
+  return (
+    <>
+      <DockSplitter
+        label="Size of the widgets under the notebooks"
+        onMove={(dy) => {
+          box.current?.style.setProperty('height', `${String(docks.leftSize - dy)}px`);
+        }}
+        onDone={(dy) => void setDockSize({ leftSize: docks.leftSize - dy })}
+      />
+      <div ref={box} className="dock-left-box" style={{ height: `${String(docks.leftSize)}px` }}>
+        <Dock place="left" ids={ids} widgets={widgets} className="dock-left" />
+      </div>
+    </>
   );
 }

@@ -8,6 +8,7 @@ import { createAppStore } from '@core/state/appStore';
 import { AppStoreProvider } from '@core/ui/AppStoreContext';
 import { PageView } from '@core/ui/PageView';
 import manifestJson from './manifest.json';
+import { planMarks } from './index';
 import { asDate, linkTargets, moveChanges, taskOf, type PlanTask } from './plan';
 import { MOVE_SAVE_MS } from './PlannerView';
 
@@ -243,5 +244,37 @@ describe('Planner: switched off', () => {
     });
     const after = platform.snapshot();
     for (const path of Object.keys(VAULT)) expect(after[path]).toBe(before[path]);
+  });
+});
+
+describe('Planner: on the calendar', () => {
+  it('marks one-day pages, milestones, and where others start and end', () => {
+    const task = (title: string, start: string, end: string, milestone = false) => ({
+      path: `Lab/${title}.md`,
+      title,
+      notebook: 'Lab',
+      start,
+      end,
+      milestone,
+      progress: 0,
+      after: [],
+      singleDate: start === end,
+    });
+    const marks = planMarks(
+      [
+        task('Pilot', '2026-11-02', '2026-11-06'),
+        task('Committee', '2026-11-20', '2026-11-20', true),
+        task('Talk', '2026-11-12', '2026-11-12'),
+        task('Later', '2026-12-02', '2026-12-04'),
+      ],
+      '2026-11-01',
+      '2026-11-30',
+    );
+    expect(marks.map((m) => [m.date, m.title, m.colour])).toEqual([
+      ['2026-11-02', 'Pilot starts', 'blue'],
+      ['2026-11-06', 'Pilot ends', 'blue'],
+      ['2026-11-20', '◆ Committee', 'purple'],
+      ['2026-11-12', 'Talk', 'blue'],
+    ]);
   });
 });

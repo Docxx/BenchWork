@@ -32,8 +32,9 @@ export default defineModule({
         hint: 'Fly stocks, crosses, reagents, antibodies',
       },
     });
-    ctx.views.registerHomeCard({
+    ctx.views.registerWidget({
       id: 'inventory.flips',
+      starts: { home: true },
       title: 'Flips due',
       icon: createElement(Repeat, { size: 17, strokeWidth: 1.75, 'aria-hidden': true }),
       render: () => createElement(FlipsDue, { ctx, store }),

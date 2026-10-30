@@ -27,9 +27,10 @@ async function openApp() {
     [
       fakeModule('notes', [], {
         activate: (ctx) => {
-          ctx.views.registerSideTab({
+          ctx.views.registerWidget({
             id: 'notes.tasks',
             title: 'Tasks',
+            starts: { side: true },
             render: (page) => createElement('p', null, `Tasks for ${page ?? 'nothing'}`),
           });
         },

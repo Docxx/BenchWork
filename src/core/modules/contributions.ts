@@ -6,10 +6,10 @@ import type {
   InkRecogniserSpec,
   InkToolSpec,
   StrokeFilterSpec,
-  SideTabSpec,
+  WidgetSpec,
+  CalendarSourceSpec,
   PageTypeSpec,
   PageViewSpec,
-  HomeCardSpec,
   SettingsPanelSpec,
   SidebarPanelSpec,
 } from '../api';
@@ -42,11 +42,11 @@ export interface PageView extends PageViewSpec {
   moduleId: string;
 }
 
-export interface SideTab extends SideTabSpec {
+export interface Widget extends WidgetSpec {
   moduleId: string;
 }
 
-export interface HomeCard extends HomeCardSpec {
+export interface CalendarSource extends CalendarSourceSpec {
   moduleId: string;
 }
 
@@ -70,8 +70,8 @@ export interface ContributionsState {
   fileHandlers: FileHandler[];
   settingsPanels: SettingsPanel[];
   pageViews: PageView[];
-  sideTabs: SideTab[];
-  homeCards: HomeCard[];
+  widgets: Widget[];
+  calendarSources: CalendarSource[];
   strokeFilters: StrokeFilter[];
   inkTools: InkToolContribution[];
   inkRecognisers: InkRecogniser[];
@@ -92,8 +92,8 @@ export function createContributions(): Contributions {
     fileHandlers: [],
     settingsPanels: [],
     pageViews: [],
-    sideTabs: [],
-    homeCards: [],
+    widgets: [],
+    calendarSources: [],
     strokeFilters: [],
     inkTools: [],
     inkRecognisers: [],

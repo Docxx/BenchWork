@@ -40,6 +40,8 @@ export interface DailySlice {
   openToday: (now?: Date) => Promise<void>;
   /** Opens a day's page, creating it first if needed. */
   openDay: (day: Day, now?: Date) => Promise<void>;
+  /** The page for `day`, made from the Daily template if there is none yet. */
+  ensureDay: (day: Day, now?: Date) => Promise<string | null>;
   /** Works out the daily pages either side of `path`. */
   loadDayNeighbours: (path: string | null) => Promise<void>;
   loadTemplates: () => Promise<void>;
@@ -92,6 +94,34 @@ export function createDailySlice(ctx: StoreContext): DailySlice {
     },
   });
 
+  /** The page for `day`: the one there is, or a new one from the Daily template. */
+  async function makeDay(day: Day, now: Date): Promise<string | null> {
+    const date = dateOf(day);
+    if (date === null) return null;
+    const existing = await findDay(platform, day);
+    if (existing !== null) return existing;
+    const path = dailyPath(day);
+    const id = crypto.randomUUID();
+    const created = localTimestamp(now);
+    const template = await readTemplate(DAILY_TEMPLATE);
+    const layout = newLayout();
+    const text = withLayout(
+      template === null
+        ? `---\nid: ${id}\ncreated: ${created}\n---\n# ${dayHeading(day)}\n\n`
+        : pageFromTemplate(template, { title: day, date, now }, id, created),
+      layout,
+    );
+    await platform.ensureDir(parentVaultPath(path) ?? '');
+    try {
+      await platform.createNew(path, text);
+    } catch (err) {
+      // Made a moment ago, by another device or a double click: just open it.
+      if (PlatformError.from(err).kind !== 'AlreadyExists') throw err;
+    }
+    await get().refreshTree();
+    return path;
+  }
+
   return {
     dayNeighbours: NO_NEIGHBOURS,
     templates: [],
@@ -100,36 +130,17 @@ export function createDailySlice(ctx: StoreContext): DailySlice {
 
     openDay: async (day, now = new Date()) => {
       if (get().status.kind !== 'open') return;
-      const date = dateOf(day);
-      if (date === null) return;
       try {
-        const existing = await findDay(platform, day);
-        if (existing !== null) {
-          await show(existing);
-          return;
-        }
-        const path = dailyPath(day);
-        const id = crypto.randomUUID();
-        const created = localTimestamp(now);
-        const template = await readTemplate(DAILY_TEMPLATE);
-        const layout = newLayout();
-        const text = withLayout(
-          template === null
-            ? `---\nid: ${id}\ncreated: ${created}\n---\n# ${dayHeading(day)}\n\n`
-            : pageFromTemplate(template, { title: day, date, now }, id, created),
-          layout,
-        );
-        await platform.ensureDir(parentVaultPath(path) ?? '');
-        try {
-          await platform.createNew(path, text);
-        } catch (err) {
-          // Made a moment ago, by another device or a double click: just open it.
-          if (PlatformError.from(err).kind !== 'AlreadyExists') throw err;
-        }
-        await show(path);
+        const path = await makeDay(day, now);
+        if (path !== null) await show(path);
       } catch (err) {
         set({ sidebarNotice: message(err) });
       }
+    },
+
+    ensureDay: async (day, now = new Date()) => {
+      if (get().status.kind !== 'open') return null;
+      return makeDay(day, now);
     },
 
     loadDayNeighbours: async (path) => {

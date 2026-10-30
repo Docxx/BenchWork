@@ -52,8 +52,9 @@ test('a timer runs while other things are open, and shows on Home', async ({ pag
     .getByRole('navigation', { name: 'Vault' })
     .getByRole('button', { name: 'Home' })
     .click();
+  // On Home, the timer shows large, and can be paused there.
   const card = page.getByRole('region', { name: 'Timers' });
-  await expect(card.getByRole('listitem', { name: 'Gel' })).toBeVisible();
+  await expect(card.getByRole('timer', { name: 'Gel timer' })).toHaveText(/^[45]:\d\d$/);
   await card.getByRole('button', { name: 'Pause' }).click();
-  await expect(card.getByRole('button', { name: 'Start' })).toBeVisible();
+  await expect(card.getByRole('button', { name: 'Start', exact: true })).toBeVisible();
 });

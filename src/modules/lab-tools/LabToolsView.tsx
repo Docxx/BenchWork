@@ -19,12 +19,15 @@ export function LabToolsView({
   ctx,
   timers,
   beside = false,
+  canInsert = beside,
   initial,
 }: {
   ctx: ModuleContext;
   timers: TimerStore;
-  /** In the side panel, beside an open page. */
+  /** In a dock: tools chosen from a menu. */
   beside?: boolean;
+  /** Beside an open page, so answers can be added to it. */
+  canInsert?: boolean;
   initial?: string | null;
 }) {
   const [toolId, setToolId] = useState(
@@ -38,7 +41,7 @@ export function LabToolsView({
     setToolId(id);
   };
   if (!tool) return null;
-  const out = { ctx, canInsert: beside };
+  const out = { ctx, canInsert };
 
   return (
     <div className={beside ? 'lab-tools beside' : 'lab-tools'}>

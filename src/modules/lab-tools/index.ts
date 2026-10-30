@@ -31,16 +31,19 @@ export default defineModule({
         hint: 'Calculators, conversions and timers',
       },
     });
-    ctx.views.registerSideTab({
+    ctx.views.registerWidget({
       id: 'lab-tools.side',
       title: 'Lab tools',
       icon: createElement(Calculator, { size: 17, strokeWidth: 1.75, 'aria-hidden': true }),
-      render: () => createElement(LabToolsView, { ctx, timers, beside: true }),
+      starts: { side: true },
+      render: (page) =>
+        createElement(LabToolsView, { ctx, timers, beside: true, canInsert: page !== null }),
     });
-    ctx.views.registerHomeCard({
+    ctx.views.registerWidget({
       id: 'lab-tools.timers',
       title: 'Timers',
       icon: createElement(Timer, { size: 17, strokeWidth: 1.75, 'aria-hidden': true }),
+      starts: { home: true },
       render: () =>
         createElement(TimersCard, {
           store: timers,

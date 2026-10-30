@@ -1,9 +1,17 @@
+import type { CalendarMark } from '../api';
+import { dayOfPath } from '../pages/daily';
 import type { PageRef } from '../platform';
 import { defaultHomeLayout, saveAppSettings, type HomeLayout } from '../settings/appSettings';
+import {
+  closeWidget,
+  dockContents,
+  LEFT_SIZE,
+  placeWidget,
+  RIGHT_SPLIT,
+  type DockPlace,
+  type Placeable,
+} from '../settings/layout';
 import { describeError, type StoreContext } from './context';
-
-/** Cards that come with the app, in their usual order. Module cards follow them. */
-export const BUILT_IN_CARDS = ['home.today', 'home.tools', 'home.pinned', 'home.recent'] as const;
 
 /** All cards in the order Home shows them: the layout's order first, then the rest as usual. */
 export function orderCards(available: readonly string[], layout: HomeLayout): string[] {
@@ -41,6 +49,24 @@ export interface HomeSlice {
   setHomeLayout: (changes: Partial<HomeLayout>) => Promise<void>;
   /** Pins a page to Home, or unpins it. */
   setPinned: (path: string, pinned: boolean) => Promise<void>;
+  /** Puts a widget in a dock, at `index` or the end, out of wherever it was. */
+  placeWidget: (
+    widgets: readonly Placeable[],
+    id: string,
+    to: DockPlace,
+    index?: number,
+  ) => Promise<void>;
+  /** Takes a widget out of the docks. */
+  closeWidget: (id: string) => Promise<void>;
+  /** Puts a widget on Home, as a card. */
+  addToHome: (id: string) => Promise<void>;
+  /** The left dock's height in pixels, or the right top dock's share. */
+  setDockSize: (changes: { leftSize?: number; rightSplit?: number }) => Promise<void>;
+  /**
+   * What the calendar shows from `from` to `to` (both `YYYY-MM-DD`): daily
+   * pages, then marks from modules. A module that fails is left out.
+   */
+  calendarMarks: (from: string, to: string) => Promise<CalendarMark[]>;
   /** Pages changed most recently, newest first; empty while the index is not ready. */
   recentPages: (limit: number) => Promise<PageRef[]>;
 }
@@ -95,6 +121,58 @@ export function createHomeSlice(ctx: StoreContext): HomeSlice {
         .homeLayout()
         .pinned.filter((p) => p !== path);
       await get().setHomeLayout({ pinned: pinned ? [...current, path] : current });
+    },
+
+    placeWidget: async (widgets, id, to, index) => {
+      const { docks } = get().homeLayout();
+      await get().setHomeLayout({
+        docks: placeWidget(docks, dockContents(docks, widgets), id, to, index),
+      });
+    },
+
+    closeWidget: async (id) => {
+      await get().setHomeLayout({ docks: closeWidget(get().homeLayout().docks, id) });
+    },
+
+    addToHome: async (id) => {
+      const layout = get().homeLayout();
+      await get().setHomeLayout({
+        added: layout.added.includes(id) ? layout.added : [...layout.added, id],
+        hidden: layout.hidden.filter((h) => h !== id),
+      });
+    },
+
+    setDockSize: async ({ leftSize, rightSplit }) => {
+      const { docks } = get().homeLayout();
+      const clamp = (n: number, r: { min: number; max: number }) =>
+        Math.min(r.max, Math.max(r.min, n));
+      await get().setHomeLayout({
+        docks: {
+          ...docks,
+          ...(leftSize === undefined ? {} : { leftSize: Math.round(clamp(leftSize, LEFT_SIZE)) }),
+          ...(rightSplit === undefined ? {} : { rightSplit: clamp(rightSplit, RIGHT_SPLIT) }),
+        },
+      });
+    },
+
+    calendarMarks: async (from, to) => {
+      if (get().status.kind !== 'open') return [];
+      let days: CalendarMark[] = [];
+      try {
+        await get().indexIdle();
+        days = (await platform.index.pages()).flatMap((p) => {
+          const day = dayOfPath(p.path);
+          return day !== null && day >= from && day <= to
+            ? [{ date: day, title: 'Daily page', path: p.path, colour: 'green' }]
+            : [];
+        });
+      } catch {
+        // The index is not ready: no daily pages yet.
+      }
+      const fromModules = await Promise.all(
+        get().calendarSources.map((s) => s.marks(from, to).catch(() => [])),
+      );
+      return [...days, ...fromModules.flat()];
     },
 
     recentPages: async (limit) => {

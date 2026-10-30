@@ -51,9 +51,10 @@ test('upright, the sidebar slides over the page and goes once a page is chosen',
   await expect(nav(page)).toBeHidden();
 
   await page.getByRole('button', { name: 'Show the side panel' }).tap();
-  await expect(page.getByRole('heading', { name: 'Outline' })).toBeVisible();
+  const outline = page.getByRole('tab', { name: 'Outline' });
+  await expect(outline).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('heading', { name: 'Outline' })).toBeHidden();
+  await expect(outline).toBeHidden();
 });
 
 test('the quick note button opens today’s page, ready to write', async ({ page }) => {

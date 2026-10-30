@@ -65,7 +65,7 @@ test('an experiment links to its data, and both appear in search', async ({ page
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await page.getByRole('menuitem', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('LPS model');
-  await page.getByRole('button', { name: 'OK' }).click();
+  await page.getByRole('button', { name: 'OK', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Page title' })).toHaveValue('project');
   await expect(row(page, 'Experiments')).toBeVisible();
 
@@ -73,7 +73,7 @@ test('an experiment links to its data, and both appear in search', async ({ page
   await row(page, 'Data').click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'New dataset' }).click();
   await page.getByRole('textbox', { name: 'Dataset name' }).fill('climbing-day7');
-  await page.getByRole('button', { name: 'OK' }).click();
+  await page.getByRole('button', { name: 'OK', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'climbing-day7' })).toBeVisible();
   await page.evaluate(() => {
     window.__benchworkMemory?.queueFilePick(['D:/Raw/day7/climbing.avi']);

@@ -153,7 +153,7 @@ export function Shell({ vault }: { vault: OpenVault }) {
           <PageView />
         )}
       </main>
-      {showPanel && view === 'files' && page !== null && moduleView === null && (
+      {showPanel && view === 'files' && (
         <>
           {!compact && (
             <ResizeEdge
@@ -165,8 +165,7 @@ export function Shell({ vault }: { vault: OpenVault }) {
               onChange={(w) => void setAppearance({ panelWidth: w })}
             />
           )}
-          {/* Keyed by page, so each page starts on its outline. */}
-          <SidePanel key={page.path} page={page} />
+          <SidePanel />
         </>
       )}
       {showCommands && <CommandList onClose={closeCommands} />}

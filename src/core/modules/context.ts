@@ -40,8 +40,8 @@ type ListKey =
   | 'fileHandlers'
   | 'settingsPanels'
   | 'pageViews'
-  | 'sideTabs'
-  | 'homeCards'
+  | 'widgets'
+  | 'calendarSources'
   | 'strokeFilters'
   | 'inkTools'
   | 'inkRecognisers'
@@ -163,22 +163,22 @@ export function createModuleContext(
           `A view with id '${spec.id}'`,
         );
       },
-      registerSideTab(spec) {
-        checkId('Side tab', spec.id);
+      registerWidget(spec) {
+        checkId('Widget', spec.id);
         return contribute(
-          'sideTabs',
+          'widgets',
           { ...spec, moduleId: id },
-          (t) => t.id === spec.id,
-          `A side tab with id '${spec.id}'`,
+          (w) => w.id === spec.id,
+          `A widget with id '${spec.id}'`,
         );
       },
-      registerHomeCard(spec) {
-        checkId('Home card', spec.id);
+      registerCalendarSource(spec) {
+        checkId('Calendar source', spec.id);
         return contribute(
-          'homeCards',
+          'calendarSources',
           { ...spec, moduleId: id },
-          (c) => c.id === spec.id,
-          `A home card with id '${spec.id}'`,
+          (s) => s.id === spec.id,
+          `A calendar source with id '${spec.id}'`,
         );
       },
     },
@@ -365,6 +365,8 @@ export function createModuleContext(
       createPage: (folder, title, type, content) => app().createPage(folder, title, type, content),
       openPage: () => app().openPage(),
       insertText: (text) => app().insertText(text),
+      todayPage: () => app().todayPage(),
+      appendToPage: (path, markdown) => app().appendToPage(path, markdown),
       openView: (viewId, param) => app().openView(viewId, param),
       pageProperties: (path) => app().pageProperties(path),
       setPageProperties: (path, changes) => app().setPageProperties(path, changes),

@@ -30,7 +30,8 @@ import {
   volumeForMolarity,
 } from './calc';
 import { RECIPES, scaleRecipe } from './recipes';
-import { clock, TimerStore } from './timers';
+import { clock, TimerStore, type Timer } from './timers';
+import { leadTimer } from './TimersTool';
 import { convertTemperature } from './tools';
 import { convert, formatNumber, formatQuantity, parseNumber } from './units';
 
@@ -167,6 +168,20 @@ describe('Lab tools: timers', () => {
     } as unknown as ModuleContext;
     return { ctx, written };
   }
+
+  it('show the one that is done, or ends soonest, large', () => {
+    const timer = (id: string, endsAt: number | null, done = false): Timer => ({
+      id,
+      name: id,
+      length: 1000,
+      endsAt,
+      left: 1000,
+      done,
+    });
+    expect(leadTimer([timer('a', 9000), timer('b', 5000), timer('c', null)], 0)?.id).toBe('b');
+    expect(leadTimer([timer('a', 9000), timer('d', null, true)], 0)?.id).toBe('d');
+    expect(leadTimer([], 0)).toBeNull();
+  });
 
   it('show time left as a clock', () => {
     expect(clock(65_000)).toBe('1:05');

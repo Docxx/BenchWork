@@ -1,5 +1,6 @@
 import type { VaultItem } from '../api';
 import { linkTargetFor, resolveLink, suffixKeys } from '../links/resolve';
+import { dayOf } from '../pages/daily';
 import type { AppBridge } from '../modules/context';
 import { pageProperties, parsePage, serialisePage, updateProperties } from '../pages/frontmatter';
 import type { PageRef, PlatformAdapter } from '../platform';
@@ -42,6 +43,14 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
         ? state().createPage(folder, title, content)
         : state().createTypedPage(folder, type, title, content),
     openPage: () => state().page?.path ?? null,
+    todayPage: () => state().ensureDay(dayOf(new Date())),
+    appendToPage: async (path, markdown) => {
+      if (state().page?.path === path) await state().savePageNow();
+      const text = await platform.readText(path);
+      const line = markdown.endsWith('\n') ? markdown : `${markdown}\n`;
+      const gap = text === '' || text.endsWith('\n') ? '' : '\n';
+      await platform.writeTextAtomic(path, `${text}${gap}${line}`);
+    },
     insertText: (text) => {
       const editor = state().pageEditor?.editor;
       if (!editor || editor.isDestroyed || !editor.isEditable) return false;

@@ -1,7 +1,9 @@
 /**
  * Tasks are checklist items in pages, as written in Markdown:
  * `- [ ] Order fly food 📅 2026-11-02`. A due date follows 📅, and a task
- * being worked on carries `#doing`. Nothing is stored apart from the pages,
+ * being worked on carries `#doing`. A reminder follows ⏰, as a time
+ * (`⏰ 14:00`) on the due date or the daily page's date, or with its own
+ * date (`⏰ 2026-11-02 14:00`). Nothing is stored apart from the pages,
  * so with the module off, they are ordinary checklists.
  */
 
@@ -21,11 +23,27 @@ export interface Task {
   due: string | null;
   /** Its other tags, without `#`. */
   tags: string[];
+  /** When to remind, as local `YYYY-MM-DDTHH:MM`, or null. */
+  remind: string | null;
 }
 
 const TASK = /^(\s*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]\s?(.*)$/;
 const DUE = /\s*📅\s*(\d{4}-\d{2}-\d{2})/u;
 const DOING = /(^|\s)#doing(?=\s|$)/;
+const REMIND = /\s*⏰\s*(?:(\d{4}-\d{2}-\d{2})[ T])?(\d{1,2}):(\d{2})/u;
+/** The date in a daily page's name, such as `Daily/2026-10/2026-10-30.md`. */
+const PAGE_DAY = /(?:^|\/)(\d{4}-\d{2}-\d{2})\.md$/i;
+
+/** When a task's ⏰ reminds, or null: its own date, else its due date, else its page's. */
+export function reminderOf(body: string, due: string | null, path: string): string | null {
+  const m = REMIND.exec(body);
+  if (!m) return null;
+  const day = m[1] ?? due ?? PAGE_DAY.exec(path)?.[1] ?? null;
+  const hour = Number(m[2]);
+  const minute = Number(m[3]);
+  if (day === null || hour > 23 || minute > 59) return null;
+  return `${day}T${String(hour).padStart(2, '0')}:${m[3] ?? '00'}`;
+}
 const TAG = /(?:^|\s)#([\p{L}\p{N}_/-]*[\p{L}_/-][\p{L}\p{N}_/-]*)/gu;
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 /** `[[Target]]` or `[[Target|shown]]`, shown by its name. */
@@ -62,6 +80,7 @@ export function readTasks(path: string, text: string): Task[] {
       raw,
       text: body
         .replace(DUE, '')
+        .replace(REMIND, '')
         .replace(DOING, '$1')
         .replace(LINK, (_w, target: string, label?: string) => (label ?? target).trim())
         .replace(/\s+/g, ' ')
@@ -69,6 +88,7 @@ export function readTasks(path: string, text: string): Task[] {
       state: done ? 'done' : doing ? 'doing' : 'todo',
       due,
       tags,
+      remind: reminderOf(body, due, path),
     });
   });
   return tasks;

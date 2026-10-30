@@ -69,7 +69,9 @@ test('cards can be moved and hidden, and stay that way', async ({ page }) => {
     'Today',
     'Recent pages',
     'Pinned',
+    'Calendar',
     'Due today',
+    'Reminders',
   ]);
 
   // Still so after going to a page and back.
@@ -82,6 +84,27 @@ test('cards can be moved and hidden, and stay that way', async ({ page }) => {
     'Today',
     'Recent pages',
     'Pinned',
+    'Calendar',
     'Due today',
+    'Reminders',
   ]);
+});
+
+test('widgets are dragged between docks, and added from the + menu', async ({ page }) => {
+  // The docks on the right show unless they were hidden.
+  const show = page.getByRole('button', { name: 'Show the side panel' });
+  if ((await show.count()) > 0) await show.click();
+  const top = page.getByRole('region', { name: 'Right side, top' });
+  const left = page.getByRole('region', { name: 'Under the notebooks' });
+  await expect(top.getByRole('tab', { name: 'Due today' })).toBeVisible();
+
+  await top.getByRole('tab', { name: 'Due today' }).dragTo(left.getByRole('tablist'));
+  await expect(left.getByRole('tab', { name: 'Due today' })).toBeVisible();
+  await expect(top.getByRole('tab', { name: 'Due today' })).toHaveCount(0);
+  await expect(left).toContainText('Order fly food');
+
+  await page.getByRole('button', { name: 'Add a widget right side, bottom' }).click();
+  await page.getByRole('menuitem', { name: 'Calendar' }).click();
+  const bottom = page.getByRole('region', { name: 'Right side, bottom' });
+  await expect(bottom.getByRole('grid')).toBeVisible();
 });
