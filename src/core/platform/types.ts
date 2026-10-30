@@ -149,6 +149,8 @@ export interface PageRef {
   id: string | null;
   /** The page's `type`, or a record's kind, such as `dataset`. */
   type: string;
+  /** When the file last changed, in milliseconds, as last indexed. */
+  mtime?: number | null;
 }
 
 export interface TagCount {

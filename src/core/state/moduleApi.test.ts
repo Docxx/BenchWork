@@ -107,11 +107,12 @@ describe('module page types and commands in the app', () => {
 describe('the app as modules see it', () => {
   it('lists items with their types and follows links both ways', async () => {
     const { ctx } = await openVault();
-    expect(await ctx.app.items()).toEqual([
+    expect(await ctx.app.items()).toMatchObject([
       { path: 'LPS model/Data/day7.dataset.yaml', title: 'day7', type: 'dataset' },
       { path: 'LPS model/Experiments/Dose.md', title: 'Dose', type: 'page' },
     ]);
-    expect(await ctx.app.linksTo('LPS model/Data/day7.dataset.yaml')).toEqual([
+    expect((await ctx.app.items())[0]?.changed).toEqual(expect.any(Number));
+    expect(await ctx.app.linksTo('LPS model/Data/day7.dataset.yaml')).toMatchObject([
       { path: 'LPS model/Experiments/Dose.md', title: 'Dose', type: 'page' },
     ]);
     expect(await ctx.app.linkTarget('LPS model/Data/day7.dataset.yaml')).toBe('day7');

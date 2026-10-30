@@ -6,7 +6,7 @@ import type { PageRef, PlatformAdapter } from '../platform';
 import type { AppStore } from './appStore';
 
 function item(ref: PageRef): VaultItem {
-  return { path: ref.path, title: ref.title, type: ref.type };
+  return { path: ref.path, title: ref.title, type: ref.type, changed: ref.mtime ?? null };
 }
 
 /** What modules reach the app through: ModuleApp in src/core/api, backed by the store. */

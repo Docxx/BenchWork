@@ -41,6 +41,7 @@ type ListKey =
   | 'settingsPanels'
   | 'pageViews'
   | 'sideTabs'
+  | 'homeCards'
   | 'strokeFilters'
   | 'inkTools'
   | 'inkRecognisers'
@@ -169,6 +170,15 @@ export function createModuleContext(
           { ...spec, moduleId: id },
           (t) => t.id === spec.id,
           `A side tab with id '${spec.id}'`,
+        );
+      },
+      registerHomeCard(spec) {
+        checkId('Home card', spec.id);
+        return contribute(
+          'homeCards',
+          { ...spec, moduleId: id },
+          (c) => c.id === spec.id,
+          `A home card with id '${spec.id}'`,
         );
       },
     },

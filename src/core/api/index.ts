@@ -268,6 +268,8 @@ export interface VaultItem {
   title: string;
   /** The frontmatter `type`, or the record kind, such as `dataset`. */
   type: string;
+  /** When the file last changed, in milliseconds, or null if not known. */
+  changed: number | null;
 }
 
 export interface ModuleApp {
@@ -322,6 +324,20 @@ export interface ModuleViews {
   registerPageView(spec: PageViewSpec): Disposable;
   /** A tab in the side panel beside pages, such as the open page's tasks. */
   registerSideTab(spec: SideTabSpec): Disposable;
+  /** A card on the Home page, such as tasks due today. */
+  registerHomeCard(spec: HomeCardSpec): Disposable;
+}
+
+export interface HomeCardSpec {
+  /** Must start with the module id and a dot. */
+  id: string;
+  /** The card's heading. */
+  title: string;
+  /** A small icon beside the heading, about 17 pixels. */
+  icon?: ReactNode;
+  /** Wide cards take two columns where there is room. */
+  wide?: boolean;
+  render: () => ReactNode;
 }
 
 export interface SideTabSpec {
@@ -342,6 +358,20 @@ export interface PageViewSpec {
   title: string;
   /** `param` is what openView was given, such as the page the view is about. */
   render: (param: string | null) => ReactNode;
+  /**
+   * Listed under Tools in the sidebar and on Home, opened without a
+   * parameter. Left out for views about one page, such as a mind map.
+   */
+  tool?: {
+    icon: ReactNode;
+    /** A few words on what it is for, shown on Home. */
+    hint: string;
+  };
+  /**
+   * A button at the top of every page, opening the view about that page,
+   * such as its mind map. The view's title is the button's label.
+   */
+  pageButton?: { icon: ReactNode };
 }
 
 // ---- Pandoc ----

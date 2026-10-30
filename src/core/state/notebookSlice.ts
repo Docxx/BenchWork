@@ -97,6 +97,10 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
   async function followMove(from: string, to: string): Promise<void> {
     get().pageMoved(from, to);
     get().fileMoved(from, to);
+    const pinned = get().homeLayout().pinned;
+    if (pinned.some((p) => p === from || p.startsWith(`${from}/`))) {
+      await get().setHomeLayout({ pinned: pinned.map((p) => rebasePath(p, from, to)) });
+    }
     const { tree } = get();
     const expanded = tree.expanded.map((p) => rebasePath(p, from, to));
     const folders = Object.fromEntries(

@@ -110,7 +110,7 @@ describe('Planner: reading dates from pages', () => {
   });
 
   it('places tasks, one-day pages and milestones', () => {
-    const item = { path: 'Lab/Pilot.md', title: 'Pilot', type: 'page' };
+    const item = { path: 'Lab/Pilot.md', title: 'Pilot', type: 'page', changed: null };
     expect(taskOf(item, { start: '2026-11-02', end: '2026-11-06' })).toMatchObject({
       start: '2026-11-02',
       end: '2026-11-06',

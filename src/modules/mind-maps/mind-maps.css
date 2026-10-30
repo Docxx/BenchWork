@@ -160,3 +160,48 @@ svg.mind-map-area.markmap {
 .unknown-card {
   border-style: dashed;
 }
+
+/* Canvases. */
+.canvas-new {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.canvas-new label {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.canvas-files {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.canvas-files button {
+  display: grid;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+.canvas-files button:hover {
+  border-color: var(--accent);
+}
+
+.canvas-file-name {
+  font-weight: 600;
+}

@@ -117,6 +117,8 @@ pub struct PageRef {
     /// The page's `type`, or the record kind, such as `dataset`.
     #[serde(rename = "type")]
     pub kind: String,
+    /// When the file last changed, in milliseconds, as last indexed.
+    pub mtime: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -302,7 +304,7 @@ impl SearchIndex {
         let err = |e: rusqlite::Error| db_error("Cannot read index", &e);
         let mut stmt = self
             .conn
-            .prepare("SELECT path, title, id, type FROM notes ORDER BY path")
+            .prepare("SELECT path, title, id, type, mtime FROM notes ORDER BY path")
             .map_err(err)?;
         let rows = stmt
             .query_map([], |row| {
@@ -311,6 +313,7 @@ impl SearchIndex {
                     title: row.get(1)?,
                     id: row.get(2)?,
                     kind: row.get(3)?,
+                    mtime: row.get::<_, Option<i64>>(4)?.map(|m| m.max(0) as u64),
                 })
             })
             .map_err(err)?;
@@ -716,12 +719,14 @@ mod tests {
                     title: "b".into(),
                     id: Some("id-b".into()),
                     kind: "page".into(),
+                    mtime: Some(1000),
                 },
                 PageRef {
                     path: "a.md".into(),
                     title: "a".into(),
                     id: None,
                     kind: "page".into(),
+                    mtime: Some(1000),
                 },
             ]
         );

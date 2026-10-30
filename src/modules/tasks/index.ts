@@ -1,5 +1,5 @@
 import { createElement } from 'react';
-import { ListChecks } from 'lucide-react';
+import { ListChecks, ListTodo } from 'lucide-react';
 import { defineModule } from '@core/api';
 import { TaskStore } from './store';
 import { DueToday, TasksView } from './TasksView';
@@ -25,12 +25,22 @@ export default defineModule({
       id: VIEW,
       title: 'Tasks',
       render: () => createElement(TasksView, { ctx, store }),
+      tool: {
+        icon: createElement(ListTodo, { size: 18, strokeWidth: 1.75, 'aria-hidden': true }),
+        hint: 'Every checklist, as a list or a board',
+      },
     });
     ctx.views.registerSideTab({
       id: 'tasks.due',
       title: 'Due today',
       icon: createElement(ListChecks, { size: 17, strokeWidth: 1.75, 'aria-hidden': true }),
       render: () => createElement(DueToday, { ctx, store }),
+    });
+    ctx.views.registerHomeCard({
+      id: 'tasks.home',
+      title: 'Due today',
+      icon: createElement(ListChecks, { size: 17, strokeWidth: 1.75, 'aria-hidden': true }),
+      render: () => createElement(DueToday, { ctx, store, inCard: true }),
     });
     ctx.commands.register({
       id: 'tasks.open',

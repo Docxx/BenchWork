@@ -12,16 +12,12 @@ function newLineAtEnd(editor: Editor): void {
   chain.scrollIntoView().run();
 }
 
-/**
- * A button for writing something down quickly: it opens today's page with
- * the cursor on a new line at the end. Shown on touch screens, where there
- * is no keyboard shortcut to hand.
- */
-export function QuickCapture() {
+/** Opens today's page with the cursor on a new line at the end. */
+export function useQuickNote(): () => Promise<void> {
   const store = useAppStore();
   const openToday = useApp((s) => s.openToday);
 
-  const capture = async () => {
+  return async () => {
     await openToday();
     const path = store.getState().page?.path;
     // The page's editor starts just after the page opens.
@@ -45,7 +41,15 @@ export function QuickCapture() {
     });
     setTimeout(stop, 3000);
   };
+}
 
+/**
+ * A button for writing something down quickly: it opens today's page with
+ * the cursor on a new line at the end. Shown on touch screens, where there
+ * is no keyboard shortcut to hand.
+ */
+export function QuickCapture() {
+  const capture = useQuickNote();
   return (
     <button
       type="button"

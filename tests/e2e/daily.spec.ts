@@ -34,7 +34,7 @@ async function open(page: Page, extra: Record<string, string> = {}) {
 
 test("Today creates today's page once, in a month section", async ({ page }) => {
   await open(page);
-  await page.getByRole('button', { name: 'Today' }).click();
+  await page.getByRole('button', { name: 'Today', exact: true }).click();
   await expect(title(page)).toHaveValue('2026-10-22');
   await expect(
     editor(page).getByRole('heading', { name: 'Thursday 22 October 2026' }),
@@ -59,7 +59,7 @@ test('previous and next day skip days without a page', async ({ page }) => {
     'Daily/2026-09/2026-09-30.md': 'End of September.\n',
     'Daily/2026-10/2026-10-22.md': 'Today.\n',
   });
-  await page.getByRole('button', { name: 'Today' }).click();
+  await page.getByRole('button', { name: 'Today', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Next day' })).toBeDisabled();
   await page.getByRole('button', { name: 'Previous day' }).click();
   await expect(title(page)).toHaveValue('2026-09-30');
@@ -70,7 +70,7 @@ test('previous and next day skip days without a page', async ({ page }) => {
 
 test('new daily pages start from the Daily template', async ({ page }) => {
   await open(page, { 'templates/Daily.md': '# {{date:dddd D MMMM}}\n\n## Plan\n\n## Done\n' });
-  await page.getByRole('button', { name: 'Today' }).click();
+  await page.getByRole('button', { name: 'Today', exact: true }).click();
   await expect(editor(page).getByRole('heading', { name: 'Thursday 22 October' })).toBeVisible();
   await expect(editor(page).getByRole('heading', { name: 'Done' })).toBeVisible();
 });

@@ -269,6 +269,29 @@ describe('Mind maps: canvases', () => {
     });
     expect(state().openFile).toBe('Lab/Ideas.canvas.json');
   });
+
+  it('are listed in one place, where a new one can be made', async () => {
+    const { platform, store, state } = await openVault();
+    renderView(store);
+    await act(() => state().openModuleView('mind-maps.canvases'));
+    await settle();
+    expect(screen.getByRole('button', { name: /Board/ })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Plans' } });
+    fireEvent.click(screen.getByRole('button', { name: 'New canvas' }));
+    await settle();
+    expect(platform.snapshot()['Lab/Plans.canvas.json']).toBeDefined();
+    expect(state().openFile).toBe('Lab/Plans.canvas.json');
+  });
+
+  it('a page has a button for its mind map', async () => {
+    const { store, state } = await openVault();
+    renderView(store);
+    await act(() => state().openPage('Lab/Fly climbing.md'));
+    fireEvent.click(screen.getByRole('button', { name: 'Mind map' }));
+    await settle();
+    expect(state().moduleView).toEqual({ id: 'mind-maps.mindMap', param: 'Lab/Fly climbing.md' });
+  });
 });
 
 describe('Mind maps: switched off', () => {

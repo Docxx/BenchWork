@@ -21,6 +21,34 @@ export interface BackupPlan {
   last: string | null;
 }
 
+/** How Home looks for one vault on this device. */
+export interface HomeLayout {
+  /** Card ids in the order shown; cards not listed follow in their usual order. */
+  order: string[];
+  hidden: string[];
+  /** Pages pinned to Home, by path. */
+  pinned: string[];
+}
+
+export function defaultHomeLayout(): HomeLayout {
+  return { order: [], hidden: [], pinned: [] };
+}
+
+const strings = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+
+export function parseHomeLayout(value: unknown): HomeLayout {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return defaultHomeLayout();
+  }
+  const record = value as Record<string, unknown>;
+  return {
+    order: strings(record['order']),
+    hidden: strings(record['hidden']),
+    pinned: strings(record['pinned']),
+  };
+}
+
 export const BACKUP_KEEP_RANGE = { min: 1, max: 100 } as const;
 
 export function defaultBackupPlan(): BackupPlan {
@@ -59,6 +87,8 @@ export interface AppSettings {
   openPanels: string[];
   /** Backups from this device, by the vault's full path. */
   backups: Record<string, BackupPlan>;
+  /** Home's cards and pinned pages, by the vault's full path. */
+  home: Record<string, HomeLayout>;
   /** Keys this version does not know about, kept on save. */
   extra: Record<string, unknown>;
 }
@@ -73,6 +103,7 @@ const KNOWN_KEYS = new Set([
   'penMode',
   'openPanels',
   'backups',
+  'home',
 ]);
 
 export function defaultAppSettings(): AppSettings {
@@ -85,6 +116,7 @@ export function defaultAppSettings(): AppSettings {
     penMode: 'draw',
     openPanels: [],
     backups: {},
+    home: {},
     extra: {},
   };
 }
@@ -113,6 +145,12 @@ export function parseAppSettings(data: unknown): AppSettings {
     for (const [root, plan] of Object.entries(backups)) {
       const parsed = parseBackupPlan(plan);
       if (parsed) settings.backups[root] = parsed;
+    }
+  }
+  const home = record['home'];
+  if (typeof home === 'object' && home !== null && !Array.isArray(home)) {
+    for (const [root, layout] of Object.entries(home)) {
+      settings.home[root] = parseHomeLayout(layout);
     }
   }
   const openPanels = record['openPanels'];

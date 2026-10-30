@@ -10,6 +10,7 @@ import { createInkSlice, type InkSlice } from './inkSlice';
 import { createScreenSlice, type ScreenSlice } from './screenSlice';
 import { createSyncSlice, type SyncSlice } from './syncSlice';
 import { createBackupSlice, type BackupSlice } from './backupSlice';
+import { createHomeSlice, type HomeSlice } from './homeSlice';
 import { createLinksSlice, type LinksSlice } from './linksSlice';
 import { createModuleBridge } from './moduleBridge';
 import { createModulesSlice, type ModulesSlice } from './modulesSlice';
@@ -44,7 +45,8 @@ export type AppState = VaultSlice &
   InkSlice &
   ScreenSlice &
   SyncSlice &
-  BackupSlice;
+  BackupSlice &
+  HomeSlice;
 
 export type AppStore = StoreApi<AppState>;
 
@@ -80,6 +82,7 @@ export function createAppStore(
       ...createScreenSlice(ctx),
       ...createSyncSlice(ctx),
       ...createBackupSlice(ctx),
+      ...createHomeSlice(ctx),
     };
   });
 
@@ -95,6 +98,7 @@ export function createAppStore(
       settingsPanels,
       pageViews,
       sideTabs,
+      homeCards,
       strokeFilters,
       inkTools,
       inkRecognisers,
@@ -104,6 +108,7 @@ export function createAppStore(
       store.setState({
         pageViews,
         sideTabs,
+        homeCards,
         strokeFilters,
         inkTools,
         inkRecognisers,
