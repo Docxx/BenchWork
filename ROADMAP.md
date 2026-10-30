@@ -88,6 +88,17 @@ Planned 28 Oct 2026. Syncthing keeps devices in step, so BenchWork's own sync mo
 - [x] 6g. First-run setup with module packs (Research, General notes)
 - [ ] Exit check: a week of lab work: flips and tasks on today's page, a paper annotated with the pen on the tablet and its notes found on the PC, analysis outputs attached to a dataset, and a backup restored
 
+## Tweaks before Phase 7
+
+Planned 30 Oct 2026, released as 0.9.0.
+
+- [x] Home page, opened at start, with a Home button; cards can be moved and hidden
+- [x] Tools in the sidebar and on Home, a Canvases list, and a mind map button on every page
+- [x] Lab tools module: calculators for solutions, DNA, protein and cells, units, recipes and timers
+- [x] Latest papers module: topics followed through Europe PMC, the app's first use of the internet
+- [x] Canvas styles: colours, borders, shapes and links for cards; colours, lines and heads for arrows
+- [ ] Checked on the tablet: Home, Lab tools beside a page, and papers fetched over the tablet's connection
+
 ## Phase 7: Own sync and co-editing
 
 - [ ] Native CRDT sync (Yjs) with end-to-end encryption, without Syncthing
