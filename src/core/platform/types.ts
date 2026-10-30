@@ -41,6 +41,9 @@ export interface PlatformAdapter {
   /** Opens a web address in the device's browser. */
   openWebLink(url: string): Promise<void>;
 
+  /** Opens a vault file in the program the system uses for it, such as Word; null on the tablet. */
+  readonly openInSystem: ((path: string) => Promise<void>) | null;
+
   /**
    * The app's own window buttons, where the system's title bar is hidden
    * (the computer); null where the system draws the window (the tablet).

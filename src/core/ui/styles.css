@@ -4137,3 +4137,18 @@ button.calendar-day.chosen {
   align-items: center;
   gap: 0.25rem;
 }
+
+/* Word documents: Word's own white pages, on the app's background. */
+.word-preview .docx-wrapper {
+  padding: 1.5rem 0;
+  background: transparent;
+}
+
+.word-preview .docx-wrapper > section.docx {
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+}
+
+.file-open {
+  margin-left: auto;
+}

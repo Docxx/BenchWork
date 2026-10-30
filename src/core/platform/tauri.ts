@@ -196,6 +196,10 @@ function desktopFrame(): WindowFrame {
 export class TauriAdapter implements PlatformAdapter {
   readonly kind: DeviceKind = detectKind();
   readonly windowFrame: WindowFrame | null = detectKind() === 'desktop' ? desktopFrame() : null;
+  readonly openInSystem: ((path: string) => Promise<void>) | null =
+    detectKind() === 'desktop'
+      ? (path) => call<undefined>('open_vault_file', () => ({ path: normaliseVaultPath(path) }))
+      : null;
   readonly folderBrowser: FolderBrowser | null = androidFolderBrowser();
   readonly handwriting: HandwritingRecognizer | null = androidHandwriting();
   readonly programs: ProgramRunner | null =

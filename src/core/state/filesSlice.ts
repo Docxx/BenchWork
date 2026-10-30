@@ -11,7 +11,7 @@ import { readSpreadsheet } from '../files/spreadsheet';
 import { isPage } from '../notebooks/notebookTree';
 import { embedPath } from '../pages/attachments';
 import { baseName } from '../platform';
-import type { StoreContext } from './context';
+import { describeError, type StoreContext } from './context';
 import { rebasePath } from './treeSlice';
 
 /** Files bigger than this are not read for a preview. */
@@ -51,6 +51,8 @@ export interface FilesSlice {
   readFileText: (path: string) => Promise<string>;
   /** A URL an <img> can show a vault file from. */
   fileUrl: (path: string) => string | null;
+  /** Opens a file in the program the computer uses for it; null where there is none (the tablet). */
+  openInSystem: ((path: string) => Promise<void>) | null;
   /** The first rows of an embedded table, `![[day7.csv]]`; null if it cannot be read. */
   embedTable: (target: string) => Promise<TableData | null>;
   /** A link record's contents; null if it cannot be read. */
@@ -136,6 +138,16 @@ export function createFilesSlice(ctx: StoreContext): FilesSlice {
     readFileBytes: (path) => platform.readBytes(path, PREVIEW_LIMIT_BYTES),
     readFileText: (path) => platform.readText(path),
     fileUrl: (path) => platform.assetUrl(path),
+    openInSystem:
+      platform.openInSystem === null
+        ? null
+        : async (path) => {
+            try {
+              await platform.openInSystem?.(path);
+            } catch (err) {
+              set({ sidebarNotice: `The file could not be opened. ${describeError(err)}` });
+            }
+          },
     embedTable: async (target) => {
       const path = embedPath(target);
       if (path === null) return null;
