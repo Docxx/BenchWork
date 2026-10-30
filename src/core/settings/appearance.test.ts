@@ -3,6 +3,7 @@ import {
   appearanceTokens,
   defaultAppearance,
   parseAppearance,
+  presetScheme,
   PRESETS,
   textOn,
   type ThemePreset,
@@ -114,5 +115,25 @@ describe('appearance settings', () => {
   it('puts dark or light text on an accent, whichever reads better', () => {
     expect(textOn('#1c2d2a')).toBe('#ffffff');
     expect(textOn('#e8d27a')).toBe('#10201a');
+  });
+
+  it('keeps the fun themes dark, with their own section colours', () => {
+    expect(presetScheme('neon', 'light')).toBe('dark');
+    expect(presetScheme('forest', 'light')).toBe('light');
+    const neon = appearanceTokens(defaultAppearance('neon'), 'dark');
+    expect(neon['--section-teal']).toBe('#05d9e8');
+    // Other themes set the usual ones, so none are left behind after a fun theme.
+    expect(appearanceTokens(defaultAppearance('forest'), 'light')['--section-teal']).toBe(
+      '#2a9d8f',
+    );
+    expect(defaultAppearance('terminal').bodyFont).toBe('mono');
+    expect(parseAppearance({ preset: 'mars', headingFont: 'mono' })).toMatchObject({
+      preset: 'mars',
+      headingFont: 'mono',
+    });
+    for (const spec of Object.values(PRESETS).filter((s) => s.fun === true)) {
+      expect(spec.fixedScheme).toBe('dark');
+      expect(Object.keys(spec.sections ?? {})).toHaveLength(8);
+    }
   });
 });

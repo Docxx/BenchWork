@@ -1,4 +1,9 @@
-import { appearanceTokens, type Appearance, type Scheme } from '../settings/appearance';
+import {
+  appearanceTokens,
+  presetScheme,
+  type Appearance,
+  type Scheme,
+} from '../settings/appearance';
 import type { Theme } from '../settings/appSettings';
 
 /** Light or dark, with `system` following the operating system. */
@@ -20,7 +25,7 @@ export function applyAppearance(
 ): void {
   if (theme === 'system') delete root.dataset['theme'];
   else root.dataset['theme'] = theme;
-  const scheme = schemeFor(theme, systemDark);
+  const scheme = presetScheme(appearance.preset, schemeFor(theme, systemDark));
   root.dataset['preset'] = appearance.preset;
   root.style.colorScheme = scheme;
   for (const [name, value] of Object.entries(appearanceTokens(appearance, scheme))) {
