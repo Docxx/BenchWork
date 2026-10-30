@@ -183,6 +183,26 @@ export function createModuleContext(
       },
     },
     programs: deps.platform.programs,
+    web: {
+      getText: async (url) => {
+        let host: string;
+        try {
+          const parsed = new URL(url);
+          if (parsed.protocol !== 'https:') throw new Error();
+          host = parsed.hostname;
+        } catch {
+          throw new Error(`'${url}' is not an https web address`);
+        }
+        if (!manifest.network.includes(host)) {
+          throw new Error(`The module may only read from the sites in its manifest, not ${host}`);
+        }
+        return deps.platform.fetchText(url);
+      },
+      open: async (url) => {
+        if (!/^https?:\/\//i.test(url)) throw new Error(`'${url}' is not a web address`);
+        await deps.platform.openWebLink(url);
+      },
+    },
     ink: {
       handwriting: deps.platform.handwriting,
       registerRecogniser(spec) {

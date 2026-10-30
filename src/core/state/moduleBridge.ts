@@ -39,7 +39,7 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
       folder === '' ? state().createNotebook(title) : state().createSection(folder, title),
     createPage: (folder, title, type, content) =>
       type === undefined
-        ? state().createPage(folder, title)
+        ? state().createPage(folder, title, content)
         : state().createTypedPage(folder, type, title, content),
     openPage: () => state().page?.path ?? null,
     insertText: (text) => {

@@ -1,0 +1,10 @@
+{
+  "id": "papers",
+  "name": "Latest papers",
+  "version": "0.1.0",
+  "description": "Follow topics and see their newest papers and preprints from Europe PMC, with notes on the ones you read",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false,
+  "network": ["www.ebi.ac.uk"]
+}

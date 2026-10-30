@@ -18,6 +18,7 @@ export function manifest(id: string, extra: Partial<ModuleManifest> = {}): Modul
     dependsOn: [],
     platforms: ['desktop', 'tablet'],
     defaultEnabled: false,
+    network: [],
     ...extra,
   };
 }

@@ -73,6 +73,8 @@ export interface ModuleContext {
   readonly ink: ModuleInk;
   /** Running the person's own programs, such as Python scripts; null on the tablet. */
   readonly programs: ProgramRunner | null;
+  /** The internet: reading from the sites named in manifest.json, and opening links. */
+  readonly web: ModuleWeb;
   /** Converting Markdown with Pandoc, if it is installed. Desktop only. */
   readonly pandoc: ModulePandoc;
   /** JSON files in `.benchwork/modules/<id>/`, the module's private folder. */
@@ -282,7 +284,7 @@ export interface ModuleApp {
   createFolder(folder: string, title: string): Promise<string | null>;
   /**
    * Creates a page, optionally of a registered type, and opens it. With
-   * `content`, a typed page starts with that instead of its type's usual
+   * `content`, the page starts with that, instead of a typed page's usual
    * start. Returns its path, or null.
    */
   createPage(
@@ -552,6 +554,16 @@ export interface SidebarPanelSpec {
   id: string;
   title: string;
   render: () => ReactNode;
+}
+
+export interface ModuleWeb {
+  /**
+   * Reads a web address's text, such as a search's JSON. Only https
+   * addresses on the sites the manifest lists under "network"; others fail.
+   */
+  getText(url: string): Promise<string>;
+  /** Opens a web address in the device's browser. */
+  open(url: string): Promise<void>;
 }
 
 export interface ModuleStorage {

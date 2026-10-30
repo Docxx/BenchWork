@@ -9,6 +9,7 @@ mod programs;
 mod vault_fs;
 mod vault_root;
 mod watcher;
+mod web_link;
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -242,6 +243,12 @@ async fn stop_program(id: String, state: State<'_, VaultState>) -> VaultResult<(
         stop.store(true, std::sync::atomic::Ordering::SeqCst);
     }
     Ok(())
+}
+
+/// Opens a web address in the system's browser.
+#[tauri::command]
+async fn open_web_link(url: String) -> VaultResult<()> {
+    web_link::open(&url)
 }
 
 /// Folders inside a full path, for choosing a vault inside the app.
@@ -496,6 +503,7 @@ pub fn run() {
             backup_vault,
             run_program,
             stop_program,
+            open_web_link,
             list_backups,
             restore_backup,
             list_dir,
