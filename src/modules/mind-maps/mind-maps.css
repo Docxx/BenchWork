@@ -74,6 +74,7 @@ svg.mind-map-area.markmap {
 }
 
 .canvas-card {
+  position: relative;
   width: 100%;
   height: 100%;
   box-sizing: border-box;
@@ -82,9 +83,9 @@ svg.mind-map-area.markmap {
   padding: 0.5rem 0.65rem;
   /* Not clipped, so the dots on its edges can be grabbed; the text inside is. */
   overflow: visible;
-  border: 1px solid var(--border);
+  border: 1px solid var(--card-border, var(--border));
   border-radius: 8px;
-  background: var(--surface);
+  background: var(--card-fill, var(--surface));
   color: var(--text);
   font-size: 0.85rem;
 }
@@ -92,6 +93,186 @@ svg.mind-map-area.markmap {
 .react-flow__node.selected > .canvas-card {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* Shapes. */
+.canvas-card.shape-rectangle {
+  border-radius: 2px;
+}
+
+.canvas-card.shape-pill {
+  border-radius: 999px;
+  padding-inline: 1.1rem;
+}
+
+.canvas-card.shape-pill,
+.canvas-card.shape-ellipse,
+.canvas-card.shape-diamond {
+  justify-content: center;
+}
+
+.canvas-card.shape-ellipse,
+.canvas-card.shape-diamond {
+  text-align: center;
+}
+
+.canvas-card.shape-ellipse {
+  border-radius: 50%;
+  padding: 0.5rem 15%;
+}
+
+.canvas-card.shape-diamond {
+  padding: 0.5rem 25%;
+  border: none;
+  background: none;
+}
+
+.shape-pill .card-text,
+.shape-ellipse .card-text,
+.shape-diamond .card-text {
+  flex: 0 1 auto;
+}
+
+.react-flow__node.selected > .canvas-card.shape-diamond {
+  box-shadow: none;
+}
+
+.card-shape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.card-shape polygon {
+  fill: var(--card-fill, var(--surface));
+  stroke: var(--card-border, var(--border));
+  stroke-width: 1px;
+}
+
+.border-dashed .card-shape polygon {
+  stroke-dasharray: 6 4;
+}
+
+.border-dotted .card-shape polygon {
+  stroke-dasharray: 1 4;
+  stroke-linecap: round;
+}
+
+.border-none .card-shape polygon {
+  stroke: none;
+}
+
+.react-flow__node.selected .card-shape polygon {
+  stroke: var(--accent);
+  stroke-width: 2px;
+}
+
+/* Above the diamond's outline, which is drawn behind them. */
+.canvas-card .card-text,
+.canvas-card .card-title,
+.canvas-card .card-preview,
+.canvas-card .card-link,
+.canvas-card textarea {
+  position: relative;
+}
+
+/* Borders. */
+.canvas-card.border-dashed {
+  border-style: dashed;
+}
+
+.canvas-card.border-dotted {
+  border-style: dotted;
+  border-width: 2px;
+}
+
+.canvas-card.border-none {
+  border-color: transparent;
+}
+
+.canvas-card.border-solid.filled {
+  border-color: var(--card-border, color-mix(in srgb, var(--text) 18%, transparent));
+}
+
+/* A card's link, to a page or web address. */
+.card-link {
+  align-self: flex-start;
+  max-width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.05rem 0.45rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--accent);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shape-ellipse .card-link,
+.shape-diamond .card-link {
+  align-self: center;
+}
+
+/* The style bar, for what is selected. */
+.canvas-style {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.9rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.canvas-style-label {
+  margin-right: 0.3rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.canvas-swatches {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+button.canvas-swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--text) 25%, transparent);
+  border-radius: 50%;
+}
+
+button.canvas-swatch.none {
+  background: linear-gradient(
+    135deg,
+    var(--bg) 45%,
+    var(--muted) 45%,
+    var(--muted) 55%,
+    var(--bg) 55%
+  );
+}
+
+button.canvas-swatch[aria-pressed='true'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.canvas-choice {
+  display: inline-flex;
+  align-items: center;
+}
+
+.canvas-choice select {
+  padding: 0.15rem 0.3rem;
+  font-size: 0.85rem;
 }
 
 .canvas-card .react-flow__handle {

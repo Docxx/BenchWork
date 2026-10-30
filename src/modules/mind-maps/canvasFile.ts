@@ -9,6 +9,7 @@
  * Kinds: `text` (with `text`), `page`, `image` and `file` (with a vault
  * `path`). Items of other kinds, such as ink strokes from a later module,
  * and any extra keys are kept exactly as they are when the canvas is saved.
+ * How cards and arrows look is kept in keys of their own: see canvasStyle.ts.
  */
 
 export const CANVAS_ENDING = '.canvas.json';
