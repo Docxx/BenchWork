@@ -6,6 +6,7 @@ import { createStoreContext } from './context';
 import { createAttachmentsSlice, type AttachmentsSlice } from './attachmentsSlice';
 import { createDailySlice, type DailySlice } from './dailySlice';
 import { createFilesSlice, type FilesSlice } from './filesSlice';
+import { createGuideSlice, type GuideSlice } from './guideSlice';
 import { createInkSlice, type InkSlice } from './inkSlice';
 import { createScreenSlice, type ScreenSlice } from './screenSlice';
 import { createSyncSlice, type SyncSlice } from './syncSlice';
@@ -24,6 +25,7 @@ import { createVaultSlice, type VaultSlice } from './vaultSlice';
 export { describeError } from './context';
 export type { AddedFile, AttachChoice, AttachQuestion } from './attachmentsSlice';
 export type { DayNeighbours } from './dailySlice';
+export { GUIDE_STEPS, type GuideStep } from './guideSlice';
 export type { Backlink } from './linksSlice';
 export type { PendingModuleChange, TextPrompt } from './modulesSlice';
 export type { SearchResult } from './searchSlice';
@@ -46,7 +48,8 @@ export type AppState = VaultSlice &
   ScreenSlice &
   SyncSlice &
   BackupSlice &
-  HomeSlice;
+  HomeSlice &
+  GuideSlice;
 
 export type AppStore = StoreApi<AppState>;
 
@@ -83,6 +86,7 @@ export function createAppStore(
       ...createSyncSlice(ctx),
       ...createBackupSlice(ctx),
       ...createHomeSlice(ctx),
+      ...createGuideSlice(ctx),
     };
   });
 

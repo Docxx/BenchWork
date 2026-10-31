@@ -91,56 +91,9 @@ export function AppearanceSettings() {
   const resetAppearance = useApp((s) => s.resetAppearance);
   const preset = PRESETS[appearance.preset];
 
-  const choosePreset = (id: ThemePreset) => {
-    const spec = PRESETS[id];
-    void setAppearance({
-      preset: id,
-      accent: null,
-      sidebar: null,
-      headingFont: spec.headingFont,
-      bodyFont: spec.bodyFont,
-    });
-  };
-
   return (
     <div className="appearance">
-      {[
-        { legend: 'Theme', fun: false },
-        { legend: 'Fun themes', fun: true },
-      ].map(({ legend, fun }) => (
-        <fieldset key={legend} className="field">
-          <legend>{legend}</legend>
-          <div className="preset-row">
-            {(Object.keys(PRESETS) as ThemePreset[])
-              .filter((id) => (PRESETS[id].fun === true) === fun)
-              .map((id) => {
-                const spec = PRESETS[id];
-                const page = spec.fixedScheme === 'dark' ? spec.dark : spec.light;
-                const sidebar = spec.sidebar === 'dark' ? spec.darkSidebar.bg : page.surface;
-                return (
-                  <label key={id} className="preset-card">
-                    <input
-                      type="radio"
-                      name="preset"
-                      value={id}
-                      checked={appearance.preset === id}
-                      onChange={() => {
-                        choosePreset(id);
-                      }}
-                    />
-                    <span className="preset-swatch" aria-hidden="true">
-                      <span style={{ background: sidebar }} />
-                      <span style={{ background: page.bg }}>
-                        <i style={{ background: page.accent }} />
-                      </span>
-                    </span>
-                    {spec.name}
-                  </label>
-                );
-              })}
-          </div>
-        </fieldset>
-      ))}
+      <PresetPicker />
 
       <Choices
         legend="Light or dark"
@@ -365,5 +318,64 @@ export function AppearanceSettings() {
       </div>
       <p className="hint">Saved on this device only.</p>
     </div>
+  );
+}
+
+/** The theme cards, plain and fun. Choosing one shows at once, across the app. */
+export function PresetPicker() {
+  const appearance = useApp((s) => s.settings.appearance);
+  const setAppearance = useApp((s) => s.setAppearance);
+
+  const choosePreset = (id: ThemePreset) => {
+    const spec = PRESETS[id];
+    void setAppearance({
+      preset: id,
+      accent: null,
+      sidebar: null,
+      headingFont: spec.headingFont,
+      bodyFont: spec.bodyFont,
+    });
+  };
+
+  return (
+    <>
+      {[
+        { legend: 'Theme', fun: false },
+        { legend: 'Fun themes', fun: true },
+      ].map(({ legend, fun }) => (
+        <fieldset key={legend} className="field">
+          <legend>{legend}</legend>
+          <div className="preset-row">
+            {(Object.keys(PRESETS) as ThemePreset[])
+              .filter((id) => (PRESETS[id].fun === true) === fun)
+              .map((id) => {
+                const spec = PRESETS[id];
+                const page = spec.fixedScheme === 'dark' ? spec.dark : spec.light;
+                const sidebar = spec.sidebar === 'dark' ? spec.darkSidebar.bg : page.surface;
+                return (
+                  <label key={id} className="preset-card">
+                    <input
+                      type="radio"
+                      name="preset"
+                      value={id}
+                      checked={appearance.preset === id}
+                      onChange={() => {
+                        choosePreset(id);
+                      }}
+                    />
+                    <span className="preset-swatch" aria-hidden="true">
+                      <span style={{ background: sidebar }} />
+                      <span style={{ background: page.bg }}>
+                        <i style={{ background: page.accent }} />
+                      </span>
+                    </span>
+                    {spec.name}
+                  </label>
+                );
+              })}
+          </div>
+        </fieldset>
+      ))}
+    </>
   );
 }

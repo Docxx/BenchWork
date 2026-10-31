@@ -36,7 +36,16 @@ describe('app settings', () => {
       appearance: defaultAppearance(),
       backups: {},
       home: {},
+      guided: true,
     });
+  });
+
+  it('shows the guide only to someone new', () => {
+    expect(parseAppSettings(null).guided).toBe(false);
+    expect(parseAppSettings({ theme: 'dark' }).guided).toBe(false);
+    // Settings from before the guide, with a vault used: not new.
+    expect(parseAppSettings({ lastVault: 'C:\\Vault' }).guided).toBe(true);
+    expect(parseAppSettings({ lastVault: 'C:\\Vault', guided: false }).guided).toBe(false);
   });
 
   it('saves and loads through the platform', async () => {

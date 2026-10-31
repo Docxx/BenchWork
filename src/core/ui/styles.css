@@ -4325,3 +4325,151 @@ button.favourite-remove {
   flex: 1;
   min-width: 0;
 }
+
+/* The first-run guide. */
+.guide-screen {
+  display: grid;
+  place-items: start center;
+  min-height: 100vh;
+  padding: 8vh 1rem 2rem;
+}
+
+.guide-screen .floating-dialog.guide {
+  position: static;
+  transform: none;
+}
+
+.floating-dialog.guide {
+  top: 8vh;
+  display: flex;
+  flex-direction: column;
+  width: min(36rem, calc(100vw - 2rem));
+  max-height: 84vh;
+}
+
+.guide-body {
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 0.25rem;
+}
+
+.guide .guide-body p {
+  margin: 0 0 0.75rem;
+  line-height: 1.55;
+}
+
+.guide-progress {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0 0 0.75rem;
+}
+
+.guide-progress span {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.guide-progress span.done {
+  background: var(--accent);
+}
+
+.guide h2:focus {
+  outline: none;
+}
+
+.guide-logo {
+  display: flex;
+  justify-content: center;
+  margin: 0.5rem 0 1rem;
+  color: var(--accent);
+}
+
+.guide-logo svg {
+  width: 72px;
+  height: 72px;
+}
+
+.guide-points {
+  display: grid;
+  gap: 0.9rem;
+  margin: 0.5rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-points li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  line-height: 1.5;
+}
+
+.guide-points li > svg {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 0.1rem;
+  color: var(--accent);
+}
+
+.guide-choices {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.75rem 0;
+}
+
+button.guide-more {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.guide-modules {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-modules li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.guide-modules .module-text {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.guide-themes .field {
+  margin-bottom: 0.75rem;
+}
+
+.guide-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.guide-spacer {
+  flex: 1;
+}
+
+.guide p.guide-progress {
+  margin: 0 0 1rem;
+}
+
+.guide .dialog-title {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+}
