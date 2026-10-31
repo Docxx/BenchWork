@@ -3,6 +3,7 @@ import { AlarmClock, ListChecks, ListTodo } from 'lucide-react';
 import { defineModule } from '@core/api';
 import { Reminders } from './reminders';
 import { RemindersWidget } from './RemindersWidget';
+import { datesFor, scheduleOf, SOURCE, taskByKey } from './schedule';
 import { TaskStore } from './store';
 import { DueToday, TasksView } from './TasksView';
 import './tasks.css';
@@ -51,6 +52,15 @@ export default defineModule({
       icon: createElement(AlarmClock, { size: 17, strokeWidth: 1.75, 'aria-hidden': true }),
       starts: { home: true },
       render: () => createElement(RemindersWidget, { ctx, store }),
+    });
+    ctx.views.registerScheduleSource({
+      id: SOURCE,
+      title: 'Tasks',
+      items: () => Promise.resolve(scheduleOf(store.all())),
+      move: async (key, start, end) => {
+        const task = taskByKey(store.all(), key);
+        if (task) await store.update(task, datesFor(task, start, end));
+      },
     });
     ctx.views.registerCalendarSource({
       id: 'tasks.due',

@@ -44,6 +44,17 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
         : state().createTypedPage(folder, type, title, content),
     openPage: () => state().page?.path ?? null,
     todayPage: () => state().ensureDay(dayOf(new Date())),
+    scheduled: async () => {
+      const lists = await Promise.all(
+        state().scheduleSources.map((s) => s.items().catch(() => [])),
+      );
+      return lists.flat();
+    },
+    reschedule: async (key, start, end) => {
+      const source = state().scheduleSources.find((s) => key.startsWith(`${s.id}:`));
+      if (!source) throw new Error('Nothing can move that item: its module may be switched off.');
+      await source.move(key, start, end);
+    },
     appendToPage: async (path, markdown) => {
       if (state().page?.path === path) await state().savePageNow();
       const text = await platform.readText(path);

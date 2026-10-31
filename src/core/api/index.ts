@@ -300,6 +300,10 @@ export interface ModuleApp {
    * False if no page is open in the editor.
    */
   insertText(text: string): boolean;
+  /** Every item with dates, from every schedule source, for the planner. */
+  scheduled(): Promise<ScheduledItem[]>;
+  /** Gives an item new dates, through the source it came from. */
+  reschedule(key: string, start: string, end: string): Promise<void>;
   /** Today's daily page, made if there is none yet; null if no vault is open. */
   todayPage(): Promise<string | null>;
   /**
@@ -343,6 +347,46 @@ export interface ModuleViews {
   registerWidget(spec: WidgetSpec): Disposable;
   /** Marks on the calendar, such as tasks due or planned dates. */
   registerCalendarSource(spec: CalendarSourceSpec): Disposable;
+  /** Things with dates for the planner's chart, such as tasks or planned pages. */
+  registerScheduleSource(spec: ScheduleSourceSpec): Disposable;
+}
+
+/** Something with dates, as a bar on the planner's chart. */
+export interface ScheduledItem {
+  /** Unique: its source's id, a colon, then the source's own key. */
+  key: string;
+  title: string;
+  /** The page it is written in, opened by a click. */
+  path: string;
+  /** `YYYY-MM-DD`; `end` is the last day, included. */
+  start: string;
+  end: string;
+  milestone: boolean;
+  /** 0 to 1. */
+  progress: number;
+  done: boolean;
+  /** Who it is for, if anyone. */
+  person: string | null;
+  /** 1 (highest) to 5 (lowest), or null. */
+  priority: number | null;
+  /** The notebook it is in, for grouping. */
+  notebook: string;
+  /** Keys of the items it waits for. */
+  after: string[];
+  /** The key of the item it is part of, as a subtask. */
+  parent: string | null;
+  /** Its dates come from its parts, so it is not moved by itself. */
+  summary?: boolean;
+}
+
+export interface ScheduleSourceSpec {
+  /** Must start with the module id and a dot; every key it gives starts with it and a colon. */
+  id: string;
+  /** What its items are, such as "Tasks". */
+  title: string;
+  items(): Promise<ScheduledItem[]>;
+  /** Writes new dates for one of its items. */
+  move(key: string, start: string, end: string): Promise<void>;
 }
 
 export interface WidgetSpec {

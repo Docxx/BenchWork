@@ -8,6 +8,7 @@ import type {
   StrokeFilterSpec,
   WidgetSpec,
   CalendarSourceSpec,
+  ScheduleSourceSpec,
   PageTypeSpec,
   PageViewSpec,
   SettingsPanelSpec,
@@ -50,6 +51,10 @@ export interface CalendarSource extends CalendarSourceSpec {
   moduleId: string;
 }
 
+export interface ScheduleSource extends ScheduleSourceSpec {
+  moduleId: string;
+}
+
 export interface StrokeFilter extends StrokeFilterSpec {
   moduleId: string;
 }
@@ -72,6 +77,7 @@ export interface ContributionsState {
   pageViews: PageView[];
   widgets: Widget[];
   calendarSources: CalendarSource[];
+  scheduleSources: ScheduleSource[];
   strokeFilters: StrokeFilter[];
   inkTools: InkToolContribution[];
   inkRecognisers: InkRecogniser[];
@@ -94,6 +100,7 @@ export function createContributions(): Contributions {
     pageViews: [],
     widgets: [],
     calendarSources: [],
+    scheduleSources: [],
     strokeFilters: [],
     inkTools: [],
     inkRecognisers: [],

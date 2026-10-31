@@ -95,3 +95,56 @@ describe('Tasks: the Reminders widget', () => {
     expect(widget.textContent).toContain('23:59');
   });
 });
+
+describe('Tasks: details', () => {
+  it('are set in a form, written as marks, and a task waited for gets an id', async () => {
+    const platform = new MemoryAdapter({
+      folders: {
+        'C:/Vault': {
+          '.benchwork/config.json': JSON.stringify({
+            version: 1,
+            modules: { tasks: { enabled: true } },
+          }),
+          'Lab/Plan.md': '# Plan\n\n- [ ] Design\n- [ ] Build\n',
+        },
+      },
+    });
+    const registry = new ModuleRegistry([source()], [], {
+      platform,
+      device: 'desktop',
+      contributions: createContributions(),
+    });
+    const store = createAppStore(platform, registry);
+    platform.queuePick('C:/Vault');
+    await act(async () => {
+      await store.getState().start();
+      await store.getState().chooseFolder('open');
+    });
+    render(
+      <AppStoreProvider store={store}>
+        <App />
+      </AppStoreProvider>,
+    );
+    await act(() => store.getState().openModuleView('tasks.view'));
+    await act(() => new Promise((r) => setTimeout(r, 50)));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Details of Build' }));
+    const form = screen.getByRole('form', { name: 'Details of Build' });
+    fireEvent.change(within(form).getByLabelText('Starts'), { target: { value: '2026-11-09' } });
+    fireEvent.change(within(form).getByLabelText('Due'), { target: { value: '2026-11-12' } });
+    fireEvent.change(within(form).getByLabelText('Priority'), { target: { value: 'high' } });
+    fireEvent.change(within(form).getByLabelText('For'), { target: { value: 'Sam' } });
+    const waits = within(form).getByLabelText<HTMLSelectElement>('Waits for');
+    const design = [...waits.options].find((o) => o.text.startsWith('Design'));
+    if (!design) throw new Error('No Design option');
+    design.selected = true;
+    fireEvent.change(waits);
+    fireEvent.click(within(form).getByRole('button', { name: 'Save' }));
+    await act(() => new Promise((r) => setTimeout(r, 80)));
+
+    const page = platform.snapshot()['Lab/Plan.md'] ?? '';
+    const id = /- \[ \] Design 🆔 (\w+)/.exec(page)?.[1];
+    expect(id).toBeDefined();
+    expect(page).toContain(`- [ ] Build @Sam ⏫ ⛔ ${id ?? ''} 🛫 2026-11-09 📅 2026-11-12`);
+  });
+});

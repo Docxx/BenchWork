@@ -158,33 +158,21 @@ test('a CSV file is edited with a formula, saved and plotted', async ({ page }) 
 
 test('pages with dates show on the planner, and dragging a bar moves them', async ({ page }) => {
   await runCommand(page, 'Open planner');
-  const timeline = page.getByRole('figure', { name: 'Timeline' });
-  await expect(timeline.locator('.bar-wrapper')).toHaveCount(3);
-  await expect(timeline).toContainText('Pilot');
-  await expect(timeline).toContainText('Committee');
-  await expect(timeline.locator('.arrow')).toHaveCount(1);
-  await expect(timeline.locator('.bar-wrapper.milestone')).toHaveCount(1);
+  const chart = page.getByRole('region', { name: 'Chart' });
+  await expect(chart.locator('.gantt-bar')).toHaveCount(3);
+  await expect(chart).toContainText('Pilot');
+  await expect(chart).toContainText('Committee');
+  await expect(chart.locator('.gantt-arrows > path')).toHaveCount(1);
+  await expect(chart.locator('.gantt-bar.milestone')).toHaveCount(1);
 
-  // Drag the pilot about a week later.
-  const bar = timeline.locator('.bar-wrapper', { hasText: 'Pilot' }).locator('.bar');
-  // Bars grow in and the chart scrolls to today; wait until the bar is still.
-  let box = await bar.boundingBox();
-  await expect
-    .poll(
-      async () => {
-        const now = await bar.boundingBox();
-        const still = JSON.stringify(now) === JSON.stringify(box);
-        box = now;
-        return still;
-      },
-      { intervals: [300] },
-    )
-    .toBe(true);
+  // Drag the pilot about a week later, by its middle.
+  const bar = chart.locator('.gantt-bar', { hasText: 'Pilot' });
+  const box = await bar.boundingBox();
   if (box === null) throw new Error('No bar to drag');
-  const from = { x: box.x + 10, y: box.y + box.height / 2 };
+  const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
-  await page.mouse.move(from.x + 140, from.y, { steps: 10 });
+  await page.mouse.move(from.x + 7 * 16, from.y, { steps: 10 });
   await page.mouse.up();
 
   // Later, and still eight days long.

@@ -1,5 +1,13 @@
 // @vitest-environment node
-import { changeTask, dueFits, readTasks, sortTasks, writeTask } from './tasks';
+import {
+  changeTask,
+  dueFits,
+  newTaskId,
+  readTasks,
+  sortTasks,
+  writeFields,
+  writeTask,
+} from './tasks';
 
 const PAGE = [
   '# Lab',
@@ -59,5 +67,74 @@ describe('tasks', () => {
     expect(names('week')).toEqual(['a', 'b', 'c']);
     expect(names('none')).toEqual(['d']);
     expect(sortTasks([...tasks].reverse()).map((t) => t.text)).toEqual(['a', 'b', 'c', 'd']);
+  });
+});
+
+describe('task details', () => {
+  const LINE =
+    '- [ ] Write methods @Sam 🔼 📊 40% 🆔 m1 ⛔ d1,d2 🛫 2026-11-02 📅 2026-11-06 #thesis';
+
+  it('are read from their marks, leaving the text plain', () => {
+    const [task] = readTasks('Lab/Plan.md', LINE);
+    expect(task).toMatchObject({
+      text: 'Write methods #thesis',
+      person: 'Sam',
+      priority: 'medium',
+      progress: 40,
+      id: 'm1',
+      after: ['d1', 'd2'],
+      start: '2026-11-02',
+      due: '2026-11-06',
+      tags: ['thesis'],
+    });
+  });
+
+  it('are written back one at a time, keeping the rest', () => {
+    expect(writeFields(LINE, { progress: 60 })).toBe(
+      '- [ ] Write methods @Sam 🔼 🆔 m1 ⛔ d1,d2 🛫 2026-11-02 📅 2026-11-06 #thesis 📊 60%',
+    );
+    expect(
+      writeFields('- [ ] Plan', { priority: 'high', person: 'Ray', start: '2026-11-01' }),
+    ).toBe('- [ ] Plan @Ray ⏫ 🛫 2026-11-01');
+    const cleared = writeFields(LINE, {
+      person: null,
+      priority: null,
+      progress: null,
+      id: null,
+      after: [],
+      start: null,
+      due: null,
+    });
+    expect(cleared).toBe('- [ ] Write methods #thesis');
+  });
+
+  it('make indented tasks subtasks of the one above', () => {
+    const tasks = readTasks(
+      'p.md',
+      [
+        '- [ ] Thesis',
+        '  - [ ] Methods',
+        '    - [ ] Climbing',
+        '  - [ ] Results',
+        '- [ ] Holiday',
+        '',
+        'Text ends the list.',
+        '  - [ ] Not under Holiday',
+      ].join('\n'),
+    );
+    expect(tasks.map((t) => [t.text, t.parent])).toEqual([
+      ['Thesis', null],
+      ['Methods', 0],
+      ['Climbing', 1],
+      ['Results', 0],
+      ['Holiday', null],
+      ['Not under Holiday', null],
+    ]);
+  });
+
+  it('get ids no other task has', () => {
+    const id = newTaskId(new Set(['a1b2']));
+    expect(id).toMatch(/^[a-z0-9]{1,4}$/);
+    expect(id).not.toBe('a1b2');
   });
 });

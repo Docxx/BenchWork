@@ -42,6 +42,7 @@ type ListKey =
   | 'pageViews'
   | 'widgets'
   | 'calendarSources'
+  | 'scheduleSources'
   | 'strokeFilters'
   | 'inkTools'
   | 'inkRecognisers'
@@ -179,6 +180,15 @@ export function createModuleContext(
           { ...spec, moduleId: id },
           (s) => s.id === spec.id,
           `A calendar source with id '${spec.id}'`,
+        );
+      },
+      registerScheduleSource(spec) {
+        checkId('Schedule source', spec.id);
+        return contribute(
+          'scheduleSources',
+          { ...spec, moduleId: id },
+          (s) => s.id === spec.id,
+          `A schedule source with id '${spec.id}'`,
         );
       },
     },
@@ -366,6 +376,8 @@ export function createModuleContext(
       openPage: () => app().openPage(),
       insertText: (text) => app().insertText(text),
       todayPage: () => app().todayPage(),
+      scheduled: () => app().scheduled(),
+      reschedule: (key, start, end) => app().reschedule(key, start, end),
       appendToPage: (path, markdown) => app().appendToPage(path, markdown),
       openView: (viewId, param) => app().openView(viewId, param),
       pageProperties: (path) => app().pageProperties(path),

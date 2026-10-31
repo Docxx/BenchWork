@@ -7,6 +7,7 @@ import type {
   PageView,
   Widget,
   CalendarSource,
+  ScheduleSource,
   StrokeFilter,
   InkToolContribution,
   InkRecogniser,
@@ -48,6 +49,8 @@ export interface ModulesSlice {
   widgets: Widget[];
   /** Marks for the calendar from modules that are on. */
   calendarSources: CalendarSource[];
+  /** Things with dates for the planner, from modules that are on. */
+  scheduleSources: ScheduleSource[];
   /** Changes made to strokes as they are finished, by modules. */
   strokeFilters: StrokeFilter[];
   /** Pen tools from modules, beside the pen, highlighter and eraser. */
@@ -135,6 +138,7 @@ export function createModulesSlice(ctx: StoreContext): ModulesSlice {
     pageViews: registry.contributions.getState().pageViews,
     widgets: registry.contributions.getState().widgets,
     calendarSources: registry.contributions.getState().calendarSources,
+    scheduleSources: registry.contributions.getState().scheduleSources,
     strokeFilters: registry.contributions.getState().strokeFilters,
     inkTools: registry.contributions.getState().inkTools,
     inkRecognisers: registry.contributions.getState().inkRecognisers,

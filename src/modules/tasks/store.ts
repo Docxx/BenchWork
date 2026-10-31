@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import type { ModuleContext } from '@core/api';
-import { changeTask, readTasks, type Task, type TaskState } from './tasks';
+import { changeTaskFields, readTasks, type Task, type TaskFields, type TaskState } from './tasks';
 
 /** Pages read at a time while first gathering tasks. */
 const BATCH = 20;
@@ -65,8 +65,13 @@ export class TaskStore {
 
   /** Sets a task's state and due date in its page. */
   async set(task: Task, state: TaskState, due: string | null = task.due): Promise<void> {
+    await this.update(task, { state, due });
+  }
+
+  /** Changes some of a task's details in its page. */
+  async update(task: Task, changes: Partial<TaskFields>): Promise<void> {
     const text = await this.ctx.vault.readText(task.path);
-    const next = changeTask(text, task, state, due);
+    const next = changeTaskFields(text, task, changes);
     if (next === null) {
       // The page changed since: show it as it is now, and change nothing.
       await this.refresh([task.path]);

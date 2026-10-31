@@ -1,5 +1,5 @@
-import { act, render, screen } from '@testing-library/react';
-import type { GanttOptions, GanttTask } from 'frappe-gantt';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import type { ScheduledItem } from '@core/api';
 import { createContributions } from '@core/modules/contributions';
 import { validateManifest } from '@core/modules/manifest';
 import { ModuleRegistry, type ModuleSource } from '@core/modules/registry';
@@ -9,24 +9,18 @@ import { AppStoreProvider } from '@core/ui/AppStoreContext';
 import { PageView } from '@core/ui/PageView';
 import manifestJson from './manifest.json';
 import { planMarks } from './index';
+import {
+  addDays,
+  buildRows,
+  cascade,
+  chartRange,
+  colourOf,
+  criticalPath,
+  daysBetween,
+} from './gantt';
 import { asDate, linkTargets, moveChanges, taskOf, type PlanTask } from './plan';
-import { MOVE_SAVE_MS } from './PlannerView';
 
 // Tests may reach core internals to set the app up; the module itself may not.
-
-// jsdom cannot lay out SVG, so the chart is a stand-in that records what it was given.
-const charts: { tasks: GanttTask[]; options: GanttOptions }[] = [];
-vi.mock('frappe-gantt', () => ({
-  default: class {
-    constructor(_element: HTMLElement, tasks: GanttTask[], options: GanttOptions) {
-      charts.push({ tasks, options });
-    }
-    change_view_mode() {
-      // Nothing to draw.
-    }
-  },
-}));
-vi.mock('frappe-gantt/style.css', () => ({}));
 
 function source(): ModuleSource {
   const result = validateManifest(manifestJson, 'planner');
@@ -48,7 +42,6 @@ const VAULT = {
 };
 
 async function openPlanner(enabled = true) {
-  charts.length = 0;
   const platform = new MemoryAdapter({
     folders: {
       'C:/Vault': {
@@ -155,75 +148,50 @@ describe('Planner: reading dates from pages', () => {
   });
 });
 
-describe('Planner: the timeline', () => {
-  it('shows pages with dates by notebook, with dependencies and milestones', async () => {
+const bar = (name: RegExp) => screen.getByRole('button', { name });
+
+describe('Planner: the chart', () => {
+  it('shows pages with dates, grouped by notebook, with milestones', async () => {
     const { state } = await openPlanner();
     await act(() => state().runCommand('planner.open', { folder: null }));
     await settle();
-
-    const { tasks } = charts.at(-1) ?? { tasks: [] };
-    expect(tasks.map((t) => [t.name, t.start, t.end])).toEqual([
-      ['2026-11-03', '2026-11-03', '2026-11-03'],
-      ['Pilot', '2026-11-02', '2026-11-06'],
-      ['Main study', '2026-11-09', '2026-11-27'],
-      ['◆ Committee', '2026-12-01', '2026-12-01'],
-    ]);
-    const pilot = tasks[1];
-    expect(pilot?.progress).toBe(40);
-    expect(tasks[2]?.dependencies).toEqual([pilot?.id]);
-    expect(tasks[3]?.custom_class).toBe('milestone');
-    expect(screen.getByRole('combobox', { name: 'Notebook' }).textContent).toBe(
-      'All notebooksDailyLab',
-    );
+    const chart = screen.getByRole('region', { name: 'Chart' });
+    expect(within(chart).getByText('Daily')).toBeTruthy();
+    expect(bar(/^Pilot, 2 Nov 2026 to 6 Nov 2026$/).className).toContain('gantt-bar');
+    expect(bar(/^Committee, 1 Dec 2026$/).className).toContain('milestone');
+    expect(bar(/^Main study, 9 Nov 2026 to 27 Nov 2026$/)).toBeTruthy();
+    expect(chart.querySelectorAll('.gantt-arrows > path')).toHaveLength(1);
   });
 
   it('opens for one notebook from its menu', async () => {
     const { state } = await openPlanner();
     await act(() => state().runCommand('planner.notebook', { folder: 'Lab/Experiments' }));
     await settle();
-    expect(charts.at(-1)?.tasks.map((t) => t.name)).toEqual(['Pilot', 'Main study', '◆ Committee']);
+    expect(screen.queryByRole('button', { name: /^2026-11-03,/ })).toBeNull();
+    expect(bar(/^Pilot,/)).toBeTruthy();
   });
 
-  it('writes the new dates to the page once a bar stops moving', async () => {
+  it('moves a bar a day at a time, and the pages waiting for it', async () => {
     const { platform, state } = await openPlanner();
     await act(() => state().runCommand('planner.open', { folder: null }));
     await settle();
-    const { tasks, options } = charts.at(-1) ?? { tasks: [], options: {} };
-    const pilot = tasks.find((t) => t.name === 'Pilot');
-    if (!pilot) throw new Error('No pilot');
-
-    // While dragging, the chart reports every step; only the last is written.
-    options.on_date_change?.(pilot, new Date(2026, 10, 3), new Date(2026, 10, 7, 23, 59, 59));
-    options.on_date_change?.(pilot, new Date(2026, 10, 4), new Date(2026, 10, 8, 23, 59, 59));
-    await settle(MOVE_SAVE_MS + 50);
+    for (let i = 0; i < 3; i += 1) {
+      fireEvent.keyDown(bar(/^Pilot,/), { key: 'ArrowRight' });
+      await settle(60);
+    }
     expect(platform.snapshot()['Lab/Pilot.md']).toBe(
-      '---\nstart: 2026-11-04\nend: 2026-11-08\nprogress: 40\n---\nA first run.\n',
+      '---\nstart: 2026-11-05\nend: 2026-11-09\nprogress: 40\n---\nA first run.\n',
     );
-
-    const daily = tasks.find((t) => t.name === '2026-11-03');
-    if (!daily) throw new Error('No daily note');
-    options.on_date_change?.(daily, new Date(2026, 10, 5), new Date(2026, 10, 5, 23, 59, 59));
-    options.on_progress_change?.(pilot, 75.4);
-    await settle(MOVE_SAVE_MS + 50);
-    expect(platform.snapshot()['Daily/2026-11/2026-11-03.md']).toBe(
-      '---\ndate: 2026-11-05\n---\nNotes.\n',
+    // Main study came after it, so it moved on a day too.
+    expect(platform.snapshot()['Lab/Main study.md']).toContain(
+      'start: 2026-11-10\nend: 2026-11-28\n',
     );
-    expect(platform.snapshot()['Lab/Pilot.md']).toContain('progress: 75\n');
-  });
+    expect(screen.getByRole('status').textContent).toContain('1 item that waits');
 
-  it('writes a move still waiting when the planner closes', async () => {
-    const { platform, state } = await openPlanner();
-    await act(() => state().runCommand('planner.open', { folder: null }));
-    await settle();
-    const { tasks, options } = charts.at(-1) ?? { tasks: [], options: {} };
-    const pilot = tasks.find((t) => t.name === 'Pilot');
-    if (!pilot) throw new Error('No pilot');
-    options.on_date_change?.(pilot, new Date(2026, 10, 10), new Date(2026, 10, 14, 23, 59, 59));
-    act(() => {
-      state().closeModuleView();
-    });
-    await settle();
-    expect(platform.snapshot()['Lab/Pilot.md']).toContain('start: 2026-11-10\nend: 2026-11-14\n');
+    // Shift and an arrow changes the end only.
+    fireEvent.keyDown(bar(/^Pilot,/), { key: 'ArrowLeft', shiftKey: true });
+    await settle(60);
+    expect(platform.snapshot()['Lab/Pilot.md']).toContain('start: 2026-11-05\nend: 2026-11-08\n');
   });
 
   it('says how to start when nothing has dates', async () => {
@@ -232,6 +200,96 @@ describe('Planner: the timeline', () => {
     await act(() => state().runCommand('planner.open', { folder: null }));
     await settle();
     expect(screen.getByText(/Nothing to plan yet/)).toBeTruthy();
+  });
+});
+
+const item = (key: string, start: string, end: string, over: Partial<ScheduledItem> = {}) =>
+  ({
+    key,
+    title: key,
+    path: `Lab/${key}.md`,
+    start,
+    end,
+    milestone: false,
+    progress: 0,
+    done: false,
+    person: null,
+    priority: null,
+    notebook: 'Lab',
+    after: [],
+    parent: null,
+    ...over,
+  }) satisfies ScheduledItem;
+
+describe('Planner: working out the chart', () => {
+  it('counts days and sets the range around the plan and today', () => {
+    expect(addDays('2026-10-30', 3)).toBe('2026-11-02');
+    expect(daysBetween('2026-10-30', '2026-11-02')).toBe(3);
+    expect(chartRange([item('a', '2026-11-02', '2026-11-04')], '2026-10-30')).toEqual({
+      from: '2026-10-23',
+      to: '2026-12-22',
+    });
+  });
+
+  it('groups rows, with parts under their whole unless folded', () => {
+    const items = [
+      item('thesis', '2026-11-01', '2026-11-20', { summary: true, person: 'Sam' }),
+      item('methods', '2026-11-01', '2026-11-05', { parent: 'thesis', person: 'Sam' }),
+      item('holiday', '2026-11-10', '2026-11-12', { person: 'Ray' }),
+    ];
+    const shape = (rows: ReturnType<typeof buildRows>) =>
+      rows.map((r) =>
+        r.kind === 'group' ? `# ${r.label}` : `${'  '.repeat(r.depth)}${r.item.key}`,
+      );
+    expect(shape(buildRows(items, 'person', new Set()))).toEqual([
+      '# Ray',
+      'holiday',
+      '# Sam',
+      'thesis',
+      '  methods',
+    ]);
+    expect(shape(buildRows(items, 'none', new Set(['thesis'])))).toEqual(['thesis', 'holiday']);
+  });
+
+  it('colours by priority, progress, or steadily by value', () => {
+    expect(colourOf(item('a', '2026-11-01', '2026-11-01', { priority: 1 }), 'priority', [])).toBe(
+      'red',
+    );
+    expect(colourOf(item('a', '2026-11-01', '2026-11-01', { done: true }), 'progress', [])).toBe(
+      'green',
+    );
+    const order = ['Lab', 'Thesis'];
+    expect(
+      colourOf(item('a', '2026-11-01', '2026-11-01', { notebook: 'Thesis' }), 'notebook', order),
+    ).toBe('teal');
+  });
+
+  it('pushes later what waits for a moved item, keeping lengths', () => {
+    const items = [
+      item('a', '2026-11-02', '2026-11-06'),
+      item('b', '2026-11-09', '2026-11-12', { after: ['a'] }),
+      item('c', '2026-11-13', '2026-11-13', { after: ['b'] }),
+      item('d', '2026-12-01', '2026-12-02', { after: ['a'] }),
+    ];
+    const moved = cascade(items, 'a', '2026-11-05', '2026-11-10');
+    expect(Object.fromEntries(moved)).toEqual({
+      a: { start: '2026-11-05', end: '2026-11-10' },
+      b: { start: '2026-11-11', end: '2026-11-14' },
+      c: { start: '2026-11-15', end: '2026-11-15' },
+    });
+  });
+
+  it('finds the critical path: the chain with no slack', () => {
+    const items = [
+      item('design', '2026-11-02', '2026-11-04'),
+      item('build', '2026-11-05', '2026-11-12', { after: ['design'] }),
+      item('docs', '2026-11-05', '2026-11-06', { after: ['design'] }),
+      item('launch', '2026-11-13', '2026-11-13', { after: ['build', 'docs'] }),
+    ];
+    expect([...criticalPath(items)].sort()).toEqual(['build', 'design', 'launch']);
+    // A later item on its own does not take the slack away from the chain.
+    const withOther = [...items, item('holiday', '2026-12-01', '2026-12-20')];
+    expect([...criticalPath(withOther)].sort()).toEqual(['build', 'design', 'launch']);
   });
 });
 
