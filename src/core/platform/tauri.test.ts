@@ -1,4 +1,5 @@
-import { clearMocks, mockConvertFileSrc, mockIPC } from '@tauri-apps/api/mocks';
+import { clearMocks, mockConvertFileSrc, mockIPC, mockWindows } from '@tauri-apps/api/mocks';
+import { CloseRequestedEvent, Window } from '@tauri-apps/api/window';
 import { PlatformError } from './errors';
 import { fullPath, TauriAdapter } from './tauri';
 
@@ -26,10 +27,38 @@ function record(respond: (cmd: string, args: unknown) => unknown = () => null): 
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   clearMocks();
 });
 
 describe('TauriAdapter', () => {
+  it.each(['saved', 'blocked', 'failed'])(
+    'only destroys the window after a safe close: %s',
+    async (result) => {
+      mockWindows('main');
+      const listen = vi
+        .spyOn(Window.prototype, 'onCloseRequested')
+        .mockResolvedValue(() => undefined);
+      const destroy = vi.spyOn(Window.prototype, 'destroy').mockResolvedValue();
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      new TauriAdapter().onExitRequested(() => {
+        if (result === 'failed') return Promise.reject(new Error('Disk full'));
+        return Promise.resolve(result === 'saved');
+      });
+      const handler = listen.mock.calls[0]?.[0];
+      if (!handler) throw new Error('No close listener');
+      const event = new CloseRequestedEvent({
+        event: 'tauri://close-requested',
+        id: 1,
+        payload: null,
+      });
+      const prevent = vi.spyOn(event, 'preventDefault');
+      await handler(event);
+      expect(prevent).toHaveBeenCalledOnce();
+      expect(destroy).toHaveBeenCalledTimes(result === 'saved' ? 1 : 0);
+    },
+  );
+
   it('sends normalised paths to the Rust commands', async () => {
     const calls = record((cmd) => (cmd === 'exists' ? true : null));
     const adapter = new TauriAdapter();

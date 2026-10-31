@@ -52,9 +52,9 @@ export interface VaultSlice {
   cancelFolder: () => void;
   /**
    * Lets every slice finish with the vault, closes it and returns to the
-   * picker. The last vault is still remembered.
+   * picker. The last vault is still remembered. False means closing was blocked.
    */
-  closeVault: () => Promise<void>;
+  closeVault: () => Promise<boolean>;
   /** Closes the open vault and opens the one at `path`, such as a restored backup. */
   switchToVault: (path: string) => Promise<void>;
 }
@@ -85,14 +85,17 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
   }
 
   /** Lets every slice finish with the open vault, then closes it. */
-  async function closeOpen(): Promise<void> {
-    if (get().status.kind !== 'open') return;
+  async function closeOpen(): Promise<boolean> {
+    if (get().status.kind !== 'open') return true;
+    // A failed page save must leave the entire vault running for a retry.
+    if (!(await get().closePage())) return false;
     // Everything finishes with this vault before the platform can point at another.
     await ctx.configSaved();
     for (const hooks of [...ctx.lifecycle].reverse()) await hooks.closing?.();
     ctx.bumpSession();
     set({ status: { kind: 'no-vault' }, notice: null });
     for (const hooks of ctx.lifecycle) hooks.closed?.();
+    return true;
   }
 
   /** Runs a vault action unless one is already running. */
@@ -221,11 +224,17 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
       }
     },
 
-    closeVault: () => guarded(closeOpen),
+    closeVault: async () => {
+      let closed = false;
+      await guarded(async () => {
+        closed = await closeOpen();
+      });
+      return closed;
+    },
 
     switchToVault: (path) =>
       guarded(async () => {
-        await closeOpen();
+        if (!(await closeOpen())) return;
         await goOnWith(path);
       }),
   };

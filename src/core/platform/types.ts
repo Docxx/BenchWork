@@ -113,9 +113,10 @@ export interface PlatformAdapter {
   assetUrl(path: string): string | null;
   /**
    * Runs `handler` when the user closes the app, and waits for it before
-   * closing, so unsaved work can be saved. Returns a function that stops it.
+   * closing, so unsaved work can be saved. False or rejection cancels closing.
+   * Returns a function that stops listening.
    */
-  onExitRequested(handler: () => Promise<void>): () => void;
+  onExitRequested(handler: () => Promise<boolean>): () => void;
 
   /** Per-device settings, stored outside the vault. Null if never saved. */
   loadAppSettings(): Promise<unknown>;

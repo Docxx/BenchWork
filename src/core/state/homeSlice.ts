@@ -94,7 +94,7 @@ export function createHomeSlice(ctx: StoreContext): HomeSlice {
     goHome: async () => {
       if (get().status.kind !== 'open') return;
       get().showView('files');
-      await get().closePage();
+      if (!(await get().closePage())) return;
       set({ openFile: null, moduleView: null });
     },
 

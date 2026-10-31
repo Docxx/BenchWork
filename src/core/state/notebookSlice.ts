@@ -307,7 +307,7 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
         // Save and close the open page first if it is going, so its latest text is recycled.
         const open = get().page?.path;
         if (open !== undefined && (open === path || open.startsWith(`${path}/`))) {
-          await get().closePage();
+          if (!(await get().closePage())) return false;
         }
         const file = get().openFile;
         if (file !== null && (file === path || file.startsWith(`${path}/`))) get().closeFile();

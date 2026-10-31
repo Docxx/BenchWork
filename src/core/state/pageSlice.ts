@@ -80,8 +80,8 @@ export interface PageSlice {
   pageConflict: PageConflict | null;
 
   openPage: (path: string) => Promise<void>;
-  /** Saves any changes, then closes the page. */
-  closePage: () => Promise<void>;
+  /** Saves any changes, then closes the page. False keeps unsaved edits open. */
+  closePage: () => Promise<boolean>;
   /** Saves now instead of waiting for autosave. */
   savePageNow: () => Promise<void>;
   /** In a conflict: save the editor's version; the disk version becomes a snapshot. */
@@ -112,6 +112,7 @@ interface Session {
   /** The file text as last read or written. A watcher event with this text is our own. */
   lastText: string;
   dirty: boolean;
+  revision: number;
   timer: ReturnType<typeof setTimeout> | null;
   stopObserving: () => void;
 }
@@ -163,6 +164,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
       ydoc,
       lastText: text,
       dirty: false,
+      revision: 0,
       timer: null,
       stopObserving: () => undefined,
     };
@@ -199,6 +201,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
 
   /** Notes an edit and starts the autosave timer again. */
   function markEdited(s: Session): void {
+    s.revision += 1;
     s.dirty = true;
     set({ saveState: 'unsaved' });
     if (s.timer !== null) clearTimeout(s.timer);
@@ -226,15 +229,15 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
     return { text: savePage(page, doc, s.source), page };
   }
 
-  async function writeSession(s: Session): Promise<void> {
-    if (!s.dirty) return;
+  async function writeSession(s: Session): Promise<boolean> {
+    if (!s.dirty) return true;
     s.dirty = false;
     if (s.timer !== null) clearTimeout(s.timer);
     s.timer = null;
     const { text, page } = render(s);
     if (text === s.lastText) {
       if (session === s) set({ saveState: 'saved' });
-      return;
+      return true;
     }
     if (session === s) set({ saveState: 'saving' });
     const previous = s.lastText;
@@ -245,6 +248,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
       s.page = page;
       // Edits made while the write was in flight leave the page unsaved.
       if (session === s && !editedSince(s)) set({ saveState: 'saved', pageNotice: null });
+      return true;
     } catch (err) {
       s.lastText = previous;
       s.dirty = true;
@@ -254,6 +258,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
           pageNotice: `This page could not be saved. ${PlatformError.from(err).message}`,
         });
       }
+      return false;
     }
   }
 
@@ -263,24 +268,45 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
   }
 
   /** Saves one at a time, so two saves never race. */
-  function queueSave(s: Session): Promise<void> {
+  function queueSave(s: Session): Promise<boolean> {
     const next = saves.then(() => writeSession(s));
-    saves = next.catch(() => undefined);
+    saves = next.then(
+      () => undefined,
+      () => undefined,
+    );
     return next;
   }
 
-  async function endSession(): Promise<void> {
+  async function endSession(): Promise<boolean> {
     const s = session;
-    if (!s) return;
-    if (get().pageConflict === null) {
-      await queueSave(s);
-    } else if (s.dirty) {
-      // Closing with a conflict unresolved: keep the edits as a snapshot, never lose them.
-      await keepSnapshot(s.path, s.page.meta.id, render(s).text).catch(() => undefined);
-    }
+    if (!s) return true;
+    do {
+      if (get().pageConflict === null) {
+        if (!(await queueSave(s))) return false;
+      } else if (s.dirty) {
+        // Do not leave a conflicted page unless its unsaved version is recoverable.
+        const revision = s.revision;
+        const text = render(s).text;
+        try {
+          await keepSnapshot(s.path, s.page.meta.id, text);
+        } catch (err) {
+          set({
+            saveState: 'error',
+            pageNotice: `Your edits could not be kept in History. ${PlatformError.from(err).message}`,
+          });
+          return false;
+        }
+        if (session !== s) return false;
+        if (s.revision === revision) break;
+      }
+      if (session !== s) return false;
+      // An edit made while saving must also reach disk before the document is destroyed.
+    } while (s.dirty);
+    if (session !== s) return false;
     s.stopObserving();
     s.ydoc.destroy();
-    if (session === s) session = null;
+    session = null;
+    return true;
   }
 
   /** Reloads the open page from text on disk, starting a fresh document. */
@@ -348,11 +374,10 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
         if (session && change.paths.includes(session.path)) void checkDisk();
       });
     },
-    // Save the open page before anything else lets go of the vault.
-    closing: async () => {
+    closing: () => {
+      // The vault preflight has already saved and closed the page.
       stopWatching?.();
       stopWatching = null;
-      await get().closePage();
     },
     closed: () => {
       set({
@@ -399,7 +424,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
     openPage: async (path) => {
       if (get().status.kind !== 'open' || session?.path === path) return;
       const token = (openToken += 1);
-      await endSession();
+      if (!(await endSession())) return;
       let text: string;
       try {
         text = await platform.readText(path);
@@ -422,7 +447,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
 
     closePage: async () => {
       openToken += 1;
-      await endSession();
+      if (!(await endSession())) return false;
       set({
         page: null,
         saveState: 'saved',
@@ -430,6 +455,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
         pageProperties: null,
         propertiesBroken: false,
       });
+      return true;
     },
 
     savePageNow: async () => {
@@ -494,7 +520,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
       if (!s || get().pageConflict !== null) return;
       try {
         const text = await platform.readText(path);
-        await queueSave(s);
+        if (!(await queueSave(s))) return;
         if (session !== s) return;
         const current = s.lastText;
         if (current === text) return;

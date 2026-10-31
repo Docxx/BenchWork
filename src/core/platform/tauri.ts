@@ -387,7 +387,7 @@ export class TauriAdapter implements PlatformAdapter {
     return convertFileSrc(fullPath(this.root, normaliseVaultPath(path)));
   }
 
-  onExitRequested(handler: () => Promise<void>): () => void {
+  onExitRequested(handler: () => Promise<boolean>): () => void {
     const win = getCurrentWindow();
     let stopped = false;
     let unlisten: (() => void) | null = null;
@@ -396,9 +396,9 @@ export class TauriAdapter implements PlatformAdapter {
         // Hold the window open until the work is saved, then close it.
         event.preventDefault();
         try {
-          await handler();
-        } finally {
-          await win.destroy();
+          if (await handler()) await win.destroy();
+        } catch (err) {
+          console.error('Could not close the app safely', err);
         }
       })
       .then((fn) => {

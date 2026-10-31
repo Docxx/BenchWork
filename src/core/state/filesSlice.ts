@@ -93,7 +93,7 @@ export function createFilesSlice(ctx: StoreContext): FilesSlice {
     openModuleView: async (id, param = null) => {
       if (get().status.kind !== 'open') return;
       get().showView('files');
-      await get().closePage();
+      if (!(await get().closePage())) return;
       set({ openFile: null, moduleView: { id, param } });
     },
 
@@ -113,7 +113,7 @@ export function createFilesSlice(ctx: StoreContext): FilesSlice {
         if (wanted !== '' && get().page?.path === path) set({ revealHeading: wanted });
         return;
       }
-      await get().closePage();
+      if (!(await get().closePage())) return;
       set({ openFile: path, pageNotice: null });
       get().selectEntry(path);
     },

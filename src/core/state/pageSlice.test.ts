@@ -128,6 +128,100 @@ describe('saving', () => {
     expect(state().saveState).toBe('saved');
     expect(platform.snapshot()['Lab/Plan.md']).toContain('Edited.');
   });
+
+  it.each(['close', 'page', 'home', 'file', 'module', 'recycle', 'vault', 'switch', 'exit'])(
+    'keeps the editor and vault usable after a failed save during %s',
+    async (action) => {
+      const { platform, state } = await openVault();
+      await state().openPage('Lab/Plan.md');
+      const ydoc = state().page?.ydoc;
+      const write = platform.writeTextAtomic.bind(platform);
+      platform.writeTextAtomic = () => Promise.reject(new Error('Disk full'));
+      edit(state, 'Unsaved research.\n');
+      if (action === 'close') expect(await state().closePage()).toBe(false);
+      if (action === 'page') await state().openPage('Lab/Other.md');
+      if (action === 'home') await state().goHome();
+      if (action === 'file') await state().openPath('paper.pdf');
+      if (action === 'module') await state().openModuleView('tasks');
+      if (action === 'recycle') expect(await state().recycleItem('Lab')).toBe(false);
+      if (action === 'vault') expect(await state().closeVault()).toBe(false);
+      if (action === 'switch') await state().switchToVault('C:/Other');
+      if (action === 'exit') {
+        platform.onExitRequested(() => state().closeVault());
+        expect(await platform.requestExit()).toBe(false);
+      }
+      expect(state().page?.ydoc).toBe(ydoc);
+      expect(ydoc?.isDestroyed).toBe(false);
+      expect(state().saveState).toBe('error');
+      expect(state().pageNotice).toContain('Disk full');
+      expect(state().status.kind).toBe('open');
+      expect(state().openFile).toBeNull();
+      expect(state().moduleView).toBeNull();
+      expect(platform.trashed()).toEqual([]);
+      expect(platform.snapshot()['Lab/Plan.md']).toBe(PAGE);
+
+      platform.writeTextAtomic = write;
+      await state().savePageNow();
+      expect(platform.snapshot()['Lab/Plan.md']).toContain('Unsaved research.');
+      // The failed close must not stop the vault's watcher.
+      await platform.externalWrite('Lab/Plan.md', 'Changed elsewhere.\n');
+      await vi.waitFor(() => {
+        expect(JSON.stringify(yDocToPage(state().page?.ydoc as import('yjs').Doc))).toContain(
+          'Changed elsewhere.',
+        );
+      });
+      expect(await state().closeVault()).toBe(true);
+    },
+  );
+
+  it('saves edits made while a closing save is in flight', async () => {
+    const { platform, state } = await openVault();
+    await state().openPage('Lab/Plan.md');
+    const write = platform.writeTextAtomic.bind(platform);
+    let release: () => void = () => undefined;
+    let started = false;
+    platform.writeTextAtomic = async (path, text) => {
+      started = true;
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      platform.writeTextAtomic = write;
+      await write(path, text);
+    };
+    edit(state, 'First edit.\n');
+    const closing = state().closePage();
+    await vi.waitFor(() => {
+      expect(started).toBe(true);
+    });
+    edit(state, 'Later edit.\n');
+    release();
+    expect(await closing).toBe(true);
+    expect(platform.snapshot()['Lab/Plan.md']).toContain('Later edit.');
+    expect(state().page).toBeNull();
+  });
+
+  it('keeps a conflicted page open when its recovery snapshot fails', async () => {
+    const { platform, state } = await openVault();
+    await state().openPage('Lab/Plan.md');
+    edit(state, 'My research.\n');
+    await platform.externalWrite('Lab/Plan.md', 'Their research.\n');
+    await vi.waitFor(() => {
+      expect(state().pageConflict).not.toBeNull();
+    });
+    const create = platform.createNew.bind(platform);
+    platform.createNew = () => Promise.reject(new Error('Disk full'));
+    expect(await state().closePage()).toBe(false);
+    expect(state().page?.path).toBe('Lab/Plan.md');
+    expect(state().pageNotice).toContain('could not be kept in History');
+    expect(state().pageConflict).not.toBeNull();
+    platform.createNew = create;
+    expect(await state().closePage()).toBe(true);
+    const snapshots = Object.entries(platform.snapshot()).filter(([p]) =>
+      p.startsWith('.benchwork/snapshots/p1/'),
+    );
+    expect(snapshots.some(([, text]) => text?.includes('My research.'))).toBe(true);
+    expect(platform.snapshot()['Lab/Plan.md']).toBe('Their research.\n');
+  });
 });
 
 describe('changes made outside BenchWork', () => {
