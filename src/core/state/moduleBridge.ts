@@ -1,4 +1,5 @@
 import type { VaultItem } from '../api';
+import { playTimerSound } from '../audio/timerSound';
 import { linkTargetFor, resolveLink, suffixKeys } from '../links/resolve';
 import { dayOf } from '../pages/daily';
 import type { AppBridge } from '../modules/context';
@@ -108,6 +109,9 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
     askText: (options) => state().askText(options),
     notify: (message) => {
       store.setState({ sidebarNotice: message });
+    },
+    timerAlert: () => {
+      void playTimerSound(state().settings.appearance);
     },
     items: async () => (await pages()).map(item),
     linksTo: async (path) => {

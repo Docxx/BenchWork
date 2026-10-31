@@ -32,6 +32,7 @@ export type SidebarStyle = 'dark' | 'light';
 export type FontChoice = 'serif' | 'sans' | 'mono';
 export type Density = 'compact' | 'comfortable' | 'roomy';
 export type PageWidth = 'narrow' | 'normal' | 'wide';
+export type TimerSound = 'theme' | 'classic' | 'chime' | 'off';
 
 export interface Appearance {
   preset: ThemePreset;
@@ -62,6 +63,13 @@ export interface Appearance {
   panelWidth: number;
   /** A short animation as the app opens. */
   startupAnimation: boolean;
+  /** Decorative theme details around the workspace, never over page content. */
+  decoration: boolean;
+  /** Subtle theme animation, also subject to the system's reduced-motion setting. */
+  motion: boolean;
+  timerSound: TimerSound;
+  /** Timer alert volume, from 0 to 100. */
+  timerVolume: number;
   /** How tall rows in the notebooks list are. */
   treeDensity: Density;
   /** Lines down the notebooks list, showing what is inside what. */
@@ -437,12 +445,12 @@ const BRIDGE: PresetSpec = {
 };
 
 const DINO_DARK: Palette = {
-  bg: '#14130c',
-  surface: '#1f1d13',
-  border: '#3a3723',
-  text: '#efe8d2',
-  muted: '#b2aa84',
-  accent: '#e3a72f',
+  bg: '#0d1714',
+  surface: '#17251f',
+  border: '#354638',
+  text: '#f0ead8',
+  muted: '#b4bea3',
+  accent: '#e8b64b',
   warnBg: '#3b2a0c',
   warnText: '#ffd27a',
 };
@@ -455,7 +463,7 @@ const DINO: PresetSpec = {
   fun: true,
   sidebar: 'dark',
   darkSidebar: {
-    bg: '#0e180b',
+    bg: '#08110f',
     hover: 'rgba(227, 167, 47, 0.12)',
     active: 'rgba(227, 167, 47, 0.24)',
     text: '#e6dfc4',
@@ -993,6 +1001,10 @@ export function defaultAppearance(preset: ThemePreset = 'forest'): Appearance {
     sidebarWidth: SIDEBAR_WIDTH.initial,
     panelWidth: PANEL_WIDTH.initial,
     startupAnimation: true,
+    decoration: true,
+    motion: true,
+    timerSound: 'theme',
+    timerVolume: 35,
     treeDensity: 'comfortable',
     treeLines: false,
     hideDaily: false,
@@ -1050,6 +1062,14 @@ export function parseAppearance(data: unknown): Appearance {
   }
   if (typeof record['startupAnimation'] === 'boolean')
     result.startupAnimation = record['startupAnimation'];
+  for (const key of ['decoration', 'motion'] as const) {
+    if (typeof record[key] === 'boolean') result[key] = record[key];
+  }
+  if (oneOf(record['timerSound'], ['theme', 'classic', 'chime', 'off'] as const))
+    result.timerSound = record['timerSound'];
+  const volume = record['timerVolume'];
+  if (typeof volume === 'number' && Number.isFinite(volume))
+    result.timerVolume = Math.round(Math.min(100, Math.max(0, volume)));
   if (oneOf(record['treeDensity'], ['compact', 'comfortable', 'roomy'] as const))
     result.treeDensity = record['treeDensity'];
   for (const key of ['treeLines', 'hideDaily', 'pagesOnly'] as const) {

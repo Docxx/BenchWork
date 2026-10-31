@@ -20,6 +20,8 @@ import {
 import { homeWidgets } from '../settings/layout';
 import { orderCards } from '../state/homeSlice';
 import { useApp } from './AppStoreContext';
+import { THEME_EXPERIENCES } from '../settings/themeExperience';
+import { ThemeScene } from './ThemeScene';
 import { Menu } from './Menu';
 import { ViewBoundary } from './ModuleView';
 import { SidePanelToggle } from './PageView';
@@ -64,6 +66,8 @@ function useStacked(): boolean {
  * Saved per vault, on this device.
  */
 export function HomeView() {
+  const appearance = useApp((s) => s.settings.appearance);
+  const experience = appearance.decoration ? THEME_EXPERIENCES[appearance.preset] : undefined;
   const status = useApp((s) => s.status);
   const layout = useHomeLayout();
   const setLayout = useApp((s) => s.setHomeLayout);
@@ -154,7 +158,9 @@ export function HomeView() {
   return (
     <article className="home" aria-label="Home">
       <header className="home-header" data-window-drag>
+        {experience && <ThemeScene preset={appearance.preset} />}
         <div>
+          {experience && <p className="theme-caption">{experience.caption}</p>}
           <h1>{greeting(now)}</h1>
           <p className="home-date">
             {now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}

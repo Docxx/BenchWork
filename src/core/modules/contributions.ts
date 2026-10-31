@@ -13,6 +13,7 @@ import type {
   PageViewSpec,
   SettingsPanelSpec,
   SidebarPanelSpec,
+  TimerProviderSpec,
 } from '../api';
 
 export interface SidebarPanel extends SidebarPanelSpec {
@@ -68,6 +69,7 @@ export interface InkRecogniser extends InkRecogniserSpec {
 }
 
 export interface ContributionsState {
+  timerProviders: (TimerProviderSpec & { moduleId: string })[];
   /** Sidebar panels from modules that are on, in the order they registered. */
   panels: SidebarPanel[];
   pageTypes: PageType[];
@@ -92,6 +94,7 @@ export type Contributions = StoreApi<ContributionsState>;
 
 export function createContributions(): Contributions {
   return createStore<ContributionsState>()(() => ({
+    timerProviders: [],
     panels: [],
     pageTypes: [],
     commands: [],

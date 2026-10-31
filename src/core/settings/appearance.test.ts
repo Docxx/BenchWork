@@ -10,6 +10,22 @@ import {
 } from './appearance';
 
 describe('appearance settings', () => {
+  it('migrates old settings and bounds the atmosphere and sound controls', () => {
+    expect(parseAppearance({ preset: 'bridge' })).toMatchObject({
+      decoration: true,
+      motion: true,
+      timerSound: 'theme',
+      timerVolume: 35,
+    });
+    expect(
+      parseAppearance({ decoration: false, motion: false, timerSound: 'off', timerVolume: 500 }),
+    ).toMatchObject({ decoration: false, motion: false, timerSound: 'off', timerVolume: 100 });
+    expect(parseAppearance({ timerSound: 'bad', timerVolume: NaN })).toMatchObject({
+      timerSound: 'theme',
+      timerVolume: 35,
+    });
+    expect(parseAppearance({ timerVolume: -1 }).timerVolume).toBe(0);
+  });
   it('starts with the Forest look: serif pages, a dark sidebar', () => {
     const tokens = appearanceTokens(defaultAppearance(), 'light');
     expect(tokens['--bg']).toBe('#f8f7f3');

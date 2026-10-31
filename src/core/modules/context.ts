@@ -34,6 +34,7 @@ export interface ContextDeps {
 
 /** Lists in ContributionsState that hold registered items. */
 type ListKey =
+  | 'timerProviders'
   | 'panels'
   | 'pageTypes'
   | 'commands'
@@ -133,6 +134,24 @@ export function createModuleContext(
   }
 
   const ctx: ModuleContext = {
+    timers: {
+      register(spec) {
+        checkId('Timer provider', spec.id);
+        return contribute(
+          'timerProviders',
+          { ...spec, moduleId: id },
+          (p) => p.id === spec.id,
+          `A timer provider with id '${spec.id}'`,
+        );
+      },
+      start(name, milliseconds) {
+        if (!Number.isFinite(milliseconds) || milliseconds <= 0) return false;
+        const provider = deps.contributions.getState().timerProviders[0];
+        if (!provider) return false;
+        provider.start(name, milliseconds);
+        return true;
+      },
+    },
     manifest,
     platform: deps.device,
     log,
@@ -391,6 +410,9 @@ export function createModuleContext(
       askText: (options) => app().askText(options),
       notify: (message) => {
         app().notify(message);
+      },
+      timerAlert: () => {
+        app().timerAlert();
       },
       items: () => app().items(),
       linksTo: (path) => app().linksTo(path),

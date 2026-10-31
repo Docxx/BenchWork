@@ -27,6 +27,8 @@ export function applyAppearance(
   else root.dataset['theme'] = theme;
   const scheme = presetScheme(appearance.preset, schemeFor(theme, systemDark));
   root.dataset['preset'] = appearance.preset;
+  root.dataset['decoration'] = appearance.decoration ? 'on' : 'off';
+  root.dataset['motion'] = appearance.motion ? 'on' : 'off';
   root.style.colorScheme = scheme;
   for (const [name, value] of Object.entries(appearanceTokens(appearance, scheme))) {
     root.style.setProperty(name, value);

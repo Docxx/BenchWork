@@ -1,4 +1,7 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
+import { playTimerSound } from '../audio/timerSound';
+import { THEME_EXPERIENCES } from '../settings/themeExperience';
+import { ThemeScene } from './ThemeScene';
 import {
   ACCENT_CHOICES,
   PAPER_CHOICES,
@@ -9,6 +12,7 @@ import {
   type PageWidth,
   type PaperPattern,
   type ThemePreset,
+  type TimerSound,
 } from '../settings/appearance';
 import type { Theme } from '../settings/appSettings';
 import { useApp } from './AppStoreContext';
@@ -90,10 +94,89 @@ export function AppearanceSettings() {
   const setAppearance = useApp((s) => s.setAppearance);
   const resetAppearance = useApp((s) => s.resetAppearance);
   const preset = PRESETS[appearance.preset];
+  const experience = THEME_EXPERIENCES[appearance.preset];
+  const [soundMessage, setSoundMessage] = useState('');
 
   return (
     <div className="appearance">
+      <section className="appearance-preview" aria-label="Current theme">
+        {experience && appearance.decoration && <ThemeScene preset={appearance.preset} />}
+        <div>
+          <span className="theme-caption">Your workspace</span>
+          <h3>{preset.name}</h3>
+          <p>{experience?.description ?? 'Your colours, your fonts, your space to think.'}</p>
+        </div>
+      </section>
       <PresetPicker />
+
+      <fieldset className="field theme-experience-controls">
+        <legend>Atmosphere and sound</legend>
+        <label className="choice">
+          <input
+            type="checkbox"
+            checked={appearance.decoration}
+            onChange={(e) => void setAppearance({ decoration: e.target.checked })}
+          />
+          Show theme details
+        </label>
+        <label className="choice">
+          <input
+            type="checkbox"
+            checked={appearance.motion}
+            onChange={(e) => void setAppearance({ motion: e.target.checked })}
+          />
+          Subtle motion
+        </label>
+        <p className="hint">
+          Motion follows your device’s reduced-motion setting and pauses while the app is hidden.
+        </p>
+        <div className="theme-sound-controls">
+          <label>
+            Timer sound
+            <select
+              value={appearance.timerSound}
+              onChange={(e) => {
+                setSoundMessage('');
+                void setAppearance({ timerSound: e.target.value as TimerSound });
+              }}
+            >
+              <option value="theme">Match theme</option>
+              <option value="classic">Classic beeps</option>
+              <option value="chime">Gentle bells</option>
+              <option value="off">Silent</option>
+            </select>
+          </label>
+          <label>
+            Timer volume <output>{appearance.timerVolume}%</output>
+            <input
+              aria-label="Timer volume"
+              type="range"
+              min="0"
+              max="100"
+              value={appearance.timerVolume}
+              onChange={(e) => void setAppearance({ timerVolume: Number(e.target.value) })}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={appearance.timerSound === 'off' || appearance.timerVolume === 0}
+            onClick={() => {
+              void playTimerSound(appearance, true).then((played) => {
+                setSoundMessage(
+                  played
+                    ? 'Preview played.'
+                    : 'Sound is unavailable. Check your device’s audio settings.',
+                );
+              });
+            }}
+          >
+            Preview sound
+          </button>
+        </div>
+        <p className="hint" role="status" aria-label="Sound preview">
+          {soundMessage || 'Short alerts only. Timer messages still appear when sound is off.'}
+        </p>
+      </fieldset>
 
       <Choices
         legend="Light or dark"
@@ -363,10 +446,20 @@ export function PresetPicker() {
                         choosePreset(id);
                       }}
                     />
-                    <span className="preset-swatch" aria-hidden="true">
+                    <span
+                      className="preset-swatch"
+                      aria-hidden="true"
+                      style={
+                        {
+                          '--scene-ink': page.accent,
+                          '--scene-alt': spec.sections?.purple ?? page.muted,
+                        } as CSSProperties
+                      }
+                    >
                       <span style={{ background: sidebar }} />
                       <span style={{ background: page.bg }}>
                         <i style={{ background: page.accent }} />
+                        {spec.fun && <ThemeScene preset={id} />}
                       </span>
                     </span>
                     {spec.name}

@@ -42,25 +42,6 @@ export function clock(ms: number, roundUp = true): string {
   return h > 0 ? `${String(h)}:${pad(m)}:${pad(s)}` : `${String(m)}:${pad(s)}`;
 }
 
-/** A few short beeps, where the device can play sound. */
-function beep(): void {
-  try {
-    const audio = new AudioContext();
-    for (let i = 0; i < 3; i += 1) {
-      const tone = audio.createOscillator();
-      const gain = audio.createGain();
-      tone.frequency.value = 880;
-      gain.gain.value = 0.15;
-      tone.connect(gain).connect(audio.destination);
-      tone.start(audio.currentTime + i * 0.35);
-      tone.stop(audio.currentTime + i * 0.35 + 0.2);
-    }
-    setTimeout(() => void audio.close(), 1500);
-  } catch {
-    // No sound here; the message still shows.
-  }
-}
-
 /**
  * Bench timers that keep running while other things are open, and across a
  * restart: each running timer is saved with the time it ends.
@@ -79,7 +60,7 @@ export class TimerStore {
   constructor(
     private readonly ctx: ModuleContext,
     private readonly alert: (timer: Timer) => void = (timer) => {
-      beep();
+      ctx.app.timerAlert();
       ctx.app.notify(`Timer done: ${timer.name}`);
     },
   ) {}

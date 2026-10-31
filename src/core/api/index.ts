@@ -61,6 +61,7 @@ export function defineModule(definition: ModuleDefinition): ModuleDefinition {
 }
 
 export interface ModuleContext {
+  readonly timers: ModuleTimers;
   readonly manifest: ModuleManifest;
   /** The device the app is running on. */
   readonly platform: DeviceKind;
@@ -86,6 +87,16 @@ export interface ModuleContext {
   readonly log: ModuleLogger;
   /** Runs `fn` when the module is switched off, for timers and listeners. */
   onDispose(fn: () => void): void;
+}
+
+export interface TimerProviderSpec {
+  id: string;
+  start(name: string, milliseconds: number): void;
+}
+export interface ModuleTimers {
+  register(spec: TimerProviderSpec): Disposable;
+  /** False if no timer module is active. Uses the same timers shown on Home. */
+  start(name: string, milliseconds: number): boolean;
 }
 
 // ---- Page types ----
@@ -329,6 +340,8 @@ export interface ModuleApp {
   askText(options: { title: string; label: string; initial?: string }): Promise<string | null>;
   /** Shows a short message. */
   notify(message: string): void;
+  /** Plays the timer cue using this device's current theme, volume and sound setting. */
+  timerAlert(): void;
   /** Every page and record, by path. */
   items(): Promise<VaultItem[]>;
   /** Items linking to `path`. */

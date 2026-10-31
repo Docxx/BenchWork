@@ -1,5 +1,6 @@
 // @vitest-environment node
 import type { ModuleContext } from '../api';
+import * as timerAudio from '../audio/timerSound';
 import { createContributions } from '../modules/contributions';
 import { ModuleRegistry } from '../modules/registry';
 import { fakeModule } from '../modules/testModules';
@@ -54,6 +55,24 @@ async function openVault() {
 }
 
 describe('module page types and commands in the app', () => {
+  it('uses current device sound preferences when an already active module alerts', async () => {
+    const play = vi.spyOn(timerAudio, 'playTimerSound').mockResolvedValue(true);
+    try {
+      const { ctx, state } = await openVault();
+      await state().setAppearance({ preset: 'bridge', timerVolume: 20 });
+      ctx.app.timerAlert();
+      expect(play).toHaveBeenLastCalledWith(
+        expect.objectContaining({ preset: 'bridge', timerVolume: 20 }),
+      );
+      await state().setAppearance({ preset: 'wizard', timerSound: 'off' });
+      ctx.app.timerAlert();
+      expect(play).toHaveBeenLastCalledWith(
+        expect.objectContaining({ preset: 'wizard', timerSound: 'off' }),
+      );
+    } finally {
+      play.mockRestore();
+    }
+  });
   it('lists what modules registered', async () => {
     const { state } = await openVault();
     expect(state().pageTypes.map((t) => t.type)).toEqual(['experiment']);

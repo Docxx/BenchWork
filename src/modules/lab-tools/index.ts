@@ -17,6 +17,12 @@ const VIEW = 'lab-tools.view';
 export default defineModule({
   activate(ctx) {
     const timers = new TimerStore(ctx);
+    ctx.timers.register({
+      id: 'lab-tools.timers',
+      start: (name, milliseconds) => {
+        timers.add(name, milliseconds);
+      },
+    });
     void timers.load();
     ctx.onDispose(() => {
       timers.dispose();
