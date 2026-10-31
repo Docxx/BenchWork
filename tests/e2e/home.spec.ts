@@ -59,20 +59,38 @@ test('Home shows recent pages, tasks due and tools, and a page can be pinned to 
   );
 });
 
-test('cards can be moved and hidden, and stay that way', async ({ page }) => {
+test('cards are dragged and resized while editing, then stay put', async ({ page }) => {
   const home = page.getByRole('article', { name: 'Home' });
   await home.getByRole('button', { name: 'Edit home' }).click();
   await home.getByRole('button', { name: 'Hide Tools' }).click();
-  await home.getByRole('button', { name: 'Move Recent pages up' }).click();
+
+  // Drag Reminders by its heading to the top left.
+  const reminders = home.getByRole('region', { name: 'Reminders' });
+  const from = await reminders.getByRole('heading').boundingBox();
+  const to = await home.getByRole('region', { name: 'Today', exact: true }).boundingBox();
+  if (!from || !to) throw new Error('Cards not drawn');
+  await page.mouse.move(from.x + 10, from.y + 5);
+  await page.mouse.down();
+  await page.mouse.move(to.x + 10, to.y + 5, { steps: 12 });
+  await page.mouse.up();
+  await expect(home.getByRole('heading', { level: 2 }).first()).toHaveText('Reminders');
+
+  // Make it wider by its corner.
+  const box = await reminders.boundingBox();
+  if (!box) throw new Error('No card');
+  await page.mouse.move(box.x + box.width - 6, box.y + box.height - 6);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 2, box.y + box.height - 6, { steps: 12 });
+  await page.mouse.up();
+  const wider = await reminders.boundingBox();
+  expect((wider?.width ?? 0) > box.width * 1.5).toBe(true);
+
   await home.getByRole('button', { name: 'Done' }).click();
-  await expect(home.getByRole('heading', { level: 2 })).toHaveText([
-    'Today',
-    'Recent pages',
-    'Pinned',
-    'Calendar',
-    'Due today',
-    'Reminders',
-  ]);
+  const order = await home.getByRole('heading', { level: 2 }).allTextContents();
+  expect(order[0]).toBe('Reminders');
+  expect(order).not.toContain('Tools');
+  // Locked: the grips are gone.
+  await expect(home.getByRole('button', { name: /^Move / })).toHaveCount(0);
 
   // Still so after going to a page and back.
   await page.getByRole('button', { name: 'Today', exact: true }).click();
@@ -80,14 +98,7 @@ test('cards can be moved and hidden, and stay that way', async ({ page }) => {
     .getByRole('navigation', { name: 'Vault' })
     .getByRole('button', { name: 'Home' })
     .click();
-  await expect(home.getByRole('heading', { level: 2 })).toHaveText([
-    'Today',
-    'Recent pages',
-    'Pinned',
-    'Calendar',
-    'Due today',
-    'Reminders',
-  ]);
+  await expect(home.getByRole('heading', { level: 2 })).toHaveText(order);
 });
 
 test('widgets are dragged between docks, and added from the + menu', async ({ page }) => {

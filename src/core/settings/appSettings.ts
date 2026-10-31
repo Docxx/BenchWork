@@ -1,3 +1,4 @@
+import { parseGrid, type Grid } from './homeGrid';
 import { defaultDocks, parseDocks, type DockLayout } from './layout';
 import type { PlatformAdapter } from '../platform';
 import { defaultAppearance, parseAppearance, type Appearance } from './appearance';
@@ -33,10 +34,12 @@ export interface HomeLayout {
   pinned: string[];
   /** Widgets under the notebooks and beside pages. */
   docks: DockLayout;
+  /** Where each card is on Home, and its size. */
+  grid: Grid;
 }
 
 export function defaultHomeLayout(): HomeLayout {
-  return { order: [], hidden: [], added: [], pinned: [], docks: defaultDocks() };
+  return { order: [], hidden: [], added: [], pinned: [], docks: defaultDocks(), grid: {} };
 }
 
 const strings = (value: unknown): string[] =>
@@ -53,6 +56,7 @@ export function parseHomeLayout(value: unknown): HomeLayout {
     added: strings(record['added']),
     pinned: strings(record['pinned']),
     docks: parseDocks(record['docks']),
+    grid: parseGrid(record['grid']),
   };
 }
 

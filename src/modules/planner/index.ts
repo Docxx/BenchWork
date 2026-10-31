@@ -15,7 +15,6 @@ import './planner.css';
 
 const VIEW = 'planner.timeline';
 
-
 export const PAGES = 'planner.pages';
 
 /** Planned pages as items for the chart, joined to the pages they come after. */

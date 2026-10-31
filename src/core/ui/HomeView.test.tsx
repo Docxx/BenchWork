@@ -66,14 +66,11 @@ describe('Home', () => {
 
   it('shows module cards and tools, which open from Home and the sidebar', async () => {
     const { store } = await renderHome();
-    expect(cardNames()).toEqual([
-      'Today',
-      'Tools',
-      'Pinned',
-      'Recent pages',
-      'Calendar',
-      'On the bench',
-    ]);
+    // Three to a row, in their usual order, the module's card among them.
+    expect(cardNames().slice(0, 3)).toEqual(['Today', 'Tools', 'Pinned']);
+    expect([...cardNames()].sort()).toEqual(
+      ['Calendar', 'On the bench', 'Pinned', 'Recent pages', 'Today', 'Tools'].sort(),
+    );
     expect(screen.getByText('Two gels running')).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: /Bench.*Things on the bench/ }));
@@ -93,16 +90,20 @@ describe('Home', () => {
     const { store } = await renderHome();
     fireEvent.click(screen.getByRole('button', { name: 'Edit home' }));
     await act(() => store.getState().setHomeLayout({}));
-    fireEvent.click(screen.getByRole('button', { name: 'Move On the bench up' }));
-    await act(() => Promise.resolve());
-    expect(cardNames()).toEqual([
-      'Today',
-      'Tools',
-      'Pinned',
-      'Recent pages',
-      'On the bench',
-      'Calendar',
-    ]);
+    // Arrow keys on a card's grip move it a cell; with Shift they resize it.
+    const press = async (key: string, shiftKey = false) => {
+      fireEvent.keyDown(screen.getByRole('button', { name: 'Move On the bench' }), {
+        key,
+        shiftKey,
+      });
+      await act(() => Promise.resolve());
+    };
+    for (let i = 0; i < 12; i += 1) await press('ArrowUp');
+    for (let i = 0; i < 8; i += 1) await press('ArrowLeft');
+    await press('ArrowRight', true);
+    const grid = store.getState().homeLayout().grid;
+    expect(grid['bench.card']).toMatchObject({ x: 0, w: 5 });
+    expect(cardNames().indexOf('On the bench')).toBeLessThan(cardNames().indexOf('Recent pages'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Hide Tools' }));
     await act(() => Promise.resolve());

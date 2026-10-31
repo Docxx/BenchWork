@@ -3683,22 +3683,82 @@ button.pack-card span {
 }
 
 .home-grid {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-  align-items: start;
+  gap: 16px;
+}
+
+/* On a wide screen: 12 columns, rows of 32px, each card where it was put. */
+.home-grid.placed {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: 32px;
+}
+
+.home-grid.stacked {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .home-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 0;
   padding: 1rem 1.1rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
 }
 
-.home-card.wide {
-  grid-column: span 2;
+.home-grid.placed .home-card-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Editing: cards can be picked up. */
+.home-grid.editing .home-card {
+  outline: 1px dashed color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: 2px;
+}
+
+.home-grid.editing .home-card-head {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.home-card.moving {
+  z-index: 5;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  opacity: 0.95;
+}
+
+.home-card.moving .home-card-head {
+  cursor: grabbing;
+}
+
+.home-card-resize {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 18px;
+  height: 18px;
+  border-right: 3px solid var(--accent);
+  border-bottom: 3px solid var(--accent);
+  border-bottom-right-radius: 6px;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+button.home-edit-done {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.home-edit-hint {
+  flex-basis: 100%;
 }
 
 .home-card-head {
@@ -3817,10 +3877,6 @@ button.home-tool {
 @media (max-width: 640px) {
   .home {
     padding: 1.25rem 1rem 3rem;
-  }
-
-  .home-card.wide {
-    grid-column: auto;
   }
 }
 
