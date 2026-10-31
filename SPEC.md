@@ -260,6 +260,16 @@ Propose the folder structure and the module API before writing code.
 
 ## Risks and open decisions
 
+### Research workflow expansion, 31 October 2026
+
+Ray requested an Experiment Hub and all five connected additions: Protocol Runner,
+Sample Tracker, Equipment Planner, Research Questions and Meeting Organiser, before
+native sync. Their files, module boundaries and review-first planning behaviour
+are documented in [research-workflows.md](docs/research-workflows.md).
+The Research pack includes the new modules. Existing vaults enable them explicitly;
+turning a module off leaves its records intact. Equipment reservations are local
+plans and do not submit bookings to outside systems.
+
 The two biggest risks are sync conflicts and ink responsiveness on tablets; both are deferred to phase 4 or later so the core is usable first.
 
 | Risk                                | Impact                                   | Mitigation                                                                                           |

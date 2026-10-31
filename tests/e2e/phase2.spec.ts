@@ -50,8 +50,8 @@ test.beforeEach(async ({ page }) => {
 async function switchOnResearch(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('tab', { name: 'Modules' }).click();
-  await page.getByRole('switch', { name: /Research/ }).click();
-  await expect(page.getByRole('switch', { name: /Research/ })).toHaveAttribute(
+  await page.getByRole('switch', { name: /^Research \d/ }).click();
+  await expect(page.getByRole('switch', { name: /^Research \d/ })).toHaveAttribute(
     'aria-checked',
     'true',
   );

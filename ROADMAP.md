@@ -129,6 +129,25 @@ Planned 31 Oct 2026, released as 0.11.0.
 
 ## Phase 7: Own sync and co-editing
 
+### Research workflow additions requested 31 October 2026 (0.12.0)
+
+- [x] Experiment Hub with connected plans, notes, records, datasets and conclusions
+- [x] Protocol Runner with reusable steps, timers, deviations, repeat/carry-forward, comparison and reviewed date changes
+- [x] Sample Tracker with lineage, storage, treatments and aliquots
+- [x] Equipment Planner with local reservations, clashes, suggestions and maintenance dates
+- [x] Research Questions board linking hypotheses, evidence and next experiments
+- [x] Meeting Organiser with linked agendas, decisions and deduplicated follow-up tasks
+- [ ] Real tablet and week-of-lab-work acceptance check for the connected workflow
+
+See [workflow design and data](docs/research-workflows.md). New modules can be
+enabled separately, or together with the Research pack. Schedule changes require
+review; equipment reservations are local to the vault.
+
+### Sync work
+
+- [x] Theme atmosphere: stronger fun themes, decorative scenes, optional motion and themed timer cues with volume, preview and silent mode ([guide](docs/themes.md))
+- [x] Save-failure recovery: keep edits open when navigation or shutdown cannot save them, with a retry action and regression tests
+- [x] Draft sync design review ([proposal](docs/phase7-sync-design.md)); protocol decisions still need review
 - [ ] Native CRDT sync (Yjs) with end-to-end encryption, without Syncthing
 - [ ] Live co-editing with accounts
 - [ ] Choose the server host (self-hosted or a low-cost cloud host)

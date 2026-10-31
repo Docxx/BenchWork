@@ -1,0 +1,9 @@
+{
+  "id": "protocol-runner",
+  "name": "Protocol Runner",
+  "version": "0.1.0",
+  "description": "Reusable protocols, timed runs and reviewed schedule changes",
+  "dependsOn": ["research", "lab-notebook", "lab-tools"],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}
