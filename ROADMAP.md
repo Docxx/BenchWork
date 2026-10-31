@@ -125,7 +125,7 @@ Planned 31 Oct 2026, released as 0.11.0.
 - [x] The notebooks list: icons, sorting, page counts, Favourites, row sizes and lines
 - [x] The tablet no longer slows down re-reading its own files
 - [ ] Checked on the PC: moving the window, Home's grid, the new themes and the guide
-- [ ] Checked on the tablet: the planner opening quickly, Home's grid and the notebooks list
+- [x] Checked on the tablet: the planner opening quickly, Home's grid and the notebooks list
 
 ## Phase 7: Own sync and co-editing
 
