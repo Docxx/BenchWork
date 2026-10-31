@@ -1,13 +1,33 @@
-import { ArrowDown, ArrowUp, EyeOff, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { EyeOff, Move, Plus } from 'lucide-react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
+import {
+  COLUMNS,
+  compact,
+  fillGrid,
+  GAP_PX,
+  placeCard,
+  readingOrder,
+  ROW_PX,
+  startSize,
+  type Grid,
+} from '../settings/homeGrid';
 import { homeWidgets } from '../settings/layout';
-import { moveCard, orderCards } from '../state/homeSlice';
+import { orderCards } from '../state/homeSlice';
 import { useApp } from './AppStoreContext';
 import { Menu } from './Menu';
 import { ViewBoundary } from './ModuleView';
 import { SidePanelToggle } from './PageView';
 import { vaultName } from './Sidebar';
 import { useHomeLayout, useWidgets } from './widgets';
+
+/** Narrower than this, cards are stacked one above another. */
+const STACK_QUERY = '(max-width: 760px)';
 
 /** "Good morning" and so on, by the hour. */
 export function greeting(now: Date): string {
@@ -18,10 +38,30 @@ export function greeting(now: Date): string {
   return 'Good evening';
 }
 
+/** Whether the window is narrow enough to stack the cards. */
+function useStacked(): boolean {
+  const [stacked, setStacked] = useState(
+    () => typeof window.matchMedia === 'function' && window.matchMedia(STACK_QUERY).matches,
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia(STACK_QUERY);
+    const onChange = (e: MediaQueryListEvent) => {
+      setStacked(e.matches);
+    };
+    query.addEventListener('change', onChange);
+    return () => {
+      query.removeEventListener('change', onChange);
+    };
+  }, []);
+  return stacked;
+}
+
 /**
  * Home: what BenchWork shows when nothing else is open. Its cards are
- * widgets, from the app and from modules; they can be added, moved and
- * hidden, per vault, on this device.
+ * widgets, from the app and from modules, on a grid. In Edit home they are
+ * dragged by their heading and resized from their corner; Done locks them.
+ * Saved per vault, on this device.
  */
 export function HomeView() {
   const status = useApp((s) => s.status);
@@ -29,8 +69,12 @@ export function HomeView() {
   const setLayout = useApp((s) => s.setHomeLayout);
   const addToHome = useApp((s) => s.addToHome);
   const widgets = useWidgets();
+  const stacked = useStacked();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState<{ x: number; y: number } | null>(null);
+  const [moving, setMoving] = useState<string | null>(null);
+  const [preview, setPreview] = useState<Grid | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   const now = new Date();
 
   const byId = new Map(widgets.map((w) => [w.id, w]));
@@ -38,16 +82,78 @@ export function HomeView() {
   const shown = order.filter((id) => !layout.hidden.includes(id));
   const hidden = order.filter((id) => layout.hidden.includes(id));
   const addable = widgets.filter((w) => !order.includes(w.id));
+  const grid =
+    preview ?? fillGrid(layout.grid, shown, (id) => startSize(id, byId.get(id)?.wide === true));
+  const cards = readingOrder(grid).filter((id) => byId.has(id));
+  const placed = !stacked;
 
-  const move = (id: string, by: -1 | 1) => {
-    // Moves past hidden cards, so each press visibly moves the card.
-    const next = moveCard(shown, id, by);
-    void setLayout({ order: [...next, ...hidden] });
+  const save = (next: Grid) => {
+    void setLayout({ grid: next, order: [...readingOrder(next), ...hidden] });
+  };
+
+  /** Pixels for a grid cell, from the grid's width now. */
+  const cellSize = () => {
+    const width = gridRef.current?.getBoundingClientRect().width ?? 1200;
+    return { col: (width + GAP_PX) / COLUMNS, row: ROW_PX + GAP_PX };
+  };
+
+  const startDrag = (e: ReactPointerEvent, id: string, mode: 'move' | 'size') => {
+    const from = grid[id];
+    if (!editing || !placed || !from || e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setMoving(id);
+    const x = e.clientX;
+    const y = e.clientY;
+    const base = grid;
+    let latest = base;
+    const move = (ev: PointerEvent) => {
+      const { col, row } = cellSize();
+      const dx = Math.round((ev.clientX - x) / col);
+      const dy = Math.round((ev.clientY - y) / row);
+      const cell =
+        mode === 'move'
+          ? { ...from, x: from.x + dx, y: from.y + dy }
+          : { ...from, w: from.w + dx, h: from.h + dy };
+      latest = placeCard(base, id, cell);
+      setPreview(latest);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      setMoving(null);
+      setPreview(null);
+      // Let go, every card settles as high as it can.
+      if (latest !== base) save(compact(latest));
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  /** Arrow keys move a card a cell at a time; with Shift they resize it. */
+  const onKey = (e: KeyboardEvent, id: string) => {
+    const cell = grid[id];
+    if (!cell) return;
+    const dx = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    const dy = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+    if (dx === 0 && dy === 0) return;
+    e.preventDefault();
+    save(
+      compact(
+        placeCard(
+          grid,
+          id,
+          e.shiftKey
+            ? { ...cell, w: cell.w + dx, h: cell.h + dy }
+            : { ...cell, x: cell.x + dx, y: cell.y + dy },
+        ),
+      ),
+    );
   };
 
   return (
     <article className="home" aria-label="Home">
-      <header className="home-header" data-tauri-drag-region>
+      <header className="home-header" data-window-drag>
         <div>
           <h1>{greeting(now)}</h1>
           <p className="home-date">
@@ -58,7 +164,7 @@ export function HomeView() {
         <span className="home-header-tools">
           <button
             type="button"
-            className="quiet"
+            className={editing ? 'home-edit-done' : 'quiet'}
             aria-pressed={editing}
             onClick={() => {
               setEditing((e) => !e);
@@ -72,6 +178,11 @@ export function HomeView() {
 
       {editing && (
         <div className="home-hidden" aria-label="Hidden cards">
+          <span className="home-edit-hint">
+            {placed
+              ? 'Drag a card by its heading to move it, or by its corner to resize it.'
+              : 'Cards stack on a narrow screen; widen the window to arrange them.'}
+          </span>
           <button
             type="button"
             className="chip"
@@ -109,46 +220,59 @@ export function HomeView() {
         />
       )}
 
-      <div className="home-grid">
-        {shown.map((id, i) => {
+      <div
+        ref={gridRef}
+        className={['home-grid', placed ? 'placed' : 'stacked', editing && placed ? 'editing' : '']
+          .filter((c) => c !== '')
+          .join(' ')}
+      >
+        {cards.map((id) => {
           const card = byId.get(id);
-          if (!card) return null;
+          const cell = grid[id];
+          if (!card || !cell) return null;
           const headingId = `home-card-${id.replace(/[^a-z0-9]/gi, '-')}`;
           return (
             <section
               key={id}
-              className={card.wide ? 'home-card wide' : 'home-card'}
+              className={moving === id ? 'home-card moving' : 'home-card'}
               aria-labelledby={headingId}
+              style={
+                placed
+                  ? {
+                      gridColumn: `${String(cell.x + 1)} / span ${String(cell.w)}`,
+                      gridRow: `${String(cell.y + 1)} / span ${String(cell.h)}`,
+                    }
+                  : undefined
+              }
             >
-              <header className="home-card-head">
+              <header
+                className="home-card-head"
+                onPointerDown={(e) => {
+                  if (!(e.target instanceof Element) || !e.target.closest('button')) {
+                    startDrag(e, id, 'move');
+                  }
+                }}
+              >
                 {card.icon}
                 <h2 id={headingId}>{card.title}</h2>
                 {editing && (
                   <span className="home-card-tools">
-                    <button
-                      type="button"
-                      className="icon-button"
-                      aria-label={`Move ${card.title} up`}
-                      title="Move up"
-                      disabled={i === 0}
-                      onClick={() => {
-                        move(id, -1);
-                      }}
-                    >
-                      <ArrowUp size={15} strokeWidth={1.75} aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-button"
-                      aria-label={`Move ${card.title} down`}
-                      title="Move down"
-                      disabled={i === shown.length - 1}
-                      onClick={() => {
-                        move(id, 1);
-                      }}
-                    >
-                      <ArrowDown size={15} strokeWidth={1.75} aria-hidden />
-                    </button>
+                    {placed && (
+                      <button
+                        type="button"
+                        className="icon-button home-card-grip"
+                        aria-label={`Move ${card.title}`}
+                        title="Drag to move, or use the arrow keys; with Shift they resize"
+                        onPointerDown={(e) => {
+                          startDrag(e, id, 'move');
+                        }}
+                        onKeyDown={(e) => {
+                          onKey(e, id);
+                        }}
+                      >
+                        <Move size={15} strokeWidth={1.75} aria-hidden />
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="icon-button"
@@ -168,11 +292,21 @@ export function HomeView() {
                   <ViewBoundary moduleId={card.moduleId}>{card.render(null)}</ViewBoundary>
                 )}
               </div>
+              {editing && placed && (
+                <span
+                  className="home-card-resize"
+                  role="presentation"
+                  title="Drag to resize"
+                  onPointerDown={(e) => {
+                    startDrag(e, id, 'size');
+                  }}
+                />
+              )}
             </section>
           );
         })}
       </div>
-      {shown.length === 0 && (
+      {cards.length === 0 && (
         <p className="hint">Every card is hidden. Choose Edit home to show some again.</p>
       )}
     </article>

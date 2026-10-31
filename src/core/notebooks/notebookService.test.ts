@@ -12,6 +12,7 @@ import {
   safeName,
   setColour,
 } from './notebookService';
+import { emptySectionMeta } from './sectionMeta';
 
 async function vault(contents: MemoryFolderContents = {}) {
   const platform = new MemoryAdapter({ folders: { 'C:/Vault': contents } });
@@ -80,7 +81,7 @@ describe('renaming', () => {
       'Lab/_section.yaml': 'colour: red\norder:\n  - Old.md\n  - Other.md\n',
     });
     expect(await renameItem(platform, 'Lab/Old.md', 'New: draft')).toBe('Lab/New- draft.md');
-    expect(await readSectionMeta(platform, 'Lab')).toEqual({
+    expect(await readSectionMeta(platform, 'Lab')).toMatchObject({
       colour: 'red',
       order: ['New- draft.md', 'Other.md'],
     });
@@ -109,7 +110,7 @@ describe('moving', () => {
     });
     expect(await moveItem(platform, 'Lab/a.md', 'Archive')).toBe('Archive/a.md');
     expect(platform.snapshot()['Archive/a.md']).toBe('a');
-    expect(await readSectionMeta(platform, 'Lab')).toEqual({ colour: null, order: [] });
+    expect(await readSectionMeta(platform, 'Lab')).toEqual(emptySectionMeta());
   });
 
   it('places an item in order, keeping the others where they were', async () => {
@@ -128,11 +129,11 @@ describe('moving', () => {
 
 describe('colour and recycling', () => {
   it('sets and clears a folder colour, keeping other settings', async () => {
-    const platform = await vault({ 'Lab/_section.yaml': 'icon: flask\n' });
+    const platform = await vault({ 'Lab/_section.yaml': 'owner: Ray\n' });
     await setColour(platform, 'Lab', 'teal');
-    expect(platform.snapshot()['Lab/_section.yaml']).toBe('icon: flask\ncolour: teal\n');
+    expect(platform.snapshot()['Lab/_section.yaml']).toBe('owner: Ray\ncolour: teal\n');
     await setColour(platform, 'Lab', null);
-    expect(platform.snapshot()['Lab/_section.yaml']).toBe('icon: flask\n');
+    expect(platform.snapshot()['Lab/_section.yaml']).toBe('owner: Ray\n');
   });
 
   it('writes no settings file just to clear a colour that was never set', async () => {

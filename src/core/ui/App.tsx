@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { PenMode } from '../settings/appSettings';
+import { FirstRunGuide } from './FirstRunGuide';
 import { useApp } from './AppStoreContext';
 import { Shell } from './Shell';
 import { Splash } from './Splash';
@@ -117,7 +118,7 @@ export function App() {
       {status.kind !== 'open' && (
         // Before a vault opens there is no sidebar to drag the window by.
         <>
-          <div className="window-drag-strip" data-tauri-drag-region />
+          <div className="window-drag-strip" data-window-drag />
           <WindowControls />
         </>
       )}
@@ -133,11 +134,12 @@ export function App() {
 /** What the app shows: the vault picker, or the open vault. */
 function Screen() {
   const status = useApp((s) => s.status);
+  const guide = useApp((s) => s.guide);
   switch (status.kind) {
     case 'starting':
       return <main className="app" aria-busy="true" />;
     case 'no-vault':
-      return <VaultPicker />;
+      return guide === null ? <VaultPicker /> : <FirstRunGuide />;
     case 'confirm-folder':
       return <ConfirmFolder root={status.root} />;
     case 'confirm-syncing':

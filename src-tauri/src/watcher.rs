@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use std::path::{Component, Path, PathBuf};
 use std::time::Duration;
 
-use notify_debouncer_full::notify::{RecommendedWatcher, RecursiveMode};
+use notify_debouncer_full::notify::{EventKind, RecommendedWatcher, RecursiveMode};
 use notify_debouncer_full::{new_debouncer, DebounceEventResult, Debouncer, RecommendedCache};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
@@ -46,6 +46,12 @@ pub fn relative(root: &Path, path: &Path) -> Option<String> {
 
 /// Changes the front end never needs to hear about: BenchWork's own files
 /// (except the vault config) and the temporary files used for safe saving.
+/// Whether an event is a change. Opening and reading a file are not: Linux
+/// and Android report them, and reading pages must not look like editing them.
+pub fn is_change(kind: &EventKind) -> bool {
+    !matches!(kind, EventKind::Access(_))
+}
+
 pub fn ignored(rel: &str) -> bool {
     if rel == ".benchwork" || (rel.starts_with(".benchwork/") && rel != ".benchwork/config.json") {
         return true;
@@ -68,6 +74,7 @@ pub fn start(
             let Ok(events) = result else { return };
             let paths: BTreeSet<String> = events
                 .iter()
+                .filter(|e| is_change(&e.event.kind))
                 .flat_map(|e| e.event.paths.iter())
                 .filter_map(|p| relative(&watch_root, p))
                 .filter(|rel| !ignored(rel))
@@ -112,6 +119,23 @@ mod tests {
             relative(root, Path::new(r"\\?\C:\Vault\Notes\a.md")).as_deref(),
             Some("Notes/a.md")
         );
+    }
+
+    #[test]
+    fn counts_writes_but_not_reads_as_changes() {
+        use notify_debouncer_full::notify::event::{
+            AccessKind, AccessMode, CreateKind, DataChange, ModifyKind,
+        };
+        assert!(!is_change(&EventKind::Access(AccessKind::Open(
+            AccessMode::Read
+        ))));
+        assert!(!is_change(&EventKind::Access(AccessKind::Close(
+            AccessMode::Read
+        ))));
+        assert!(is_change(&EventKind::Modify(ModifyKind::Data(
+            DataChange::Content
+        ))));
+        assert!(is_change(&EventKind::Create(CreateKind::File)));
     }
 
     #[test]

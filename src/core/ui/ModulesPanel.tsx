@@ -135,7 +135,15 @@ function ModuleSettings({ id }: { id: string }) {
   return <div className="module-settings">{panel.render()}</div>;
 }
 
-function ConfirmChange({ id, enable, names }: { id: string; enable: boolean; names: string[] }) {
+export function ConfirmChange({
+  id,
+  enable,
+  names,
+}: {
+  id: string;
+  enable: boolean;
+  names: string[];
+}) {
   const confirm = useApp((s) => s.confirmModuleChange);
   const cancel = useApp((s) => s.cancelModuleChange);
   const busy = useApp((s) => s.moduleBusy);

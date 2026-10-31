@@ -15,6 +15,7 @@ import {
 import { recordFileName, recordKind } from '../records/records';
 import { isPage, PAGE_EXTENSION, pageTitle } from './notebookTree';
 import {
+  type FolderSort,
   parseSectionMeta,
   placeInOrder,
   renameInOrder,
@@ -257,6 +258,22 @@ export async function setColour(
   colour: string | null,
 ): Promise<void> {
   await updateSectionMeta(platform, folder, (m) => ({ ...m, colour }));
+}
+
+export async function setIcon(
+  platform: PlatformAdapter,
+  folder: string,
+  icon: string | null,
+): Promise<void> {
+  await updateSectionMeta(platform, folder, (m) => ({ ...m, icon }));
+}
+
+export async function setSort(
+  platform: PlatformAdapter,
+  folder: string,
+  sort: FolderSort,
+): Promise<void> {
+  await updateSectionMeta(platform, folder, (m) => ({ ...m, sort }));
 }
 
 /** Moves an item to the Recycle Bin and drops it from its folder's order. */

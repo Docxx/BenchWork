@@ -113,6 +113,20 @@ Planned 30 Oct 2026, released as 0.10.0.
 - [ ] Checked on the PC: no title bar, resizing the window, papers fetched, Word opened
 - [ ] Checked on the tablet: widgets, themes and the planner with the pen
 
+## More polish before Phase 7
+
+Planned 31 Oct 2026, released as 0.11.0.
+
+- [x] The window moves by pressing anywhere on the top bars, and maximises with a double press
+- [x] Home's cards move and resize by dragging in Edit home, and stay put when done
+- [x] Seven more themes, from Galaxy far away to Deep ocean
+- [x] A first-run guide: how it works, a vault, modules, a theme and Home; again from Settings
+- [x] The Hello module is gone
+- [x] The notebooks list: icons, sorting, page counts, Favourites, row sizes and lines
+- [x] The tablet no longer slows down re-reading its own files
+- [ ] Checked on the PC: moving the window, Home's grid, the new themes and the guide
+- [ ] Checked on the tablet: the planner opening quickly, Home's grid and the notebooks list
+
 ## Phase 7: Own sync and co-editing
 
 - [ ] Native CRDT sync (Yjs) with end-to-end encryption, without Syncthing

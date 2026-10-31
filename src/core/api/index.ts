@@ -626,7 +626,7 @@ export interface CitationChoice {
 }
 
 export interface SidebarPanelSpec {
-  /** Must start with the module id and a dot, such as `hello.panel`. */
+  /** Must start with the module id and a dot, such as `references.library`. */
   id: string;
   title: string;
   render: () => ReactNode;

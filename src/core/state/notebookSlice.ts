@@ -1,5 +1,8 @@
+import type { FolderSort } from '../notebooks/sectionMeta';
 import type { NewPageContent } from '../api';
 import {
+  setIcon,
+  setSort,
   createFolder,
   createPage,
   freeName,
@@ -48,6 +51,15 @@ export interface NotebookSlice {
   /** Moves into `folder`; with `index`, also places it there in the folder's order. */
   moveItem: (path: string, folder: string, index?: number) => Promise<string | null>;
   setFolderColour: (folder: string, colour: string | null) => Promise<void>;
+  /** An emoji or symbol beside a notebook or section's name; null for none. */
+  setFolderIcon: (folder: string, icon: string | null) => Promise<void>;
+  /** How a folder's contents are sorted. */
+  setFolderSort: (folder: string, sort: FolderSort) => Promise<void>;
+  /** Notebooks, sections and pages listed under Favourites, kept in the vault so they sync. */
+  favourites: () => string[];
+  setFavourite: (path: string, on: boolean) => Promise<void>;
+  /** How many pages each folder holds directly, from the search index; empty while it fills. */
+  pageCounts: () => Promise<Record<string, number>>;
   /** Moves to the Recycle Bin. Resolves to false if it could not be done. */
   recycleItem: (path: string) => Promise<boolean>;
 }
@@ -98,6 +110,11 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
   async function followMove(from: string, to: string): Promise<void> {
     get().pageMoved(from, to);
     get().fileMoved(from, to);
+    const favourites = get().favourites();
+    if (favourites.some((p) => p === from || p.startsWith(`${from}/`))) {
+      const next = favourites.map((p) => rebasePath(p, from, to));
+      await ctx.updateConfig((c) => ({ ...c, extra: { ...c.extra, favourites: next } }));
+    }
     const pinned = get().homeLayout().pinned;
     if (pinned.some((p) => p === from || p.startsWith(`${from}/`))) {
       await get().setHomeLayout({ pinned: pinned.map((p) => rebasePath(p, from, to)) });
@@ -233,6 +250,50 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
         get().selectEntry(target);
         return target;
       }),
+
+    setFolderIcon: async (folder, icon) => {
+      await attempt(async () => {
+        await setIcon(platform, folder, icon);
+        await get().reloadFolders([folder, parentVaultPath(folder) ?? '']);
+      });
+    },
+
+    setFolderSort: async (folder, sort) => {
+      await attempt(async () => {
+        await setSort(platform, folder, sort);
+        await get().reloadFolders([folder]);
+      });
+    },
+
+    favourites: () => {
+      const status = get().status;
+      if (status.kind !== 'open') return [];
+      const list = status.vault.config.extra['favourites'];
+      return Array.isArray(list) ? list.filter((p): p is string => typeof p === 'string') : [];
+    },
+
+    setFavourite: async (path, on) => {
+      const current = get()
+        .favourites()
+        .filter((p) => p !== path);
+      const next = on ? [...current, path] : current;
+      await ctx.updateConfig((c) => ({ ...c, extra: { ...c.extra, favourites: next } }));
+    },
+
+    pageCounts: async () => {
+      try {
+        await get().indexIdle();
+        const counts: Record<string, number> = {};
+        for (const p of await platform.index.pages()) {
+          if (!p.path.toLowerCase().endsWith('.md')) continue;
+          const folder = parentVaultPath(p.path) ?? '';
+          counts[folder] = (counts[folder] ?? 0) + 1;
+        }
+        return counts;
+      } catch {
+        return {};
+      }
+    },
 
     setFolderColour: async (folder, colour) => {
       await attempt(async () => {

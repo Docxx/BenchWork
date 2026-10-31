@@ -75,7 +75,10 @@ test('more themes, the page colour and pattern, and widths can be chosen', async
     .getByRole('group', { name: 'Light or dark' })
     .getByRole('radio', { name: 'Light' })
     .check();
-  await page.getByRole('group', { name: 'Theme' }).getByText('Ocean').click();
+  await page
+    .getByRole('group', { name: 'Theme', exact: true })
+    .getByText('Ocean', { exact: true })
+    .click();
   await expect.poll(() => token('--bg')).toBe('#f5f8fa');
   await page.getByRole('button', { name: 'Cream' }).click();
   await expect.poll(() => token('--paper')).toBe('#fbf4de');

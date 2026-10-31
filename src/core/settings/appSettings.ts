@@ -1,3 +1,4 @@
+import { parseGrid, type Grid } from './homeGrid';
 import { defaultDocks, parseDocks, type DockLayout } from './layout';
 import type { PlatformAdapter } from '../platform';
 import { defaultAppearance, parseAppearance, type Appearance } from './appearance';
@@ -33,10 +34,12 @@ export interface HomeLayout {
   pinned: string[];
   /** Widgets under the notebooks and beside pages. */
   docks: DockLayout;
+  /** Where each card is on Home, and its size. */
+  grid: Grid;
 }
 
 export function defaultHomeLayout(): HomeLayout {
-  return { order: [], hidden: [], added: [], pinned: [], docks: defaultDocks() };
+  return { order: [], hidden: [], added: [], pinned: [], docks: defaultDocks(), grid: {} };
 }
 
 const strings = (value: unknown): string[] =>
@@ -53,6 +56,7 @@ export function parseHomeLayout(value: unknown): HomeLayout {
     added: strings(record['added']),
     pinned: strings(record['pinned']),
     docks: parseDocks(record['docks']),
+    grid: parseGrid(record['grid']),
   };
 }
 
@@ -96,6 +100,8 @@ export interface AppSettings {
   backups: Record<string, BackupPlan>;
   /** Home's cards and pinned pages, by the vault's full path. */
   home: Record<string, HomeLayout>;
+  /** The first-run guide has been seen, or skipped, on this device. */
+  guided: boolean;
   /** Keys this version does not know about, kept on save. */
   extra: Record<string, unknown>;
 }
@@ -111,6 +117,7 @@ const KNOWN_KEYS = new Set([
   'openPanels',
   'backups',
   'home',
+  'guided',
 ]);
 
 export function defaultAppSettings(): AppSettings {
@@ -124,6 +131,7 @@ export function defaultAppSettings(): AppSettings {
     openPanels: [],
     backups: {},
     home: {},
+    guided: false,
     extra: {},
   };
 }
@@ -160,6 +168,9 @@ export function parseAppSettings(data: unknown): AppSettings {
       settings.home[root] = parseHomeLayout(layout);
     }
   }
+  // Settings from before the guide existed belong to someone who has used BenchWork.
+  const guided = record['guided'];
+  settings.guided = typeof guided === 'boolean' ? guided : settings.lastVault !== null;
   const openPanels = record['openPanels'];
   if (Array.isArray(openPanels)) {
     settings.openPanels = openPanels.filter((p): p is string => typeof p === 'string');

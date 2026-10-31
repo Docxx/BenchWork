@@ -10,6 +10,8 @@ export type FolderState =
       meta?: SectionMeta;
       /** Colours of the folders inside, from their `_section.yaml`, by path. */
       childColours?: Record<string, string>;
+      /** Icons of the folders inside, by path. */
+      childIcons?: Record<string, string>;
     }
   | { status: 'loading' }
   | { status: 'error'; message: string };

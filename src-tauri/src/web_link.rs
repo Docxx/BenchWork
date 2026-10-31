@@ -47,7 +47,10 @@ pub fn open(url: &str) -> VaultResult<()> {
 /// Opens a file in the program the system uses for it, such as Word for `.docx`.
 pub fn open_file(full: &std::path::Path) -> VaultResult<()> {
     if !full.is_file() {
-        return Err(VaultError::new(ErrorKind::NotFound, "That file could not be found"));
+        return Err(VaultError::new(
+            ErrorKind::NotFound,
+            "That file could not be found",
+        ));
     }
     let mut command = if cfg!(target_os = "windows") {
         let mut c = Command::new("explorer");

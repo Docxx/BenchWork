@@ -4,10 +4,15 @@ import { useApp } from './AppStoreContext';
 
 const ICON = { size: 15, strokeWidth: 1.5, 'aria-hidden': true } as const;
 
+/** What a press in a top bar uses itself, rather than moving the window. */
+const INTERACTIVE =
+  'button, a, input, select, textarea, label, [role="tab"], [role="button"], [contenteditable="true"]';
+
 /**
  * Minimise, maximise and close, in the top right, where the system's title
- * bar is hidden. The window is moved by dragging the sidebar's header or
- * a view's top row, which carry `data-tauri-drag-region`.
+ * bar is hidden. The window is moved by pressing anywhere on the sidebar's
+ * header or a view's top row, which carry `data-window-drag`, except on a
+ * button or field there; a double press maximises it or puts it back.
  */
 export function WindowControls() {
   const frame = useApp((s) => s.windowFrame);
@@ -26,6 +31,25 @@ export function WindowControls() {
     return () => {
       current = false;
       stop();
+    };
+  }, [frame]);
+
+  useEffect(() => {
+    if (frame === null) return;
+    const onDown = (e: MouseEvent) => {
+      if (e.button !== 0 || !(e.target instanceof Element)) return;
+      const bar = e.target.closest('[data-window-drag]');
+      if (!bar) return;
+      // Buttons, fields and links in the bar work as usual.
+      const control = e.target.closest(INTERACTIVE);
+      if (control && bar.contains(control)) return;
+      e.preventDefault();
+      if (e.detail === 2) void frame.toggleMaximise();
+      else void frame.startDragging();
+    };
+    window.addEventListener('mousedown', onDown);
+    return () => {
+      window.removeEventListener('mousedown', onDown);
     };
   }, [frame]);
 

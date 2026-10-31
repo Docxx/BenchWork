@@ -141,3 +141,35 @@ describe('notebook actions', () => {
     expect(drawn(state())).toEqual(['Archive', 'attachments', 'LPS model (teal)', 'notes.txt']);
   });
 });
+
+describe('notebook look and favourites', () => {
+  it('gives folders icons and a sort, kept in their _section.yaml', async () => {
+    const { platform, state } = await openVault();
+    await state().setFolderIcon('LPS model', '🧪');
+    await state().setFolderSort('LPS model', 'name-desc');
+    expect(platform.snapshot()['LPS model/_section.yaml']).toBe(
+      'colour: teal\nicon: 🧪\nsort: name-desc\n',
+    );
+    const root = state().tree.folders[''];
+    expect(root?.status === 'loaded' ? root.childIcons : null).toEqual({ 'LPS model': '🧪' });
+  });
+
+  it('keeps favourites in the vault, following renames, and counts pages', async () => {
+    const { platform, state } = await openVault();
+    await state().setFavourite('LPS model/Plan.md', true);
+    await state().setFavourite('Archive', true);
+    await state().setFavourite('Archive', false);
+    expect(state().favourites()).toEqual(['LPS model/Plan.md']);
+    await settle();
+    expect(JSON.parse(platform.snapshot()['.benchwork/config.json'] ?? '{}')).toMatchObject({
+      favourites: ['LPS model/Plan.md'],
+    });
+
+    const counts = await state().pageCounts();
+    expect(counts['LPS model']).toBe(1);
+    expect(counts['LPS model/Experiments']).toBe(1);
+
+    expect(await state().renameItem('LPS model', 'LPS study')).toBe('LPS study');
+    expect(state().favourites()).toEqual(['LPS study/Plan.md']);
+  });
+});

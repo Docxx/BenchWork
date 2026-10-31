@@ -115,7 +115,7 @@ describe('NotebookTree', () => {
       within(screen.getByRole('menu'))
         .getAllByRole('menuitem')
         .map((b) => b.textContent),
-    ).toEqual(['Rename', 'Save as template', 'Move to Recycle Bin']);
+    ).toEqual(['Add to Favourites', 'Rename', 'Save as template', 'Move to Recycle Bin']);
   });
 
   it('adds a page from the menu and starts renaming it', async () => {

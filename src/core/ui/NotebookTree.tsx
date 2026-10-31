@@ -24,12 +24,14 @@ import {
   type NotebookNode,
   type NotebookRow,
 } from '../notebooks/notebookTree';
-import { SECTION_COLOURS } from '../notebooks/sectionMeta';
+import { type FolderSort, SECTION_COLOURS } from '../notebooks/sectionMeta';
 import { parentVaultPath } from '../platform';
 import { isRecord } from '../records/records';
 import { useApp } from './AppStoreContext';
+import { IconPicker } from './IconPicker';
 import { Menu, type MenuItem } from './Menu';
 import { TemplatePicker } from './TemplatePicker';
+import { useFavourites } from './widgets';
 
 type NodeRow = Extract<NotebookRow, { kind: 'node' }>;
 type DropPlace = 'before' | 'after' | 'into';
@@ -62,6 +64,13 @@ export function colourValue(colour: string): string {
     : colour;
 }
 
+const SORTS: readonly (readonly [FolderSort, string])[] = [
+  ['manual', 'your own order'],
+  ['name', 'name, A to Z'],
+  ['name-desc', 'name, Z to A'],
+  ['changed', 'last changed'],
+];
+
 const KIND_LABEL: Record<NotebookNode['kind'], string> = {
   notebook: 'notebook',
   section: 'section',
@@ -80,6 +89,18 @@ export function NotebookTree() {
   const renameItem = useApp((s) => s.renameItem);
   const moveItem = useApp((s) => s.moveItem);
   const setFolderColour = useApp((s) => s.setFolderColour);
+  const setFolderSort = useApp((s) => s.setFolderSort);
+  const setFavourite = useApp((s) => s.setFavourite);
+  const favourites = useFavourites();
+  const pageCounts = useApp((s) => s.pageCounts);
+  const progress = useApp((s) => s.indexProgress);
+  const look = useApp((s) => s.settings.appearance);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [choosingIcon, setChoosingIcon] = useState<{
+    node: NotebookNode;
+    x: number;
+    y: number;
+  } | null>(null);
   const recycleItem = useApp((s) => s.recycleItem);
   const openPage = useApp((s) => s.openPage);
   const saveAsTemplate = useApp((s) => s.saveAsTemplate);
@@ -90,7 +111,21 @@ export function NotebookTree() {
   const runCommand = useApp((s) => s.runCommand);
   const openPath = useApp((s) => s.openPath);
 
-  const options = useMemo(() => ({ showAllFiles }), [showAllFiles]);
+  const options = useMemo(
+    () => ({ showAllFiles, pagesOnly: look.pagesOnly, hideDaily: look.hideDaily }),
+    [showAllFiles, look.pagesOnly, look.hideDaily],
+  );
+
+  // How many pages each folder holds, from the search index as it catches up.
+  useEffect(() => {
+    let current = true;
+    void pageCounts().then((found) => {
+      if (current) setCounts(found);
+    });
+    return () => {
+      current = false;
+    };
+  }, [pageCounts, progress]);
   const rows = useMemo(() => notebookRows(tree, options), [tree, options]);
   const nodeRows = useMemo(() => rows.filter((r): r is NodeRow => r.kind === 'node'), [rows]);
 
@@ -155,7 +190,12 @@ export function NotebookTree() {
         ...commandItems('new', null),
       ];
     }
+    const favourite = favourites.includes(node.path);
     const common: MenuItem[] = [
+      {
+        label: favourite ? 'Remove from Favourites' : 'Add to Favourites',
+        onSelect: () => void setFavourite(node.path, !favourite),
+      },
       {
         label: 'Rename',
         onSelect: () => {
@@ -192,6 +232,16 @@ export function NotebookTree() {
       })),
       { label: 'New section', onSelect: () => void createThenRename(createSection(node.path)) },
       ...commandItems('folder', node.path),
+      {
+        label: 'Icon…',
+        onSelect: () => {
+          setChoosingIcon({ node, x: menu?.x ?? 0, y: menu?.y ?? 0 });
+        },
+      },
+      ...SORTS.map(([sort, label]) => ({
+        label: `${sortOf(node.path) === sort ? '✓ ' : ''}Sort: ${label}`,
+        onSelect: () => void setFolderSort(node.path, sort),
+      })),
       ...common,
     ];
   }
@@ -201,6 +251,12 @@ export function NotebookTree() {
     return commands
       .filter((c) => c.places?.includes(place) === true)
       .map((c) => ({ label: c.title, onSelect: () => void runCommand(c.id, { folder }) }));
+  }
+
+  /** How a loaded folder is sorted now. */
+  function sortOf(path: string): FolderSort {
+    const folder = tree.folders[path];
+    return folder?.status === 'loaded' ? (folder.meta?.sort ?? 'manual') : 'manual';
   }
 
   function colourSwatches(node: NotebookNode) {
@@ -375,7 +431,14 @@ export function NotebookTree() {
         />
       )}
       <ul
-        className="file-tree notebook-tree"
+        className={[
+          'file-tree',
+          'notebook-tree',
+          `density-${look.treeDensity}`,
+          look.treeLines ? 'with-lines' : '',
+        ]
+          .filter((c) => c !== '')
+          .join(' ')}
         role="tree"
         aria-label="Notebooks"
         ref={listRef}
@@ -430,7 +493,10 @@ export function NotebookTree() {
               aria-roledescription={KIND_LABEL[node.kind]}
               tabIndex={node.path === current?.node.path ? 0 : -1}
               className={`tree-item ${node.kind}${dropClass}`}
-              style={{ paddingLeft: 8 + row.depth * INDENT_PX }}
+              style={{
+                paddingLeft: 8 + row.depth * INDENT_PX,
+                ['--depth-px' as string]: `${String(row.depth * INDENT_PX)}px`,
+              }}
               title={node.path}
               draggable={!isRenaming}
               onClick={() => {
@@ -460,13 +526,27 @@ export function NotebookTree() {
               onDragEnd={endDrag}
             >
               {node.isDir ? (
-                <span
-                  className={`colour-mark ${node.kind}`}
-                  aria-hidden="true"
-                  style={
-                    node.colour === null ? undefined : { background: colourValue(node.colour) }
-                  }
-                />
+                node.icon !== null ? (
+                  <span
+                    className={`tree-emoji ${node.kind}`}
+                    aria-hidden="true"
+                    style={
+                      node.colour === null
+                        ? undefined
+                        : { boxShadow: `inset 3px 0 0 ${colourValue(node.colour)}` }
+                    }
+                  >
+                    {node.icon}
+                  </span>
+                ) : (
+                  <span
+                    className={`colour-mark ${node.kind}`}
+                    aria-hidden="true"
+                    style={
+                      node.colour === null ? undefined : { background: colourValue(node.colour) }
+                    }
+                  />
+                )
               ) : (
                 (() => {
                   const Icon = iconFor(node);
@@ -490,6 +570,11 @@ export function NotebookTree() {
                   {node.kind === 'file' && isRecord(node.name) && (
                     <span className="tree-kind">{kindLabel(node.path)}</span>
                   )}
+                </span>
+              )}
+              {node.isDir && !isRenaming && (counts[node.path] ?? 0) > 0 && (
+                <span className="tree-count" aria-label={`${String(counts[node.path])} pages`}>
+                  {counts[node.path]}
                 </span>
               )}
               {!isRenaming && (
@@ -519,6 +604,16 @@ export function NotebookTree() {
           );
         })}
       </ul>
+      {choosingIcon !== null && (
+        <IconPicker
+          node={choosingIcon.node}
+          x={choosingIcon.x}
+          y={choosingIcon.y}
+          onClose={() => {
+            setChoosingIcon(null);
+          }}
+        />
+      )}
       {menu !== null && (
         <Menu
           label={menu.node ? `${menu.node.title} options` : 'Vault options'}

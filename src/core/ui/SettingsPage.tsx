@@ -37,7 +37,7 @@ export function SettingsPage({ vault }: { vault: OpenVault }) {
 
   return (
     <section className="settings" aria-labelledby="settings-title">
-      <header className="settings-header" data-tauri-drag-region>
+      <header className="settings-header" data-window-drag>
         <h2 id="settings-title">Settings</h2>
         <button
           type="button"
@@ -94,20 +94,33 @@ export function SettingsPage({ vault }: { vault: OpenVault }) {
 function SidebarSettings() {
   const showAllFiles = useApp((s) => s.settings.showAllFiles);
   const setShowAllFiles = useApp((s) => s.setShowAllFiles);
+  const startGuide = useApp((s) => s.startGuide);
 
   return (
-    <fieldset className="field">
-      <legend>Sidebar</legend>
-      <label className="choice">
-        <input
-          type="checkbox"
-          checked={showAllFiles}
-          onChange={(e) => void setShowAllFiles(e.target.checked)}
-        />
-        Show all files, not just pages
-      </label>
-      <p className="hint">Saved on this device only.</p>
-    </fieldset>
+    <>
+      <fieldset className="field">
+        <legend>Sidebar</legend>
+        <label className="choice">
+          <input
+            type="checkbox"
+            checked={showAllFiles}
+            onChange={(e) => void setShowAllFiles(e.target.checked)}
+          />
+          Show all files, not just pages
+        </label>
+        <p className="hint">Saved on this device only.</p>
+      </fieldset>
+
+      <fieldset className="field">
+        <legend>Getting started</legend>
+        <p className="hint">
+          How BenchWork works, choosing modules and a theme, and a look round Home.
+        </p>
+        <button type="button" onClick={startGuide}>
+          Run the guide again
+        </button>
+      </fieldset>
+    </>
   );
 }
 

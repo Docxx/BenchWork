@@ -5,6 +5,7 @@ import type { OpenVault } from '../vault/vaultService';
 import { useApp, useAppStore } from './AppStoreContext';
 import { AttachDialog } from './AttachDialog';
 import { ConflictsView } from './ConflictsView';
+import { FirstRunGuide } from './FirstRunGuide';
 import { CommandList, TextPromptDialog } from './ModuleDialogs';
 import { PackChooser } from './PackChooser';
 import { PageView } from './PageView';
@@ -31,6 +32,7 @@ export function Shell({ vault }: { vault: OpenVault }) {
   const openToday = useApp((s) => s.openToday);
   const store = useAppStore();
   const choosingPack = useApp((s) => s.choosingPack);
+  const guide = useApp((s) => s.guide);
   const framed = useApp((s) => s.windowFrame !== null);
   const [showCommands, setShowCommands] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -170,7 +172,7 @@ export function Shell({ vault }: { vault: OpenVault }) {
       )}
       {showCommands && <CommandList onClose={closeCommands} />}
       <QuickCapture />
-      {choosingPack && <PackChooser />}
+      {guide !== null ? <FirstRunGuide /> : choosingPack && <PackChooser />}
       <TextPromptDialog />
       <AttachDialog />
     </div>

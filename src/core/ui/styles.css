@@ -3683,22 +3683,82 @@ button.pack-card span {
 }
 
 .home-grid {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-  align-items: start;
+  gap: 16px;
+}
+
+/* On a wide screen: 12 columns, rows of 32px, each card where it was put. */
+.home-grid.placed {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: 32px;
+}
+
+.home-grid.stacked {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .home-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 0;
   padding: 1rem 1.1rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
 }
 
-.home-card.wide {
-  grid-column: span 2;
+.home-grid.placed .home-card-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Editing: cards can be picked up. */
+.home-grid.editing .home-card {
+  outline: 1px dashed color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: 2px;
+}
+
+.home-grid.editing .home-card-head {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.home-card.moving {
+  z-index: 5;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  opacity: 0.95;
+}
+
+.home-card.moving .home-card-head {
+  cursor: grabbing;
+}
+
+.home-card-resize {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 18px;
+  height: 18px;
+  border-right: 3px solid var(--accent);
+  border-bottom: 3px solid var(--accent);
+  border-bottom-right-radius: 6px;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+button.home-edit-done {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.home-edit-hint {
+  flex-basis: 100%;
 }
 
 .home-card-head {
@@ -3817,10 +3877,6 @@ button.home-tool {
 @media (max-width: 640px) {
   .home {
     padding: 1.25rem 1rem 3rem;
-  }
-
-  .home-card.wide {
-    grid-column: auto;
   }
 }
 
@@ -4151,4 +4207,269 @@ button.calendar-day.chosen {
 
 .file-open {
   margin-left: auto;
+}
+
+/* Favourites, above the notebooks. */
+.favourites ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 0.6rem 0.25rem;
+}
+
+.favourites li {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.favourites .nav-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.favourite-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.favourite-remove {
+  position: absolute;
+  right: 0.2rem;
+  opacity: 0;
+}
+
+.favourites li:hover .favourite-remove,
+.favourite-remove:focus-visible {
+  opacity: 1;
+}
+
+/* The notebooks list: icons, page counts, row sizes and lines. */
+.tree-emoji {
+  flex: none;
+  width: 1.15rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  text-align: center;
+  border-radius: 3px;
+  padding-left: 3px;
+}
+
+.tree-count {
+  flex: none;
+  margin-left: auto;
+  color: var(--sidebar-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tree-item .tree-count + .row-menu {
+  margin-left: 0.2rem;
+}
+
+.notebook-tree.density-compact .tree-item {
+  padding-top: calc(0.18rem * var(--space));
+  padding-bottom: calc(0.18rem * var(--space));
+  font-size: 0.86rem;
+}
+
+.notebook-tree.density-roomy .tree-item {
+  padding-top: calc(0.65rem * var(--space));
+  padding-bottom: calc(0.65rem * var(--space));
+}
+
+.notebook-tree.with-lines .tree-item[aria-level]:not([aria-level='1']) {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(var(--indent, 16px) - 1px),
+    color-mix(in srgb, var(--sidebar-muted) 45%, transparent) calc(var(--indent, 16px) - 1px)
+      var(--indent, 16px)
+  );
+  background-size: calc(var(--depth-px, 0px)) 100%;
+  background-repeat: no-repeat;
+  background-position: 14px 0;
+}
+
+/* Picking a folder's icon. */
+.icon-picker {
+  width: 268px;
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+}
+
+.icon-grid button {
+  padding: 0.2rem 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
+.icon-grid button:hover,
+.icon-grid button[aria-pressed='true'] {
+  background: var(--surface);
+}
+
+.icon-own {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.4rem;
+}
+
+.icon-own input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The first-run guide. */
+.guide-screen {
+  display: grid;
+  place-items: start center;
+  min-height: 100vh;
+  padding: 8vh 1rem 2rem;
+}
+
+.guide-screen .floating-dialog.guide {
+  position: static;
+  transform: none;
+}
+
+.floating-dialog.guide {
+  top: 8vh;
+  display: flex;
+  flex-direction: column;
+  width: min(36rem, calc(100vw - 2rem));
+  max-height: 84vh;
+}
+
+.guide-body {
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 0.25rem;
+}
+
+.guide .guide-body p {
+  margin: 0 0 0.75rem;
+  line-height: 1.55;
+}
+
+.guide-progress {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0 0 0.75rem;
+}
+
+.guide-progress span {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.guide-progress span.done {
+  background: var(--accent);
+}
+
+.guide h2:focus {
+  outline: none;
+}
+
+.guide-logo {
+  display: flex;
+  justify-content: center;
+  margin: 0.5rem 0 1rem;
+  color: var(--accent);
+}
+
+.guide-logo svg {
+  width: 72px;
+  height: 72px;
+}
+
+.guide-points {
+  display: grid;
+  gap: 0.9rem;
+  margin: 0.5rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-points li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  line-height: 1.5;
+}
+
+.guide-points li > svg {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 0.1rem;
+  color: var(--accent);
+}
+
+.guide-choices {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.75rem 0;
+}
+
+button.guide-more {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.guide-modules {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-modules li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.guide-modules .module-text {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.guide-themes .field {
+  margin-bottom: 0.75rem;
+}
+
+.guide-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.guide-spacer {
+  flex: 1;
+}
+
+.guide p.guide-progress {
+  margin: 0 0 1rem;
+}
+
+.guide .dialog-title {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
 }

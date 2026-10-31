@@ -18,7 +18,7 @@ export function ModuleView({ open }: { open: OpenModuleView }) {
 
   return (
     <article className="module-view" aria-label={view.title}>
-      <header className="module-view-header" data-tauri-drag-region>
+      <header className="module-view-header" data-window-drag>
         <h1>{view.title}</h1>
         <SidePanelToggle />
         <button type="button" className="quiet" aria-label="Close" title="Close" onClick={close}>

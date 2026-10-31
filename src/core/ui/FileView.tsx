@@ -33,7 +33,7 @@ export function FileView({ path }: { path: string }) {
 
   return (
     <article className="file-view" aria-label={title}>
-      <header className="file-header" data-tauri-drag-region>
+      <header className="file-header" data-window-drag>
         <h1 className="file-title">{title}</h1>
         <span className="file-kind">{handler?.name ?? kindLabel(path)}</span>
         <OpenInSystem path={path} />

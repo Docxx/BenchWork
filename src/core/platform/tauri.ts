@@ -174,6 +174,7 @@ function desktopFrame(): WindowFrame {
     toggleMaximise: () => win().toggleMaximize(),
     close: () => win().close(),
     isMaximised: () => win().isMaximized(),
+    startDragging: () => win().startDragging(),
     onResized: (listener) => {
       let stop: (() => void) | null = null;
       let stopped = false;

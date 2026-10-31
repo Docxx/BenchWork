@@ -53,7 +53,9 @@ declare global {
  */
 export function createPlatform(): PlatformAdapter {
   if (import.meta.env['VITE_PLATFORM'] === 'memory') {
-    const adapter = new MemoryAdapter();
+    // Tests start past the first-run guide, unless the address asks for it with ?guide.
+    const guide = new URLSearchParams(window.location.search).has('guide');
+    const adapter = new MemoryAdapter({ appSettings: guide ? null : { guided: true } });
     window.__benchworkMemory = adapter;
     return adapter;
   }
