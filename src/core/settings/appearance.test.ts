@@ -132,7 +132,7 @@ describe('appearance settings', () => {
       headingFont: 'mono',
     });
     for (const spec of Object.values(PRESETS).filter((s) => s.fun === true)) {
-      expect(spec.fixedScheme).toBe('dark');
+      expect(spec.fixedScheme).toBeDefined();
       expect(Object.keys(spec.sections ?? {})).toHaveLength(8);
     }
   });

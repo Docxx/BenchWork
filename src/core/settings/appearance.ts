@@ -19,7 +19,14 @@ export type ThemePreset =
   | 'space'
   | 'neon'
   | 'terminal'
-  | 'mars';
+  | 'mars'
+  | 'galaxy'
+  | 'xeno'
+  | 'moonlit'
+  | 'wizard'
+  | 'sparkle'
+  | 'synthwave'
+  | 'deep';
 export type Scheme = 'light' | 'dark';
 export type SidebarStyle = 'dark' | 'light';
 export type FontChoice = 'serif' | 'sans' | 'mono';
@@ -123,6 +130,8 @@ export interface PresetSpec {
   darkSidebar: SidebarPalette;
   /** Its own section colours, used for notebooks, cards and canvases. */
   sections?: Record<SectionColour, string>;
+  /** Accent colours offered with it, in place of the usual ones. */
+  accents?: readonly { name: string; value: string }[];
   headingFont: FontChoice;
   bodyFont: FontChoice;
 }
@@ -619,6 +628,292 @@ const MARS: PresetSpec = {
   bodyFont: 'sans',
 };
 
+const GALAXY_PALETTE: Palette = {
+  bg: '#07080d',
+  surface: '#121521',
+  border: '#262b40',
+  text: '#f2ead8',
+  muted: '#aaa38d',
+  accent: '#4fb3ff',
+  warnBg: '#2c2410',
+  warnText: '#ffe08a',
+};
+
+const GALAXY: PresetSpec = {
+  name: 'Galaxy far away',
+  light: GALAXY_PALETTE,
+  dark: GALAXY_PALETTE,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#04050a',
+    hover: 'rgba(79, 179, 255, 0.12)',
+    active: 'rgba(79, 179, 255, 0.24)',
+    text: '#e8dcc0',
+    muted: '#8d8872',
+    border: '#1b1f30',
+  },
+  sections: {
+    red: '#ff3b3b',
+    orange: '#e8a04a',
+    yellow: '#ffe08a',
+    green: '#4cff6a',
+    teal: '#47d7e8',
+    blue: '#4fb3ff',
+    purple: '#b06bff',
+    grey: '#9a96a0',
+  },
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
+const XENO_PALETTE: Palette = {
+  bg: '#050806',
+  surface: '#0c120e',
+  border: '#1f2e23',
+  text: '#b8f5c4',
+  muted: '#629f6f',
+  accent: '#7dff9a',
+  warnBg: '#2a2405',
+  warnText: '#ffd23f',
+};
+
+const XENO: PresetSpec = {
+  name: 'Xeno colony',
+  light: XENO_PALETTE,
+  dark: XENO_PALETTE,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#020403',
+    hover: 'rgba(125, 255, 154, 0.1)',
+    active: 'rgba(125, 255, 154, 0.2)',
+    text: '#9ee8ad',
+    muted: '#4f845b',
+    border: '#142019',
+  },
+  sections: {
+    red: '#ff4d3d',
+    orange: '#ffa13d',
+    yellow: '#ffd23f',
+    green: '#7dff9a',
+    teal: '#46e0c0',
+    blue: '#5fa8ff',
+    purple: '#b98cff',
+    grey: '#6f8a75',
+  },
+  headingFont: 'mono',
+  bodyFont: 'mono',
+};
+
+const MOONLIT_PALETTE: Palette = {
+  bg: '#0f1413',
+  surface: '#172020',
+  border: '#26322f',
+  text: '#e3e8e4',
+  muted: '#97a59f',
+  accent: '#c0283f',
+  warnBg: '#2a1a1c',
+  warnText: '#f2b8c0',
+};
+
+const MOONLIT: PresetSpec = {
+  name: 'Moonlit forest',
+  light: MOONLIT_PALETTE,
+  dark: MOONLIT_PALETTE,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#0a0f0e',
+    hover: 'rgba(227, 232, 228, 0.07)',
+    active: 'rgba(192, 40, 63, 0.26)',
+    text: '#d7dfda',
+    muted: '#87968f',
+    border: '#1c2624',
+  },
+  sections: {
+    red: '#c0283f',
+    orange: '#c27a4c',
+    yellow: '#c9b46a',
+    green: '#5f8a6e',
+    teal: '#5f9a96',
+    blue: '#7d93ad',
+    purple: '#8a7aa0',
+    grey: '#8f9a96',
+  },
+  headingFont: 'serif',
+  bodyFont: 'serif',
+};
+
+const WIZARD_PALETTE: Palette = {
+  bg: '#f3e6c8',
+  surface: '#ead7ae',
+  border: '#cdb68a',
+  text: '#2b1d14',
+  muted: '#6b563d',
+  accent: '#7a1f2b',
+  warnBg: '#f0d9a0',
+  warnText: '#5a3a00',
+};
+
+const WIZARD: PresetSpec = {
+  name: 'Wizarding school',
+  light: WIZARD_PALETTE,
+  dark: WIZARD_PALETTE,
+  fixedScheme: 'light',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#3a0d14',
+    hover: 'rgba(243, 226, 184, 0.1)',
+    active: 'rgba(212, 175, 55, 0.28)',
+    text: '#f3e2b8',
+    muted: '#cdae72',
+    border: '#521a22',
+  },
+  sections: {
+    red: '#9b2335',
+    orange: '#b8642a',
+    yellow: '#c99a1e',
+    green: '#2e6b45',
+    teal: '#2f7a76',
+    blue: '#2f4f8a',
+    purple: '#6b3f8a',
+    grey: '#8a7a62',
+  },
+  accents: [
+    { name: 'Crimson and gold', value: '#7a1f2b' },
+    { name: 'Emerald and silver', value: '#1f5f3a' },
+    { name: 'Sapphire and bronze', value: '#1f3f7a' },
+    { name: 'Amber and black', value: '#a6780f' },
+  ],
+  headingFont: 'serif',
+  bodyFont: 'serif',
+};
+
+const SPARKLE_PALETTE: Palette = {
+  bg: '#fff0f7',
+  surface: '#ffe0f0',
+  border: '#f6bfdb',
+  text: '#4a1d3a',
+  muted: '#9a5c84',
+  accent: '#e3368a',
+  warnBg: '#fff1c9',
+  warnText: '#7a5200',
+};
+
+const SPARKLE: PresetSpec = {
+  name: 'Pink sparkle',
+  light: SPARKLE_PALETTE,
+  dark: SPARKLE_PALETTE,
+  fixedScheme: 'light',
+  fun: true,
+  sidebar: 'light',
+  darkSidebar: {
+    bg: '#5a1f45',
+    hover: 'rgba(255, 240, 247, 0.1)',
+    active: 'rgba(255, 158, 205, 0.3)',
+    text: '#ffe6f3',
+    muted: '#e7a9cb',
+    border: '#6e2a56',
+  },
+  sections: {
+    red: '#ff5c8a',
+    orange: '#ff9a6b',
+    yellow: '#ffc94d',
+    green: '#5fd3a0',
+    teal: '#45c9d6',
+    blue: '#7aa2ff',
+    purple: '#b57bff',
+    grey: '#b693a8',
+  },
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
+const SYNTHWAVE_PALETTE: Palette = {
+  bg: '#140726',
+  surface: '#21103a',
+  border: '#3d1d66',
+  text: '#fbe9ff',
+  muted: '#c69fe2',
+  accent: '#ff3ea5',
+  warnBg: '#3d1530',
+  warnText: '#ffc46b',
+};
+
+const SYNTHWAVE: PresetSpec = {
+  name: 'Synthwave sunset',
+  light: SYNTHWAVE_PALETTE,
+  dark: SYNTHWAVE_PALETTE,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#0d041a',
+    hover: 'rgba(255, 62, 165, 0.12)',
+    active: 'rgba(255, 62, 165, 0.26)',
+    text: '#f3dcff',
+    muted: '#a17cc4',
+    border: '#2c1352',
+  },
+  sections: {
+    red: '#ff3e6c',
+    orange: '#ff8a3d',
+    yellow: '#ffd23e',
+    green: '#3dffb0',
+    teal: '#3de6ff',
+    blue: '#5c7cff',
+    purple: '#c45cff',
+    grey: '#a08bb8',
+  },
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
+const DEEP_PALETTE: Palette = {
+  bg: '#031a24',
+  surface: '#072a38',
+  border: '#0f3f52',
+  text: '#dff7ff',
+  muted: '#8ab8c7',
+  accent: '#2fe0d0',
+  warnBg: '#2b2a10',
+  warnText: '#ffe28a',
+};
+
+const DEEP: PresetSpec = {
+  name: 'Deep ocean',
+  light: DEEP_PALETTE,
+  dark: DEEP_PALETTE,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#021219',
+    hover: 'rgba(47, 224, 208, 0.1)',
+    active: 'rgba(47, 224, 208, 0.24)',
+    text: '#d2f1fb',
+    muted: '#6fa3b4',
+    border: '#0b3242',
+  },
+  sections: {
+    red: '#ff6b7a',
+    orange: '#ffa25c',
+    yellow: '#ffe27a',
+    green: '#5fe39a',
+    teal: '#2fe0d0',
+    blue: '#3fa9ff',
+    purple: '#9c8cff',
+    grey: '#7fa3ae',
+  },
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
 export const PRESETS: Record<ThemePreset, PresetSpec> = {
   forest: FOREST,
   classic: CLASSIC,
@@ -633,6 +928,13 @@ export const PRESETS: Record<ThemePreset, PresetSpec> = {
   neon: NEON,
   terminal: TERMINAL,
   mars: MARS,
+  galaxy: GALAXY,
+  xeno: XENO,
+  moonlit: MOONLIT,
+  wizard: WIZARD,
+  sparkle: SPARKLE,
+  synthwave: SYNTHWAVE,
+  deep: DEEP,
 };
 
 /** The scheme a preset is shown in: its own fixed one, or the one asked for. */

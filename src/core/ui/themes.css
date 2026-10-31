@@ -243,3 +243,313 @@
     animation: none;
   }
 }
+
+/* ---- Galaxy far away: sand and hologram blue, borders glowing like blades. ---- */
+
+:root[data-preset='galaxy'] .home-header h1,
+:root[data-preset='galaxy'] .module-view-header h1 {
+  color: var(--section-yellow);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+:root[data-preset='galaxy'] .home-card,
+:root[data-preset='galaxy'] .lab-tool {
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  box-shadow: inset 0 2px 0 -1px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+:root[data-preset='galaxy'] .home-card:nth-child(4n + 2) {
+  box-shadow: inset 0 2px 0 -1px color-mix(in srgb, var(--section-red) 70%, transparent);
+}
+
+:root[data-preset='galaxy'] .home-card:nth-child(4n + 3) {
+  box-shadow: inset 0 2px 0 -1px color-mix(in srgb, var(--section-green) 70%, transparent);
+}
+
+:root[data-preset='galaxy'] button.nav-item[aria-pressed='true'] {
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    -2px 0 10px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+:root[data-preset='galaxy'] .shell-main:has(.home) {
+  background-image:
+    radial-gradient(1px 1px at 30px 40px, #ffffff 50%, transparent 51%),
+    radial-gradient(1px 1px at 160px 110px, #cfe8ff 50%, transparent 51%),
+    radial-gradient(1px 1px at 90px 190px, #ffffff 50%, transparent 51%);
+  background-size: 220px 220px;
+  background-attachment: local;
+}
+
+/* ---- Xeno colony: green screens, hazard stripes and a motion tracker. ---- */
+
+:root[data-preset='xeno'] .home-card,
+:root[data-preset='xeno'] .lab-tool {
+  padding-left: 1.6rem;
+  border-radius: 0;
+  background-color: var(--surface);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--section-yellow) 0 6px,
+    #050806 6px 12px
+  );
+  background-repeat: no-repeat;
+  background-size: 8px 100%;
+}
+
+:root[data-preset='xeno'] .home-header h1 {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 0 6px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+:root[data-preset='xeno'] .shell::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.16) 0 1px, transparent 1px 3px);
+}
+
+/* The motion tracker: rings spread out from the big timer. */
+:root[data-preset='xeno'] .lab-big-timer {
+  position: relative;
+  isolation: isolate;
+}
+
+:root[data-preset='xeno'] .lab-big-timer::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: -1;
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.2);
+  opacity: 0;
+  animation: xeno-ping 2.4s ease-out infinite;
+}
+
+@keyframes xeno-ping {
+  10% {
+    opacity: 0.7;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(5);
+    opacity: 0;
+  }
+}
+
+/* ---- Moonlit forest: mist, pale moonlight and a deep red. ---- */
+
+:root[data-preset='moonlit'] .shell-main:has(.home),
+:root[data-preset='moonlit'] .shell-main:has(.module-view) {
+  background-image:
+    radial-gradient(260px 260px at 88% 6%, rgba(230, 236, 240, 0.16), transparent 70%),
+    linear-gradient(180deg, transparent 55%, rgba(170, 190, 182, 0.08) 75%, transparent 95%);
+  background-attachment: local;
+}
+
+:root[data-preset='moonlit'] .home-header h1 {
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
+:root[data-preset='moonlit'] .home-card {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border-color: color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+:root[data-preset='moonlit'] button.nav-item[aria-pressed='true'] {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* ---- Wizarding school: parchment, candle glow, gold-edged cards. ---- */
+
+:root[data-preset='wizard'] .shell-main {
+  background-image: radial-gradient(
+    900px 360px at 50% 0%,
+    rgba(255, 196, 92, 0.22),
+    transparent 70%
+  );
+  background-attachment: local;
+}
+
+:root[data-preset='wizard'] .home-card,
+:root[data-preset='wizard'] .lab-tool {
+  border: 1px solid #b8913e;
+  box-shadow:
+    inset 0 0 0 3px var(--surface),
+    inset 0 0 0 4px rgba(184, 145, 62, 0.55);
+}
+
+:root[data-preset='wizard'] .home-header h1,
+:root[data-preset='wizard'] .module-view-header h1 {
+  color: var(--accent);
+  border-bottom: 2px solid #b8913e;
+  padding-bottom: 0.15rem;
+}
+
+:root[data-preset='wizard'] .sidebar {
+  background-image: linear-gradient(180deg, rgba(212, 175, 55, 0.08), transparent 30%);
+}
+
+/* ---- Pink sparkle: soft pinks, rounder corners and twinkling glitter. ---- */
+
+:root[data-preset='sparkle'] .home-card,
+:root[data-preset='sparkle'] .lab-tool,
+:root[data-preset='sparkle'] button.home-action,
+:root[data-preset='sparkle'] button.home-tool {
+  border-radius: 18px;
+}
+
+:root[data-preset='sparkle'] .home-header h1 {
+  background: linear-gradient(90deg, #e3368a, #b57bff);
+  background-clip: text;
+  color: transparent;
+}
+
+:root[data-preset='sparkle'] .home {
+  position: relative;
+  isolation: isolate;
+}
+
+:root[data-preset='sparkle'] .home::before,
+:root[data-preset='sparkle'] .home::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(2px 2px at 20px 30px, #ff7ab8 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 120px 90px, #ffffff 50%, transparent 51%),
+    radial-gradient(2px 2px at 200px 160px, #c79bff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 70px 210px, #ff9fcd 50%, transparent 51%);
+  background-size: 240px 240px;
+  animation: sparkle-twinkle 3s ease-in-out infinite alternate;
+}
+
+:root[data-preset='sparkle'] .home::after {
+  background-position: 110px 70px;
+  animation-delay: -1.5s;
+}
+
+@keyframes sparkle-twinkle {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---- Synthwave sunset: a glowing sun and a grid running to the horizon. ---- */
+
+:root[data-preset='synthwave'] .home {
+  position: relative;
+  isolation: isolate;
+}
+
+:root[data-preset='synthwave'] .home::before {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  z-index: -1;
+  height: 320px;
+  pointer-events: none;
+  background:
+    linear-gradient(to top, transparent 0, var(--bg) 95%),
+    repeating-linear-gradient(90deg, rgba(255, 62, 165, 0.35) 0 1px, transparent 1px 60px),
+    repeating-linear-gradient(0deg, rgba(255, 62, 165, 0.35) 0 1px, transparent 1px 40px);
+  transform: perspective(300px) rotateX(55deg);
+  transform-origin: bottom;
+}
+
+:root[data-preset='synthwave'] .shell-main:has(.home) {
+  background-image: radial-gradient(
+    420px 260px at 50% 100%,
+    rgba(255, 138, 61, 0.35),
+    rgba(255, 62, 165, 0.15) 50%,
+    transparent 75%
+  );
+  background-attachment: local;
+}
+
+:root[data-preset='synthwave'] .home-header h1 {
+  background: linear-gradient(180deg, #ffd23e, #ff3ea5);
+  background-clip: text;
+  color: transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+:root[data-preset='synthwave'] .home-card {
+  box-shadow: 0 0 16px rgba(255, 62, 165, 0.12);
+}
+
+/* ---- Deep ocean: glowing blues, with bubbles drifting up. ---- */
+
+:root[data-preset='deep'] .shell-main:has(.home) {
+  background-image: linear-gradient(180deg, rgba(47, 224, 208, 0.08), transparent 40%);
+  background-attachment: local;
+}
+
+:root[data-preset='deep'] .home {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+:root[data-preset='deep'] .home::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 -400px;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      circle at 40px 60px,
+      transparent 5px,
+      rgba(160, 240, 255, 0.35) 6px,
+      transparent 7px
+    ),
+    radial-gradient(
+      circle at 180px 200px,
+      transparent 3px,
+      rgba(160, 240, 255, 0.3) 4px,
+      transparent 5px
+    ),
+    radial-gradient(
+      circle at 110px 330px,
+      transparent 8px,
+      rgba(160, 240, 255, 0.25) 9px,
+      transparent 10px
+    );
+  background-size: 260px 400px;
+  animation: deep-bubbles 18s linear infinite;
+}
+
+@keyframes deep-bubbles {
+  to {
+    transform: translateY(-400px);
+  }
+}
+
+:root[data-preset='deep'] .home-card {
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+  box-shadow: 0 0 18px rgba(47, 224, 208, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-preset='xeno'] .lab-big-timer::before,
+  :root[data-preset='sparkle'] .home::before,
+  :root[data-preset='sparkle'] .home::after,
+  :root[data-preset='deep'] .home::before {
+    animation: none;
+  }
+}

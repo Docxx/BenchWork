@@ -168,7 +168,7 @@ export function AppearanceSettings() {
           >
             <span className="visually-hidden">{preset.name} colour</span>
           </button>
-          {ACCENT_CHOICES.map((c) => (
+          {(preset.accents ?? ACCENT_CHOICES).map((c) => (
             <button
               key={c.value}
               type="button"
