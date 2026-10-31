@@ -1,3 +1,4 @@
+import { TagEditor } from './TagEditor';
 import {
   ChevronRight,
   FileText,
@@ -92,6 +93,7 @@ export function PageView() {
               <TitleField key={page.path} page={page} />
               {dayOfPath(page.path) !== null && <DayArrows />}
             </header>
+            <TagEditor key={page.path} path={page.path} />
             <PageLead />
             <ConflictBanner />
             {showHistory && (

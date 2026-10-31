@@ -1,0 +1,8 @@
+{
+  "default": "../../src-tauri/icons/logo.svg",
+  "bg_color": "#071426",
+  "android_bg": "navy-background.svg",
+  "android_fg": "open-record.svg",
+  "android_fg_scale": 85,
+  "android_monochrome": "open-record-white.svg"
+}

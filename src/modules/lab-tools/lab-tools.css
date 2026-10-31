@@ -284,3 +284,68 @@
   flex-wrap: wrap;
   gap: 0.2rem;
 }
+
+/* Give the active calculator a proper workspace, also inside a narrow dock. */
+.lab-tools {
+  container-type: inline-size;
+  grid-template-columns: minmax(180px, 230px) minmax(0, 1fr);
+}
+.lab-tool {
+  max-width: none;
+  min-width: 0;
+  padding: clamp(1rem, 2.5cqw, 2.5rem);
+  border-radius: 16px;
+  box-shadow: 0 12px 35px color-mix(in srgb, var(--text) 5%, transparent);
+}
+.lab-tool-heading {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+}
+.lab-tool-category {
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+}
+.lab-tool-heading h2 {
+  font-size: clamp(1.35rem, 2cqw, 2rem);
+  margin: 0 0 0.5rem;
+}
+.lab-tools:not(.beside) .lab-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+.lab-tools:not(.beside) .lab-answer {
+  margin-top: 0.8rem;
+  padding: 1.25rem;
+  font-size: 1.15rem;
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+}
+.lab-nav button {
+  min-height: 36px;
+}
+.lab-nav button[aria-pressed='true'] {
+  box-shadow: inset 3px 0 var(--accent);
+}
+@container (max-width: 650px) {
+  .lab-tools:not(.beside) {
+    grid-template-columns: 1fr;
+  }
+  .lab-nav {
+    display: flex;
+    overflow-x: auto;
+    gap: 1rem;
+    padding-bottom: 0.75rem;
+  }
+  .lab-nav-group {
+    flex: 0 0 210px;
+  }
+}
+@container (max-width: 400px) {
+  .lab-tools:not(.beside) .lab-fields {
+    grid-template-columns: 1fr;
+  }
+}

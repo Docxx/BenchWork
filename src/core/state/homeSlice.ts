@@ -40,6 +40,8 @@ export function recentPages(pages: readonly PageRef[], limit: number): PageRef[]
 }
 
 export interface HomeSlice {
+  dockChosen: Partial<Record<DockPlace, string>>;
+  focusDockWidget: (place: DockPlace, id: string) => void;
   /** Whether Home is showing: no page, file, view or Settings open. */
   atHome: () => boolean;
   /** Closes whatever is open and shows Home. */
@@ -80,6 +82,10 @@ export function createHomeSlice(ctx: StoreContext): HomeSlice {
   };
 
   return {
+    dockChosen: {},
+    focusDockWidget: (place, id) => {
+      set({ dockChosen: { ...get().dockChosen, [place]: id } });
+    },
     atHome: () => {
       const s = get();
       return (
@@ -124,6 +130,7 @@ export function createHomeSlice(ctx: StoreContext): HomeSlice {
     },
 
     placeWidget: async (widgets, id, to, index) => {
+      get().focusDockWidget(to, id);
       const { docks } = get().homeLayout();
       await get().setHomeLayout({
         docks: placeWidget(docks, dockContents(docks, widgets), id, to, index),

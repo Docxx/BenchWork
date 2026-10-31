@@ -31,7 +31,7 @@ export type Scheme = 'light' | 'dark';
 export type SidebarStyle = 'dark' | 'light';
 export type FontChoice = 'serif' | 'sans' | 'mono';
 export type Density = 'compact' | 'comfortable' | 'roomy';
-export type PageWidth = 'narrow' | 'normal' | 'wide';
+export type PageWidth = 'narrow' | 'normal' | 'wide' | 'full';
 export type TimerSound = 'theme' | 'classic' | 'chime' | 'off';
 
 export interface Appearance {
@@ -980,7 +980,12 @@ const FONTS: Record<FontChoice, string> = {
 
 /** Spacing multiplier for each density. */
 const SPACE: Record<Density, string> = { compact: '0.8', comfortable: '1', roomy: '1.25' };
-const WIDTH: Record<PageWidth, string> = { narrow: '38rem', normal: '46rem', wide: '60rem' };
+const WIDTH: Record<PageWidth, string> = {
+  narrow: '38rem',
+  normal: '46rem',
+  wide: '60rem',
+  full: 'none',
+};
 
 export function defaultAppearance(preset: ThemePreset = 'forest'): Appearance {
   const spec = PRESETS[preset];
@@ -1044,7 +1049,7 @@ export function parseAppearance(data: unknown): Appearance {
   }
   if (oneOf(record['density'], ['compact', 'comfortable', 'roomy'] as const))
     result.density = record['density'];
-  if (oneOf(record['pageWidth'], ['narrow', 'normal', 'wide'] as const))
+  if (oneOf(record['pageWidth'], ['narrow', 'normal', 'wide', 'full'] as const))
     result.pageWidth = record['pageWidth'];
   if (typeof record['sidePanel'] === 'boolean') result.sidePanel = record['sidePanel'];
   if (typeof record['ribbon'] === 'boolean') result.ribbon = record['ribbon'];

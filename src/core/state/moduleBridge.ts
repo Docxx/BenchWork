@@ -23,6 +23,7 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
   }
 
   return {
+    graph: () => state().vaultGraph(),
     inkHooks: () => ({
       settings: () => state().pen,
       onPen: () => {

@@ -285,7 +285,15 @@ export interface VaultItem {
   changed: number | null;
 }
 
+export interface VaultGraph {
+  nodes: { id: string; path: string; title: string; kind: 'note' | 'document'; tags: string[] }[];
+  edges: { source: string; target: string }[];
+  warnings: string[];
+}
+
 export interface ModuleApp {
+  /** Notes, documents, tags and resolved links, read from the current vault. */
+  graph(): Promise<VaultGraph>;
   /**
    * Opens a page in the editor, or another file in its viewer. With
    * `heading`, the editor goes to the first heading with that text.

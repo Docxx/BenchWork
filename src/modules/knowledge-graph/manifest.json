@@ -1,0 +1,8 @@
+{
+  "id": "knowledge-graph",
+  "name": "Knowledge graph",
+  "version": "0.1.0",
+  "description": "Explore notes, documents and tags as an interactive constellation",
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": true
+}

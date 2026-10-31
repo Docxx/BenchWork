@@ -315,8 +315,22 @@ const BUILT_IN: readonly WidgetEntry[] = [
 /** Every widget there is now: the app's own, then those of modules that are on. */
 export function useWidgets(): WidgetEntry[] {
   const fromModules = useApp((s) => s.widgets);
+  const views = useApp((s) => s.pageViews);
   return [
     ...BUILT_IN,
+    ...views
+      .filter(
+        (v) => v.tool && !fromModules.some((w) => w.moduleId === v.moduleId && w.title === v.title),
+      )
+      .map((v) => ({
+        id: `tool:${v.id}`,
+        title: v.title,
+        icon: v.tool?.icon ?? null,
+        wide: true,
+        starts: {},
+        moduleId: v.moduleId,
+        render: () => <div className="docked-tool">{v.render(null)}</div>,
+      })),
     ...fromModules.map((w) => ({
       id: w.id,
       title: w.title,

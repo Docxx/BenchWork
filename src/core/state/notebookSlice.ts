@@ -126,6 +126,7 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
     );
     const selected = tree.selected === null ? null : rebasePath(tree.selected, from, to);
     set({ tree: { folders, expanded, selected } });
+    await get().moveItemTags(from, to);
     await get().reloadFolders([parentVaultPath(from) ?? '', parentVaultPath(to) ?? '']);
     for (const p of expanded.filter((e) => e === to || e.startsWith(`${to}/`))) {
       await get().revealFolder(p);

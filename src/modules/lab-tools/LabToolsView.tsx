@@ -86,7 +86,13 @@ export function LabToolsView({
         </nav>
       )}
       <section className="lab-tool" aria-label={tool.name}>
-        {!beside && <h2>{tool.name}</h2>}
+        {!beside && (
+          <header className="lab-tool-heading">
+            <p className="lab-tool-category">{tool.group}</p>
+            <h2>{tool.name}</h2>
+            <p className="hint">Enter your values below. Results update as you work.</p>
+          </header>
+        )}
         {/* Keyed, so each tool starts with its own empty fields. */}
         <div key={tool.id} className="lab-fields">
           {tool.render(out, timers)}

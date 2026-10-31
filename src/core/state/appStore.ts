@@ -1,3 +1,4 @@
+import { createKnowledgeSlice, type KnowledgeSlice } from './knowledgeSlice';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { createContributions } from '../modules/contributions';
 import { ModuleRegistry } from '../modules/registry';
@@ -33,7 +34,8 @@ export { LINK_THRESHOLD_RANGE, type View } from './settingsSlice';
 export type { PickMode, VaultStatus } from './vaultSlice';
 
 /** The whole app state: one slice per area, sharing a StoreContext. */
-export type AppState = VaultSlice &
+export type AppState = KnowledgeSlice &
+  VaultSlice &
   TreeSlice &
   NotebookSlice &
   PageSlice &
@@ -71,6 +73,7 @@ export function createAppStore(
     // closing in reverse.
     return {
       ...createVaultSlice(ctx),
+      ...createKnowledgeSlice(ctx),
       ...createTreeSlice(ctx),
       ...createNotebookSlice(ctx),
       ...createPageSlice(ctx),

@@ -20,6 +20,7 @@ export const PACKS: readonly ModulePack[] = [
     description:
       'Lab notebooks, experiments and datasets, references from Zotero, inventory and fly flips, lab calculators and timers, the latest papers, tasks, plans and writing up.',
     modules: [
+      'knowledge-graph',
       'lab-notebook',
       'lab-tools',
       'research',
@@ -42,6 +43,6 @@ export const PACKS: readonly ModulePack[] = [
     id: 'notes',
     name: 'General notes',
     description: 'Notes and handwriting, tasks with a board, mind maps and a free canvas.',
-    modules: ['tasks', 'handwriting', 'mind-maps'],
+    modules: ['knowledge-graph', 'tasks', 'handwriting', 'mind-maps'],
   },
 ];

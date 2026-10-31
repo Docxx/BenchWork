@@ -389,6 +389,7 @@ export function createModuleContext(
       },
     },
     app: {
+      graph: () => app().graph(),
       open: (path, options) => app().open(path, options),
       createFolder: (folder, title) => app().createFolder(folder, title),
       createPage: (folder, title, type, content) => app().createPage(folder, title, type, content),

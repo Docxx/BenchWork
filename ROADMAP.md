@@ -143,6 +143,14 @@ See [workflow design and data](docs/research-workflows.md). New modules can be
 enabled separately, or together with the Research pack. Schedule changes require
 review; equipment reservations are local to the vault.
 
+### Workspace and branding (0.13.0)
+
+- [x] Full-width responsive Home and previews, quieter Home editing, optional full-width notes
+- [x] Larger lab calculators and visible side-docking controls for tools
+- [x] Note and document tags with tag search, plus a customisable knowledge graph ([guide](docs/knowledge-graph.md))
+
+- [x] Open Record identity: shared vector notebook mark, blue and magenta inks, academic wordmark, startup writing animation, favicon and regenerated desktop/tablet app icons ([assets and rebuilding](docs/branding.md))
+
 ### Sync work
 
 - [x] Theme atmosphere: stronger fun themes, decorative scenes, optional motion and themed timer cues with volume, preview and silent mode ([guide](docs/themes.md))

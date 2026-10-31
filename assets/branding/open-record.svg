@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 128 128">
+  <title>BenchWork Open Record</title>
+  <!-- Generated from src/core/ui/brand/open-record.json by pnpm branding. -->
+
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M15 40V96Q15 101 21 101H48M113 40V96Q113 101 107 101H80" stroke="#159dff" stroke-width="6"/>
+    <path d="M64 100V43Q64 36 56 35L23 32V93L54 97Q61 98 64 100ZM64 100V43Q64 36 72 35L105 32V93L74 97Q67 98 64 100Z" stroke="#159dff" stroke-width="6"/>
+    <path d="M34 53L50 54M34 66L50 67" stroke="#c2e7ff" stroke-width="4"/>
+    <path d="M75 77C80 75 81 58 86 58C91 58 85 77 91 74C95 71 95 66 97 69C99 72 100 70 101 70" stroke="#f058de" stroke-width="4.5"/>
+  </g>
+</svg>

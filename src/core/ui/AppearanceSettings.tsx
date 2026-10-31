@@ -33,6 +33,7 @@ const WIDTHS: { value: PageWidth; label: string }[] = [
   { value: 'narrow', label: 'Narrow' },
   { value: 'normal', label: 'Normal' },
   { value: 'wide', label: 'Wide' },
+  { value: 'full', label: 'Fill available space' },
 ];
 
 // Each font's name is written in that font, as a sample.

@@ -131,7 +131,7 @@ function Welcome() {
   return (
     <>
       <div className="guide-logo">
-        <Logo />
+        <Logo size={72} />
       </div>
       <p>
         BenchWork is a notebook for research and everything round it: notes, handwriting,

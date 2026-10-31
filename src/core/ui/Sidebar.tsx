@@ -84,7 +84,7 @@ export function Sidebar({
   return (
     <nav className="sidebar" aria-label="Vault">
       <header className="sidebar-header" data-window-drag>
-        <Logo className="brand-mark" size={32} />
+        <Logo className="brand-mark" size={40} />
         <div className="brand-text">
           <span className="brand-name">BenchWork</span>
           <h1 className="vault-name" title={vault.root}>
