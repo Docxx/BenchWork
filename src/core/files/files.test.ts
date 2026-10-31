@@ -36,6 +36,9 @@ describe('file kinds', () => {
     expect(kindLabel('Lab/Ideas.canvas.json')).toBe('Canvas');
     expect(kindLabel('Data/day7.csv')).toBe('CSV table');
     expect(kindLabel('Data/day7.dataset.yaml')).toBe('Dataset');
+    expect(fileKind('Protocols/Climbing.docx')).toBe('word');
+    expect(kindLabel('Protocols/Climbing.docx')).toBe('Word document');
+    expect(fileKind('Protocols/Old.doc')).toBe('other');
   });
 
   it('writes sizes people can read', () => {

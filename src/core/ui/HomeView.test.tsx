@@ -25,9 +25,10 @@ async function renderHome() {
             render: () => 'Bench view body',
             tool: { icon: null, hint: 'Things on the bench' },
           });
-          ctx.views.registerHomeCard({
+          ctx.views.registerWidget({
             id: 'bench.card',
             title: 'On the bench',
+            starts: { home: true },
             render: () => 'Two gels running',
           });
         },
@@ -65,7 +66,14 @@ describe('Home', () => {
 
   it('shows module cards and tools, which open from Home and the sidebar', async () => {
     const { store } = await renderHome();
-    expect(cardNames()).toEqual(['Today', 'Tools', 'Pinned', 'Recent pages', 'On the bench']);
+    expect(cardNames()).toEqual([
+      'Today',
+      'Tools',
+      'Pinned',
+      'Recent pages',
+      'Calendar',
+      'On the bench',
+    ]);
     expect(screen.getByText('Two gels running')).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: /Bench.*Things on the bench/ }));
@@ -87,7 +95,14 @@ describe('Home', () => {
     await act(() => store.getState().setHomeLayout({}));
     fireEvent.click(screen.getByRole('button', { name: 'Move On the bench up' }));
     await act(() => Promise.resolve());
-    expect(cardNames()).toEqual(['Today', 'Tools', 'Pinned', 'On the bench', 'Recent pages']);
+    expect(cardNames()).toEqual([
+      'Today',
+      'Tools',
+      'Pinned',
+      'Recent pages',
+      'On the bench',
+      'Calendar',
+    ]);
 
     fireEvent.click(screen.getByRole('button', { name: 'Hide Tools' }));
     await act(() => Promise.resolve());

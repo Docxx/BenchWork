@@ -37,7 +37,7 @@ export function SettingsPage({ vault }: { vault: OpenVault }) {
 
   return (
     <section className="settings" aria-labelledby="settings-title">
-      <header className="settings-header">
+      <header className="settings-header" data-tauri-drag-region>
         <h2 id="settings-title">Settings</h2>
         <button
           type="button"

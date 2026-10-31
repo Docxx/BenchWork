@@ -2,6 +2,7 @@ import { Component, useEffect, useRef, useState, type ErrorInfo, type ReactNode 
 import type { TableData } from '../files/csv';
 import { parseCsv } from '../files/csv';
 import { fileKind, kindLabel } from '../files/fileKinds';
+import { renderDocx } from '../files/docx';
 import { openPdf, type PdfDocument, type PdfRender } from '../files/pdf';
 import { readSpreadsheet, type SheetData } from '../files/spreadsheet';
 import { handlerFor } from '../modules/contributions';
@@ -32,9 +33,10 @@ export function FileView({ path }: { path: string }) {
 
   return (
     <article className="file-view" aria-label={title}>
-      <header className="file-header">
+      <header className="file-header" data-tauri-drag-region>
         <h1 className="file-title">{title}</h1>
         <span className="file-kind">{handler?.name ?? kindLabel(path)}</span>
+        <OpenInSystem path={path} />
       </header>
       {handler?.penTools === true && (
         <div className="ribbon-tools pen-bar file-pen-bar" role="toolbar" aria-label="Draw">
@@ -66,6 +68,8 @@ function Preview({ path }: { path: string }) {
       return <SpreadsheetPreview path={path} />;
     case 'pdf':
       return <PdfPreview path={path} />;
+    case 'word':
+      return <WordPreview path={path} />;
     case 'link':
       return <LinkedFileView path={path} />;
     case 'record':
@@ -80,6 +84,64 @@ function Preview({ path }: { path: string }) {
     default:
       return <p className="hint">There is no preview for this kind of file.</p>;
   }
+}
+
+/** Opens the file in the program the computer uses for it, such as Word. */
+function OpenInSystem({ path }: { path: string }) {
+  const open = useApp((s) => s.openInSystem);
+  const kind = fileKind(path);
+  if (open === null || kind === 'canvas' || kind === 'record' || kind === 'link') return null;
+  return (
+    <button type="button" className="quiet file-open" onClick={() => void open(path)}>
+      {kind === 'word'
+        ? 'Open in Word'
+        : kind === 'spreadsheet'
+          ? 'Open in Excel'
+          : 'Open in its program'}
+    </button>
+  );
+}
+
+/** A Word document, laid out as Word shows it. Read only. */
+function WordPreview({ path }: { path: string }) {
+  const readFileBytes = useApp((s) => s.readFileBytes);
+  const body = useRef<HTMLDivElement>(null);
+  const styles = useRef<HTMLDivElement>(null);
+  const [state, setState] = useState<Loaded<null>>({ state: 'loading' });
+  useEffect(() => {
+    const run = { live: true };
+    // Read through a function: an await can end the run meanwhile.
+    const live = () => run.live;
+    void (async () => {
+      try {
+        const bytes = await readFileBytes(path);
+        if (!live() || !body.current || !styles.current) return;
+        await renderDocx(bytes, body.current, styles.current);
+        if (live()) setState({ state: 'ready', value: null });
+      } catch (err) {
+        if (live()) {
+          const e = PlatformError.from(err);
+          setState({
+            state: 'error',
+            message:
+              e.kind === 'Io' && !(err instanceof PlatformError)
+                ? 'This Word document could not be read. It may be damaged, or an older .doc file renamed.'
+                : previewError(err),
+          });
+        }
+      }
+    })();
+    return () => {
+      run.live = false;
+    };
+  }, [path, readFileBytes]);
+  return (
+    <div className="word-preview">
+      {state.state !== 'ready' && <Status result={state} />}
+      <div ref={styles} />
+      <div ref={body} className="word-pages" aria-label="Document" />
+    </div>
+  );
 }
 
 /** Why a file could not be shown, in plain words. */

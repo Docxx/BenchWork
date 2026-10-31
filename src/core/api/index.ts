@@ -300,6 +300,22 @@ export interface ModuleApp {
    * False if no page is open in the editor.
    */
   insertText(text: string): boolean;
+  /** Every item with dates, from every schedule source, for the planner. */
+  scheduled(): Promise<ScheduledItem[]>;
+  /** Gives an item new dates, through the source it came from. */
+  reschedule(key: string, start: string, end: string): Promise<void>;
+  /**
+   * Calls `listener` when what scheduled() gives may have changed: a source
+   * came or went, or one says its items changed.
+   */
+  watchScheduled(listener: () => void): Disposable;
+  /** Today's daily page, made if there is none yet; null if no vault is open. */
+  todayPage(): Promise<string | null>;
+  /**
+   * Adds Markdown, such as a checklist line, to the end of a page. An open
+   * page is saved first, and shows the addition straight away.
+   */
+  appendToPage(path: string, markdown: string): Promise<void>;
   /** Opens a module's full-page view, with an optional parameter such as a page path. */
   openView(id: string, param?: string): Promise<void>;
   /** A page's properties (its frontmatter keys), or null if they cannot be read. */
@@ -329,33 +345,93 @@ export interface ModuleViews {
   registerSettingsPanel(spec: SettingsPanelSpec): Disposable;
   /** A view filling the main area, opened with app.openView, such as a timeline. */
   registerPageView(spec: PageViewSpec): Disposable;
-  /** A tab in the side panel beside pages, such as the open page's tasks. */
-  registerSideTab(spec: SideTabSpec): Disposable;
-  /** A card on the Home page, such as tasks due today. */
-  registerHomeCard(spec: HomeCardSpec): Disposable;
+  /**
+   * A widget, such as tasks due today or a timer, which people place on
+   * Home, under the notebooks, or beside pages.
+   */
+  registerWidget(spec: WidgetSpec): Disposable;
+  /** Marks on the calendar, such as tasks due or planned dates. */
+  registerCalendarSource(spec: CalendarSourceSpec): Disposable;
+  /** Things with dates for the planner's chart, such as tasks or planned pages. */
+  registerScheduleSource(spec: ScheduleSourceSpec): Disposable;
 }
 
-export interface HomeCardSpec {
+/** Something with dates, as a bar on the planner's chart. */
+export interface ScheduledItem {
+  /** Unique: its source's id, a colon, then the source's own key. */
+  key: string;
+  title: string;
+  /** The page it is written in, opened by a click. */
+  path: string;
+  /** `YYYY-MM-DD`; `end` is the last day, included. */
+  start: string;
+  end: string;
+  milestone: boolean;
+  /** 0 to 1. */
+  progress: number;
+  done: boolean;
+  /** Who it is for, if anyone. */
+  person: string | null;
+  /** 1 (highest) to 5 (lowest), or null. */
+  priority: number | null;
+  /** The notebook it is in, for grouping. */
+  notebook: string;
+  /** Keys of the items it waits for. */
+  after: string[];
+  /** The key of the item it is part of, as a subtask. */
+  parent: string | null;
+  /** Its dates come from its parts, so it is not moved by itself. */
+  summary?: boolean;
+}
+
+export interface ScheduleSourceSpec {
+  /** Must start with the module id and a dot; every key it gives starts with it and a colon. */
+  id: string;
+  /** What its items are, such as "Tasks". */
+  title: string;
+  items(): Promise<ScheduledItem[]>;
+  /** Writes new dates for one of its items. */
+  move(key: string, start: string, end: string): Promise<void>;
+  /** Calls `listener` when its items change, if it can tell. Returns a stop function. */
+  subscribe?(listener: () => void): () => void;
+}
+
+export interface WidgetSpec {
   /** Must start with the module id and a dot. */
   id: string;
-  /** The card's heading. */
+  /** Its heading, and its tab's name. */
   title: string;
-  /** A small icon beside the heading, about 17 pixels. */
+  /** A small icon, about 17 pixels; the first letter of the title if left out. */
   icon?: ReactNode;
-  /** Wide cards take two columns where there is room. */
+  /** Takes two columns on Home where there is room. */
   wide?: boolean;
-  render: () => ReactNode;
-}
-
-export interface SideTabSpec {
-  /** Must start with the module id and a dot. */
-  id: string;
-  /** The tab's name, shown as its tooltip and read out by screen readers. */
-  title: string;
-  /** A small icon for the tab, about 17 pixels; the first letter of the title if left out. */
-  icon?: ReactNode;
+  /**
+   * Where it shows until someone moves it: a card on Home, a tab beside
+   * pages, both, or neither (only once added).
+   */
+  starts?: { home?: boolean; side?: boolean };
   /** `page` is the open page's path, or null when none is open. */
   render: (page: string | null) => ReactNode;
+}
+
+/** Something to show on a day of the calendar. */
+export interface CalendarMark {
+  /** `YYYY-MM-DD`. */
+  date: string;
+  title: string;
+  /** What a click opens, if anything. */
+  path?: string;
+  /** Shown as a coloured dot: a section colour name, such as `blue`. */
+  colour?: string;
+}
+
+export interface CalendarSourceSpec {
+  /** Must start with the module id and a dot. */
+  id: string;
+  /** What its marks are, such as "Tasks due". */
+  title: string;
+  /** Marks for days from `from` to `to`, both `YYYY-MM-DD` and included. */
+  marks(from: string, to: string): Promise<CalendarMark[]>;
 }
 
 export interface PageViewSpec {

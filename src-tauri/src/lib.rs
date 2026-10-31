@@ -245,6 +245,13 @@ async fn stop_program(id: String, state: State<'_, VaultState>) -> VaultResult<(
     Ok(())
 }
 
+/// Opens a vault file in the program the system uses for it.
+#[tauri::command]
+async fn open_vault_file(path: String, state: State<'_, VaultState>) -> VaultResult<()> {
+    let full = path_guard::resolve(&state.root()?, &path)?;
+    web_link::open_file(&full)
+}
+
 /// Opens a web address in the system's browser.
 #[tauri::command]
 async fn open_web_link(url: String) -> VaultResult<()> {
@@ -504,6 +511,7 @@ pub fn run() {
             run_program,
             stop_program,
             open_web_link,
+            open_vault_file,
             list_backups,
             restore_backup,
             list_dir,

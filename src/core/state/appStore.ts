@@ -97,8 +97,9 @@ export function createAppStore(
       fileHandlers,
       settingsPanels,
       pageViews,
-      sideTabs,
-      homeCards,
+      widgets,
+      calendarSources,
+      scheduleSources,
       strokeFilters,
       inkTools,
       inkRecognisers,
@@ -107,8 +108,9 @@ export function createAppStore(
     }) => {
       store.setState({
         pageViews,
-        sideTabs,
-        homeCards,
+        widgets,
+        calendarSources,
+        scheduleSources,
         strokeFilters,
         inkTools,
         inkRecognisers,

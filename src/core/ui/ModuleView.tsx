@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import type { OpenModuleView } from '../state/filesSlice';
 import { useApp } from './AppStoreContext';
+import { SidePanelToggle } from './PageView';
 
 /** A module's full-page view in the main area, such as a timeline or an overview. */
 export function ModuleView({ open }: { open: OpenModuleView }) {
@@ -17,8 +18,9 @@ export function ModuleView({ open }: { open: OpenModuleView }) {
 
   return (
     <article className="module-view" aria-label={view.title}>
-      <header className="module-view-header">
+      <header className="module-view-header" data-tauri-drag-region>
         <h1>{view.title}</h1>
+        <SidePanelToggle />
         <button type="button" className="quiet" aria-label="Close" title="Close" onClick={close}>
           ×
         </button>

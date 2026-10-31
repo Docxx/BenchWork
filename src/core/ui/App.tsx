@@ -3,6 +3,7 @@ import type { PenMode } from '../settings/appSettings';
 import { useApp } from './AppStoreContext';
 import { Shell } from './Shell';
 import { Splash } from './Splash';
+import { WindowControls } from './WindowControls';
 import { applyAppearance } from './theme';
 import {
   ChooseFolder,
@@ -113,6 +114,13 @@ export function App() {
   return (
     <>
       <Screen />
+      {status.kind !== 'open' && (
+        // Before a vault opens there is no sidebar to drag the window by.
+        <>
+          <div className="window-drag-strip" data-tauri-drag-region />
+          <WindowControls />
+        </>
+      )}
       <Splash
         settingsKnown={settingsKnown || status.kind !== 'starting'}
         enabled={appearance.startupAnimation}

@@ -35,6 +35,7 @@ const WIDTHS: { value: PageWidth; label: string }[] = [
 const FONTS: { value: FontChoice; label: string; style: CSSProperties }[] = [
   { value: 'serif', label: 'Serif', style: { fontFamily: "'Source Serif 4 Variable', serif" } },
   { value: 'sans', label: 'Sans serif', style: { fontFamily: "'Inter Variable', sans-serif" } },
+  { value: 'mono', label: 'Mono', style: { fontFamily: "'Cascadia Mono', Consolas, monospace" } },
 ];
 
 const PATTERNS: { value: PaperPattern; label: string }[] = [
@@ -103,35 +104,43 @@ export function AppearanceSettings() {
 
   return (
     <div className="appearance">
-      <fieldset className="field">
-        <legend>Theme</legend>
-        <div className="preset-row">
-          {(Object.keys(PRESETS) as ThemePreset[]).map((id) => {
-            const spec = PRESETS[id];
-            const sidebar = spec.sidebar === 'dark' ? spec.darkSidebar.bg : spec.light.surface;
-            return (
-              <label key={id} className="preset-card">
-                <input
-                  type="radio"
-                  name="preset"
-                  value={id}
-                  checked={appearance.preset === id}
-                  onChange={() => {
-                    choosePreset(id);
-                  }}
-                />
-                <span className="preset-swatch" aria-hidden="true">
-                  <span style={{ background: sidebar }} />
-                  <span style={{ background: spec.light.bg }}>
-                    <i style={{ background: spec.light.accent }} />
-                  </span>
-                </span>
-                {spec.name}
-              </label>
-            );
-          })}
-        </div>
-      </fieldset>
+      {[
+        { legend: 'Theme', fun: false },
+        { legend: 'Fun themes', fun: true },
+      ].map(({ legend, fun }) => (
+        <fieldset key={legend} className="field">
+          <legend>{legend}</legend>
+          <div className="preset-row">
+            {(Object.keys(PRESETS) as ThemePreset[])
+              .filter((id) => (PRESETS[id].fun === true) === fun)
+              .map((id) => {
+                const spec = PRESETS[id];
+                const page = spec.fixedScheme === 'dark' ? spec.dark : spec.light;
+                const sidebar = spec.sidebar === 'dark' ? spec.darkSidebar.bg : page.surface;
+                return (
+                  <label key={id} className="preset-card">
+                    <input
+                      type="radio"
+                      name="preset"
+                      value={id}
+                      checked={appearance.preset === id}
+                      onChange={() => {
+                        choosePreset(id);
+                      }}
+                    />
+                    <span className="preset-swatch" aria-hidden="true">
+                      <span style={{ background: sidebar }} />
+                      <span style={{ background: page.bg }}>
+                        <i style={{ background: page.accent }} />
+                      </span>
+                    </span>
+                    {spec.name}
+                  </label>
+                );
+              })}
+          </div>
+        </fieldset>
+      ))}
 
       <Choices
         legend="Light or dark"
@@ -140,6 +149,11 @@ export function AppearanceSettings() {
         options={SCHEMES}
         onChange={(t) => void setTheme(t)}
       />
+      {preset.fixedScheme !== undefined && (
+        <p className="hint">
+          {preset.name} is always {preset.fixedScheme}.
+        </p>
+      )}
 
       <fieldset className="field">
         <legend>Accent colour</legend>

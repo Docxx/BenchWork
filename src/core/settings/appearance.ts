@@ -7,10 +7,22 @@
  */
 
 export type ThemePreset =
-  'forest' | 'classic' | 'ocean' | 'heather' | 'clay' | 'graphite' | 'sepia';
+  | 'forest'
+  | 'classic'
+  | 'ocean'
+  | 'heather'
+  | 'clay'
+  | 'graphite'
+  | 'sepia'
+  | 'bridge'
+  | 'dino'
+  | 'space'
+  | 'neon'
+  | 'terminal'
+  | 'mars';
 export type Scheme = 'light' | 'dark';
 export type SidebarStyle = 'dark' | 'light';
-export type FontChoice = 'serif' | 'sans';
+export type FontChoice = 'serif' | 'sans' | 'mono';
 export type Density = 'compact' | 'comfortable' | 'roomy';
 export type PageWidth = 'narrow' | 'normal' | 'wide';
 
@@ -84,12 +96,33 @@ interface SidebarPalette {
   border: string;
 }
 
-interface PresetSpec {
+export type SectionColour =
+  'red' | 'orange' | 'yellow' | 'green' | 'teal' | 'blue' | 'purple' | 'grey';
+
+/** The usual section colours, for themes without their own. */
+const SECTIONS: Record<SectionColour, string> = {
+  red: '#d1495b',
+  orange: '#c8794f',
+  yellow: '#c99a1e',
+  green: '#5b8a5a',
+  teal: '#2a9d8f',
+  blue: '#4a78b8',
+  purple: '#8a7cb8',
+  grey: '#8c959f',
+};
+
+export interface PresetSpec {
   name: string;
   light: Palette;
   dark: Palette;
+  /** Always this scheme, whatever Light or dark says; the fun themes are always dark. */
+  fixedScheme?: Scheme;
+  /** Listed with the fun themes, which also have effects of their own in themes.css. */
+  fun?: boolean;
   sidebar: SidebarStyle;
   darkSidebar: SidebarPalette;
+  /** Its own section colours, used for notebooks, cards and canvases. */
+  sections?: Record<SectionColour, string>;
   headingFont: FontChoice;
   bodyFont: FontChoice;
 }
@@ -346,6 +379,246 @@ const SEPIA: PresetSpec = {
   bodyFont: 'serif',
 };
 
+const BRIDGE_DARK: Palette = {
+  bg: '#07070b',
+  surface: '#15141f',
+  border: '#2c2a42',
+  text: '#f6ecdf',
+  muted: '#b9abcf',
+  accent: '#ff9c3d',
+  warnBg: '#3d2312',
+  warnText: '#ffcc99',
+};
+
+const BRIDGE: PresetSpec = {
+  name: 'Starship bridge',
+  light: BRIDGE_DARK,
+  dark: BRIDGE_DARK,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#000000',
+    hover: 'rgba(255, 156, 61, 0.12)',
+    active: 'rgba(204, 153, 204, 0.3)',
+    text: '#ffcc99',
+    muted: '#9f9fd6',
+    border: '#26243a',
+  },
+  sections: {
+    red: '#e0525a',
+    orange: '#ff9c3d',
+    yellow: '#ffcc66',
+    green: '#a6d672',
+    teal: '#6fd3d3',
+    blue: '#9a9cff',
+    purple: '#cc99cc',
+    grey: '#9a98b8',
+  },
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
+const DINO_DARK: Palette = {
+  bg: '#14130c',
+  surface: '#1f1d13',
+  border: '#3a3723',
+  text: '#efe8d2',
+  muted: '#b2aa84',
+  accent: '#e3a72f',
+  warnBg: '#3b2a0c',
+  warnText: '#ffd27a',
+};
+
+const DINO: PresetSpec = {
+  name: 'Dino park',
+  light: DINO_DARK,
+  dark: DINO_DARK,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#0e180b',
+    hover: 'rgba(227, 167, 47, 0.12)',
+    active: 'rgba(227, 167, 47, 0.24)',
+    text: '#e6dfc4',
+    muted: '#9cab7c',
+    border: '#22321a',
+  },
+  sections: {
+    red: '#d0573a',
+    orange: '#e3a72f',
+    yellow: '#f2c230',
+    green: '#6f9a3c',
+    teal: '#4f9a83',
+    blue: '#5f8fb0',
+    purple: '#9a7aa8',
+    grey: '#8f8a72',
+  },
+  headingFont: 'serif',
+  bodyFont: 'sans',
+};
+
+const SPACE_THEME_DARK: Palette = {
+  bg: '#060a18',
+  surface: '#0f1530',
+  border: '#232c52',
+  text: '#e8ecff',
+  muted: '#9ba4cc',
+  accent: '#8f7bff',
+  warnBg: '#2e2140',
+  warnText: '#f3c4ff',
+};
+
+const SPACE_THEME: PresetSpec = {
+  name: 'Deep space',
+  light: SPACE_THEME_DARK,
+  dark: SPACE_THEME_DARK,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#040714',
+    hover: 'rgba(143, 123, 255, 0.12)',
+    active: 'rgba(143, 123, 255, 0.26)',
+    text: '#dfe4ff',
+    muted: '#7f89b8',
+    border: '#1a2144',
+  },
+  sections: {
+    red: '#ff6b8b',
+    orange: '#ffab6b',
+    yellow: '#ffe27a',
+    green: '#6be3b0',
+    teal: '#5ad1e6',
+    blue: '#6b9bff',
+    purple: '#b48cff',
+    grey: '#8b93b8',
+  },
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
+const NEON_DARK: Palette = {
+  bg: '#0d0221',
+  surface: '#190a33',
+  border: '#3b1d66',
+  text: '#f6f0ff',
+  muted: '#b79ddb',
+  accent: '#ff2a6d',
+  warnBg: '#3a0b2a',
+  warnText: '#ffb3cf',
+};
+
+const NEON: PresetSpec = {
+  name: 'Neon city',
+  light: NEON_DARK,
+  dark: NEON_DARK,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#080115',
+    hover: 'rgba(5, 217, 232, 0.12)',
+    active: 'rgba(255, 42, 109, 0.28)',
+    text: '#eadfff',
+    muted: '#9481bd',
+    border: '#2a1252',
+  },
+  sections: {
+    red: '#ff2a6d',
+    orange: '#ff8a3d',
+    yellow: '#f9f871',
+    green: '#3dff9e',
+    teal: '#05d9e8',
+    blue: '#4d7cff',
+    purple: '#c45cff',
+    grey: '#9a8bb8',
+  },
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
+const TERMINAL_DARK: Palette = {
+  bg: '#040904',
+  surface: '#0a140a',
+  border: '#1d3b1d',
+  text: '#9dffa9',
+  muted: '#55b866',
+  accent: '#33ff66',
+  warnBg: '#262a05',
+  warnText: '#e6ff66',
+};
+
+const TERMINAL: PresetSpec = {
+  name: 'Retro terminal',
+  light: TERMINAL_DARK,
+  dark: TERMINAL_DARK,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#020602',
+    hover: 'rgba(51, 255, 102, 0.1)',
+    active: 'rgba(51, 255, 102, 0.22)',
+    text: '#86ff96',
+    muted: '#42a052',
+    border: '#143214',
+  },
+  sections: {
+    red: '#ff5f56',
+    orange: '#ffb347',
+    yellow: '#e6ff66',
+    green: '#33ff66',
+    teal: '#3dffd0',
+    blue: '#59a6ff',
+    purple: '#c38bff',
+    grey: '#6f9f77',
+  },
+  headingFont: 'mono',
+  bodyFont: 'mono',
+};
+
+const MARS_DARK: Palette = {
+  bg: '#190e0a',
+  surface: '#26150f',
+  border: '#45261a',
+  text: '#f7e6da',
+  muted: '#c49c86',
+  accent: '#e2622b',
+  warnBg: '#3f1d0d',
+  warnText: '#ffc39a',
+};
+
+const MARS: PresetSpec = {
+  name: 'Red planet',
+  light: MARS_DARK,
+  dark: MARS_DARK,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#110805',
+    hover: 'rgba(226, 98, 43, 0.12)',
+    active: 'rgba(226, 98, 43, 0.26)',
+    text: '#f0d9c9',
+    muted: '#a8806a',
+    border: '#2f1810',
+  },
+  sections: {
+    red: '#e2482b',
+    orange: '#e2622b',
+    yellow: '#e8b45a',
+    green: '#8fa36a',
+    teal: '#5f9c95',
+    blue: '#6f8fb8',
+    purple: '#a57aa0',
+    grey: '#a08a7d',
+  },
+  headingFont: 'serif',
+  bodyFont: 'sans',
+};
+
 export const PRESETS: Record<ThemePreset, PresetSpec> = {
   forest: FOREST,
   classic: CLASSIC,
@@ -354,7 +627,18 @@ export const PRESETS: Record<ThemePreset, PresetSpec> = {
   clay: CLAY,
   graphite: GRAPHITE,
   sepia: SEPIA,
+  bridge: BRIDGE,
+  dino: DINO,
+  space: SPACE_THEME,
+  neon: NEON,
+  terminal: TERMINAL,
+  mars: MARS,
 };
+
+/** The scheme a preset is shown in: its own fixed one, or the one asked for. */
+export function presetScheme(preset: ThemePreset, wanted: Scheme): Scheme {
+  return PRESETS[preset].fixedScheme ?? wanted;
+}
 
 const PRESET_IDS = Object.keys(PRESETS) as ThemePreset[];
 
@@ -373,6 +657,7 @@ export const ACCENT_CHOICES = [
 const FONTS: Record<FontChoice, string> = {
   serif: "'Source Serif 4 Variable', 'Source Serif 4', Georgia, 'Times New Roman', serif",
   sans: "'Inter Variable', Inter, system-ui, 'Segoe UI', sans-serif",
+  mono: "'Cascadia Mono', 'Cascadia Code', Consolas, 'DejaVu Sans Mono', 'Courier New', monospace",
 };
 
 /** Spacing multiplier for each density. */
@@ -421,9 +706,10 @@ export function parseAppearance(data: unknown): Appearance {
   const accent = record['accent'];
   if (typeof accent === 'string' && HEX.test(accent)) result.accent = accent.toLowerCase();
   if (oneOf(record['sidebar'], ['dark', 'light'] as const)) result.sidebar = record['sidebar'];
-  if (oneOf(record['headingFont'], ['serif', 'sans'] as const))
+  if (oneOf(record['headingFont'], ['serif', 'sans', 'mono'] as const))
     result.headingFont = record['headingFont'];
-  if (oneOf(record['bodyFont'], ['serif', 'sans'] as const)) result.bodyFont = record['bodyFont'];
+  if (oneOf(record['bodyFont'], ['serif', 'sans', 'mono'] as const))
+    result.bodyFont = record['bodyFont'];
   const size = record['textSize'];
   if (typeof size === 'number' && Number.isFinite(size)) {
     result.textSize = Math.round(
@@ -509,7 +795,14 @@ export function appearanceTokens(appearance: Appearance, scheme: Scheme): Record
           muted: palette.muted,
           border: palette.border,
         };
+  const sections = Object.fromEntries(
+    Object.entries(spec.sections ?? SECTIONS).map(([name, colour]) => [
+      `--section-${name}`,
+      colour,
+    ]),
+  );
   return {
+    ...sections,
     '--bg': palette.bg,
     '--surface': palette.surface,
     '--border': palette.border,

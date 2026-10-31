@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 128 128">
+  <!-- BenchWork's app icon. The same drawing as src/core/ui/Logo.tsx, in fixed colours.
+       Rebuild the icons with: pnpm tauri icon src-tauri/icons/app-icon.png -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1a5650"/>
+      <stop offset="1" stop-color="#0d302d"/>
+    </linearGradient>
+    <linearGradient id="liquid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7ce8d0"/>
+      <stop offset="1" stop-color="#3fb89f"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="30" fill="url(#tile)"/>
+  <path d="M41 80 Q51 74 61 78 T82 77 Q101 78 101 87 Q101 101 80 101 L41 101 Z" fill="url(#liquid)"/>
+  <circle cx="60" cy="89" r="4.5" fill="#e9fbf6"/>
+  <circle cx="75" cy="85" r="3.2" fill="#e9fbf6"/>
+  <circle cx="67" cy="80" r="2.2" fill="#e9fbf6"/>
+  <path d="M38 24 L74 24 Q96 24 96 45 Q96 59 83 63 Q104 67 104 85 Q104 104 80 104 L38 104 Z M38 64 L77 64"
+    fill="none" stroke="#e9fbf6" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

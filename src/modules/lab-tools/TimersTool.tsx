@@ -70,22 +70,99 @@ function TimerRow({ store, timer, now }: { store: TimerStore; timer: Timer; now:
 }
 
 /** The running timers, for Home. */
+/** The timer to show large: one that is done, else the running one ending soonest, else any. */
+export function leadTimer(timers: readonly Timer[], now: number): Timer | null {
+  const done = timers.find((t) => t.done);
+  if (done) return done;
+  const running = timers
+    .filter((t) => t.endsAt !== null)
+    .sort((a, b) => timeLeft(a, now) - timeLeft(b, now));
+  return running[0] ?? timers[0] ?? null;
+}
+
+/** For Home and the docks: the next timer in large digits, the rest below, and quick starts. */
 export function TimersCard({ store, onOpen }: { store: TimerStore; onOpen: () => void }) {
   const { timers, now } = useTimers(store);
+  const lead = leadTimer(timers, now);
+  const rest = timers.filter((t) => t !== lead);
   return (
     <div className="lab-timers-card">
-      {timers.length === 0 ? (
+      {lead === null ? (
         <p className="hint">No timers running.</p>
       ) : (
+        <div className={lead.done ? 'lab-big-timer done' : 'lab-big-timer'}>
+          <span className="lab-big-clock" role="timer" aria-label={`${lead.name} timer`}>
+            {lead.done ? 'Done' : clock(timeLeft(lead, now))}
+          </span>
+          <span className="lab-big-name">{lead.name}</span>
+          <span className="lab-timer-tools">
+            {!lead.done &&
+              (lead.endsAt !== null ? (
+                <button
+                  type="button"
+                  className="quiet"
+                  onClick={() => {
+                    store.pause(lead.id);
+                  }}
+                >
+                  Pause
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="quiet"
+                  onClick={() => {
+                    store.resume(lead.id);
+                  }}
+                >
+                  Start
+                </button>
+              ))}
+            <button
+              type="button"
+              className="quiet"
+              onClick={() => {
+                store.extend(lead.id, 60_000);
+              }}
+            >
+              +1 min
+            </button>
+            <button
+              type="button"
+              className="quiet"
+              onClick={() => {
+                store.remove(lead.id);
+              }}
+            >
+              {lead.done ? 'Dismiss' : 'Remove'}
+            </button>
+          </span>
+        </div>
+      )}
+      {rest.length > 0 && (
         <ul className="lab-timers">
-          {timers.map((t) => (
+          {rest.map((t) => (
             <TimerRow key={t.id} store={store} timer={t} now={now} />
           ))}
         </ul>
       )}
-      <button type="button" className="quiet" onClick={onOpen}>
-        {timers.length === 0 ? 'Start a timer' : 'All timers'}
-      </button>
+      <div className="lab-quick" role="group" aria-label="Start a timer">
+        {[1, 5, 10, 15, 30].map((m) => (
+          <button
+            key={m}
+            type="button"
+            className="quiet"
+            onClick={() => {
+              store.add(`${String(m)} min`, m * 60_000);
+            }}
+          >
+            {m} min
+          </button>
+        ))}
+        <button type="button" className="quiet" onClick={onOpen}>
+          More…
+        </button>
+      </div>
     </div>
   );
 }

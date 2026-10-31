@@ -11,6 +11,7 @@ import { AppStoreProvider } from '@core/ui/AppStoreContext';
 import '@fontsource-variable/inter';
 import '@fontsource-variable/source-serif-4';
 import '@core/ui/styles.css';
+import '@core/ui/themes.css';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root element');

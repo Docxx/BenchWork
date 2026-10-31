@@ -1,5 +1,6 @@
 import type { VaultItem } from '../api';
 import { linkTargetFor, resolveLink, suffixKeys } from '../links/resolve';
+import { dayOf } from '../pages/daily';
 import type { AppBridge } from '../modules/context';
 import { pageProperties, parsePage, serialisePage, updateProperties } from '../pages/frontmatter';
 import type { PageRef, PlatformAdapter } from '../platform';
@@ -42,6 +43,48 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
         ? state().createPage(folder, title, content)
         : state().createTypedPage(folder, type, title, content),
     openPage: () => state().page?.path ?? null,
+    todayPage: () => state().ensureDay(dayOf(new Date())),
+    scheduled: async () => {
+      const lists = await Promise.all(
+        state().scheduleSources.map((s) => s.items().catch(() => [])),
+      );
+      return lists.flat();
+    },
+    watchScheduled: (listener) => {
+      // Each source's own subscription, renewed whenever the sources change.
+      let stops: (() => void)[] = [];
+      const follow = () => {
+        for (const stop of stops) stop();
+        stops = state().scheduleSources.flatMap((s) =>
+          s.subscribe ? [s.subscribe(listener)] : [],
+        );
+      };
+      follow();
+      const stopStore = store.subscribe((now, before) => {
+        if (now.scheduleSources === before.scheduleSources) return;
+        follow();
+        listener();
+      });
+      return {
+        dispose: () => {
+          stopStore();
+          for (const stop of stops) stop();
+          stops = [];
+        },
+      };
+    },
+    reschedule: async (key, start, end) => {
+      const source = state().scheduleSources.find((s) => key.startsWith(`${s.id}:`));
+      if (!source) throw new Error('Nothing can move that item: its module may be switched off.');
+      await source.move(key, start, end);
+    },
+    appendToPage: async (path, markdown) => {
+      if (state().page?.path === path) await state().savePageNow();
+      const text = await platform.readText(path);
+      const line = markdown.endsWith('\n') ? markdown : `${markdown}\n`;
+      const gap = text === '' || text.endsWith('\n') ? '' : '\n';
+      await platform.writeTextAtomic(path, `${text}${gap}${line}`);
+    },
     insertText: (text) => {
       const editor = state().pageEditor?.editor;
       if (!editor || editor.isDestroyed || !editor.isEditable) return false;

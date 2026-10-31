@@ -1,6 +1,8 @@
 import { createElement } from 'react';
 import { ChartGantt } from 'lucide-react';
 import { defineModule } from '@core/api';
+import type { CalendarMark, ScheduledItem } from '@core/api';
+import { moveChanges, readPlan, type PlanTask } from './plan';
 import { PlannerView } from './PlannerView';
 import './planner.css';
 
@@ -13,6 +15,48 @@ import './planner.css';
 
 const VIEW = 'planner.timeline';
 
+/** The plan is read again for the calendar at most this often, in ms. */
+const PLAN_FRESH_MS = 30_000;
+
+export const PAGES = 'planner.pages';
+
+/** Planned pages as items for the chart, joined to the pages they come after. */
+export function pageItems(plan: readonly PlanTask[]): ScheduledItem[] {
+  const paths = new Set(plan.map((t) => t.path));
+  return plan.map((t) => ({
+    key: `${PAGES}:${t.path}`,
+    title: t.title,
+    path: t.path,
+    start: t.start,
+    end: t.end,
+    milestone: t.milestone,
+    progress: Math.min(1, Math.max(0, t.progress / 100)),
+    done: t.progress >= 100,
+    person: null,
+    priority: null,
+    notebook: t.notebook,
+    after: t.after.filter((p) => paths.has(p)).map((p) => `${PAGES}:${p}`),
+    parent: null,
+  }));
+}
+
+/** Calendar marks for planned pages: one-day pages and milestones, and where others start and end. */
+export function planMarks(plan: readonly PlanTask[], from: string, to: string): CalendarMark[] {
+  const marks: CalendarMark[] = [];
+  const add = (date: string, title: string, task: PlanTask, colour: string) => {
+    if (date >= from && date <= to) marks.push({ date, title, path: task.path, colour });
+  };
+  for (const task of plan) {
+    if (task.milestone) add(task.start, `◆ ${task.title}`, task, 'purple');
+    else if (task.start === task.end) add(task.start, task.title, task, 'blue');
+    else {
+      add(task.start, `${task.title} starts`, task, 'blue');
+      add(task.end, `${task.title} ends`, task, 'blue');
+    }
+  }
+  return marks;
+}
+
 export default defineModule({
   activate(ctx) {
     ctx.views.registerPageView({
@@ -22,6 +66,30 @@ export default defineModule({
       tool: {
         icon: createElement(ChartGantt, { size: 18, strokeWidth: 1.75, 'aria-hidden': true }),
         hint: 'Dated pages on a timeline',
+      },
+    });
+
+    let cached: { at: number; plan: Promise<PlanTask[]> } | null = null;
+    ctx.views.registerCalendarSource({
+      id: 'planner.dates',
+      title: 'Planned dates',
+      marks: async (from, to) => {
+        if (cached === null || Date.now() - cached.at > PLAN_FRESH_MS) {
+          cached = { at: Date.now(), plan: readPlan(ctx) };
+        }
+        return planMarks(await cached.plan, from, to);
+      },
+    });
+
+    ctx.views.registerScheduleSource({
+      id: PAGES,
+      title: 'Planned pages',
+      items: async () => pageItems(await readPlan(ctx)),
+      move: async (key, start, end) => {
+        const path = key.slice(PAGES.length + 1);
+        const task = (await readPlan(ctx)).find((t) => t.path === path);
+        if (task) await ctx.app.setPageProperties(path, moveChanges(task, start, end));
+        cached = null;
       },
     });
 

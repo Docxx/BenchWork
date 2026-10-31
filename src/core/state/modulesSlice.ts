@@ -5,8 +5,9 @@ import type {
   FileHandler,
   PageType,
   PageView,
-  SideTab,
-  HomeCard,
+  Widget,
+  CalendarSource,
+  ScheduleSource,
   StrokeFilter,
   InkToolContribution,
   InkRecogniser,
@@ -44,10 +45,12 @@ export interface ModulesSlice {
   settingsPanels: SettingsPanel[];
   /** Full-page views of modules that are on. */
   pageViews: PageView[];
-  /** Side panel tabs of modules that are on. */
-  sideTabs: SideTab[];
-  /** Home page cards of modules that are on. */
-  homeCards: HomeCard[];
+  /** Widgets of modules that are on, for Home and the docks. */
+  widgets: Widget[];
+  /** Marks for the calendar from modules that are on. */
+  calendarSources: CalendarSource[];
+  /** Things with dates for the planner, from modules that are on. */
+  scheduleSources: ScheduleSource[];
   /** Changes made to strokes as they are finished, by modules. */
   strokeFilters: StrokeFilter[];
   /** Pen tools from modules, beside the pen, highlighter and eraser. */
@@ -133,8 +136,9 @@ export function createModulesSlice(ctx: StoreContext): ModulesSlice {
     fileHandlers: registry.contributions.getState().fileHandlers,
     settingsPanels: registry.contributions.getState().settingsPanels,
     pageViews: registry.contributions.getState().pageViews,
-    sideTabs: registry.contributions.getState().sideTabs,
-    homeCards: registry.contributions.getState().homeCards,
+    widgets: registry.contributions.getState().widgets,
+    calendarSources: registry.contributions.getState().calendarSources,
+    scheduleSources: registry.contributions.getState().scheduleSources,
     strokeFilters: registry.contributions.getState().strokeFilters,
     inkTools: registry.contributions.getState().inkTools,
     inkRecognisers: registry.contributions.getState().inkRecognisers,

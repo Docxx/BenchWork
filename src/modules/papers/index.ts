@@ -28,8 +28,9 @@ export default defineModule({
         hint: 'New papers on the topics you follow',
       },
     });
-    ctx.views.registerHomeCard({
+    ctx.views.registerWidget({
       id: 'papers.latest',
+      starts: { home: true },
       title: 'Latest papers',
       icon: createElement(Newspaper, { size: 17, strokeWidth: 1.75, 'aria-hidden': true }),
       wide: true,

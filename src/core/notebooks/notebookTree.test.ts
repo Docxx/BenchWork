@@ -2,6 +2,7 @@
 import type { DirEntry } from '../platform';
 import { emptyTree, visibleEntries, type TreeState } from '../vault/fileTree';
 import { isPage, notebookRows, orderEntries, pageTitle } from './notebookTree';
+import { isPreviewed as previewed } from './notebookTree';
 
 function entry(path: string, isDir = false): DirEntry {
   return { name: path.slice(path.lastIndexOf('/') + 1), path, isDir, size: 0, modified: null };
@@ -121,5 +122,13 @@ describe('notebookRows', () => {
     expect(rows).toContain('  file:data.csv');
     expect(rows).toContain('  file:notes.txt');
     expect(rows.some((r) => r.includes('_section.yaml'))).toBe(false);
+  });
+});
+
+describe('files shown in the sidebar', () => {
+  it('include Word documents, but not the lock files Word keeps beside them', () => {
+    expect(previewed('Climbing.docx')).toBe(true);
+    expect(previewed('~$imbing.docx')).toBe(false);
+    expect(previewed('.hidden.pdf')).toBe(false);
   });
 });

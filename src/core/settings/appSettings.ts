@@ -1,3 +1,4 @@
+import { defaultDocks, parseDocks, type DockLayout } from './layout';
 import type { PlatformAdapter } from '../platform';
 import { defaultAppearance, parseAppearance, type Appearance } from './appearance';
 
@@ -21,17 +22,21 @@ export interface BackupPlan {
   last: string | null;
 }
 
-/** How Home looks for one vault on this device. */
+/** How Home and the docks look for one vault on this device. */
 export interface HomeLayout {
   /** Card ids in the order shown; cards not listed follow in their usual order. */
   order: string[];
   hidden: string[];
+  /** Widgets added to Home that do not start there. */
+  added: string[];
   /** Pages pinned to Home, by path. */
   pinned: string[];
+  /** Widgets under the notebooks and beside pages. */
+  docks: DockLayout;
 }
 
 export function defaultHomeLayout(): HomeLayout {
-  return { order: [], hidden: [], pinned: [] };
+  return { order: [], hidden: [], added: [], pinned: [], docks: defaultDocks() };
 }
 
 const strings = (value: unknown): string[] =>
@@ -45,7 +50,9 @@ export function parseHomeLayout(value: unknown): HomeLayout {
   return {
     order: strings(record['order']),
     hidden: strings(record['hidden']),
+    added: strings(record['added']),
     pinned: strings(record['pinned']),
+    docks: parseDocks(record['docks']),
   };
 }
 

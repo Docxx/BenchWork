@@ -223,18 +223,29 @@ button.quiet:hover {
   padding: 1.1rem 0.9rem 0.9rem 1.1rem;
 }
 
+/* The logo takes the theme's colours: a B outline, with accent liquid. */
+.logo .logo-tile {
+  fill: var(--logo-tile, var(--accent));
+}
+
+.logo .logo-b {
+  fill: none;
+  stroke: var(--logo-ink, var(--accent-text));
+  stroke-width: 9;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.logo .logo-liquid {
+  fill: var(--logo-liquid, color-mix(in srgb, var(--accent-text) 45%, var(--accent)));
+}
+
+.logo .logo-bubble {
+  fill: var(--logo-ink, var(--accent-text));
+}
+
 .brand-mark {
-  display: grid;
-  place-items: center;
   flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 7px;
-  background: var(--sidebar-text);
-  color: var(--sidebar-bg);
-  font-family: var(--font-heading);
-  font-size: 1.15rem;
-  font-weight: 700;
 }
 
 .brand-text {
@@ -1714,63 +1725,9 @@ button.colour-chip:disabled {
   background: var(--bg);
 }
 
-.side-tabs {
-  display: flex;
-  gap: 0.25rem;
-  min-height: 3.6rem;
-  padding: 0 1rem;
-  border-bottom: 1px solid var(--border);
-}
-
-button.side-tab {
-  display: grid;
-  place-items: center;
-  width: 2.5rem;
-  padding: 0;
-  border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  background: transparent;
-  color: var(--muted);
-}
-
-button.side-tab:hover {
-  color: var(--text);
-}
-
-button.side-tab[aria-selected='true'] {
-  border-bottom-color: var(--accent);
-  color: var(--text);
-}
-
 .tab-letter {
   font-weight: 600;
   font-size: 0.9rem;
-}
-
-.side-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1.5rem 1.25rem;
-}
-
-.side-kicker {
-  margin: 0;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.side-title {
-  margin: 0.2rem 0 1.1rem;
-  font-family: var(--font-heading);
-  font-size: 1.5rem;
-  font-weight: 600;
 }
 
 .side-count {
@@ -1816,7 +1773,7 @@ button.outline-item.level-4 {
   font-size: 0.82rem;
 }
 
-.side-body .backlink-list {
+.dock-body .backlink-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -3087,15 +3044,42 @@ button.backlink:focus-visible {
 }
 
 .splash-mark {
-  display: grid;
-  place-items: center;
-  width: 4.5rem;
-  height: 4.5rem;
-  border-radius: 16px;
-  background: var(--accent);
-  color: var(--accent-text);
-  font: 600 2.6rem/1 var(--font-heading);
   animation: splash-mark 550ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+
+/* The liquid fills, then the bubbles rise. */
+.splash-mark .logo-liquid {
+  transform-origin: 50% 100%;
+  animation: splash-fill 600ms 200ms ease-out both;
+}
+
+.splash-mark .logo-bubble {
+  animation: splash-bubble 700ms ease-out both;
+}
+
+.splash-mark .logo-bubble:nth-of-type(1) {
+  animation-delay: 550ms;
+}
+
+.splash-mark .logo-bubble:nth-of-type(2) {
+  animation-delay: 650ms;
+}
+
+.splash-mark .logo-bubble:nth-of-type(3) {
+  animation-delay: 750ms;
+}
+
+@keyframes splash-fill {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes splash-bubble {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
 }
 
 .splash-name {
@@ -3838,4 +3822,333 @@ button.home-tool {
   .home-card.wide {
     grid-column: auto;
   }
+}
+
+/* The app's own window buttons, where the system title bar is hidden. */
+.window-controls {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 60;
+  display: flex;
+}
+
+.window-controls button {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.window-controls button:hover {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  color: var(--text);
+}
+
+.window-controls button.close:hover {
+  background: #c42b1c;
+  color: #fff;
+}
+
+.window-drag-strip {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 50;
+  height: 32px;
+}
+
+/* Room for the window buttons in the top row of whatever is at the right. */
+.shell.framed .side-panel .dock-top .dock-tabs,
+.shell.framed:not(:has(.side-panel)) .top-bar,
+.shell.framed .home-header,
+.shell.framed .module-view-header,
+.shell.framed .file-header,
+.shell.framed .settings-header {
+  padding-right: 150px;
+}
+
+/* Docks of widgets: under the notebooks, and the two on the right. */
+.side-panel {
+  --dock-split: 1;
+}
+
+.dock {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.side-panel .dock-top {
+  flex: var(--dock-split) 1 0;
+}
+
+.side-panel:not(:has(.dock-splitter)) .dock-top {
+  flex: 1 1 0;
+}
+
+.side-panel .dock-bottom:not(.empty) {
+  flex: calc(1 - var(--dock-split)) 1 0;
+}
+
+.side-panel .dock-bottom.empty {
+  flex: none;
+  border-top: 1px solid var(--border);
+}
+
+.dock.dropping {
+  outline: 2px dashed var(--accent);
+  outline-offset: -3px;
+}
+
+.dock-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 0.15rem;
+  min-height: 2.6rem;
+  padding: 0 0.5rem 0 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.side-panel .dock-top .dock-tabs {
+  min-height: 3.6rem;
+}
+
+.dock.empty .dock-tabs {
+  min-height: 2.2rem;
+  border-bottom: none;
+}
+
+button.dock-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.5rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  cursor: grab;
+}
+
+button.dock-tab:hover {
+  color: var(--text);
+}
+
+button.dock-tab[aria-selected='true'] {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+.dock-tab-name {
+  overflow: hidden;
+  max-width: 9rem;
+  text-overflow: ellipsis;
+}
+
+.dock-empty-hint {
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dock-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  margin-left: auto;
+}
+
+.dock-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 1.1rem;
+  font-size: 0.9rem;
+}
+
+.dock-splitter {
+  flex: none;
+  height: 7px;
+  margin: -3px 0;
+  position: relative;
+  z-index: 2;
+  cursor: row-resize;
+}
+
+.dock-splitter::after {
+  content: '';
+  position: absolute;
+  inset: 3px 0;
+  background: var(--border);
+}
+
+.dock-splitter:hover::after,
+.dock-splitter.dragging::after,
+.dock-splitter:focus-visible::after {
+  inset: 2px 0;
+  background: var(--accent);
+}
+
+.dock-left-box {
+  flex: none;
+  display: flex;
+  min-height: 0;
+  max-height: 70%;
+}
+
+.dock-left-box > .dock {
+  flex: 1;
+}
+
+.sidebar .dock-left {
+  border-top: 1px solid var(--sidebar-border);
+}
+
+.sidebar .dock-left .dock-tabs {
+  border-color: var(--sidebar-border);
+}
+
+.sidebar .dock-left .dock-body {
+  padding: 0.75rem;
+}
+
+/* The calendar widget. */
+.calendar {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.calendar-month {
+  font-weight: 600;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.calendar-weekday {
+  padding-bottom: 0.2rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+button.calendar-day {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-height: 1.9rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+button.calendar-day:hover {
+  background: var(--surface);
+}
+
+button.calendar-day.other-month {
+  color: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+
+button.calendar-day.today {
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+button.calendar-day.chosen {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.calendar-dots {
+  position: absolute;
+  bottom: 3px;
+  display: flex;
+  gap: 2px;
+}
+
+.calendar-dots > span,
+.calendar-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+
+.calendar-dot {
+  display: inline-block;
+  flex: none;
+  width: 7px;
+  height: 7px;
+}
+
+.calendar-day-list {
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.calendar-day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.calendar-day-list ul {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calendar-day-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.home-header-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Word documents: Word's own white pages, on the app's background. */
+.word-preview .docx-wrapper {
+  padding: 1.5rem 0;
+  background: transparent;
+}
+
+.word-preview .docx-wrapper > section.docx {
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+}
+
+.file-open {
+  margin-left: auto;
 }

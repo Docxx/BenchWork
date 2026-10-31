@@ -3,6 +3,7 @@ import { MemoryIndex } from './memoryIndex';
 import type {
   DeviceKind,
   DirEntry,
+  WindowFrame,
   FileInfo,
   FolderBrowser,
   HandwritingRecognizer,
@@ -113,6 +114,9 @@ export class MemoryAdapter implements PlatformAdapter {
       stop: () => Promise.resolve(),
     };
   }
+
+  /** The system draws the window, as on the tablet, until a test gives a frame. */
+  windowFrame: WindowFrame | null = null;
 
   /** None, as on a computer, until a test gives one with useHandwriting. */
   handwriting: HandwritingRecognizer | null = null;
@@ -307,6 +311,12 @@ export class MemoryAdapter implements PlatformAdapter {
 
   /** Web pages a test serves: the first whose start matches the address answers. */
   private readonly webPages: { prefix: string; text: string | Error }[] = [];
+  /** Files opened in their usual program, for tests. */
+  readonly openedFiles: string[] = [];
+  openInSystem: ((path: string) => Promise<void>) | null = (path) =>
+    this.run(() => {
+      this.openedFiles.push(path);
+    });
   /** Addresses opened in the browser, for tests. */
   readonly openedLinks: string[] = [];
   /** Addresses read from the web, for tests. */

@@ -1,7 +1,16 @@
 import { useMemo, useState, type DragEvent } from 'react';
 import type { ModuleContext } from '@core/api';
 import { useTasks, type TaskStore } from './store';
-import { dayOf, dueFits, sortTasks, type DueFilter, type Task, type TaskState } from './tasks';
+import { TaskDetails } from './TaskDetails';
+import {
+  dayOf,
+  dueFits,
+  PRIORITY_MARKS,
+  sortTasks,
+  type DueFilter,
+  type Task,
+  type TaskState,
+} from './tasks';
 
 const DUE_FILTERS: { value: DueFilter; label: string }[] = [
   { value: 'all', label: 'Any time' },
@@ -62,7 +71,10 @@ function TaskList({
   tasks: Task[];
   today: string;
 }) {
+  const all = useTasks(store);
+  const [open, setOpen] = useState<string | null>(null);
   if (tasks.length === 0) return <p className="hint">No tasks here.</p>;
+  const byLine = new Map(all.map((t) => [keyOf(t), t]));
   return (
     <ul className="task-list" aria-label="Tasks">
       {tasks.map((t) => (
@@ -73,8 +85,26 @@ function TaskList({
             checked={t.state === 'done'}
             onChange={(e) => void store.set(t, e.target.checked ? 'done' : 'todo')}
           />
-          <span className="task-text">{t.text}</span>
+          <span className="task-text">
+            {t.priority !== null && (
+              <span className="task-priority" title={`${t.priority} priority`}>
+                {PRIORITY_MARKS[t.priority]}{' '}
+              </span>
+            )}
+            {t.text}
+            {t.parent !== null && (
+              <span className="task-parent">
+                {' '}
+                in {byLine.get(`${t.path}#${String(t.parent)}`)?.text ?? 'a task'}
+              </span>
+            )}
+          </span>
+          {t.person !== null && <span className="task-person">@{t.person}</span>}
+          {t.progress !== null && t.state !== 'done' && (
+            <span className="task-progress">{t.progress}%</span>
+          )}
           {t.state === 'doing' && <span className="task-doing">Doing</span>}
+          {t.start !== null && <span className="task-start">from {t.start.slice(5)}</span>}
           <Due task={t} today={today} />
           <input
             type="date"
@@ -86,6 +116,27 @@ function TaskList({
             }
           />
           <TaskWhere ctx={ctx} task={t} />
+          <button
+            type="button"
+            className="quiet task-more"
+            aria-expanded={open === keyOf(t)}
+            aria-label={`Details of ${t.text}`}
+            onClick={() => {
+              setOpen(open === keyOf(t) ? null : keyOf(t));
+            }}
+          >
+            Details
+          </button>
+          {open === keyOf(t) && (
+            <TaskDetails
+              store={store}
+              task={t}
+              tasks={all}
+              onDone={() => {
+                setOpen(null);
+              }}
+            />
+          )}
         </li>
       ))}
     </ul>
@@ -305,22 +356,12 @@ export function TasksView({ ctx, store }: { ctx: ModuleContext; store: TaskStore
 }
 
 /** Beside pages: what is due today or overdue, wherever it is written. */
-export function DueToday({
-  ctx,
-  store,
-  inCard = false,
-}: {
-  ctx: ModuleContext;
-  store: TaskStore;
-  /** On a Home card, which has its own heading. */
-  inCard?: boolean;
-}) {
+export function DueToday({ ctx, store }: { ctx: ModuleContext; store: TaskStore }) {
   const all = useTasks(store);
   const today = dayOf(new Date());
   const due = sortTasks(all.filter((t) => t.state !== 'done' && dueFits(t, 'today', today)));
   return (
     <div className="tasks-side">
-      {!inCard && <h2>Due today</h2>}
       {due.length === 0 ? (
         <p className="hint">Nothing due today.</p>
       ) : (

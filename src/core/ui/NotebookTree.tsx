@@ -4,6 +4,7 @@ import {
   FileImage,
   FileSpreadsheet,
   FileText,
+  FileType,
   LayoutDashboard,
   type LucideIcon,
 } from 'lucide-react';
@@ -47,6 +48,8 @@ function iconFor(node: NotebookNode): LucideIcon {
       return FileSpreadsheet;
     case 'canvas':
       return LayoutDashboard;
+    case 'word':
+      return FileType;
     default:
       return File;
   }

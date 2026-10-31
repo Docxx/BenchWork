@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { MemoryAdapter } from '../platform/memory';
-import { parseAppSettings } from '../settings/appSettings';
+import { defaultHomeLayout, parseAppSettings } from '../settings/appSettings';
 import { createAppStore } from './appStore';
 import { moveCard, orderCards, recentPages } from './homeSlice';
 
@@ -22,7 +22,7 @@ async function openVault() {
 
 describe('Home cards', () => {
   it('follow the saved order, with new cards after in their usual order', () => {
-    const layout = { order: ['b', 'gone', 'a'], hidden: [], pinned: [] };
+    const layout = { ...defaultHomeLayout(), order: ['b', 'gone', 'a'] };
     expect(orderCards(['a', 'b', 'c'], layout)).toEqual(['b', 'a', 'c']);
   });
 
@@ -55,8 +55,8 @@ describe('Home cards', () => {
       home: { 'C:/Lab vault': { order: ['home.recent', 3], hidden: 'x', pinned: ['a.md'] } },
     });
     expect(settings.home['C:/Lab vault']).toEqual({
+      ...defaultHomeLayout(),
       order: ['home.recent'],
-      hidden: [],
       pinned: ['a.md'],
     });
   });

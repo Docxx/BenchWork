@@ -16,6 +16,8 @@ export type FileKind =
   /** Excel or OpenDocument spreadsheets. */
   | 'spreadsheet'
   | 'pdf'
+  /** A Word document, `.docx`. */
+  | 'word'
   /** `<name>.canvas.json`, drawn by the Mind maps and canvas module. */
   | 'canvas'
   /** A linked file's record, `<name>.link.yaml`: path, size and checksum. */
@@ -46,6 +48,7 @@ export function fileKind(path: string): FileKind {
   if (TABLE.has(ext)) return 'table';
   if (SPREADSHEET.has(ext)) return 'spreadsheet';
   if (ext === 'pdf') return 'pdf';
+  if (ext === 'docx') return 'word';
   return 'other';
 }
 
@@ -59,6 +62,8 @@ export function kindLabel(path: string): string {
       return 'Spreadsheet';
     case 'pdf':
       return 'PDF';
+    case 'word':
+      return 'Word document';
     case 'image':
       return 'Image';
     case 'canvas':

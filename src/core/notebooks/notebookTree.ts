@@ -75,10 +75,12 @@ export function isShown(entry: DirEntry, atRoot: boolean, options: LayoutOptions
  * Files besides pages that the sidebar shows: data, documents, images and
  * records. The same kinds `fileKind` in src/core/files can preview.
  */
-const PREVIEWED = /\.(csv|tsv|xlsx|xlsm|xls|ods|pdf|png|jpe?g|gif|webp|svg|bmp|avif)$/i;
+const PREVIEWED = /\.(csv|tsv|xlsx|xlsm|xls|ods|pdf|docx|png|jpe?g|gif|webp|svg|bmp|avif)$/i;
 
 export function isPreviewed(name: string): boolean {
-  return !name.startsWith('.') && (PREVIEWED.test(name) || isRecord(name));
+  // Word and Excel keep `~$name` lock files beside documents while they are open.
+  if (name.startsWith('.') || name.startsWith('~$')) return false;
+  return PREVIEWED.test(name) || isRecord(name);
 }
 
 /**

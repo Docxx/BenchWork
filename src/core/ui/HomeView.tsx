@@ -1,48 +1,13 @@
-import {
-  ArrowDown,
-  ArrowUp,
-  CalendarDays,
-  Clock,
-  EyeOff,
-  LayoutGrid,
-  NotebookPen,
-  Pin,
-  Plus,
-  Search,
-} from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
-import { pageTitle } from '../notebooks/notebookTree';
-import type { PageRef } from '../platform';
-import { defaultHomeLayout, type HomeLayout } from '../settings/appSettings';
-import { BUILT_IN_CARDS, moveCard, orderCards } from '../state/homeSlice';
+import { ArrowDown, ArrowUp, EyeOff, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { homeWidgets } from '../settings/layout';
+import { moveCard, orderCards } from '../state/homeSlice';
 import { useApp } from './AppStoreContext';
+import { Menu } from './Menu';
 import { ViewBoundary } from './ModuleView';
-import { useQuickNote } from './QuickCapture';
+import { SidePanelToggle } from './PageView';
 import { vaultName } from './Sidebar';
-import { updatedText } from './updated';
-
-const ICON = { size: 17, strokeWidth: 1.75, 'aria-hidden': true } as const;
-
-/** How many recent pages Home lists. */
-const RECENT = 8;
-
-interface Card {
-  id: string;
-  title: string;
-  icon: ReactNode;
-  wide: boolean;
-  moduleId: string | null;
-  render: () => ReactNode;
-}
-
-const NO_LAYOUT = defaultHomeLayout();
-
-/** The open vault's Home layout, the same object until it changes. */
-export function useHomeLayout(): HomeLayout {
-  return useApp((s) =>
-    s.status.kind === 'open' ? (s.settings.home[s.status.vault.root] ?? NO_LAYOUT) : NO_LAYOUT,
-  );
-}
+import { useHomeLayout, useWidgets } from './widgets';
 
 /** "Good morning" and so on, by the hour. */
 export function greeting(now: Date): string {
@@ -54,63 +19,25 @@ export function greeting(now: Date): string {
 }
 
 /**
- * Home: what BenchWork shows when nothing else is open. Cards come from the
- * app and from modules; they can be moved and hidden, per vault, on this device.
+ * Home: what BenchWork shows when nothing else is open. Its cards are
+ * widgets, from the app and from modules; they can be added, moved and
+ * hidden, per vault, on this device.
  */
 export function HomeView() {
   const status = useApp((s) => s.status);
-  const homeCards = useApp((s) => s.homeCards);
   const layout = useHomeLayout();
   const setLayout = useApp((s) => s.setHomeLayout);
+  const addToHome = useApp((s) => s.addToHome);
+  const widgets = useWidgets();
   const [editing, setEditing] = useState(false);
+  const [adding, setAdding] = useState<{ x: number; y: number } | null>(null);
   const now = new Date();
 
-  const builtIn: Card[] = [
-    {
-      id: 'home.today',
-      title: 'Today',
-      icon: <CalendarDays {...ICON} />,
-      wide: false,
-      moduleId: null,
-      render: () => <TodayCard />,
-    },
-    {
-      id: 'home.tools',
-      title: 'Tools',
-      icon: <LayoutGrid {...ICON} />,
-      wide: false,
-      moduleId: null,
-      render: () => <ToolsCard />,
-    },
-    {
-      id: 'home.pinned',
-      title: 'Pinned',
-      icon: <Pin {...ICON} />,
-      wide: false,
-      moduleId: null,
-      render: () => <PinnedCard />,
-    },
-    {
-      id: 'home.recent',
-      title: 'Recent pages',
-      icon: <Clock {...ICON} />,
-      wide: false,
-      moduleId: null,
-      render: () => <RecentCard />,
-    },
-  ];
-  const fromModules: Card[] = homeCards.map((c) => ({
-    id: c.id,
-    title: c.title,
-    icon: c.icon ?? null,
-    wide: c.wide === true,
-    moduleId: c.moduleId,
-    render: c.render,
-  }));
-  const byId = new Map([...builtIn, ...fromModules].map((c) => [c.id, c]));
-  const order = orderCards([...BUILT_IN_CARDS, ...fromModules.map((c) => c.id)], layout);
+  const byId = new Map(widgets.map((w) => [w.id, w]));
+  const order = orderCards(homeWidgets(widgets, layout.added), layout);
   const shown = order.filter((id) => !layout.hidden.includes(id));
   const hidden = order.filter((id) => layout.hidden.includes(id));
+  const addable = widgets.filter((w) => !order.includes(w.id));
 
   const move = (id: string, by: -1 | 1) => {
     // Moves past hidden cards, so each press visibly moves the card.
@@ -120,7 +47,7 @@ export function HomeView() {
 
   return (
     <article className="home" aria-label="Home">
-      <header className="home-header">
+      <header className="home-header" data-tauri-drag-region>
         <div>
           <h1>{greeting(now)}</h1>
           <p className="home-date">
@@ -128,21 +55,35 @@ export function HomeView() {
             {status.kind === 'open' && <span> · {vaultName(status.vault.root)}</span>}
           </p>
         </div>
-        <button
-          type="button"
-          className="quiet"
-          aria-pressed={editing}
-          onClick={() => {
-            setEditing((e) => !e);
-          }}
-        >
-          {editing ? 'Done' : 'Edit home'}
-        </button>
+        <span className="home-header-tools">
+          <button
+            type="button"
+            className="quiet"
+            aria-pressed={editing}
+            onClick={() => {
+              setEditing((e) => !e);
+            }}
+          >
+            {editing ? 'Done' : 'Edit home'}
+          </button>
+          <SidePanelToggle />
+        </span>
       </header>
 
-      {editing && hidden.length > 0 && (
+      {editing && (
         <div className="home-hidden" aria-label="Hidden cards">
-          <span>Hidden:</span>
+          <button
+            type="button"
+            className="chip"
+            disabled={addable.length === 0}
+            onClick={(e) => {
+              setAdding({ x: e.clientX, y: e.clientY });
+            }}
+          >
+            <Plus size={14} strokeWidth={2} aria-hidden />
+            Add a card
+          </button>
+          {hidden.length > 0 && <span>Hidden:</span>}
           {hidden.map((id) => (
             <button
               key={id}
@@ -155,6 +96,17 @@ export function HomeView() {
             </button>
           ))}
         </div>
+      )}
+      {adding !== null && (
+        <Menu
+          label="Add a card"
+          x={adding.x}
+          y={adding.y}
+          items={addable.map((w) => ({ label: w.title, onSelect: () => void addToHome(w.id) }))}
+          onClose={() => {
+            setAdding(null);
+          }}
+        />
       )}
 
       <div className="home-grid">
@@ -211,9 +163,9 @@ export function HomeView() {
               </header>
               <div className="home-card-body">
                 {card.moduleId === null ? (
-                  card.render()
+                  card.render(null)
                 ) : (
-                  <ViewBoundary moduleId={card.moduleId}>{card.render()}</ViewBoundary>
+                  <ViewBoundary moduleId={card.moduleId}>{card.render(null)}</ViewBoundary>
                 )}
               </div>
             </section>
@@ -225,121 +177,4 @@ export function HomeView() {
       )}
     </article>
   );
-}
-
-function TodayCard() {
-  const openToday = useApp((s) => s.openToday);
-  const focusSearch = useApp((s) => s.focusSearch);
-  const compact = useApp((s) => s.compact);
-  const setDrawer = useApp((s) => s.setDrawer);
-  const quickNote = useQuickNote();
-  return (
-    <div className="home-actions">
-      <button type="button" className="home-action" onClick={() => void openToday()}>
-        <CalendarDays {...ICON} />
-        Today’s page
-      </button>
-      <button type="button" className="home-action" onClick={() => void quickNote()}>
-        <NotebookPen {...ICON} />
-        Quick note
-      </button>
-      <button
-        type="button"
-        className="home-action"
-        onClick={() => {
-          if (compact) setDrawer('sidebar');
-          focusSearch();
-        }}
-      >
-        <Search {...ICON} />
-        Search
-      </button>
-    </div>
-  );
-}
-
-function ToolsCard() {
-  const tools = useApp((s) => s.pageViews).filter((v) => v.tool !== undefined);
-  const openView = useApp((s) => s.openModuleView);
-  const openSettings = useApp((s) => s.openSettings);
-  if (tools.length === 0) {
-    return (
-      <>
-        <p className="hint">No tools yet. Modules add them, such as Tasks and Inventory.</p>
-        <button
-          type="button"
-          className="quiet"
-          onClick={() => {
-            openSettings('modules');
-          }}
-        >
-          Choose modules
-        </button>
-      </>
-    );
-  }
-  return (
-    <div className="home-tools">
-      {tools.map((v) => (
-        <button key={v.id} type="button" className="home-tool" onClick={() => void openView(v.id)}>
-          {v.tool?.icon}
-          <span className="home-tool-name">{v.title}</span>
-          <span className="home-tool-hint">{v.tool?.hint}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function PageList({ pages, empty }: { pages: PageRef[]; empty: string }) {
-  const openPath = useApp((s) => s.openPath);
-  if (pages.length === 0) return <p className="hint">{empty}</p>;
-  return (
-    <ul className="home-pages">
-      {pages.map((p) => {
-        const where = p.path.split('/').slice(0, -1).join(' › ');
-        const changed =
-          typeof p.mtime === 'number' ? updatedText(new Date(p.mtime).toISOString()) : null;
-        return (
-          <li key={p.path}>
-            <button type="button" onClick={() => void openPath(p.path)}>
-              <span className="home-page-title">{p.title}</span>
-              <span className="home-page-detail">
-                {[where, changed].filter((s) => s !== null && s !== '').join(' · ')}
-              </span>
-            </button>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function PinnedCard() {
-  const { pinned } = useHomeLayout();
-  const pages = pinned.map((path) => ({
-    path,
-    title: pageTitle(path.split('/').at(-1) ?? path),
-    id: null,
-    type: 'page',
-  }));
-  return <PageList pages={pages} empty="Pin a page with the pin at the top of the page." />;
-}
-
-function RecentCard() {
-  const recentPages = useApp((s) => s.recentPages);
-  // Read again as the index catches up, such as after writing in a page.
-  const progress = useApp((s) => s.indexProgress);
-  const [pages, setPages] = useState<PageRef[] | null>(null);
-  useEffect(() => {
-    let current = true;
-    void recentPages(RECENT).then((found) => {
-      if (current) setPages(found);
-    });
-    return () => {
-      current = false;
-    };
-  }, [recentPages, progress]);
-  if (pages === null) return <p className="hint">Reading…</p>;
-  return <PageList pages={pages} empty="Pages you write in show here." />;
 }
