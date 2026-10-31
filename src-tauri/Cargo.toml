@@ -1,6 +1,6 @@
 [package]
 name = "benchwork"
-version = "0.13.0"
+version = "0.14.0"
 description = "Local-first research workspace"
 authors = ["Ray Price"]
 edition = "2021"
@@ -13,6 +13,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }

@@ -151,6 +151,24 @@ review; equipment reservations are local to the vault.
 
 - [x] Open Record identity: shared vector notebook mark, blue and magenta inks, academic wordmark, startup writing animation, favicon and regenerated desktop/tablet app icons ([assets and rebuilding](docs/branding.md))
 
+### Outlook module (0.14.0)
+
+- [x] Microsoft 365 mail and calendar UI, explicit sending/replies, drafts and attachment exports
+- [x] Delegated device-code sign-in, token renewal and device-local encrypted recent cache
+- [x] Windows DPAPI and Android Keystore storage, constrained Microsoft HTTPS and sanitised email rendering
+- [ ] University IT app registration / consent and live-account acceptance check
+
+See [Outlook setup and scope](docs/outlook.md).
+
+### Connected reading, analysis and writing (0.14.0)
+
+- [x] Reading desk with PDF excerpt actions, source-linked evidence notes and Zotero citation choices
+- [x] Python/R presets and parameters, unique run folders, script snapshots, file hashes and persistent run history
+- [x] Writing workspace for paper/thesis sections, aims, status, word targets and linked evidence/results
+- [ ] Real Python/R environment and tablet acceptance checks for the connected workflow
+
+See [workflow scope and data](docs/reading-analysis-writing.md).
+
 ### Sync work
 
 - [x] Theme atmosphere: stronger fun themes, decorative scenes, optional motion and themed timer cues with volume, preview and silent mode ([guide](docs/themes.md))

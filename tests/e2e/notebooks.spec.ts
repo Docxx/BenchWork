@@ -65,12 +65,25 @@ test('renames a page, keeping it a .md file', async ({ page }) => {
 
 test('drags a page into another notebook, and reorders within a notebook', async ({ page }) => {
   await row(page, 'LPS model').click();
-  await row(page, 'Plan').dragTo(row(page, 'Archive'));
+  const drag = async (target: string, before = false) => {
+    const source = row(page, 'Plan');
+    const box = await row(page, target).boundingBox();
+    if (!box) throw new Error('Drop target is not visible');
+    const x = box.x + 30,
+      y = box.y + (before ? 2 : box.height / 2);
+    await source.hover();
+    await page.mouse.down();
+    await page.mouse.move(x, y, { steps: 12 });
+    // Chromium needs a further move over the target to dispatch dragover reliably.
+    await page.mouse.move(x + 1, y);
+    await page.mouse.up();
+  };
+  await drag('Archive');
   await expect(row(page, 'Plan')).toBeVisible();
-  expect(await snapshot(page)).toHaveProperty(['Archive/Plan.md'], 'p');
+  await expect.poll(() => snapshot(page)).toHaveProperty(['Archive/Plan.md'], 'p');
 
   // Drop above Experiments: Plan moves back, first in LPS model's order.
-  await row(page, 'Plan').dragTo(row(page, 'Experiments'), { targetPosition: { x: 20, y: 2 } });
+  await drag('Experiments', true);
   await expect
     .poll(async () => (await snapshot(page))['LPS model/_section.yaml'])
     .toBe('order:\n  - Plan.md\n  - Experiments\n');

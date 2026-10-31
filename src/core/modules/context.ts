@@ -17,6 +17,7 @@ import type { ModuleManifest } from './manifest';
 
 /** What the app gives modules: ModuleApp, plus the open vault's full path. */
 export interface AppBridge extends ModuleApp {
+  pdfPage?(path: string): number | null;
   vaultRoot(): string | null;
   /** The pen tools, filters and module tools, for a writing surface a module attaches. */
   inkHooks(): Omit<SurfaceHooks, 'onChange'>;
@@ -34,6 +35,7 @@ export interface ContextDeps {
 
 /** Lists in ContributionsState that hold registered items. */
 type ListKey =
+  | 'readingActions'
   | 'timerProviders'
   | 'panels'
   | 'pageTypes'
@@ -127,6 +129,11 @@ export function createModuleContext(
     }
   }
 
+  function deviceKey(name: string): string {
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}$/.test(name))
+      throw new Error('Use a plain storage name');
+    return `${id}.${name}`;
+  }
   function app(): AppBridge {
     const bridge = deps.app?.() ?? null;
     if (bridge === null) throw new Error('The app is not ready yet');
@@ -134,6 +141,25 @@ export function createModuleContext(
   }
 
   const ctx: ModuleContext = {
+    reading: {
+      register(spec) {
+        checkId('Reading action', spec.id);
+        return contribute(
+          'readingActions',
+          { ...spec, moduleId: id },
+          (p) => p.id === spec.id,
+          `Reading action '${spec.id}'`,
+        );
+      },
+      actions: () => deps.contributions.getState().readingActions,
+      subscribe: (listener) =>
+        track(
+          deps.contributions.subscribe((next, prev) => {
+            if (next.readingActions !== prev.readingActions) listener();
+          }),
+        ),
+      page: (path) => app().pdfPage?.(path) ?? null,
+    },
     timers: {
       register(spec) {
         checkId('Timer provider', spec.id);
@@ -212,7 +238,31 @@ export function createModuleContext(
       },
     },
     programs: deps.platform.programs,
+    deviceStorage: {
+      read: async <T>(name: string): Promise<T | null> => {
+        const value = await deps.platform.secureRead(deviceKey(name));
+        return value === null ? null : (JSON.parse(value) as T);
+      },
+      write: async (name, data) => {
+        await deps.platform.secureWrite(deviceKey(name), JSON.stringify(data));
+      },
+      remove: async (name) => {
+        await deps.platform.secureWrite(deviceKey(name), null);
+      },
+    },
     web: {
+      request: async (request) => {
+        const url = new URL(request.url);
+        if (
+          url.protocol !== 'https:' ||
+          url.username ||
+          url.password ||
+          url.port ||
+          !manifest.network.includes(url.hostname)
+        )
+          throw new Error('This network address is not allowed by the module');
+        return deps.platform.microsoftRequest(request);
+      },
       getText: async (url) => {
         let host: string;
         try {

@@ -3,6 +3,9 @@ import { defineModule, type ModuleContext } from '@core/api';
 import { exportManuscript, exportMessage, MANUSCRIPT, manuscriptType } from './manuscripts';
 import { Overview } from './Overview';
 import { ManuscriptSettings } from './SettingsPanel';
+import { WritingWorkspace } from './WritingWorkspace';
+import { sectionType, WRITING } from './workspace';
+import { NotebookPen } from 'lucide-react';
 
 /**
  * The Manuscript module: a manuscript is a page linking to its parts in
@@ -27,6 +30,16 @@ async function openManuscript(ctx: ModuleContext): Promise<string | null> {
 export default defineModule({
   activate(ctx) {
     ctx.pageTypes.register(manuscriptType());
+    ctx.pageTypes.register(sectionType());
+    ctx.views.registerPageView({
+      id: WRITING,
+      title: 'Writing',
+      render: (path) => createElement(WritingWorkspace, { ctx, path }),
+      tool: {
+        icon: createElement(NotebookPen, { size: 18 }),
+        hint: 'Thesis and paper sections with linked evidence and results',
+      },
+    });
 
     ctx.views.registerPageView({
       id: OVERVIEW,

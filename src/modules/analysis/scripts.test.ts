@@ -10,6 +10,16 @@ import {
 } from './scripts';
 
 describe('analysis scripts', () => {
+  it('passes parameter values literally as one argument and rejects missing values', () => {
+    const places = { script: 's.py', files: [], folder: '', output: 'out', name: 'n' };
+    expect(
+      buildArgs('--label {param:label}', { ...places, parameters: { label: 'a b; $(unsafe)' } }),
+    ).toEqual([
+      { kind: 'text', value: '--label' },
+      { kind: 'text', value: 'a b; $(unsafe)' },
+    ]);
+    expect(() => buildArgs('{param:missing}', places)).toThrow('Set the parameter');
+  });
   it('fill their argument pattern, with vault paths left for the core to make full', () => {
     expect(
       buildArgs('{script} --in {files} --out {output} --label "{name} run"', {

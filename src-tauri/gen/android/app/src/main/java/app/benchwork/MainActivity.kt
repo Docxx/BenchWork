@@ -140,6 +140,53 @@ class MainActivity : TauriActivity() {
       runOnUiThread { webView?.setAutoHandwritingEnabled(on) }
     }
 
+    /** Private tokens and cache encrypted with a non-exportable Android Keystore key. */
+    private fun privateKey(): javax.crypto.SecretKey {
+      val store = java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+      val alias = "BenchWork.deviceData.v1"
+      val existing = store.getKey(alias, null) as? javax.crypto.SecretKey
+      if (existing != null) return existing
+      val generator = javax.crypto.KeyGenerator.getInstance("AES", "AndroidKeyStore")
+      generator.init(android.security.keystore.KeyGenParameterSpec.Builder(alias,
+        android.security.keystore.KeyProperties.PURPOSE_ENCRYPT or android.security.keystore.KeyProperties.PURPOSE_DECRYPT)
+        .setBlockModes(android.security.keystore.KeyProperties.BLOCK_MODE_GCM)
+        .setEncryptionPaddings(android.security.keystore.KeyProperties.ENCRYPTION_PADDING_NONE).build())
+      return generator.generateKey()
+    }
+    @JavascriptInterface
+    @Synchronized
+    fun secureRead(key: String): String {
+      return try {
+        require(key.matches(Regex("[a-zA-Z0-9_.-]{1,128}")))
+        val data = getSharedPreferences("private-device-data", MODE_PRIVATE).getString(key, null)
+          ?: return JSONObject().put("value", JSONObject.NULL).toString()
+        val parts = data.split(":")
+        val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(javax.crypto.Cipher.DECRYPT_MODE, privateKey(), javax.crypto.spec.GCMParameterSpec(128,
+          android.util.Base64.decode(parts[0], android.util.Base64.NO_WRAP)))
+        cipher.updateAAD(key.toByteArray(Charsets.UTF_8))
+        JSONObject().put("value", String(cipher.doFinal(android.util.Base64.decode(parts[1], android.util.Base64.NO_WRAP)), Charsets.UTF_8)).toString()
+      } catch (_: Exception) { JSONObject().put("error", "Private data could not be unlocked. Reconnect the account.").toString() }
+    }
+    @JavascriptInterface
+    @Synchronized
+    fun secureWrite(key: String, value: String, remove: Boolean): String {
+      return try {
+        require(key.matches(Regex("[a-zA-Z0-9_.-]{1,128}")) && value.toByteArray(Charsets.UTF_8).size <= 8 * 1024 * 1024)
+        val editor = getSharedPreferences("private-device-data", MODE_PRIVATE).edit()
+        if (remove) editor.remove(key)
+        else {
+          val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+          cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, privateKey())
+          cipher.updateAAD(key.toByteArray(Charsets.UTF_8))
+          val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
+          editor.putString(key, android.util.Base64.encodeToString(cipher.iv, android.util.Base64.NO_WRAP) + ":" + android.util.Base64.encodeToString(encrypted, android.util.Base64.NO_WRAP))
+        }
+        check(editor.commit())
+        "{}"
+      } catch (_: Exception) { JSONObject().put("error", "Private data could not be saved on this device.").toString() }
+    }
+
     /** Opens a web address in the tablet's browser; anything but http or https is ignored. */
     @JavascriptInterface
     fun openLink(url: String) {

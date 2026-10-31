@@ -48,7 +48,7 @@ export function FileView({ path }: { path: string }) {
       {/* Keyed so a change on disk, or another file, starts afresh, unless the view watches its file. */}
       <div
         className="file-body"
-        key={handler?.watchesFile === true ? path : `${path}\n${String(version)}`}
+        key={handler?.watchesFile === true ? `file:${path}` : `file:${path}\n${String(version)}`}
       >
         {handler ? (
           <ModuleBoundary moduleId={handler.moduleId}>{handler.render({ path })}</ModuleBoundary>

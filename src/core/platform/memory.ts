@@ -1,6 +1,8 @@
 import { PlatformError } from './errors';
 import { MemoryIndex } from './memoryIndex';
 import type {
+  HttpRequest,
+  HttpResponse,
   DeviceKind,
   DirEntry,
   WindowFrame,
@@ -110,6 +112,15 @@ export class MemoryAdapter implements PlatformAdapter {
     handler: (run: ProgramRun, vault: MemoryAdapter) => Promise<ProgramResult> | ProgramResult,
   ): void {
     this.programs = {
+      snapshotFile: async (source, destination) => {
+        const external =
+          /^[a-z]:[\\/]/i.test(source) || source.startsWith('/') || source.startsWith('\\\\');
+        const { bytes } = this.fileAt(source, external);
+        if (bytes.length > 4 * 1024 * 1024) throw new Error('The script is larger than 4 MB.');
+        if (await this.exists(destination)) throw new Error('The script snapshot already exists.');
+        await this.writeBytes(destination, bytes);
+        return this.hashFile(destination);
+      },
       run: async (r) => handler(r, this),
       stop: () => Promise.resolve(),
     };
@@ -334,6 +345,21 @@ export class MemoryAdapter implements PlatformAdapter {
 
   setStylusHandwriting(on: boolean): void {
     this.stylusHandwriting = on;
+  }
+
+  private readonly secrets = new Map<string, string>();
+  secureRead(key: string): Promise<string | null> {
+    return Promise.resolve(this.secrets.get(key) ?? null);
+  }
+  secureWrite(key: string, value: string | null): Promise<void> {
+    if (value === null) this.secrets.delete(key);
+    else this.secrets.set(key, value);
+    return Promise.resolve();
+  }
+  httpHandler: ((request: HttpRequest) => Promise<HttpResponse>) | null = null;
+  microsoftRequest(request: HttpRequest): Promise<HttpResponse> {
+    if (this.httpHandler) return this.httpHandler(request);
+    return this.fetchText(request.url).then((body) => ({ status: 200, body, retryAfter: null }));
   }
 
   fetchText(url: string): Promise<string> {

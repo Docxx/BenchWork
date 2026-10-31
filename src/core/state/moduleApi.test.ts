@@ -124,6 +124,23 @@ describe('module page types and commands in the app', () => {
 });
 
 describe('the app as modules see it', () => {
+  it('does not append over unsaved editor content after a failed save', async () => {
+    const { state, platform, ctx } = await openVault();
+    const path = 'LPS model/Experiments/Dose.md';
+    await state().openPath(path);
+    state().setPageProperties({ status: 'draft' });
+    const original = await platform.readText(path);
+    vi.spyOn(platform, 'writeTextAtomic').mockRejectedValue(new Error('Disk full'));
+    await expect(ctx.app.appendToPage(path, 'New link')).rejects.toThrow('Save the current page');
+    expect(await platform.readText(path)).toBe(original);
+  });
+
+  it('retains a requested PDF page for a source link', async () => {
+    const { platform, ctx } = await openVault();
+    await platform.writeTextAtomic('LPS model/Data/paper.pdf', 'pdf');
+    await ctx.app.open('LPS model/Data/paper.pdf', { heading: 'page=2' });
+    expect(ctx.reading.page('LPS model/Data/paper.pdf')).toBe(2);
+  });
   it('lists items with their types and follows links both ways', async () => {
     const { ctx } = await openVault();
     expect(await ctx.app.items()).toMatchObject([

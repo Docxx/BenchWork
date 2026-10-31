@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ModuleContext, VaultItem } from '@core/api';
-import { datasetName, runOnDataset, type RunOutcome } from './run';
+import { datasetName, type AnalysisSession, type RunOutcome } from './run';
+import { RunHistory } from './RunHistory';
 import { DEFAULT_ARGS, newScript, parseScripts, type Script } from './scripts';
 
 const STORE = 'scripts.json';
@@ -38,6 +39,17 @@ function ScriptForm({
       </label>
       <label className="label">
         Run with
+        <select
+          aria-label="Runtime preset"
+          value={['python', 'Rscript'].includes(draft.program) ? draft.program : 'custom'}
+          onChange={(e) => {
+            if (e.target.value !== 'custom') set({ program: e.target.value });
+          }}
+        >
+          <option value="python">Python</option>
+          <option value="Rscript">R</option>
+          <option value="custom">Custom executable</option>
+        </select>
         <input
           value={draft.program}
           placeholder="python"
@@ -75,6 +87,57 @@ function ScriptForm({
         {'{script}'} the script, {'{files}'} the dataset’s files, {'{output}'} a new folder for the
         results, {'{folder}'} the dataset’s folder, {'{name}'} its name.
       </p>
+      <fieldset>
+        <legend>Parameter defaults</legend>
+        <p className="hint">
+          Add a name and value, then use {'{param:name}'} in Arguments. Values are passed as single
+          arguments.
+        </p>
+        {Object.entries(draft.parameters ?? {}).map(([key, value]) => (
+          <div className="analysis-pick" key={key}>
+            <label className="label">
+              {key}
+              <input
+                value={value}
+                onChange={(e) => {
+                  set({ parameters: { ...draft.parameters, [key]: e.target.value } });
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              className="quiet"
+              onClick={() => {
+                set({
+                  parameters: Object.fromEntries(
+                    Object.entries(draft.parameters ?? {}).filter(([k]) => k !== key),
+                  ),
+                });
+              }}
+            >
+              Remove {key}
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="quiet"
+          onClick={() =>
+            void ctx.app
+              .askText({ title: 'Add parameter', label: 'Parameter name' })
+              .then((name) => {
+                if (name && /^[a-zA-Z][\w-]*$/.test(name))
+                  set({ parameters: { ...draft.parameters, [name]: '' } });
+                else if (name)
+                  ctx.app.notify(
+                    'Use a letter followed by letters, numbers, underscores or hyphens.',
+                  );
+              })
+          }
+        >
+          Add parameter
+        </button>
+      </fieldset>
       <div className="actions">
         <button
           type="button"
@@ -96,18 +159,39 @@ function ScriptForm({
 export function AnalysisView({
   ctx,
   dataset: given,
+  session,
 }: {
   ctx: ModuleContext;
   dataset: string | null;
+  session: AnalysisSession;
 }) {
   const [scripts, setScripts] = useState<Script[] | null>(null);
   const [datasets, setDatasets] = useState<VaultItem[]>([]);
-  const [dataset, setDataset] = useState(given ?? '');
+  const [dataset, setDataset] = useState(session.current()?.dataset ?? given ?? '');
   const [scriptId, setScriptId] = useState('');
-  const [running, setRunning] = useState<string | null>(null);
+  const [running, setRunning] = useState<string | null>(session.current()?.id ?? null);
   const [outcome, setOutcome] = useState<RunOutcome | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  const [parameters, setParameters] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const active = session.current();
+    if (!active) return;
+    let live = true;
+    void active.pending
+      .then((value) => {
+        if (live) setOutcome(value);
+      })
+      .catch((err: unknown) => {
+        if (live) setError(String(err));
+      })
+      .finally(() => {
+        if (live) setRunning(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, [session]);
 
   useEffect(() => {
     void ctx.storage.read(STORE).then((data) => {
@@ -126,7 +210,13 @@ export function AnalysisView({
   };
 
   if (scripts === null) return <p className="hint">Reading…</p>;
-  if (!ctx.programs) return <p className="notice">Scripts can only be run on the computer.</p>;
+  if (!ctx.programs)
+    return (
+      <>
+        <p className="notice">Run Python and R on a computer. Saved history is available here.</p>
+        <RunHistory ctx={ctx} refresh={outcome} />
+      </>
+    );
 
   const script = scripts.find((s) => s.id === scriptId);
   const run = async () => {
@@ -136,7 +226,7 @@ export function AnalysisView({
     setOutcome(null);
     setError(null);
     try {
-      setOutcome(await runOnDataset(ctx, script, dataset, id));
+      setOutcome(await session.run(script, dataset, id, { ...script.parameters, ...parameters }));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -170,6 +260,7 @@ export function AnalysisView({
               value={scriptId}
               onChange={(e) => {
                 setScriptId(e.target.value);
+                setParameters({});
               }}
             >
               {scripts.length === 0 && <option value="">Add a script below</option>}
@@ -180,12 +271,23 @@ export function AnalysisView({
               ))}
             </select>
           </label>
+          {Object.entries(script?.parameters ?? {}).map(([key, value]) => (
+            <label className="label" key={key}>
+              {key}
+              <input
+                value={parameters[key] ?? value}
+                onChange={(e) => {
+                  setParameters({ ...parameters, [key]: e.target.value });
+                }}
+              />
+            </label>
+          ))}
           {running === null ? (
             <button type="button" disabled={!script || dataset === ''} onClick={() => void run()}>
               Run
             </button>
           ) : (
-            <button type="button" onClick={() => void ctx.programs?.stop(running)}>
+            <button type="button" onClick={() => void session.stop(running)}>
               Stop
             </button>
           )}
@@ -241,8 +343,8 @@ export function AnalysisView({
       <section aria-label="Scripts">
         <h2>Scripts</h2>
         <p className="hint">
-          Your own scripts, run with your own Python. Nothing is installed or sent anywhere. The
-          dataset’s files are only read; results go in a new folder beside it.
+          Your own scripts, run with Python, R or another installed executable. Results go in a new
+          folder beside the dataset. Run records capture hashes and a copy of the main script.
         </p>
         {scripts.map((s) =>
           editing === s.id ? (
@@ -287,6 +389,7 @@ export function AnalysisView({
           Add a script
         </button>
       </section>
+      <RunHistory ctx={ctx} refresh={outcome ?? error} />
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { candidates, linkTargetFor, resolveLink, suffixKeys, suggestPages } from
 import { rewriteLinks } from '../links/rewrite';
 import { isPage, pageTitle } from '../notebooks/notebookTree';
 import { embedPath } from '../pages/attachments';
-import { baseName, parentVaultPath, type LinkRef, type PageRef } from '../platform';
+import { baseName, joinVaultPath, parentVaultPath, type LinkRef, type PageRef } from '../platform';
 import type { StoreContext } from './context';
 import { locationOf } from './searchSlice';
 
@@ -192,9 +192,15 @@ export function createLinksSlice(ctx: StoreContext): LinksSlice {
       }
       // A file such as `attachments/plot.png` or `Data/day7.csv`.
       const file = embedPath(target);
-      if (file !== null && !isPage(baseName(file)) && (await platform.exists(file))) {
-        await get().openPath(file);
-        return;
+      if (file !== null && !isPage(baseName(file))) {
+        const raw = target.split('#')[0]?.trim() ?? '';
+        const beside = from ? joinVaultPath(parentVaultPath(from) ?? '', raw) : raw;
+        for (const candidate of [...new Set([beside, file, raw])]) {
+          if (await platform.exists(candidate)) {
+            await get().openPath(candidate, target.split('#')[1]?.split('^')[0]);
+            return;
+          }
+        }
       }
       // A new page: in the folder the link names, if it exists, else beside this page.
       const clean = (target.split(/[#^]/)[0] ?? '').trim().replace(/\.md$/i, '');

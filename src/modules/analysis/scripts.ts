@@ -19,6 +19,7 @@ export interface Script {
   /** The script file: a full path, or a vault path. */
   script: string;
   args: string;
+  parameters?: Record<string, string>;
 }
 
 export const DEFAULT_ARGS = '{script} {files} {output}';
@@ -49,6 +50,7 @@ export function words(pattern: string): string[] {
 }
 
 export interface RunPlaces {
+  parameters?: Record<string, string>;
   script: string;
   files: readonly string[];
   folder: string;
@@ -69,7 +71,19 @@ export function buildArgs(pattern: string, places: RunPlaces): ProgramArg[] {
       case '{output}':
         return [pathArg(places.output)];
       default:
-        return [{ kind: 'text', value: word.replaceAll('{name}', places.name) }];
+        return [
+          {
+            kind: 'text',
+            value: word
+              .replaceAll('{name}', places.name)
+              .replace(/\{param:([a-zA-Z][\w-]*)\}/g, (_, key: string) => {
+                const value = places.parameters?.[key];
+                if (value === undefined)
+                  throw new Error(`Set the parameter '${key}' before running.`);
+                return value;
+              }),
+          },
+        ];
     }
   });
 }
@@ -89,6 +103,18 @@ export function parseScripts(data: unknown): Script[] {
         program: text('program', 'python'),
         script: text('script', ''),
         args: text('args', DEFAULT_ARGS),
+        ...(typeof r['parameters'] === 'object' &&
+        r['parameters'] !== null &&
+        !Array.isArray(r['parameters'])
+          ? {
+              parameters: Object.fromEntries(
+                Object.entries(r['parameters']).filter(
+                  (entry): entry is [string, string] =>
+                    typeof entry[1] === 'string' && /^[a-zA-Z][\w-]*$/.test(entry[0]),
+                ),
+              ),
+            }
+          : {}),
       },
     ];
   });

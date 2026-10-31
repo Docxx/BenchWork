@@ -8,6 +8,11 @@ import { AppStoreProvider } from '@core/ui/AppStoreContext';
 import { PageView } from '@core/ui/PageView';
 import referencesManifest from '../references/manifest.json';
 import manifestJson from './manifest.json';
+import { createModuleContext } from '@core/modules/context';
+import { manifest } from '@core/modules/testModules';
+import { createModuleBridge } from '@core/state/moduleBridge';
+import { createSection, createWriting, saveSectionLinks } from './workspace';
+import { parsePage } from '@core/pages/frontmatter';
 
 // Tests may reach core internals to set the app up; the module itself may not.
 
@@ -86,6 +91,45 @@ function exportsOf(platform: MemoryAdapter): [string, string][] {
 }
 
 describe('Manuscript module', () => {
+  it('creates writing sections whose evidence and run links never enter exported prose', async () => {
+    const { platform, store } = await openVault();
+    const { ctx } = createModuleContext(manifest('manuscript'), {
+      platform,
+      device: 'desktop',
+      contributions: createContributions(),
+      app: () => createModuleBridge(store, platform),
+    });
+    const path = await createWriting(ctx, 'New thesis', 'thesis');
+    expect(path).toBe('Writing/New thesis.md');
+    const section = await createSection(ctx, path ?? '', 'Results');
+    expect(section).toBe('Writing/Sections/Results.md');
+    await saveSectionLinks(ctx, section ?? '', {
+      aim: 'Describe findings',
+      status: 'drafting',
+      wordTarget: '500',
+      evidence: ['Research/Evidence/Tau.md'],
+      analyses: ['Data/Run.analysis.yaml'],
+    });
+    const text = await ctx.vault.readText(section ?? '');
+    const page = parsePage(text);
+    expect(page.body).toBe('# Results\n\n');
+    expect(await ctx.app.pageProperties(section ?? '')).toMatchObject({
+      evidence: ['[[Research/Evidence/Tau.md]]'],
+      analyses: ['[[Data/Run.analysis.yaml]]'],
+      status: 'drafting',
+    });
+    expect(await ctx.vault.readText(path ?? '')).toContain('[[Results]]');
+    expect(await ctx.vault.readText(path ?? '')).not.toContain('Tau.md');
+    await expect(
+      saveSectionLinks(ctx, section ?? '', {
+        aim: '',
+        status: 'drafting',
+        wordTarget: '-1',
+        evidence: [],
+        analyses: [],
+      }),
+    ).rejects.toThrow('whole number');
+  });
   it('exports a manuscript to Word, with citations formatted from the library', async () => {
     const { platform, state } = await openVault();
     await state().openPage('Thesis/Tau thesis.md');

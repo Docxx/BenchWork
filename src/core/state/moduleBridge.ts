@@ -23,6 +23,11 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
   }
 
   return {
+    pdfPage: (path) => {
+      const s = state();
+      const match = s.openFile === path ? /^page=(\d+)$/.exec(s.revealHeading ?? '') : null;
+      return match ? Math.max(1, Number(match[1])) : null;
+    },
     graph: () => state().vaultGraph(),
     inkHooks: () => ({
       settings: () => state().pen,
@@ -81,7 +86,11 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
       await source.move(key, start, end);
     },
     appendToPage: async (path, markdown) => {
-      if (state().page?.path === path) await state().savePageNow();
+      if (state().page?.path === path) {
+        await state().savePageNow();
+        if (state().saveState !== 'saved' || state().pageConflict)
+          throw new Error('Save the current page before adding linked content.');
+      }
       const text = await platform.readText(path);
       const line = markdown.endsWith('\n') ? markdown : `${markdown}\n`;
       const gap = text === '' || text.endsWith('\n') ? '' : '\n';
@@ -100,8 +109,12 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
     setPageProperties: async (path, changes) => {
       // The open page changes through the editor's session, so nothing is lost.
       if (state().page?.path === path) {
+        if (state().pageConflict)
+          throw new Error('Resolve the page conflict before changing properties.');
         state().setPageProperties(changes);
         await state().savePageNow();
+        if (state().saveState !== 'saved')
+          throw new Error('The page properties could not be saved.');
         return;
       }
       const page = parsePage(await platform.readText(path));

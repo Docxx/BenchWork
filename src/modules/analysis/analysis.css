@@ -68,3 +68,19 @@
   font-size: 0.8rem;
   white-space: pre-wrap;
 }
+.analysis-history-item {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  width: 100%;
+  text-align: left;
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+.analysis-history-item small {
+  opacity: 0.65;
+}
+.analysis-run-details pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

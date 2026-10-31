@@ -3,6 +3,7 @@ mod error;
 mod file_info;
 mod folders;
 mod index;
+mod microsoft;
 mod pandoc;
 mod path_guard;
 mod programs;
@@ -234,6 +235,27 @@ async fn run_program(
     .map_err(|e| VaultError::new(ErrorKind::Io, format!("The run failed: {e}")))?;
     state.runs.lock().map_err(|_| unavailable())?.remove(&id);
     result
+}
+
+/// Stops a program started with run_program.
+#[tauri::command]
+async fn snapshot_program_file(
+    source: String,
+    destination: String,
+    state: State<'_, VaultState>,
+) -> VaultResult<String> {
+    let root = state.root()?;
+    let full = if Path::new(&source).is_absolute() {
+        PathBuf::from(&source)
+    } else {
+        path_guard::resolve(&root, &source)?
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        vault_fs::copy_in(&root, &full, &destination, 4 * 1024 * 1024)?;
+        file_info::sha256(&path_guard::resolve(&root, &destination)?)
+    })
+    .await
+    .map_err(|e| VaultError::new(ErrorKind::Io, format!("The script snapshot failed: {e}")))?
 }
 
 /// Stops a program started with run_program.
@@ -497,18 +519,37 @@ async fn save_app_settings(app: AppHandle, settings: serde_json::Value) -> Vault
     vault_fs::write_atomic(&path, text.as_bytes())
 }
 
+#[tauri::command]
+async fn microsoft_request(request: microsoft::Request) -> VaultResult<microsoft::Response> {
+    microsoft::request(request).await
+}
+#[tauri::command]
+async fn secure_read(app: AppHandle, key: String) -> VaultResult<Option<String>> {
+    let root = app.path().app_config_dir().map_err(|_| unavailable())?;
+    microsoft::read(&root, &key)
+}
+#[tauri::command]
+async fn secure_write(app: AppHandle, key: String, value: Option<String>) -> VaultResult<()> {
+    let root = app.path().app_config_dir().map_err(|_| unavailable())?;
+    microsoft::write(&root, &key, value)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(VaultState::default())
         .invoke_handler(tauri::generate_handler![
+            microsoft_request,
+            secure_read,
+            secure_write,
             set_vault_root,
             find_vault_root,
             list_folders,
             make_folder,
             backup_vault,
             run_program,
+            snapshot_program_file,
             stop_program,
             open_web_link,
             open_vault_file,

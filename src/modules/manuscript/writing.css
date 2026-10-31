@@ -1,0 +1,81 @@
+.writing-workspace {
+  width: 100%;
+  padding-bottom: 32px;
+}
+.writing-workspace .label {
+  display: grid;
+  gap: 6px;
+}
+.writing-workspace .label input,
+.writing-workspace .label textarea,
+.writing-workspace .label select {
+  width: 100%;
+  min-width: 0;
+}
+.writing-workspace fieldset {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.writing-workspace > * + * {
+  margin-top: 20px;
+}
+.writing-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr);
+  gap: 28px;
+}
+.writing-new {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  padding: 12px 0;
+}
+.writing-section {
+  display: flex;
+  justify-content: space-between;
+  text-align: left;
+  gap: 12px;
+  padding: 12px;
+  width: 100%;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.writing-section[aria-pressed='true'] {
+  background: var(--accent-soft);
+}
+.writing-section small {
+  opacity: 0.6;
+}
+.writing-section-desk {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.writing-choices {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+}
+.writing-choices label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.writing-evidence {
+  padding: 16px;
+  border-left: 3px solid var(--accent);
+}
+@media (max-width: 1000px) {
+  .writing-layout {
+    grid-template-columns: 1fr;
+  }
+  .writing-section-desk {
+    padding: 14px;
+  }
+}

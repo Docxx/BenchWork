@@ -4,6 +4,8 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open } from '@tauri-apps/plugin-dialog';
 import { PlatformError } from './errors';
 import type {
+  HttpRequest,
+  HttpResponse,
   DeviceKind,
   DirEntry,
   FileInfo,
@@ -40,6 +42,8 @@ async function call<T>(command: string, args?: () => Record<string, unknown>): P
 
 /** What MainActivity.kt gives the page on Android. */
 interface AndroidBridge {
+  secureRead(key: string): string;
+  secureWrite(key: string, value: string, remove: boolean): string;
   setHandwriting(on: boolean): void;
   inkModelReady(id: string): void;
   inkPrepare(id: string): void;
@@ -206,6 +210,11 @@ export class TauriAdapter implements PlatformAdapter {
   readonly programs: ProgramRunner | null =
     detectKind() === 'desktop'
       ? {
+          snapshotFile: (source: string, destination: string) =>
+            call<string>('snapshot_program_file', () => ({
+              source,
+              destination: normaliseVaultPath(destination),
+            })),
           run: (r) =>
             call<ProgramResult>('run_program', () => ({
               id: r.id,
@@ -230,6 +239,25 @@ export class TauriAdapter implements PlatformAdapter {
 
   setStylusHandwriting(on: boolean): void {
     window.BenchWorkAndroid?.setHandwriting(on);
+  }
+
+  microsoftRequest(request: HttpRequest): Promise<HttpResponse> {
+    return call('microsoft_request', () => ({ request }));
+  }
+  async secureRead(key: string): Promise<string | null> {
+    const bridge = window.BenchWorkAndroid;
+    if (!bridge) return call('secure_read', () => ({ key }));
+    const result = JSON.parse(bridge.secureRead(key)) as { value?: string; error?: string };
+    if (result.error) throw new Error(result.error);
+    return result.value ?? null;
+  }
+  async secureWrite(key: string, value: string | null): Promise<void> {
+    const bridge = window.BenchWorkAndroid;
+    if (!bridge) return call('secure_write', () => ({ key, value }));
+    const result = JSON.parse(bridge.secureWrite(key, value ?? '', value === null)) as {
+      error?: string;
+    };
+    if (result.error) throw new Error(result.error);
   }
 
   fetchText(url: string): Promise<string> {

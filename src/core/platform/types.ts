@@ -6,7 +6,24 @@
  * All vault paths are relative to the open vault, use `/` separators, and
  * `""` means the vault root. See `vaultPath.ts` for the rules.
  */
+export interface HttpRequest {
+  url: string;
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  headers?: Record<string, string>;
+  body?: string;
+}
+export interface HttpResponse {
+  status: number;
+  body: string;
+  retryAfter: string | null;
+}
+
 export interface PlatformAdapter {
+  /** Authenticated Microsoft HTTPS, without browser cookies or redirects. */
+  microsoftRequest(request: HttpRequest): Promise<HttpResponse>;
+  /** Device-local encrypted data, never written into a vault. */
+  secureRead(key: string): Promise<string | null>;
+  secureWrite(key: string, value: string | null): Promise<void>;
   readonly kind: DeviceKind;
 
   /** Shows a folder picker. Resolves to the chosen folder, or null if cancelled. */
@@ -253,6 +270,8 @@ export interface ProgramResult {
 }
 
 export interface ProgramRunner {
+  /** Copy a user-selected script into a new vault file, without overwriting. Returns its SHA-256. */
+  snapshotFile?(source: string, destination: string): Promise<string>;
   /** Runs a program; resolves when it ends or is stopped. Fails if it cannot be started. */
   run(run: ProgramRun): Promise<ProgramResult>;
   stop(id: string): Promise<void>;

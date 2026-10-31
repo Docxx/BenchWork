@@ -1,0 +1,9 @@
+{
+  "id": "outlook",
+  "name": "Outlook",
+  "version": "0.1.0",
+  "description": "Microsoft 365 mail, replies, drafts, attachments and calendars with a device-local encrypted offline cache",
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false,
+  "network": ["graph.microsoft.com", "login.microsoftonline.com"]
+}

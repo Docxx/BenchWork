@@ -34,6 +34,12 @@ export function manuscriptType(): PageTypeSpec {
     type: MANUSCRIPT,
     name: 'Manuscript',
     fields: [
+      {
+        key: 'manuscriptKind',
+        label: 'Writing type',
+        kind: 'choice',
+        options: ['paper', 'thesis'],
+      },
       { key: 'author', label: 'Author', kind: 'text' },
       { key: 'style', label: 'Citation style', kind: 'text' },
     ],

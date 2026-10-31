@@ -175,8 +175,8 @@ button.pdf-thumb:first-child {
   pointer-events: none;
 }
 
-button.pdf-highlight-offer,
-button.pdf-remove-highlight {
+.pdf-highlight-offer,
+.pdf-remove-highlight {
   position: absolute;
   z-index: 3;
   padding: 0.25rem 0.6rem;
@@ -188,7 +188,7 @@ button.pdf-remove-highlight {
   font: 0.8rem var(--font-ui);
 }
 
-button.pdf-remove-highlight {
+.pdf-remove-highlight {
   top: 0.5rem;
   right: 0.5rem;
   color: var(--section-red);
@@ -198,4 +198,12 @@ button.pdf-remove-highlight {
   .pdf-thumbs {
     display: none;
   }
+}
+
+.pdf-highlight-offer,
+.pdf-remove-highlight {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: min(100%, 580px);
 }

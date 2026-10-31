@@ -114,7 +114,7 @@ export function createFilesSlice(ctx: StoreContext): FilesSlice {
         return;
       }
       if (!(await get().closePage())) return;
-      set({ openFile: path, pageNotice: null });
+      set({ openFile: path, pageNotice: null, revealHeading: heading ?? null });
       get().selectEntry(path);
     },
 

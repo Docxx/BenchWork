@@ -12,6 +12,8 @@ import type { ReactNode } from 'react';
 import type { PdfDocument } from '../files/pdf';
 import type { InkPoint, InkStroke, InkTool } from '../ink/inkFile';
 import type {
+  HttpRequest,
+  HttpResponse,
   DeviceKind,
   DirEntry,
   FileInfo,
@@ -25,6 +27,8 @@ import type {
 import type { ModuleManifest } from '../modules/manifest';
 
 export type {
+  HttpRequest,
+  HttpResponse,
   DeviceKind,
   DirEntry,
   FileInfo,
@@ -69,6 +73,7 @@ export interface ModuleContext {
   readonly pageTypes: ModulePageTypes;
   readonly commands: ModuleCommands;
   readonly files: ModuleFiles;
+  readonly reading: ModuleReading;
   readonly citations: ModuleCitations;
   /** Pen writing: changing strokes as they are finished, and tools of its own. */
   readonly ink: ModuleInk;
@@ -80,6 +85,12 @@ export interface ModuleContext {
   readonly pandoc: ModulePandoc;
   /** JSON files in `.benchwork/modules/<id>/`, the module's private folder. */
   readonly storage: ModuleStorage;
+  /** Encrypted device-local JSON. Sign-in and private caches belong here, not in vault storage. */
+  readonly deviceStorage: {
+    read<T = unknown>(name: string): Promise<T | null>;
+    write(name: string, data: unknown): Promise<void>;
+    remove(name: string): Promise<void>;
+  };
   /** The vault's files. Modules keep their files in normal vault folders. */
   readonly vault: ModuleVault;
   /** Pages, links and messages in the app. */
@@ -192,6 +203,28 @@ export interface ModuleFiles {
   register(spec: FileHandlerSpec): Disposable;
   /** Opens a PDF's bytes for drawing its pages, with pdf.js. */
   openPdf(bytes: Uint8Array): Promise<PdfDocument>;
+}
+
+/** A source selection, kept independent of any particular reference manager. */
+export interface PdfExcerpt {
+  path: string;
+  page: number;
+  highlightId: string;
+  text: string;
+}
+
+export interface ReadingAction {
+  id: string;
+  title: string;
+  run(excerpt: PdfExcerpt): void | Promise<void>;
+}
+
+export interface ModuleReading {
+  register(spec: ReadingAction): Disposable;
+  actions(): readonly ReadingAction[];
+  subscribe(listener: () => void): Disposable;
+  /** Requested source page when opening a PDF link. */
+  page(path: string): number | null;
 }
 
 /** Shows files of a custom type when they are opened from the sidebar. */
@@ -654,6 +687,8 @@ export interface SidebarPanelSpec {
 }
 
 export interface ModuleWeb {
+  /** Microsoft API requests to HTTPS hosts declared in the manifest. */
+  request(request: HttpRequest): Promise<HttpResponse>;
   /**
    * Reads a web address's text, such as a search's JSON. Only https
    * addresses on the sites the manifest lists under "network"; others fail.
