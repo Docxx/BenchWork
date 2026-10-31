@@ -99,6 +99,20 @@ Planned 30 Oct 2026, released as 0.9.0.
 - [x] Canvas styles: colours, borders, shapes and links for cards; colours, lines and heads for arrows
 - [ ] Checked on the tablet: Home, Lab tools beside a page, and papers fetched over the tablet's connection
 
+## Polish before Phase 7
+
+Planned 30 Oct 2026, released as 0.10.0.
+
+- [x] No system title bar on the computer: the app's own window buttons, dragged by its top
+- [x] A new logo: the app icon, the sidebar's mark and the opening animation
+- [x] Widgets placed on Home, under the notebooks, or in either half of the right side
+- [x] Calendar, reminders and a large timer for Home and the docks
+- [x] Six fun themes, from Starship bridge to Red planet
+- [x] Word documents open in BenchWork, and in Word
+- [x] Richer tasks (start, priority, progress, people, waiting, subtasks) and a planner chart of BenchWork's own
+- [ ] Checked on the PC: no title bar, resizing the window, papers fetched, Word opened
+- [ ] Checked on the tablet: widgets, themes and the planner with the pen
+
 ## Phase 7: Own sync and co-editing
 
 - [ ] Native CRDT sync (Yjs) with end-to-end encryption, without Syncthing
