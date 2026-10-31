@@ -15,8 +15,6 @@ import './planner.css';
 
 const VIEW = 'planner.timeline';
 
-/** The plan is read again for the calendar at most this often, in ms. */
-const PLAN_FRESH_MS = 30_000;
 
 export const PAGES = 'planner.pages';
 
@@ -69,25 +67,27 @@ export default defineModule({
       },
     });
 
-    let cached: { at: number; plan: Promise<PlanTask[]> } | null = null;
+    // Reading every page's dates is slow on a big vault, so the plan is kept
+    // and read again only once a page changes.
+    let cached: Promise<PlanTask[]> | null = null;
+    const plan = () => (cached ??= readPlan(ctx));
+    ctx.vault.watch((change) => {
+      if (change.paths.some((p) => p.toLowerCase().endsWith('.md'))) cached = null;
+    });
+
     ctx.views.registerCalendarSource({
       id: 'planner.dates',
       title: 'Planned dates',
-      marks: async (from, to) => {
-        if (cached === null || Date.now() - cached.at > PLAN_FRESH_MS) {
-          cached = { at: Date.now(), plan: readPlan(ctx) };
-        }
-        return planMarks(await cached.plan, from, to);
-      },
+      marks: async (from, to) => planMarks(await plan(), from, to),
     });
 
     ctx.views.registerScheduleSource({
       id: PAGES,
       title: 'Planned pages',
-      items: async () => pageItems(await readPlan(ctx)),
+      items: async () => pageItems(await plan()),
       move: async (key, start, end) => {
         const path = key.slice(PAGES.length + 1);
-        const task = (await readPlan(ctx)).find((t) => t.path === path);
+        const task = (await plan()).find((t) => t.path === path);
         if (task) await ctx.app.setPageProperties(path, moveChanges(task, start, end));
         cached = null;
       },
