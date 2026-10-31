@@ -117,7 +117,7 @@ export function App() {
       {status.kind !== 'open' && (
         // Before a vault opens there is no sidebar to drag the window by.
         <>
-          <div className="window-drag-strip" data-tauri-drag-region />
+          <div className="window-drag-strip" data-window-drag />
           <WindowControls />
         </>
       )}

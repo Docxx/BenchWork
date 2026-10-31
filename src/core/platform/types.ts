@@ -334,6 +334,8 @@ export interface WindowFrame {
   toggleMaximise(): Promise<void>;
   close(): Promise<void>;
   isMaximised(): Promise<boolean>;
+  /** Moves the window with the pointer, from a press on the app's own top bars. */
+  startDragging(): Promise<void>;
   /** Calls `listener` when the window is resized, such as when maximised. Returns a stop function. */
   onResized(listener: () => void): () => void;
 }

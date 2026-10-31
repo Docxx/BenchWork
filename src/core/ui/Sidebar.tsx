@@ -75,7 +75,7 @@ export function Sidebar({
 
   return (
     <nav className="sidebar" aria-label="Vault">
-      <header className="sidebar-header" data-tauri-drag-region>
+      <header className="sidebar-header" data-window-drag>
         <Logo className="brand-mark" size={32} />
         <div className="brand-text">
           <span className="brand-name">BenchWork</span>

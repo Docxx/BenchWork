@@ -101,7 +101,7 @@ export function Dock({
       }}
       onDrop={onDrop}
     >
-      <div className="dock-tabs" role="tablist" aria-label={name}>
+      <div className="dock-tabs" role="tablist" aria-label={name} data-window-drag>
         {entries.length === 0 && <span className="dock-empty-hint">Widgets</span>}
         {entries.map((w) => (
           <button

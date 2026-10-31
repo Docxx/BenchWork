@@ -117,7 +117,7 @@ function PageTopBar({
 }) {
   const folders = page.path.split('/').slice(0, -1);
   return (
-    <div className="top-bar" data-tauri-drag-region>
+    <div className="top-bar" data-window-drag>
       <HomeButton />
       <nav className="breadcrumb" aria-label="Where this page is">
         {folders.map((folder, i) => (

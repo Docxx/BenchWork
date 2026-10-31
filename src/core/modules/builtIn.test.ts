@@ -4,7 +4,7 @@ import { createContributions } from './contributions';
 import { findBuiltInModules } from './loader';
 import { ModuleRegistry } from './registry';
 
-async function helloRegistry() {
+async function builtInRegistry() {
   const platform = new MemoryAdapter({
     folders: {
       'C:/Vault': {
@@ -28,46 +28,26 @@ beforeEach(() => {
   vi.spyOn(console, 'info').mockImplementation(() => undefined);
 });
 
-describe('built-in Hello module', () => {
-  it('ships with a valid manifest and is off by default', async () => {
-    const { registry } = await helloRegistry();
+describe('built-in modules', () => {
+  it('all ship with valid manifests, and are off by default', async () => {
+    const { registry } = await builtInRegistry();
     expect(registry.store.getState().broken).toEqual([]);
-    expect(registry.get('hello')).toMatchObject({
-      status: 'off',
-      manifest: { name: 'Hello', defaultEnabled: false },
-    });
+    const all = registry.store.getState().modules;
+    expect(all.length).toBeGreaterThan(5);
+    expect(all.every((m) => m.status === 'off')).toBe(true);
   });
 
-  it('adds its panel when on and removes it when off', async () => {
-    const { registry } = await helloRegistry();
-    await registry.enable(['hello']);
-    expect(registry.get('hello')?.status).toBe('on');
-    const [panel] = registry.contributions.getState().panels;
-    expect(panel).toMatchObject({ id: 'hello.panel', title: 'Hello', moduleId: 'hello' });
-    expect(panel?.render()).toContain('switched on once');
+  it('add what they show when on, take it away when off, and leave files alone', async () => {
+    const { platform, registry } = await builtInRegistry();
+    const before = platform.snapshot();
+    await registry.enable(['mind-maps']);
+    expect(registry.get('mind-maps')?.status).toBe('on');
+    expect(registry.contributions.getState().pageViews.map((v) => v.id)).toContain(
+      'mind-maps.canvases',
+    );
 
-    await registry.disable(['hello']);
-    expect(registry.contributions.getState().panels).toEqual([]);
-  });
-
-  it('counts in its own folder only, and keeps that data when switched off', async () => {
-    const { platform, registry } = await helloRegistry();
-    for (let i = 0; i < 3; i += 1) {
-      await registry.enable(['hello']);
-      await registry.disable(['hello']);
-    }
-    await registry.enable(['hello']);
-    expect(registry.contributions.getState().panels[0]?.render()).toContain('4 times');
-
-    expect(platform.snapshot()).toEqual({
-      '.benchwork': null,
-      '.benchwork/config.json': '{"version":1}',
-      '.benchwork/modules': null,
-      '.benchwork/modules/hello': null,
-      '.benchwork/modules/hello/state.json': '{\n  "timesSwitchedOn": 4\n}\n',
-      Data: null,
-      'Data/run1.csv': 'a,b\n1,2',
-      'notes.md': 'keep me',
-    });
+    await registry.disable(['mind-maps']);
+    expect(registry.contributions.getState().pageViews).toEqual([]);
+    expect(platform.snapshot()).toEqual(before);
   });
 });

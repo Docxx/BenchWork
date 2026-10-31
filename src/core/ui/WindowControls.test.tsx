@@ -26,6 +26,10 @@ function fakeFrame() {
       return Promise.resolve();
     },
     isMaximised: () => Promise.resolve(maximised),
+    startDragging: () => {
+      calls.push('drag');
+      return Promise.resolve();
+    },
     onResized: (listener) => {
       resized = listener;
       return () => {
@@ -68,10 +72,19 @@ describe('the window buttons', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(calls).toEqual(['minimise', 'maximise', 'close']);
 
-    // The window is moved by the top of the sidebar.
-    expect(container.querySelector('.sidebar-header')?.hasAttribute('data-tauri-drag-region')).toBe(
-      true,
-    );
+    // Pressing on the top of the sidebar moves the window; on its text too;
+    // pressing twice maximises it; a button there works as a button.
+    calls.length = 0;
+    const header = container.querySelector('.sidebar-header');
+    if (!header) throw new Error('No sidebar header');
+    fireEvent.mouseDown(header, { button: 0, detail: 1 });
+    fireEvent.mouseDown(header.querySelector('.brand-name') ?? header, { button: 0, detail: 1 });
+    fireEvent.mouseDown(header, { button: 0, detail: 2 });
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'Hide the sidebar' }), {
+      button: 0,
+      detail: 1,
+    });
+    expect(calls).toEqual(['drag', 'drag', 'maximise']);
   });
 
   it('are left to the system where it draws the window, as on the tablet', async () => {
