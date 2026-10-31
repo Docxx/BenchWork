@@ -7,7 +7,12 @@ import {
   Plus,
   RotateCw,
   Settings,
+  SlidersHorizontal,
   SquareTerminal,
+  Star,
+  FileText,
+  Folder,
+  X,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { OpenVault } from '../vault/vaultService';
@@ -19,7 +24,7 @@ import { Menu } from './Menu';
 import { ModulePanels } from './ModulePanels';
 import { NotebookTree } from './NotebookTree';
 import { SearchBox, SearchResults } from './SearchPanel';
-import { useHomeLayout, useWidgets } from './widgets';
+import { useFavourites, useHomeLayout, useWidgets } from './widgets';
 
 /** Name shown for a vault: the last part of its folder path. */
 export function vaultName(root: string): string {
@@ -65,6 +70,9 @@ export function Sidebar({
   const atHome = useApp((s) => s.atHome());
   const goHome = useApp((s) => s.goHome);
   const [newMenu, setNewMenu] = useState<{ x: number; y: number } | null>(null);
+  const [lookMenu, setLookMenu] = useState<{ x: number; y: number } | null>(null);
+  const look = useApp((s) => s.settings.appearance);
+  const setAppearance = useApp((s) => s.setAppearance);
   const name = vaultName(vault.root);
 
   const newNotebook = () => {
@@ -175,8 +183,23 @@ export function Sidebar({
         )}
       </ul>
 
+      {results === null && <Favourites />}
+
       <div className="sidebar-section-head">
         <span>{results === null ? 'Notebooks' : 'Search results'}</span>
+        <button
+          type="button"
+          className="icon-button"
+          title="List options"
+          aria-label="List options"
+          aria-haspopup="menu"
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setLookMenu({ x: rect.left, y: rect.bottom });
+          }}
+        >
+          <SlidersHorizontal size={14} strokeWidth={1.75} aria-hidden />
+        </button>
         <button
           type="button"
           className="icon-button"
@@ -205,6 +228,34 @@ export function Sidebar({
           <Plus size={15} strokeWidth={1.75} aria-hidden />
         </button>
       </div>
+      {lookMenu !== null && (
+        <Menu
+          label="List options"
+          x={lookMenu.x}
+          y={lookMenu.y}
+          items={[
+            ...(['compact', 'comfortable', 'roomy'] as const).map((d) => ({
+              label: `${look.treeDensity === d ? '✓ ' : ''}${d.charAt(0).toUpperCase()}${d.slice(1)} rows`,
+              onSelect: () => void setAppearance({ treeDensity: d }),
+            })),
+            {
+              label: `${look.treeLines ? '✓ ' : ''}Lines showing what is inside what`,
+              onSelect: () => void setAppearance({ treeLines: !look.treeLines }),
+            },
+            {
+              label: `${look.hideDaily ? '✓ ' : ''}Hide the Daily notebook`,
+              onSelect: () => void setAppearance({ hideDaily: !look.hideDaily }),
+            },
+            {
+              label: `${look.pagesOnly ? '✓ ' : ''}Pages only, no other files`,
+              onSelect: () => void setAppearance({ pagesOnly: !look.pagesOnly }),
+            },
+          ]}
+          onClose={() => {
+            setLookMenu(null);
+          }}
+        />
+      )}
       {newMenu !== null && (
         <Menu
           label="New"
@@ -286,5 +337,59 @@ function LeftDock() {
         <Dock place="left" ids={ids} widgets={widgets} className="dock-left" />
       </div>
     </>
+  );
+}
+
+/** Notebooks, sections and pages starred to be at hand; kept in the vault. */
+function Favourites() {
+  const favourites = useFavourites();
+  const setFavourite = useApp((s) => s.setFavourite);
+  const openPath = useApp((s) => s.openPath);
+  const revealFolder = useApp((s) => s.revealFolder);
+  const selectEntry = useApp((s) => s.selectEntry);
+  if (favourites.length === 0) return null;
+  return (
+    <section className="favourites" aria-label="Favourites">
+      <div className="sidebar-section-head">
+        <span>
+          <Star size={12} strokeWidth={2} aria-hidden /> Favourites
+        </span>
+      </div>
+      <ul>
+        {favourites.map((path) => {
+          const page = path.toLowerCase().endsWith('.md');
+          const name = (path.split('/').at(-1) ?? path).replace(/\.md$/i, '');
+          return (
+            <li key={path}>
+              <button
+                type="button"
+                className="nav-item"
+                title={path}
+                onClick={() => {
+                  if (page) void openPath(path);
+                  else {
+                    void revealFolder(path).then(() => {
+                      selectEntry(path);
+                    });
+                  }
+                }}
+              >
+                {page ? <FileText {...ICON} /> : <Folder {...ICON} />}
+                <span className="favourite-name">{name}</span>
+              </button>
+              <button
+                type="button"
+                className="icon-button favourite-remove"
+                aria-label={`Remove ${name} from Favourites`}
+                title="Remove from Favourites"
+                onClick={() => void setFavourite(path, false)}
+              >
+                <X size={13} strokeWidth={1.75} aria-hidden />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

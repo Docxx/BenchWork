@@ -100,3 +100,45 @@ test('shows a page added outside BenchWork without refreshing', async ({ page })
   await page.evaluate(() => window.__benchworkMemory?.externalWrite('LPS model/New.md', ''));
   await expect(row(page, 'New')).toBeVisible();
 });
+
+test('notebooks get icons and a sort, and favourites sit at the top', async ({ page }) => {
+  // An icon, from the notebook's menu.
+  await row(page, 'LPS model').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Icon…' }).click();
+  await page
+    .getByRole('dialog', { name: 'Icon for LPS model' })
+    .getByRole('button', { name: 'Icon 🧪' })
+    .click();
+  await expect(row(page, 'LPS model')).toContainText('🧪');
+  await expect
+    .poll(async () => (await snapshot(page))['LPS model/_section.yaml'])
+    .toContain('icon: 🧪');
+
+  // Sorted Z to A: folders first, then pages.
+  await row(page, 'LPS model').click();
+  await expect(row(page, 'Experiments')).toBeVisible();
+  await row(page, 'LPS model').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Sort: name, Z to A' }).click();
+  await expect
+    .poll(async () => (await snapshot(page))['LPS model/_section.yaml'])
+    .toContain('sort: name-desc');
+  await expect(tree(page).getByRole('treeitem')).toHaveText([
+    /Archive/,
+    /LPS model/,
+    /Experiments/,
+    /Plan/,
+  ]);
+
+  // A favourite, opened from the list at the top.
+  await row(page, 'Plan').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Add to Favourites' }).click();
+  const favourites = page.getByRole('region', { name: 'Favourites' });
+  await expect(favourites.getByRole('button', { name: 'Plan', exact: true })).toBeVisible();
+  await favourites.getByRole('button', { name: 'Plan', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Page title' })).toHaveValue('Plan');
+
+  // Compact rows, from the list options.
+  await page.getByRole('button', { name: 'List options' }).click();
+  await page.getByRole('menuitem', { name: 'Compact rows' }).click();
+  await expect(tree(page)).toHaveClass(/density-compact/);
+});

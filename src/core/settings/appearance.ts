@@ -62,6 +62,14 @@ export interface Appearance {
   panelWidth: number;
   /** A short animation as the app opens. */
   startupAnimation: boolean;
+  /** How tall rows in the notebooks list are. */
+  treeDensity: Density;
+  /** Lines down the notebooks list, showing what is inside what. */
+  treeLines: boolean;
+  /** Leave the Daily notebook out of the notebooks list. */
+  hideDaily: boolean;
+  /** Only pages in the notebooks list, no data, documents or images. */
+  pagesOnly: boolean;
 }
 
 export type PaperPattern = 'plain' | 'dots' | 'lines' | 'grid';
@@ -985,6 +993,10 @@ export function defaultAppearance(preset: ThemePreset = 'forest'): Appearance {
     sidebarWidth: SIDEBAR_WIDTH.initial,
     panelWidth: PANEL_WIDTH.initial,
     startupAnimation: true,
+    treeDensity: 'comfortable',
+    treeLines: false,
+    hideDaily: false,
+    pagesOnly: false,
   };
 }
 
@@ -1038,6 +1050,12 @@ export function parseAppearance(data: unknown): Appearance {
   }
   if (typeof record['startupAnimation'] === 'boolean')
     result.startupAnimation = record['startupAnimation'];
+  if (oneOf(record['treeDensity'], ['compact', 'comfortable', 'roomy'] as const))
+    result.treeDensity = record['treeDensity'];
+  for (const key of ['treeLines', 'hideDaily', 'pagesOnly'] as const) {
+    const value = record[key];
+    if (typeof value === 'boolean') result[key] = value;
+  }
   return result;
 }
 

@@ -4208,3 +4208,120 @@ button.calendar-day.chosen {
 .file-open {
   margin-left: auto;
 }
+
+/* Favourites, above the notebooks. */
+.favourites ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 0.6rem 0.25rem;
+}
+
+.favourites li {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.favourites .nav-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.favourite-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.favourite-remove {
+  position: absolute;
+  right: 0.2rem;
+  opacity: 0;
+}
+
+.favourites li:hover .favourite-remove,
+.favourite-remove:focus-visible {
+  opacity: 1;
+}
+
+/* The notebooks list: icons, page counts, row sizes and lines. */
+.tree-emoji {
+  flex: none;
+  width: 1.15rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  text-align: center;
+  border-radius: 3px;
+  padding-left: 3px;
+}
+
+.tree-count {
+  flex: none;
+  margin-left: auto;
+  color: var(--sidebar-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tree-item .tree-count + .row-menu {
+  margin-left: 0.2rem;
+}
+
+.notebook-tree.density-compact .tree-item {
+  padding-top: calc(0.18rem * var(--space));
+  padding-bottom: calc(0.18rem * var(--space));
+  font-size: 0.86rem;
+}
+
+.notebook-tree.density-roomy .tree-item {
+  padding-top: calc(0.65rem * var(--space));
+  padding-bottom: calc(0.65rem * var(--space));
+}
+
+.notebook-tree.with-lines .tree-item[aria-level]:not([aria-level='1']) {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(var(--indent, 16px) - 1px),
+    color-mix(in srgb, var(--sidebar-muted) 45%, transparent) calc(var(--indent, 16px) - 1px)
+      var(--indent, 16px)
+  );
+  background-size: calc(var(--depth-px, 0px)) 100%;
+  background-repeat: no-repeat;
+  background-position: 14px 0;
+}
+
+/* Picking a folder's icon. */
+.icon-picker {
+  width: 268px;
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+}
+
+.icon-grid button {
+  padding: 0.2rem 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
+.icon-grid button:hover,
+.icon-grid button[aria-pressed='true'] {
+  background: var(--surface);
+}
+
+.icon-own {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.4rem;
+}
+
+.icon-own input {
+  flex: 1;
+  min-width: 0;
+}

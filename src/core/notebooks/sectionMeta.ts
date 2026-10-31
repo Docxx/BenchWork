@@ -2,8 +2,9 @@ import { isMap, parseDocument } from 'yaml';
 
 /**
  * `_section.yaml`: optional settings for a notebook or section folder. It
- * holds the folder's colour and the order of what is inside it. Keys this
- * version does not know are kept when it is saved.
+ * holds the folder's colour and icon, how what is inside it is sorted, and
+ * its own order for it. Keys this version does not know are kept when it
+ * is saved.
  */
 
 export const SECTION_FILE = '_section.yaml';
@@ -22,14 +23,21 @@ export const SECTION_COLOURS = [
 
 export type SectionColour = (typeof SECTION_COLOURS)[number];
 
+/** How a folder's contents are sorted: its own order, by name either way, or last changed first. */
+export type FolderSort = 'manual' | 'name' | 'name-desc' | 'changed';
+export const FOLDER_SORTS: readonly FolderSort[] = ['manual', 'name', 'name-desc', 'changed'];
+
 export interface SectionMeta {
   colour: string | null;
+  /** An emoji or a short symbol shown beside the folder's name. */
+  icon: string | null;
+  sort: FolderSort;
   /** File and folder names in the order to show them; others follow, sorted. */
   order: string[];
 }
 
 export function emptySectionMeta(): SectionMeta {
-  return { colour: null, order: [] };
+  return { colour: null, icon: null, sort: 'manual', order: [] };
 }
 
 const SAFE_COLOUR = /^(#[0-9a-f]{3,8}|[a-z]{3,20})$/i;
@@ -51,7 +59,16 @@ export function parseSectionMeta(text: string): SectionMeta {
   const order = Array.isArray(orderValue)
     ? [...new Set(orderValue.filter((n): n is string => typeof n === 'string' && n !== ''))]
     : [];
-  return { colour, order };
+  const iconValue = record['icon'];
+  const icon =
+    typeof iconValue === 'string' && iconValue.trim() !== '' && iconValue.trim().length <= 16
+      ? iconValue.trim()
+      : null;
+  const sortValue = record['sort'];
+  const sort = (FOLDER_SORTS as readonly unknown[]).includes(sortValue)
+    ? (sortValue as FolderSort)
+    : 'manual';
+  return { colour, icon, sort, order };
 }
 
 /**
@@ -70,6 +87,10 @@ export function serialiseSectionMeta(existing: string | null, meta: SectionMeta)
   };
   if (meta.colour === null) remove('colour');
   else doc.set('colour', meta.colour);
+  if (meta.icon === null) remove('icon');
+  else doc.set('icon', meta.icon);
+  if (meta.sort === 'manual') remove('sort');
+  else doc.set('sort', meta.sort);
   if (meta.order.length === 0) remove('order');
   else doc.set('order', meta.order);
 

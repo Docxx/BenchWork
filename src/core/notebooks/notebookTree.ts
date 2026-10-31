@@ -3,7 +3,7 @@ import { isConflictCopy } from '../sync/conflicts';
 import type { DirEntry } from '../platform';
 import { isRecord, recordName } from '../records/records';
 import { compareEntries, type TreeState } from '../vault/fileTree';
-import { SECTION_FILE } from './sectionMeta';
+import { SECTION_FILE, type FolderSort } from './sectionMeta';
 
 /**
  * How the vault looks in the sidebar: top-level folders are notebooks,
@@ -22,6 +22,10 @@ export interface NotebookNode {
   title: string;
   isDir: boolean;
   colour: string | null;
+  /** A folder's emoji or symbol, if it has one. */
+  icon: string | null;
+  /** How many pages a folder holds directly, once known. */
+  count: number | null;
 }
 
 export type NotebookRow =
@@ -32,6 +36,10 @@ export type NotebookRow =
 export interface LayoutOptions {
   /** Also show files that are not pages, and the reserved folders. */
   showAllFiles: boolean;
+  /** Only pages and folders: no data, documents or images. */
+  pagesOnly?: boolean;
+  /** Leave the Daily notebook out of the list. */
+  hideDaily?: boolean;
 }
 
 export const DAILY_NOTEBOOK = 'Daily';
@@ -66,8 +74,12 @@ function isReserved(entry: DirEntry, atRoot: boolean): boolean {
 /** Whether an entry appears in the sidebar at all. */
 export function isShown(entry: DirEntry, atRoot: boolean, options: LayoutOptions): boolean {
   if (entry.name === SECTION_FILE) return false;
+  if (atRoot && options.hideDaily === true && entry.isDir && entry.name === DAILY_NOTEBOOK) {
+    return false;
+  }
   if (options.showAllFiles) return true;
   if (entry.isDir) return !isReserved(entry, atRoot);
+  if (options.pagesOnly === true) return isPage(entry.name);
   return isPage(entry.name) || isCanvas(entry.name) || isPreviewed(entry.name);
 }
 
@@ -92,7 +104,22 @@ export function orderEntries(
   entries: readonly DirEntry[],
   order: readonly string[],
   atRoot: boolean,
+  sort: FolderSort = 'manual',
 ): DirEntry[] {
+  if (sort !== 'manual') {
+    // Folders first, then by the folder's chosen sort; Daily still leads the vault.
+    return [...entries].sort((a, b) => {
+      if (atRoot) {
+        const aDaily = a.isDir && a.name === DAILY_NOTEBOOK;
+        const bDaily = b.isDir && b.name === DAILY_NOTEBOOK;
+        if (aDaily !== bDaily) return aDaily ? -1 : 1;
+      }
+      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
+      if (sort === 'changed') return (b.modified ?? 0) - (a.modified ?? 0) || compareEntries(a, b);
+      const byName = compareEntries(a, b);
+      return sort === 'name-desc' ? -byName : byName;
+    });
+  }
   const position = new Map(order.map((name, i) => [name, i]));
   const sorted = [...entries].sort((a, b) => {
     if (atRoot) {
@@ -110,7 +137,13 @@ export function orderEntries(
   return sorted;
 }
 
-function nodeFor(entry: DirEntry, depth: number, colour: string | null): NotebookNode {
+function nodeFor(
+  entry: DirEntry,
+  depth: number,
+  colour: string | null,
+  icon: string | null = null,
+  count: number | null = null,
+): NotebookNode {
   const kind: NodeKind = entry.isDir
     ? depth === 0
       ? 'notebook'
@@ -132,6 +165,8 @@ function nodeFor(entry: DirEntry, depth: number, colour: string | null): Noteboo
             : entry.name,
     isDir: entry.isDir,
     colour,
+    icon,
+    count,
   };
 }
 
@@ -146,8 +181,14 @@ export function folderNodes(
   if (folder?.status !== 'loaded') return null;
   const atRoot = path === '';
   const shown = folder.entries.filter((e) => isShown(e, atRoot, options));
-  return orderEntries(shown, folder.meta?.order ?? [], atRoot).map((e) =>
-    nodeFor(e, depth, folder.childColours?.[e.path] ?? null),
+  return orderEntries(shown, folder.meta?.order ?? [], atRoot, folder.meta?.sort).map((e) =>
+    nodeFor(
+      e,
+      depth,
+      folder.childColours?.[e.path] ?? null,
+      folder.childIcons?.[e.path] ?? null,
+      null,
+    ),
   );
 }
 

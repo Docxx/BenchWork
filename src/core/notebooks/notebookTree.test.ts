@@ -1,7 +1,7 @@
 // @vitest-environment node
 import type { DirEntry } from '../platform';
 import { emptyTree, visibleEntries, type TreeState } from '../vault/fileTree';
-import { isPage, notebookRows, orderEntries, pageTitle } from './notebookTree';
+import { isPage, notebookRows, orderEntries, pageTitle, type LayoutOptions } from './notebookTree';
 import { isPreviewed as previewed } from './notebookTree';
 
 function entry(path: string, isDir = false): DirEntry {
@@ -10,7 +10,7 @@ function entry(path: string, isDir = false): DirEntry {
 
 const hideFiles = { showAllFiles: false };
 
-function drawn(tree: TreeState, options = hideFiles): string[] {
+function drawn(tree: TreeState, options: LayoutOptions = hideFiles): string[] {
   return notebookRows(tree, options).map((r) =>
     r.kind === 'node'
       ? `${'  '.repeat(r.depth)}${r.node.kind}:${r.node.title}${r.node.colour ? ` (${r.node.colour})` : ''}`
@@ -92,7 +92,7 @@ describe('notebookRows', () => {
           entry('LPS model/notes.txt'),
           entry('LPS model/_section.yaml'),
         ]),
-        meta: { colour: 'teal', order: ['Plan.md'] },
+        meta: { colour: 'teal', icon: null, sort: 'manual', order: ['Plan.md'] },
         childColours: { 'LPS model/Experiments': 'red' },
       },
       'LPS model/Experiments': { status: 'loaded', entries: [] },
@@ -130,5 +130,56 @@ describe('files shown in the sidebar', () => {
     expect(previewed('Climbing.docx')).toBe(true);
     expect(previewed('~$imbing.docx')).toBe(false);
     expect(previewed('.hidden.pdf')).toBe(false);
+  });
+});
+
+describe('sorting and hiding in the list', () => {
+  const at = (path: string, isDir: boolean, modified: number): DirEntry => ({
+    ...entry(path, isDir),
+    modified,
+  });
+  const names = (list: DirEntry[]) => list.map((e) => e.name);
+  const entries = [
+    at('b.md', false, 3),
+    at('a.md', false, 1),
+    at('Zed', true, 0),
+    at('c.md', false, 2),
+  ];
+
+  it('sorts by name either way or by last changed, folders first', () => {
+    expect(names(orderEntries(entries, [], false, 'name'))).toEqual([
+      'Zed',
+      'a.md',
+      'b.md',
+      'c.md',
+    ]);
+    expect(names(orderEntries(entries, [], false, 'name-desc'))).toEqual([
+      'Zed',
+      'c.md',
+      'b.md',
+      'a.md',
+    ]);
+    expect(names(orderEntries(entries, ['c.md'], false, 'changed'))).toEqual([
+      'Zed',
+      'b.md',
+      'c.md',
+      'a.md',
+    ]);
+  });
+
+  it('leaves out the Daily notebook, or files that are not pages, when asked', () => {
+    const tree: TreeState = {
+      ...emptyTree(),
+      folders: {
+        '': {
+          status: 'loaded',
+          entries: visibleEntries([entry('Daily', true), entry('Lab', true), entry('data.csv')]),
+        },
+      },
+    };
+    expect(drawn(tree, { showAllFiles: false }).join()).toContain('Daily');
+    expect(drawn(tree, { showAllFiles: false, hideDaily: true }).join()).not.toContain('Daily');
+    expect(drawn(tree, { showAllFiles: false }).join()).toContain('data.csv');
+    expect(drawn(tree, { showAllFiles: false, pagesOnly: true }).join()).not.toContain('data.csv');
   });
 });

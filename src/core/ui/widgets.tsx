@@ -9,7 +9,7 @@ import {
   Pin,
   Search,
 } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { pageHeadings, type Heading } from '../editor/yjsDoc';
 import { defaultHomeLayout, type HomeLayout } from '../settings/appSettings';
 import { pageTitle } from '../notebooks/notebookTree';
@@ -39,6 +39,17 @@ export interface WidgetEntry {
 }
 
 const NO_LAYOUT = defaultHomeLayout();
+
+/** The vault's Favourites, the same list until it changes. */
+export function useFavourites(): string[] {
+  const raw = useApp((s) =>
+    s.status.kind === 'open' ? s.status.vault.config.extra['favourites'] : undefined,
+  );
+  return useMemo(
+    () => (Array.isArray(raw) ? raw.filter((p): p is string => typeof p === 'string') : []),
+    [raw],
+  );
+}
 
 /** The open vault's Home and dock layout, the same object until it changes. */
 export function useHomeLayout(): HomeLayout {

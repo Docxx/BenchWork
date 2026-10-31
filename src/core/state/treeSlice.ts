@@ -24,20 +24,27 @@ async function readMeta(
   ctx: StoreContext,
   path: string,
   entries: readonly DirEntry[],
-): Promise<{ meta?: SectionMeta; childColours: Record<string, string> }> {
+): Promise<{
+  meta?: SectionMeta;
+  childColours: Record<string, string>;
+  childIcons: Record<string, string>;
+}> {
   const own = entries.some((e) => e.name === SECTION_FILE)
     ? await readSectionMeta(ctx.platform, path).catch(() => null)
     : null;
   const childColours: Record<string, string> = {};
+  const childIcons: Record<string, string> = {};
   await Promise.all(
     entries
       .filter((e) => e.isDir)
       .map(async (e) => {
         const meta = await readSectionMeta(ctx.platform, e.path).catch(() => null);
         if (meta?.colour) childColours[e.path] = meta.colour;
+        if (meta?.icon) childIcons[e.path] = meta.icon;
       }),
   );
-  return own ? { meta: own, childColours } : { childColours };
+  const children = { childColours, childIcons };
+  return own ? { meta: own, ...children } : children;
 }
 
 /** The folders whose listing or colours a change at `path` affects. */
