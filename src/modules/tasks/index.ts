@@ -56,22 +56,27 @@ export default defineModule({
     ctx.views.registerScheduleSource({
       id: SOURCE,
       title: 'Tasks',
-      items: () => Promise.resolve(scheduleOf(store.all())),
+      // After the first read of every page, so a planner opened early sees them.
+      items: async () => {
+        await store.load();
+        return scheduleOf(store.all());
+      },
       move: async (key, start, end) => {
         const task = taskByKey(store.all(), key);
         if (task) await store.update(task, datesFor(task, start, end));
       },
+      subscribe: (listener) => store.subscribe(listener),
     });
     ctx.views.registerCalendarSource({
       id: 'tasks.due',
       title: 'Tasks due',
-      marks: (from, to) =>
-        Promise.resolve(
-          store
-            .all()
-            .filter((t) => t.state !== 'done' && t.due !== null && t.due >= from && t.due <= to)
-            .map((t) => ({ date: t.due ?? '', title: t.text, path: t.path, colour: 'orange' })),
-        ),
+      marks: async (from, to) => {
+        await store.load();
+        return store
+          .all()
+          .filter((t) => t.state !== 'done' && t.due !== null && t.due >= from && t.due <= to)
+          .map((t) => ({ date: t.due ?? '', title: t.text, path: t.path, colour: 'orange' }));
+      },
     });
     ctx.commands.register({
       id: 'tasks.open',

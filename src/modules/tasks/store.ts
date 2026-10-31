@@ -4,6 +4,8 @@ import { changeTaskFields, readTasks, type Task, type TaskFields, type TaskState
 
 /** Pages read at a time while first gathering tasks. */
 const BATCH = 20;
+/** How deep into folders to look for pages. */
+const MAX_DEPTH = 12;
 
 const isPage = (path: string) => path.toLowerCase().endsWith('.md');
 
@@ -35,8 +37,37 @@ export class TaskStore {
     for (const l of this.listeners) l();
   }
 
-  async load(): Promise<void> {
-    const pages = (await this.ctx.app.items()).map((i) => i.path).filter(isPage);
+  private loading: Promise<void> | null = null;
+
+  /** Reads every page's tasks; the same read for everyone who asks while it runs. */
+  load(): Promise<void> {
+    this.loading ??= this.readAll();
+    return this.loading;
+  }
+
+  /**
+   * Every page in the vault, from its folders rather than the search index,
+   * which may still be filling just after the vault opens.
+   */
+  private async allPages(): Promise<string[]> {
+    const pages: string[] = [];
+    const walk = async (folder: string, depth: number): Promise<void> => {
+      const entries = await this.ctx.vault.listDir(folder).catch(() => []);
+      for (const entry of entries) {
+        if (entry.name.startsWith('.')) continue;
+        if (entry.isDir) {
+          if (depth < MAX_DEPTH) await walk(entry.path, depth + 1);
+        } else if (isPage(entry.path)) {
+          pages.push(entry.path);
+        }
+      }
+    };
+    await walk('', 0);
+    return pages;
+  }
+
+  private async readAll(): Promise<void> {
+    const pages = await this.allPages();
     for (let i = 0; i < pages.length; i += BATCH) {
       await Promise.all(pages.slice(i, i + BATCH).map((p) => this.read(p)));
     }

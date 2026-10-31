@@ -304,6 +304,11 @@ export interface ModuleApp {
   scheduled(): Promise<ScheduledItem[]>;
   /** Gives an item new dates, through the source it came from. */
   reschedule(key: string, start: string, end: string): Promise<void>;
+  /**
+   * Calls `listener` when what scheduled() gives may have changed: a source
+   * came or went, or one says its items changed.
+   */
+  watchScheduled(listener: () => void): Disposable;
   /** Today's daily page, made if there is none yet; null if no vault is open. */
   todayPage(): Promise<string | null>;
   /**
@@ -387,6 +392,8 @@ export interface ScheduleSourceSpec {
   items(): Promise<ScheduledItem[]>;
   /** Writes new dates for one of its items. */
   move(key: string, start: string, end: string): Promise<void>;
+  /** Calls `listener` when its items change, if it can tell. Returns a stop function. */
+  subscribe?(listener: () => void): () => void;
 }
 
 export interface WidgetSpec {

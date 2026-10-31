@@ -50,6 +50,29 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
       );
       return lists.flat();
     },
+    watchScheduled: (listener) => {
+      // Each source's own subscription, renewed whenever the sources change.
+      let stops: (() => void)[] = [];
+      const follow = () => {
+        for (const stop of stops) stop();
+        stops = state().scheduleSources.flatMap((s) =>
+          s.subscribe ? [s.subscribe(listener)] : [],
+        );
+      };
+      follow();
+      const stopStore = store.subscribe((now, before) => {
+        if (now.scheduleSources === before.scheduleSources) return;
+        follow();
+        listener();
+      });
+      return {
+        dispose: () => {
+          stopStore();
+          for (const stop of stops) stop();
+          stops = [];
+        },
+      };
+    },
     reschedule: async (key, start, end) => {
       const source = state().scheduleSources.find((s) => key.startsWith(`${s.id}:`));
       if (!source) throw new Error('Nothing can move that item: its module may be switched off.');

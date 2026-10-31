@@ -100,17 +100,21 @@ export function PlannerView({ ctx, notebook }: { ctx: ModuleContext; notebook: s
     };
   }, [ctx, reads]);
 
-  // Pages changed anywhere are read again, a moment later, all at once.
+  // Read again a moment after pages change, or what is scheduled does, all at once.
   useEffect(() => {
-    const watching = ctx.vault.watch((c) => {
-      if (!c.paths.some((p) => p.toLowerCase().endsWith('.md'))) return;
+    const later = () => {
       if (timer.current !== null) clearTimeout(timer.current);
       timer.current = setTimeout(() => {
         setReads((n) => n + 1);
       }, RELOAD_MS);
+    };
+    const watching = ctx.vault.watch((c) => {
+      if (c.paths.some((p) => p.toLowerCase().endsWith('.md'))) later();
     });
+    const scheduling = ctx.app.watchScheduled(later);
     return () => {
       watching.dispose();
+      scheduling.dispose();
       if (timer.current !== null) clearTimeout(timer.current);
     };
   }, [ctx]);

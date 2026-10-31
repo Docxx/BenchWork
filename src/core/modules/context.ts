@@ -378,6 +378,12 @@ export function createModuleContext(
       todayPage: () => app().todayPage(),
       scheduled: () => app().scheduled(),
       reschedule: (key, start, end) => app().reschedule(key, start, end),
+      watchScheduled(listener) {
+        const stop = app().watchScheduled(listener);
+        return track(() => {
+          stop.dispose();
+        });
+      },
       appendToPage: (path, markdown) => app().appendToPage(path, markdown),
       openView: (viewId, param) => app().openView(viewId, param),
       pageProperties: (path) => app().pageProperties(path),
