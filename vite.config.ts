@@ -14,16 +14,12 @@ export default defineConfig({
   resolve: {
     alias: {
       '@core': fileURLToPath(new URL('./src/core', import.meta.url)),
-      // Frappe Gantt lists its stylesheet only under a "style" export condition.
-      'frappe-gantt/style.css': fileURLToPath(
-        new URL('./node_modules/frappe-gantt/dist/frappe-gantt.css', import.meta.url),
-      ),
     },
   },
   // Loaded only when first used, so Vite would otherwise find them mid-session
   // and bundle them then, reloading the page.
   optimizeDeps: {
-    include: ['plotly.js-dist-min', 'frappe-gantt', 'markmap-view', '@xyflow/react'],
+    include: ['plotly.js-dist-min', 'markmap-view', '@xyflow/react'],
   },
   clearScreen: false,
   envPrefix: ['VITE_', 'TAURI_ENV_'],
@@ -35,6 +31,12 @@ export default defineConfig({
     watch: { ignored: ['**/src-tauri/**'] },
   },
   build: {
+    rolldownOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        audience: fileURLToPath(new URL('./audience.html', import.meta.url)),
+      },
+    },
     target: 'es2022',
     sourcemap: Boolean(process.env['TAURI_ENV_DEBUG']),
   },

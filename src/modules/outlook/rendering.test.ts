@@ -1,4 +1,4 @@
-import { safeMailHtml, plainMail } from './OutlookView';
+import { safeMailHtml, plainMail } from './rendering';
 it('keeps email text and links while removing scripts, tracking images and active content', () => {
   const html = safeMailHtml(
     '<p onclick="alert(1)" style="background:url(https://tracker.invalid)">Hello <strong>researcher</strong></p><img src="https://tracker.invalid/pixel"><script>alert(1)</script><iframe src="https://evil.invalid"></iframe><a href="javascript:alert(1)">bad</a><a href="https://example.edu">good</a><svg onload="alert(1)"></svg>',

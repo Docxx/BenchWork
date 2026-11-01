@@ -1,4 +1,5 @@
 import { parseGrid, type Grid } from './homeGrid';
+import { parseCalendar, type CalendarPreferences } from './calendar';
 import { defaultDocks, parseDocks, type DockLayout } from './layout';
 import type { PlatformAdapter } from '../platform';
 import { defaultAppearance, parseAppearance, type Appearance } from './appearance';
@@ -25,6 +26,7 @@ export interface BackupPlan {
 
 /** How Home and the docks look for one vault on this device. */
 export interface HomeLayout {
+  calendar?: CalendarPreferences;
   /** Card ids in the order shown; cards not listed follow in their usual order. */
   order: string[];
   hidden: string[];
@@ -57,6 +59,7 @@ export function parseHomeLayout(value: unknown): HomeLayout {
     pinned: strings(record['pinned']),
     docks: parseDocks(record['docks']),
     grid: parseGrid(record['grid']),
+    ...(record['calendar'] === undefined ? {} : { calendar: parseCalendar(record['calendar']) }),
   };
 }
 

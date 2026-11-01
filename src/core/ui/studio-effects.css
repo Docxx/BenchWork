@@ -1,0 +1,60 @@
+:root[data-wallpaper='on'] body,
+:root[data-wallpaper='on'] .shell {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--bg) var(--workspace-dim), transparent),
+      color-mix(in srgb, var(--bg) var(--workspace-dim), transparent)
+    ),
+    var(--workspace-image);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+:root[data-studio-motion='stars'] .home::before,
+:root[data-studio-motion='drift'] .home::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.13;
+  background-image: radial-gradient(circle, var(--accent) 1px, transparent 2px);
+  background-size: 68px 68px;
+  animation: studio-drift 45s linear infinite alternate;
+}
+:root[data-studio-motion='drift'] .home::before {
+  background-image: radial-gradient(ellipse at center, var(--accent), transparent 60%);
+  background-size: 80% 80%;
+  opacity: 0.15;
+}
+.studio-ambience {
+  position: fixed;
+  right: 16px;
+  bottom: 10px;
+  z-index: 20;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  padding: 4px 10px;
+  font-size: 0.8rem;
+}
+@keyframes studio-drift {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(20px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home::before {
+    animation: none !important;
+  }
+}
+:root[data-inactive='true'] .home::before {
+  animation-play-state: paused;
+}
+
+.home {
+  position: relative;
+  isolation: isolate;
+}

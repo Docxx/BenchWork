@@ -91,7 +91,14 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
     if (!(await get().closePage())) return false;
     // Everything finishes with this vault before the platform can point at another.
     await ctx.configSaved();
-    for (const hooks of [...ctx.lifecycle].reverse()) await hooks.closing?.();
+    try {
+      for (const hooks of [...ctx.lifecycle].reverse()) await hooks.closing?.();
+    } catch (err) {
+      set({
+        notice: `The vault is still open. Finish saving, then try again. ${describeError(err)}`,
+      });
+      return false;
+    }
     ctx.bumpSession();
     set({ status: { kind: 'no-vault' }, notice: null });
     for (const hooks of ctx.lifecycle) hooks.closed?.();

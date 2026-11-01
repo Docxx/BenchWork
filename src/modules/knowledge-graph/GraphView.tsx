@@ -9,6 +9,8 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
   const [style, setStyle] = useState<GraphStyle>(DEFAULT_STYLE);
   const [query, setQuery] = useState('');
   const [tag, setTag] = useState('');
+  const [folder, setFolder] = useState('');
+  const [kind, setKind] = useState('all');
   const [local, setLocal] = useState(focus !== null);
   const [settings, setSettings] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -65,8 +67,21 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
     };
   }, [ctx, refresh]);
   const model = useMemo(
-    () => graphModel(data, style, query, tag, local ? focus : null),
-    [data, style, query, tag, local, focus],
+    () =>
+      graphModel(
+        {
+          ...data,
+          nodes: data.nodes.filter(
+            (n) =>
+              (!folder || n.path.startsWith(`${folder}/`)) && (kind === 'all' || n.kind === kind),
+          ),
+        },
+        style,
+        query,
+        tag,
+        local ? focus : null,
+      ),
+    [data, style, query, tag, local, focus, folder, kind],
   );
   const tags = [...new Set(data.nodes.flatMap((n) => n.tags))].sort();
   const current = model.nodes.find((n) => n.id === selected);
@@ -89,6 +104,35 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
             setQuery(e.target.value);
           }}
         />
+        <select
+          aria-label="Graph folder"
+          value={folder}
+          onChange={(e) => {
+            setFolder(e.target.value);
+          }}
+        >
+          <option value="">All folders</option>
+          {[
+            ...new Set(
+              data.nodes.filter((n) => n.path.includes('/')).map((n) => n.path.split('/')[0] ?? ''),
+            ),
+          ]
+            .sort()
+            .map((path) => (
+              <option key={path}>{path}</option>
+            ))}
+        </select>
+        <select
+          aria-label="Graph file types"
+          value={kind}
+          onChange={(e) => {
+            setKind(e.target.value);
+          }}
+        >
+          <option value="all">Notes and documents</option>
+          <option value="note">Notes only</option>
+          <option value="document">Documents only</option>
+        </select>
         <select
           aria-label="Filter graph by tag"
           value={tag}
@@ -179,6 +223,53 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
         {settings && (
           <aside className="graph-settings" aria-label="Graph appearance settings">
             <h2>Make it yours</h2>
+            <div className="graph-presets">
+              <button
+                type="button"
+                onClick={() => {
+                  update({
+                    palette: 'aurora',
+                    glow: true,
+                    size: 4,
+                    opacity: 0.2,
+                    spacing: 160,
+                    labels: true,
+                  });
+                }}
+              >
+                Constellation
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  update({
+                    palette: 'theme',
+                    glow: false,
+                    size: 5,
+                    opacity: 0.35,
+                    spacing: 140,
+                    labels: true,
+                  });
+                }}
+              >
+                Research map
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  update({
+                    palette: 'violet',
+                    glow: false,
+                    size: 3,
+                    opacity: 0.15,
+                    spacing: 180,
+                    labels: false,
+                  });
+                }}
+              >
+                Minimal
+              </button>
+            </div>
             <label>
               Atmosphere
               <select

@@ -231,3 +231,8 @@
     display: none;
   }
 }
+.graph-presets {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+}

@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
+import { moduleCategory } from '../modules/categories';
+import './modules.css';
 import { PACKS } from '../modules/packs';
 import type { ModuleInfo } from '../modules/registry';
 import { useApp } from './AppStoreContext';
@@ -24,12 +26,73 @@ export function ModulesPanel() {
   const setModuleEnabled = useApp((s) => s.setModuleEnabled);
   const enablePack = useApp((s) => s.enablePack);
   const [packNote, setPackNote] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('all');
+  const [status, setStatus] = useState('all');
+  const categories = [...new Set(modules.map((m) => moduleCategory(m.manifest.id)))].sort();
+  const visible = modules
+    .filter((m) => {
+      const text =
+        `${m.manifest.name} ${m.manifest.description} ${moduleCategory(m.manifest.id)}`.toLowerCase();
+      const enabled = m.status === 'on' || m.status === 'failed';
+      return (
+        text.includes(query.trim().toLowerCase()) &&
+        (category === 'all' || moduleCategory(m.manifest.id) === category) &&
+        (status === 'all' ||
+          (status === 'on' && enabled) ||
+          (status === 'off' && m.status === 'off') ||
+          (status === 'attention' && (m.status === 'failed' || m.status === 'unavailable')))
+      );
+    })
+    .sort(
+      (a, b) =>
+        moduleCategory(a.manifest.id).localeCompare(moduleCategory(b.manifest.id)) ||
+        a.manifest.name.localeCompare(b.manifest.name),
+    );
 
   const nameOf = (id: string) => modules.find((m) => m.manifest.id === id)?.manifest.name ?? id;
 
   return (
     <div className="modules">
       <p className="hint">Switching a module off never deletes its files.</p>
+      <div className="modules-summary">
+        <strong>{modules.filter((m) => m.status === 'on').length} enabled</strong>
+        <span>{modules.length} installed modules</span>
+      </div>
+      <div className="modules-filters">
+        <input
+          aria-label="Search modules"
+          placeholder="Find a tool or module…"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+          }}
+        />
+        <select
+          aria-label="Module category"
+          value={category}
+          onChange={(e) => {
+            setCategory(e.target.value);
+          }}
+        >
+          <option value="all">All categories</option>
+          {categories.map((c) => (
+            <option key={c}>{c}</option>
+          ))}
+        </select>
+        <select
+          aria-label="Module status"
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value);
+          }}
+        >
+          <option value="all">All modules</option>
+          <option value="on">Enabled</option>
+          <option value="off">Disabled</option>
+          <option value="attention">Needs attention</option>
+        </select>
+      </div>
 
       <fieldset className="field">
         <legend>Packs</legend>
@@ -74,39 +137,48 @@ export function ModulesPanel() {
         <p className="empty">No modules installed.</p>
       ) : (
         <ul className="module-list" aria-label="Modules">
-          {modules.map((info) => {
+          {visible.length === 0 && <li className="hint">No modules match these filters.</li>}
+          {visible.map((info, index) => {
             const { id, name, version, description, network } = info.manifest;
             const on = info.status === 'on' || info.status === 'failed';
             return (
-              <li key={id} className={`module ${info.status}`}>
-                <div className="module-text">
-                  <span className="module-name" id={`module-${id}-name`}>
-                    {name} <span className="version">{version}</span>
-                  </span>
-                  {description !== '' && <span className="hint">{description}</span>}
-                  {network.length > 0 && (
-                    <span className="hint module-network">
-                      Uses the internet: {network.join(', ')}
+              <Fragment key={id}>
+                {(index === 0 ||
+                  moduleCategory(visible[index - 1]?.manifest.id ?? '') !== moduleCategory(id)) && (
+                  <li className="module-category-title">
+                    <h3>{moduleCategory(id)}</h3>
+                  </li>
+                )}
+                <li className={`module ${info.status}`}>
+                  <div className="module-text">
+                    <span className="module-name" id={`module-${id}-name`}>
+                      {name} <span className="version">{version}</span>
                     </span>
-                  )}
-                  <span className="module-status" id={`module-${id}-status`}>
-                    {statusText(info)}
-                  </span>
-                </div>
-                {on && <ModuleSettings id={id} />}
-                <button
-                  type="button"
-                  role="switch"
-                  className="switch"
-                  aria-checked={on}
-                  aria-labelledby={`module-${id}-name`}
-                  aria-describedby={`module-${id}-status`}
-                  disabled={busy || info.status === 'unavailable' || pending !== null}
-                  onClick={() => void setModuleEnabled(id, !on)}
-                >
-                  <span className="switch-knob" aria-hidden="true" />
-                </button>
-              </li>
+                    {description !== '' && <span className="hint">{description}</span>}
+                    {network.length > 0 && (
+                      <span className="hint module-network">
+                        Uses the internet: {network.join(', ')}
+                      </span>
+                    )}
+                    <span className="module-status" id={`module-${id}-status`}>
+                      {statusText(info)}
+                    </span>
+                  </div>
+                  {on && <ModuleSettings id={id} />}
+                  <button
+                    type="button"
+                    role="switch"
+                    className="switch"
+                    aria-checked={on}
+                    aria-labelledby={`module-${id}-name`}
+                    aria-describedby={`module-${id}-status`}
+                    disabled={busy || info.status === 'unavailable' || pending !== null}
+                    onClick={() => void setModuleEnabled(id, !on)}
+                  >
+                    <span className="switch-knob" aria-hidden="true" />
+                  </button>
+                </li>
+              </Fragment>
             );
           })}
         </ul>
@@ -131,8 +203,16 @@ export function ModulesPanel() {
 /** A module's own options, under it while it is on. */
 function ModuleSettings({ id }: { id: string }) {
   const panel = useApp((s) => s.settingsPanels.find((p) => p.moduleId === id));
+  const name = useApp(
+    (s) => s.modules.modules.find((m) => m.manifest.id === id)?.manifest.name ?? id,
+  );
   if (!panel) return null;
-  return <div className="module-settings">{panel.render()}</div>;
+  return (
+    <details className="module-settings">
+      <summary>Configure {name}</summary>
+      {panel.render()}
+    </details>
+  );
 }
 
 export function ConfirmChange({

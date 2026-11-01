@@ -107,6 +107,7 @@ test('citations of works not in the library look faded', async ({ page }) => {
 test('the References settings show the library', async ({ page }) => {
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('tab', { name: 'Modules' }).click();
+  await page.getByText('Configure References', { exact: true }).click();
   await expect(page.getByText('references/library.json')).toBeVisible();
   await expect(page.getByText(/^2 references, last changed /)).toBeVisible();
 });

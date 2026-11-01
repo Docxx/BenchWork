@@ -43,3 +43,26 @@ it('validates saved settings and keeps the force layout finite', () => {
   for (let i = 0; i < 100; i++) step(model, style.spacing);
   expect(model.nodes.every((n) => Number.isFinite(n.x) && Number.isFinite(n.y))).toBe(true);
 });
+it('draws a connection once and separates unconnected groups in two dimensions', () => {
+  const model = graphModel(
+    {
+      ...data,
+      edges: [
+        { source: 'a', target: 'b' },
+        { source: 'b', target: 'a' },
+        { source: 'a', target: 'a' },
+      ],
+    },
+    { ...DEFAULT_STYLE, tags: false },
+    '',
+    '',
+    null,
+  );
+  expect(model.edges).toHaveLength(1);
+  expect(model.nodes.find((n) => n.id === 'a')?.degree).toBe(1);
+  const isolated = model.nodes.find((n) => n.id === 'c');
+  const linked = model.nodes.find((n) => n.id === 'a');
+  expect(
+    Math.hypot((isolated?.x ?? 0) - (linked?.x ?? 0), (isolated?.y ?? 0) - (linked?.y ?? 0)),
+  ).toBeGreaterThan(DEFAULT_STYLE.spacing);
+});

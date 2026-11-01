@@ -6,6 +6,7 @@ import type { AppBridge } from '../modules/context';
 import { pageProperties, parsePage, serialisePage, updateProperties } from '../pages/frontmatter';
 import type { PageRef, PlatformAdapter } from '../platform';
 import type { AppStore } from './appStore';
+import { parseAppearance } from '../settings/appearance';
 
 function item(ref: PageRef): VaultItem {
   return { path: ref.path, title: ref.title, type: ref.type, changed: ref.mtime ?? null };
@@ -23,6 +24,12 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
   }
 
   return {
+    appearance: () => state().settings.appearance,
+    applyAppearance: async (value) => {
+      await state().setAppearance(parseAppearance(value));
+      if (state().settingsError)
+        throw new Error(state().settingsError ?? 'Appearance could not be saved');
+    },
     pdfPage: (path) => {
       const s = state();
       const match = s.openFile === path ? /^page=(\d+)$/.exec(s.revealHeading ?? '') : null;

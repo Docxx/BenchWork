@@ -35,6 +35,11 @@ export type PageWidth = 'narrow' | 'normal' | 'wide' | 'full';
 export type TimerSound = 'theme' | 'classic' | 'chime' | 'off';
 
 export interface Appearance {
+  workspaceImage?: string | null;
+  workspaceDim?: number;
+  ambientSound?: string | null;
+  ambientVolume?: number;
+  studioMotion?: 'off' | 'stars' | 'drift';
   preset: ThemePreset;
   /** A colour such as `#5b8a76`, or null for the preset's own. */
   accent: string | null;
@@ -991,6 +996,11 @@ export function defaultAppearance(preset: ThemePreset = 'forest'): Appearance {
   const spec = PRESETS[preset];
   return {
     preset,
+    workspaceImage: null,
+    workspaceDim: 85,
+    ambientSound: null,
+    ambientVolume: 25,
+    studioMotion: 'off',
     accent: null,
     sidebar: null,
     headingFont: spec.headingFont,
@@ -1034,6 +1044,25 @@ export function parseAppearance(data: unknown): Appearance {
       : {};
   const preset = oneOf(record['preset'], PRESET_IDS) ? record['preset'] : 'forest';
   const result = defaultAppearance(preset);
+  const image = record['workspaceImage'];
+  if (
+    typeof image === 'string' &&
+    image.length <= 6_000_000 &&
+    /^data:image\/(png|jpeg|webp|gif);base64,[a-z0-9+/=]+$/i.test(image)
+  )
+    result.workspaceImage = image;
+  const sound = record['ambientSound'];
+  if (
+    typeof sound === 'string' &&
+    sound.length <= 8_000_000 &&
+    /^data:audio\/(mpeg|mp3|ogg|wav|x-wav|mp4);base64,[a-z0-9+/=]+$/i.test(sound)
+  )
+    result.ambientSound = sound;
+  for (const key of ['workspaceDim', 'ambientVolume'] as const)
+    if (typeof record[key] === 'number' && Number.isFinite(record[key]))
+      result[key] = Math.max(0, Math.min(100, record[key]));
+  if (oneOf(record['studioMotion'], ['off', 'stars', 'drift'] as const))
+    result.studioMotion = record['studioMotion'];
   const accent = record['accent'];
   if (typeof accent === 'string' && HEX.test(accent)) result.accent = accent.toLowerCase();
   if (oneOf(record['sidebar'], ['dark', 'light'] as const)) result.sidebar = record['sidebar'];

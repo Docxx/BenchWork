@@ -14,6 +14,12 @@ import type { InkPoint, InkStroke, InkTool } from '../ink/inkFile';
 import type {
   HttpRequest,
   HttpResponse,
+  MaterialFiles,
+  AudienceDisplay,
+  AudienceFrame,
+  ImportedSlides,
+  FileTransfers,
+  VerifiedCopy,
   DeviceKind,
   DirEntry,
   FileInfo,
@@ -25,8 +31,22 @@ import type {
   VaultChange,
 } from '../platform/types';
 import type { ModuleManifest } from '../modules/manifest';
+import { PRESETS } from '../settings/appearance';
+import type { Appearance } from '../settings/appearance';
+export type { Appearance, ThemePreset } from '../settings/appearance';
+export { defaultAppearance, parseAppearance } from '../settings/appearance';
+export const themePresets = Object.entries(PRESETS).map(([id, preset]) => ({
+  id,
+  name: preset.name,
+}));
 
 export type {
+  MaterialFiles,
+  AudienceDisplay,
+  AudienceFrame,
+  ImportedSlides,
+  FileTransfers,
+  VerifiedCopy,
   HttpRequest,
   HttpResponse,
   DeviceKind,
@@ -44,6 +64,7 @@ export type {
   VaultChange,
 };
 export { newStrokeId } from '../ink/inkFile';
+export { AudienceSlide } from '../presentation/AudienceSlide';
 export type { PdfRender } from '../files/pdf';
 export type { PdfDocument };
 
@@ -65,6 +86,10 @@ export function defineModule(definition: ModuleDefinition): ModuleDefinition {
 }
 
 export interface ModuleContext {
+  readonly appearance: { current(): Appearance; apply(value: Appearance): Promise<void> };
+  readonly audience: AudienceDisplay | null;
+  /** Large verified copies into user-selected external folders. Desktop only. */
+  readonly fileTransfers: FileTransfers | null;
   readonly timers: ModuleTimers;
   readonly manifest: ModuleManifest;
   /** The device the app is running on. */
@@ -200,6 +225,8 @@ export interface CommandTarget {
 // ---- File handlers ----
 
 export interface ModuleFiles {
+  importFile(source: string, folder: string): Promise<string>;
+  importPowerPoint(source: string, folder: string): Promise<ImportedSlides>;
   register(spec: FileHandlerSpec): Disposable;
   /** Opens a PDF's bytes for drawing its pages, with pdf.js. */
   openPdf(bytes: Uint8Array): Promise<PdfDocument>;
@@ -250,7 +277,8 @@ export interface FileHandlerSpec {
 
 /**
  * Reading and writing vault files. Paths are vault-relative with `/`.
- * There is no delete: a module can never remove a user's files.
+ * This interface has no deletion methods. Verified-copy source cleanup is
+ * a separate desktop capability and requires an explicit user action.
  */
 export interface ModuleVault {
   listDir(path: string): Promise<DirEntry[]>;

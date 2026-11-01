@@ -1,0 +1,208 @@
+.theme-studio {
+  container-type: inline-size;
+  width: 100%;
+  padding: clamp(16px, 3vw, 40px);
+  overflow: auto;
+}
+
+.theme-studio header {
+  margin-bottom: 28px;
+}
+.theme-studio header > span {
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+}
+.theme-studio h1 {
+  margin: 8px 0;
+}
+.theme-studio-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 24px;
+}
+.theme-studio-layout aside {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.theme-studio-layout main {
+  min-width: 0;
+}
+.theme-studio button,
+.theme-studio input,
+.theme-studio select {
+  font: inherit;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 9px 12px;
+  min-width: 0;
+}
+.theme-studio button {
+  cursor: pointer;
+}
+.theme-studio button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.theme-studio button[aria-pressed='true'] {
+  border-color: var(--accent);
+}
+.theme-studio aside small {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.theme-preview {
+  position: relative;
+  isolation: isolate;
+  border-radius: 24px;
+  padding: clamp(24px, 4vw, 64px);
+  overflow: hidden;
+  border: 1px solid #ffffff22;
+}
+.theme-preview > span {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  color: var(--preview-accent);
+}
+.theme-preview h2 {
+  font-size: clamp(2rem, 3.5vw, 3.5rem);
+  margin: 20px 0 12px;
+}
+.theme-preview small {
+  display: block;
+  font-size: 0.7rem;
+  opacity: 0.7;
+  margin-top: 24px;
+}
+.theme-preview-widgets {
+  display: flex;
+  gap: 18px;
+  margin-top: 30px;
+}
+.theme-preview-widgets > div {
+  flex: 1;
+  background: #ffffff10;
+  backdrop-filter: blur(6px);
+  border: 1px solid #ffffff22;
+  border-radius: 12px;
+  padding: 20px;
+  line-height: 2;
+}
+.theme-preview-widgets strong {
+  color: var(--preview-accent);
+}
+.theme-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 24px 0;
+}
+.theme-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.theme-studio-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.theme-studio-hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.theme-studio [role='alert'] {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  padding: 12px;
+}
+.theme-studio [role='status'] {
+  border-left: 3px solid var(--accent);
+  padding: 12px;
+}
+.theme-preview-stars {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.theme-preview-stars.motion-stars {
+  background: radial-gradient(circle, var(--preview-accent) 1px, transparent 2px);
+  background-size: 48px 48px;
+  opacity: 0.2;
+  animation: theme-stars 25s linear infinite alternate;
+}
+.theme-preview-stars.motion-drift {
+  background: radial-gradient(ellipse, var(--preview-accent), transparent 65%);
+  opacity: 0.15;
+  animation: theme-stars 15s ease infinite alternate;
+}
+@keyframes theme-stars {
+  to {
+    transform: translateY(30px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-preview-stars {
+    animation: none !important;
+  }
+}
+@media (max-width: 850px) {
+  .theme-studio-layout {
+    grid-template-columns: 1fr;
+  }
+  .theme-studio-layout aside {
+    flex-direction: row;
+    overflow: auto;
+  }
+  .theme-studio-layout aside button {
+    min-width: 160px;
+  }
+  .theme-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 500px) {
+  .theme-controls {
+    grid-template-columns: 1fr;
+  }
+  .theme-preview-widgets {
+    flex-direction: column;
+  }
+}
+
+.theme-studio input[type='color'] {
+  height: 40px;
+  width: 60px;
+  padding: 4px;
+}
+
+@container (max-width: 750px) {
+  .theme-studio-layout {
+    grid-template-columns: 1fr;
+  }
+  .theme-studio-layout aside {
+    flex-direction: row;
+    overflow: auto;
+  }
+  .theme-studio-layout aside button {
+    min-width: 160px;
+  }
+  .theme-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container (max-width: 400px) {
+  .theme-controls {
+    grid-template-columns: 1fr;
+  }
+  .theme-preview-widgets {
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "teaching",
+  "name": "Teaching Studio",
+  "version": "0.1.0",
+  "description": "Reusable lessons, private presenter notes, a separate audience screen and timed rehearsals",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

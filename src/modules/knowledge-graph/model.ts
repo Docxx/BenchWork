@@ -92,7 +92,11 @@ export function graphModel(
     degree: 0,
   }));
   const byId = new Map(points.map((p) => [p.id, p]));
+  const seen = new Set<string>();
   const edges = data.edges.flatMap((e) => {
+    const key = [e.source, e.target].sort().join('\n');
+    if (e.source === e.target || seen.has(key)) return [];
+    seen.add(key);
     const source = byId.get(e.source);
     const target = byId.get(e.target);
     return source && target ? [{ source, target }] : [];
@@ -142,12 +146,57 @@ export function graphModel(
   }
   if (!style.orphans) shown = shown.filter((p) => p.degree > 0);
   shown.sort((a, b) => b.degree - a.degree || a.id.localeCompare(b.id));
-  shown.forEach((p, i) => {
-    const angle = i * 2.399963;
-    const radius = Math.sqrt(i) * 30;
-    p.x = Math.cos(angle) * radius;
-    p.y = Math.sin(angle) * radius;
-  });
+  const neighbours = new Map(shown.map((p) => [p.id, new Set<string>()]));
+  for (const e of connections) {
+    neighbours.get(e.source.id)?.add(e.target.id);
+    neighbours.get(e.target.id)?.add(e.source.id);
+  }
+  const visited = new Set<string>();
+  const components: GraphPoint[][] = [];
+  const pointsById = new Map(shown.map((p) => [p.id, p]));
+  for (const point of shown) {
+    if (visited.has(point.id)) continue;
+    const component: GraphPoint[] = [];
+    const queue = [point.id];
+    visited.add(point.id);
+    for (let index = 0; index < queue.length; index++) {
+      const id = queue[index] ?? '';
+      const p = pointsById.get(id);
+      if (p) component.push(p);
+      for (const neighbour of neighbours.get(id) ?? [])
+        if (!visited.has(neighbour)) {
+          visited.add(neighbour);
+          queue.push(neighbour);
+        }
+    }
+    components.push(component);
+  }
+  const extentOf = (component: GraphPoint[]) =>
+    component.length === 1
+      ? style.spacing * 0.25
+      : Math.max(style.spacing, Math.sqrt(component.length) * style.spacing * 0.45);
+  const rowWidth =
+    Math.sqrt(components.reduce((area, c) => area + (extentOf(c) * 2 + style.spacing) ** 2, 0)) *
+    1.3;
+  let offsetX = 0,
+    offsetY = 0,
+    rowHeight = 0;
+  for (const component of components.sort((a, b) => b.length - a.length)) {
+    const extent = extentOf(component);
+    if (offsetX > 0 && offsetX + extent * 2 > rowWidth) {
+      offsetX = 0;
+      offsetY += rowHeight + style.spacing;
+      rowHeight = 0;
+    }
+    component.forEach((p, i) => {
+      const angle = i * 2.399963;
+      const radius = Math.sqrt(i) * style.spacing * 0.4;
+      p.x = offsetX + extent + Math.cos(angle) * radius;
+      p.y = offsetY + extent + Math.sin(angle) * radius;
+    });
+    offsetX += extent * 2 + style.spacing;
+    rowHeight = Math.max(rowHeight, extent * 2);
+  }
   return { nodes: shown, edges: connections };
 }
 
@@ -176,8 +225,8 @@ export function step(model: GraphModel, spacing: number): void {
           n.vy += b * force;
         }
       }
-    n.vx -= n.x * 0.001;
-    n.vy -= n.y * 0.001;
+    n.vx -= n.x * 0.00015;
+    n.vy -= n.y * 0.00015;
   }
   for (const e of model.edges) {
     const dx = e.target.x - e.source.x,

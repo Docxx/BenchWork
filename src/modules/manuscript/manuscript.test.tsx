@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { createContributions } from '@core/modules/contributions';
 import { validateManifest } from '@core/modules/manifest';
 import { ModuleRegistry, type ModuleSource } from '@core/modules/registry';
@@ -13,6 +13,7 @@ import { manifest } from '@core/modules/testModules';
 import { createModuleBridge } from '@core/state/moduleBridge';
 import { createSection, createWriting, saveSectionLinks } from './workspace';
 import { parsePage } from '@core/pages/frontmatter';
+import { WritingWorkspace } from './WritingWorkspace';
 
 // Tests may reach core internals to set the app up; the module itself may not.
 
@@ -91,6 +92,27 @@ function exportsOf(platform: MemoryAdapter): [string, string][] {
 }
 
 describe('Manuscript module', () => {
+  it('refreshes a missing section when its file arrives without reopening the workspace', async () => {
+    const { platform, store } = await openVault();
+    const { ctx } = createModuleContext(manifest('manuscript'), {
+      platform,
+      device: 'desktop',
+      contributions: createContributions(),
+      app: () => createModuleBridge(store, platform),
+    });
+    render(<WritingWorkspace ctx={ctx} path="Thesis/Tau thesis.md" />);
+    const missing = await screen.findByRole('button', {
+      name: /3\. Discussion/,
+    });
+    expect(missing.hasAttribute('disabled')).toBe(true);
+    await act(async () => {
+      await platform.writeTextAtomic('Thesis/Discussion.md', '# Discussion\n\nA new discussion.\n');
+    });
+    await waitFor(() => {
+      const available = screen.getByRole('button', { name: /3\. Discussion/ });
+      expect(available.hasAttribute('disabled')).toBe(false);
+    });
+  });
   it('creates writing sections whose evidence and run links never enter exported prose', async () => {
     const { platform, store } = await openVault();
     const { ctx } = createModuleContext(manifest('manuscript'), {

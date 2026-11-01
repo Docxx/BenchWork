@@ -15,6 +15,13 @@ export interface ModulePack {
 
 export const PACKS: readonly ModulePack[] = [
   {
+    id: 'teaching-creative',
+    name: 'Teaching and Creative',
+    description:
+      'Reusable lessons, a private presenter desk, rehearsals, personal quizzes and custom appearance profiles.',
+    modules: ['teaching', 'study-arcade', 'theme-studio'],
+  },
+  {
     id: 'research',
     name: 'Research',
     description:

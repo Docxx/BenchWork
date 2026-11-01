@@ -7,10 +7,8 @@ import { AnalysisSession } from './run';
 import { RunDetails } from './RunHistory';
 
 /**
- * The Analysis bridge: the person's own scripts, run with their own Python
- * on a dataset. Results go in a new folder beside the dataset record, with
- * a log of the run, and the record lists them under `analyses`. Datasets
- * come from the Research module. On the computer only.
+ * Runs the person's Python, R or custom scripts on a computer. Each run
+ * keeps its provenance beside the dataset; history is readable on tablets too.
  */
 
 const VIEW = 'analysis.view';

@@ -1,12 +1,15 @@
+mod audience;
 mod backup;
 mod error;
 mod file_info;
 mod folders;
 mod index;
+mod materials;
 mod microsoft;
 mod pandoc;
 mod path_guard;
 mod programs;
+mod storage;
 mod vault_fs;
 mod vault_root;
 mod watcher;
@@ -33,6 +36,135 @@ struct VaultState {
 
 fn unavailable() -> VaultError {
     VaultError::new(ErrorKind::Io, "Vault state is unavailable")
+}
+
+fn main_window(window: &tauri::WebviewWindow) -> VaultResult<()> {
+    if window.label() != "main" {
+        return Err(VaultError::new(
+            ErrorKind::Io,
+            "This command is for the presenter window",
+        ));
+    }
+    Ok(())
+}
+#[tauri::command]
+async fn import_material_file(
+    source: String,
+    folder: String,
+    window: tauri::WebviewWindow,
+    state: State<'_, VaultState>,
+) -> VaultResult<String> {
+    main_window(&window)?;
+    let root = state.root()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        materials::import_file(&root, Path::new(&source), &folder)
+    })
+    .await
+    .map_err(|e| VaultError::new(ErrorKind::Io, e.to_string()))?
+}
+#[tauri::command]
+async fn import_powerpoint(
+    source: String,
+    folder: String,
+    window: tauri::WebviewWindow,
+    state: State<'_, VaultState>,
+) -> VaultResult<materials::ImportedSlides> {
+    main_window(&window)?;
+    let root = state.root()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        materials::import_powerpoint(&root, Path::new(&source), &folder)
+    })
+    .await
+    .map_err(|e| VaultError::new(ErrorKind::Io, e.to_string()))?
+}
+#[tauri::command]
+fn audience_monitors(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+) -> VaultResult<Vec<audience::DisplayInfo>> {
+    main_window(&window)?;
+    audience::monitors(&app)
+}
+#[tauri::command]
+async fn open_audience(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    frame: audience::Frame,
+    monitor: usize,
+) -> VaultResult<()> {
+    main_window(&window)?;
+    audience::open(&app, frame, monitor)
+}
+#[tauri::command]
+fn update_audience(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    frame: audience::Frame,
+) -> VaultResult<()> {
+    main_window(&window)?;
+    audience::update(&app, frame)
+}
+#[tauri::command]
+fn close_audience(app: AppHandle, window: tauri::WebviewWindow) -> VaultResult<()> {
+    main_window(&window)?;
+    audience::close(&app)
+}
+#[tauri::command]
+fn audience_ready(
+    window: tauri::WebviewWindow,
+    state: State<'_, audience::AudienceState>,
+) -> VaultResult<Option<audience::Frame>> {
+    if window.label() != "audience" {
+        return Err(unavailable());
+    }
+    Ok(state.0.lock().map_err(|_| unavailable())?.clone())
+}
+
+#[tauri::command]
+async fn copy_to_storage(
+    id: String,
+    source: String,
+    folder: String,
+    state: State<'_, VaultState>,
+) -> VaultResult<storage::VerifiedCopy> {
+    let root = state.root()?;
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    state
+        .runs
+        .lock()
+        .map_err(|_| unavailable())?
+        .insert(id.clone(), stop.clone());
+    let transfer_id = id.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        storage::copy(
+            &root,
+            Path::new(&source),
+            Path::new(&folder),
+            &transfer_id,
+            &stop,
+        )
+    })
+    .await
+    .map_err(|e| VaultError::new(ErrorKind::Io, e.to_string()));
+    state.runs.lock().map_err(|_| unavailable())?.remove(&id);
+    result?
+}
+
+#[tauri::command]
+async fn verify_storage_copy(copy: storage::VerifiedCopy) -> VaultResult<()> {
+    tauri::async_runtime::spawn_blocking(move || storage::verify(&copy))
+        .await
+        .map_err(|e| VaultError::new(ErrorKind::Io, e.to_string()))?
+}
+#[tauri::command]
+async fn reveal_storage_copy(copy: storage::VerifiedCopy) -> VaultResult<()> {
+    storage::reveal(&copy)
+}
+#[tauri::command]
+async fn recycle_storage_source(copy: storage::VerifiedCopy) -> VaultResult<()> {
+    tauri::async_runtime::spawn_blocking(move || storage::recycle_source(&copy))
+        .await
+        .map_err(|e| VaultError::new(ErrorKind::Io, e.to_string()))?
 }
 
 impl VaultState {
@@ -237,7 +369,7 @@ async fn run_program(
     result
 }
 
-/// Stops a program started with run_program.
+/// Copies the main script into a new, size-limited vault snapshot.
 #[tauri::command]
 async fn snapshot_program_file(
     source: String,
@@ -539,7 +671,15 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(VaultState::default())
+        .manage(audience::AudienceState::default())
         .invoke_handler(tauri::generate_handler![
+            import_material_file,
+            import_powerpoint,
+            audience_monitors,
+            open_audience,
+            update_audience,
+            close_audience,
+            audience_ready,
             microsoft_request,
             secure_read,
             secure_write,
@@ -549,6 +689,10 @@ pub fn run() {
             make_folder,
             backup_vault,
             run_program,
+            copy_to_storage,
+            verify_storage_copy,
+            reveal_storage_copy,
+            recycle_storage_source,
             snapshot_program_file,
             stop_program,
             open_web_link,

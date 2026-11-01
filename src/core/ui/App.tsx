@@ -6,6 +6,7 @@ import { useApp } from './AppStoreContext';
 import { Shell } from './Shell';
 import { Splash } from './Splash';
 import { WindowControls } from './WindowControls';
+import { StudioAmbience } from './StudioAmbience';
 import { applyAppearance } from './theme';
 import {
   ChooseFolder,
@@ -138,6 +139,7 @@ export function App() {
   return (
     <>
       <Screen />
+      <StudioAmbience />
       {status.kind !== 'open' && (
         // Before a vault opens there is no sidebar to drag the window by.
         <>

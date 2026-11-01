@@ -1,5 +1,6 @@
 import { PlatformError } from './errors';
 import { MemoryIndex } from './memoryIndex';
+import { browserAudience } from '../presentation/browserAudience';
 import type {
   HttpRequest,
   HttpResponse,
@@ -7,6 +8,9 @@ import type {
   DirEntry,
   WindowFrame,
   FileInfo,
+  MaterialFiles,
+  ImportedSlides,
+  FileTransfers,
   FolderBrowser,
   HandwritingRecognizer,
   ProgramResult,
@@ -103,6 +107,76 @@ export class MemoryAdapter implements PlatformAdapter {
   folderBrowser: FolderBrowser | null = null;
   /** Runs programs as `usePrograms` says; none until then. */
   programs: ProgramRunner | null = null;
+  readonly audience = browserAudience();
+  private powerpointImporter: ((source: string, folder: string) => Promise<ImportedSlides>) | null =
+    null;
+  usePowerPointImporter(
+    handler: (source: string, folder: string) => Promise<ImportedSlides>,
+  ): void {
+    this.powerpointImporter = handler;
+  }
+  readonly materials: MaterialFiles = {
+    importFile: async (source, folder) => {
+      if (await this.exists(folder)) throw new Error('Use a new import folder');
+      const bytes = this.externalFile(source).bytes;
+      if (bytes.length > 64 * 1024 * 1024) throw new Error('Import files up to 64 MB.');
+      const name = source.split(/[\\/]/).at(-1) ?? 'material';
+      await this.ensureDir(folder);
+      const path = `${folder}/${name}`;
+      await this.writeBytes(path, bytes);
+      return path;
+    },
+    importPowerPoint: (source, folder) => {
+      if (this.powerpointImporter) return this.powerpointImporter(source, folder);
+      return Promise.reject(
+        new Error('PowerPoint import needs the Windows app with PowerPoint installed.'),
+      );
+    },
+  };
+  private readonly cancelledTransfers = new Set<string>();
+  readonly fileTransfers: FileTransfers = {
+    pickFolder: () => this.pickFolder(),
+    copy: async (id, source, folder) => {
+      if (!/^[a-z0-9-]+$/i.test(id)) throw new Error('Invalid transfer identifier');
+      if (this.root && (folder === this.root || folder.startsWith(`${this.root}/`)))
+        throw new Error('Choose a folder outside the vault.');
+      if (!this.folders.has(folder)) throw new Error('Storage folder is unavailable.');
+      if (this.cancelledTransfers.has(id)) throw new Error('Copy cancelled');
+      const data = this.externalFile(source);
+      const target = `${folder}/BenchWork-${id}/${source.split(/[\\/]/).at(-1) ?? 'data'}`;
+      if (this.external.has(target)) throw new Error('The stored copy already exists.');
+      this.addExternalFile(target, data.bytes);
+      const sha256 = await this.hashFile(source, true);
+      return { source, target, folder, size: data.bytes.length, sha256 };
+    },
+    cancel: (id) => {
+      this.cancelledTransfers.add(id);
+      return Promise.resolve();
+    },
+    verify: async (copy) => {
+      if (
+        !copy.target.startsWith(`${copy.folder}/`) ||
+        (await this.fileInfo(copy.target, true)).size !== copy.size ||
+        (await this.hashFile(copy.target, true)) !== copy.sha256
+      )
+        throw new Error('The stored copy has changed.');
+    },
+    reveal: () => Promise.resolve(),
+    recycleSource: async (copy) => {
+      await this.fileTransfers.verify(copy);
+      if (
+        copy.source.startsWith(`${copy.folder}/`) ||
+        (await this.hashFile(copy.source, true)) !== copy.sha256
+      )
+        throw new Error('The source changed and was kept.');
+      const root = [...this.folders.keys()].find((path) => copy.source.startsWith(`${path}/`));
+      if (!this.external.delete(copy.source) && root) {
+        this.folders.get(root)?.delete(copy.source.slice(root.length + 1));
+        if (root === this.root) this.changed(copy.source.slice(root.length + 1));
+      }
+      this.trashBin.push(copy.source);
+    },
+  };
 
   /**
    * Runs programs with `handler`, as a computer would; it gets the run

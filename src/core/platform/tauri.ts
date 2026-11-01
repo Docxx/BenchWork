@@ -9,6 +9,12 @@ import type {
   DeviceKind,
   DirEntry,
   FileInfo,
+  MaterialFiles,
+  AudienceDisplay,
+  ImportedSlides,
+  DisplayInfo,
+  FileTransfers,
+  VerifiedCopy,
   FolderBrowser,
   BackupFile,
   VaultBackups,
@@ -199,6 +205,37 @@ function desktopFrame(): WindowFrame {
 }
 
 export class TauriAdapter implements PlatformAdapter {
+  readonly materials: MaterialFiles = {
+    importFile: (source, folder) =>
+      call<string>('import_material_file', () => ({ source, folder: normaliseVaultPath(folder) })),
+    importPowerPoint: (source, folder) =>
+      call<ImportedSlides>('import_powerpoint', () => ({
+        source,
+        folder: normaliseVaultPath(folder),
+      })),
+  };
+  readonly audience: AudienceDisplay | null =
+    detectKind() === 'desktop'
+      ? {
+          monitors: () => call<DisplayInfo[]>('audience_monitors'),
+          open: (frame, monitor) => call<undefined>('open_audience', () => ({ frame, monitor })),
+          update: (frame) => call<undefined>('update_audience', () => ({ frame })),
+          close: () => call<undefined>('close_audience'),
+        }
+      : null;
+  readonly fileTransfers: FileTransfers | null =
+    detectKind() === 'desktop'
+      ? {
+          pickFolder: () =>
+            this.pickFolder({ title: 'Choose a folder managed by your cloud sync app' }),
+          copy: (id, source, folder) =>
+            call<VerifiedCopy>('copy_to_storage', () => ({ id, source, folder })),
+          cancel: (id) => call<undefined>('stop_program', () => ({ id })),
+          verify: (copy) => call<undefined>('verify_storage_copy', () => ({ copy })),
+          reveal: (copy) => call<undefined>('reveal_storage_copy', () => ({ copy })),
+          recycleSource: (copy) => call<undefined>('recycle_storage_source', () => ({ copy })),
+        }
+      : null;
   readonly kind: DeviceKind = detectKind();
   readonly windowFrame: WindowFrame | null = detectKind() === 'desktop' ? desktopFrame() : null;
   readonly openInSystem: ((path: string) => Promise<void>) | null =

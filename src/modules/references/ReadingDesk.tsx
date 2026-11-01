@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { ModuleContext, VaultItem } from '@core/api';
 import type { LibraryState } from './state';
 import { EVIDENCE, parseCapture, saveEvidence } from './evidence';
+import { PdfLibrary } from './PdfLibrary';
 import './reading.css';
 
 export function ReadingDesk({
@@ -188,56 +189,9 @@ export function ReadingDesk({
           <p className="hint">
             Enable Handwriting for PDF text selection, highlighting and evidence capture.
           </p>
-          <PdfList ctx={ctx} />
+          <PdfLibrary ctx={ctx} />
         </section>
       </div>
     </div>
-  );
-}
-
-function PdfList({ ctx }: { ctx: ModuleContext }) {
-  const [paths, setPaths] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    let live = true;
-    const walk = async (folder: string): Promise<string[]> => {
-      const entries = await ctx.vault.listDir(folder);
-      const lists = await Promise.all(
-        entries
-          .filter((e) => !e.name.startsWith('.'))
-          .map((e) => {
-            const path = folder ? `${folder}/${e.name}` : e.name;
-            return e.isDir ? walk(path) : Promise.resolve(/\.pdf$/i.test(e.name) ? [path] : []);
-          }),
-      );
-      return lists.flat();
-    };
-    void walk('')
-      .then((all) => {
-        if (live) setPaths(all);
-      })
-      .catch((err: unknown) => {
-        if (live) setError(String(err));
-      });
-    return () => {
-      live = false;
-    };
-  }, [ctx]);
-  return (
-    <>
-      {error && <p role="alert">{error}</p>}
-      {paths.length === 0 && <p className="hint">Add PDFs to your vault to start reading.</p>}
-      {paths.map((path) => (
-        <button
-          type="button"
-          className="reading-item quiet"
-          key={path}
-          onClick={() => void ctx.app.open(path)}
-        >
-          {path.split('/').at(-1)}
-          <small>{path}</small>
-        </button>
-      ))}
-    </>
   );
 }

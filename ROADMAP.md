@@ -169,6 +169,34 @@ See [Outlook setup and scope](docs/outlook.md).
 
 See [workflow scope and data](docs/reading-analysis-writing.md).
 
+### Code maintenance
+
+- [x] Split Outlook, analysis setup and writing section forms into focused components; isolate email rendering helpers
+- [x] Remove obsolete Gantt build settings, refresh comments and fix page-history React keys and the Android Pandoc warning
+- [x] Keep writing sections and evidence choices current when file indexing catches up
+
+### Workspace refinements and Cloud storage
+
+- [x] Home calendar with saved month/week/agenda, density, weekday, colour and marker preferences
+- [x] Reading desk papers-folder selection, subfolder control and library search
+- [x] Knowledge graph separated groups, deduplicated connections, label collision handling, filters and presets
+- [x] Categorised module settings with search and status filters
+- [x] Cloud folder connections, chunked verified copies, linked records and explicit local-space management
+- [ ] Live provider sync and large-dataset acceptance check
+
+See [workspace options](docs/workspace-customisation.md) and [Cloud storage](docs/cloud-storage.md).
+
+### Teaching and Creative pack
+
+- [x] Lesson Studio with reusable sequences and PDF, image, note and static PowerPoint imports
+- [x] Presenter Desk with public-only audience display, private notes and reveals
+- [x] Rehearsal Room with section timings, bookmarks and saved practice notes
+- [x] Study Arcade with personal image quizzes, flashcards and practice history
+- [x] Theme Studio with local media, optional motion, named profiles and theme packs
+- [ ] Desktop projector and tablet acceptance checks
+
+See [Teaching and Creative guide](docs/teaching-creative.md).
+
 ### Sync work
 
 - [x] Theme atmosphere: stronger fun themes, decorative scenes, optional motion and themed timer cues with volume, preview and silent mode ([guide](docs/themes.md))

@@ -19,6 +19,9 @@ export interface HttpResponse {
 }
 
 export interface PlatformAdapter {
+  readonly materials?: MaterialFiles;
+  readonly audience?: AudienceDisplay | null;
+  readonly fileTransfers?: FileTransfers | null;
   /** Authenticated Microsoft HTTPS, without browser cookies or redirects. */
   microsoftRequest(request: HttpRequest): Promise<HttpResponse>;
   /** Device-local encrypted data, never written into a vault. */
@@ -275,6 +278,53 @@ export interface ProgramRunner {
   /** Runs a program; resolves when it ends or is stopped. Fails if it cannot be started. */
   run(run: ProgramRun): Promise<ProgramResult>;
   stop(id: string): Promise<void>;
+}
+
+export interface ImportedSlides {
+  source: string;
+  slides: { title: string; notes: string; image: string }[];
+}
+export interface MaterialFiles {
+  /** Copies into a new vault folder. No overwrite; 64 MB per source. */
+  importFile(source: string, folder: string): Promise<string>;
+  /** Windows PowerPoint renders static slide images and extracts private notes. */
+  importPowerPoint(source: string, folder: string): Promise<ImportedSlides>;
+}
+export interface AudienceFrame {
+  title: string;
+  body: string;
+  image: string | null;
+  background: string;
+  foreground: string;
+  accent: string;
+  blank: boolean;
+  strokes: { colour: string; width: number; points: [number, number][] }[];
+}
+export interface DisplayInfo {
+  index: number;
+  name: string;
+}
+export interface AudienceDisplay {
+  monitors(): Promise<DisplayInfo[]>;
+  open(frame: AudienceFrame, monitor: number): Promise<void>;
+  update(frame: AudienceFrame): Promise<void>;
+  close(): Promise<void>;
+}
+
+export interface VerifiedCopy {
+  source: string;
+  target: string;
+  folder: string;
+  size: number;
+  sha256: string;
+}
+export interface FileTransfers {
+  pickFolder(): Promise<string | null>;
+  copy(id: string, source: string, folder: string): Promise<VerifiedCopy>;
+  cancel(id: string): Promise<void>;
+  verify(copy: VerifiedCopy): Promise<void>;
+  reveal(copy: VerifiedCopy): Promise<void>;
+  recycleSource(copy: VerifiedCopy): Promise<void>;
 }
 
 /** Handwriting to text, on the device. */

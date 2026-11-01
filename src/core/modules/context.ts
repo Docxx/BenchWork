@@ -14,9 +14,12 @@ import {
 import { VAULT_DIR } from '../vault/vaultConfig';
 import type { Contributions, ContributionsState } from './contributions';
 import type { ModuleManifest } from './manifest';
+import { defaultAppearance, type Appearance } from '../settings/appearance';
 
 /** What the app gives modules: ModuleApp, plus the open vault's full path. */
 export interface AppBridge extends ModuleApp {
+  appearance?(): Appearance;
+  applyAppearance?(value: Appearance): Promise<void>;
   pdfPage?(path: string): number | null;
   vaultRoot(): string | null;
   /** The pen tools, filters and module tools, for a writing surface a module attaches. */
@@ -141,6 +144,17 @@ export function createModuleContext(
   }
 
   const ctx: ModuleContext = {
+    appearance: {
+      current: () => app().appearance?.() ?? defaultAppearance(),
+      apply: (value) => {
+        const bridge = app();
+        if (!bridge.applyAppearance)
+          return Promise.reject(new Error('Appearance settings are unavailable'));
+        return bridge.applyAppearance(value);
+      },
+    },
+    audience: deps.device === 'desktop' ? (deps.platform.audience ?? null) : null,
+    fileTransfers: deps.device === 'desktop' ? (deps.platform.fileTransfers ?? null) : null,
     reading: {
       register(spec) {
         checkId('Reading action', spec.id);
@@ -380,6 +394,16 @@ export function createModuleContext(
       },
     },
     files: {
+      importFile: (source, folder) => {
+        if (!deps.platform.materials)
+          return Promise.reject(new Error('Import files from the desktop app.'));
+        return deps.platform.materials.importFile(source, folder);
+      },
+      importPowerPoint: (source, folder) => {
+        if (!deps.platform.materials)
+          return Promise.reject(new Error('Import PowerPoint files from the desktop app.'));
+        return deps.platform.materials.importPowerPoint(source, folder);
+      },
       openPdf: (bytes) => openPdf(bytes),
       register(spec) {
         checkId('File handler', spec.id);

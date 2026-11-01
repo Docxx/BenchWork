@@ -212,6 +212,40 @@ describe('app store: choosing a folder', () => {
 });
 
 describe('app store: modules', () => {
+  it('keeps the vault open when a module cannot finish saving and permits a retry', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    let failing = true;
+    const platform = new MemoryAdapter({
+      folders: {
+        'C:/Vault': {
+          [VAULT_CONFIG_PATH]: JSON.stringify({
+            version: 1,
+            modules: { teaching: { enabled: true } },
+          }),
+        },
+      },
+    });
+    const registry = new ModuleRegistry(
+      [
+        fakeModule('teaching', [], {
+          deactivate: () => {
+            if (failing) throw new Error('Lesson disk full');
+          },
+        }),
+      ],
+      [],
+      { platform, device: 'desktop', contributions: createContributions() },
+    );
+    const store = createAppStore(platform, registry);
+    await store.getState().start();
+    platform.queuePick('C:/Vault');
+    await store.getState().chooseFolder('open');
+    expect(await store.getState().closeVault()).toBe(false);
+    expect(store.getState().status.kind).toBe('open');
+    expect(store.getState().notice).toContain('Lesson disk full');
+    failing = false;
+    expect(await store.getState().closeVault()).toBe(true);
+  });
   it('starts the modules a vault has on when it opens, and stops them on close', async () => {
     const events: string[] = [];
     const platform = new MemoryAdapter({

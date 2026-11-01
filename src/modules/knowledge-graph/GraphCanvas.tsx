@@ -65,7 +65,7 @@ export function GraphCanvas({
     const hit = (x: number, y: number) =>
       model.nodes.find((n) => {
         const p = project(n);
-        return Math.hypot(p.x - x, p.y - y) < Math.max(10, radius(n) * camera.zoom + 4);
+        return Math.hypot(p.x - x, p.y - y) < Math.max(10, radius(n) * Math.sqrt(camera.zoom) + 4);
       }) ?? null;
     function fitGraph() {
       const xs = model.nodes.map((n) => n.x),
@@ -93,7 +93,12 @@ export function GraphCanvas({
       invalidate();
     }
     // Settle before showing it, so reduced-motion users also get a readable layout.
-    for (let i = 0; i < 90; i++) step(model, style.spacing);
+    for (
+      let i = 0;
+      i < Math.min(300, Math.max(60, Math.floor(24000 / Math.max(1, model.nodes.length))));
+      i++
+    )
+      step(model, style.spacing);
     function resize() {
       const box = canvas.getBoundingClientRect();
       width = box.width;
@@ -151,6 +156,7 @@ export function GraphCanvas({
             context.fill();
           }
         }
+        const labelBoxes: { x: number; y: number; w: number; h: number }[] = [];
         for (const n of model.nodes) {
           const p = project(n),
             r = Math.max(2, radius(n) * Math.sqrt(camera.zoom));
@@ -193,12 +199,23 @@ export function GraphCanvas({
           ) {
             context.font = `${active === n.id ? '600 ' : ''}11px Inter, sans-serif`;
             context.textAlign = 'center';
-            context.fillStyle = text;
-            context.fillText(
-              n.title.length > 38 ? n.title.slice(0, 35) + '…' : n.title,
-              p.x,
-              p.y + r + 17,
+            const label = n.title.length > 38 ? n.title.slice(0, 35) + '…' : n.title;
+            const w = context.measureText(label).width + 12;
+            const box = { x: p.x - w / 2, y: p.y + r + 5, w, h: 18 };
+            const overlaps = labelBoxes.some(
+              (b) =>
+                box.x < b.x + b.w &&
+                box.x + box.w > b.x &&
+                box.y < b.y + b.h &&
+                box.y + box.h > b.y,
             );
+            if (!overlaps || active === n.id) {
+              labelBoxes.push(box);
+              context.fillStyle = colours.getPropertyValue('--graph-bg').trim();
+              context.fillRect(box.x, box.y, box.w, box.h);
+              context.fillStyle = text;
+              context.fillText(label, p.x, p.y + r + 17);
+            }
           }
         }
         context.globalAlpha = 1;

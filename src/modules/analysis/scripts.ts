@@ -7,7 +7,8 @@ import type { ProgramArg } from '@core/api';
  * - `{files}` each of the dataset's files, as separate arguments;
  * - `{folder}` the folder the dataset record is in;
  * - `{output}` a new folder for this run's results;
- * - `{name}` the dataset's name.
+ * - `{name}` the dataset's name;
+ * - `{param:name}` one named parameter value, passed as a single argument.
  * Words in quotes stay together, so paths with spaces can be written.
  */
 

@@ -31,6 +31,32 @@ beforeEach(() => {
 });
 
 describe('ModuleRegistry', () => {
+  it('keeps a module and its contributions alive when saving fails during shutdown', async () => {
+    const events: string[] = [];
+    let failing = true;
+    const source = fakeModule('lesson-save', events);
+    source.load = () =>
+      Promise.resolve({
+        activate(ctx) {
+          ctx.views.registerSidebarPanel({
+            id: 'lesson-save.panel',
+            title: 'Lesson',
+            render: () => null,
+          });
+        },
+        deactivate() {
+          if (failing) throw new Error('Disk full');
+        },
+      });
+    const { registry, contributions } = await setup([source]);
+    await registry.enable(['lesson-save']);
+    await expect(registry.deactivateAll()).rejects.toThrow('Disk full');
+    expect(registry.get('lesson-save')?.status).toBe('on');
+    expect(contributions.getState().panels).toHaveLength(1);
+    failing = false;
+    await registry.deactivateAll();
+    expect(contributions.getState().panels).toHaveLength(0);
+  });
   it('starts with everything off, or unavailable on the wrong device', async () => {
     const { registry } = await setup(
       [fakeModule('a', []), fakeModule('pen', [], { manifest: { platforms: ['tablet'] } })],

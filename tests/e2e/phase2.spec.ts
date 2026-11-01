@@ -50,8 +50,8 @@ test.beforeEach(async ({ page }) => {
 async function switchOnResearch(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('tab', { name: 'Modules' }).click();
-  await page.getByRole('switch', { name: /^Research \d/ }).click();
-  await expect(page.getByRole('switch', { name: /^Research \d/ })).toHaveAttribute(
+  await page.getByRole('switch', { name: 'Research', exact: true }).click();
+  await expect(page.getByRole('switch', { name: 'Research', exact: true })).toHaveAttribute(
     'aria-checked',
     'true',
   );
@@ -94,7 +94,7 @@ test('an experiment links to its data, and both appear in search', async ({ page
   await page.getByRole('textbox', { name: 'Name' }).fill('LPS dose');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('textbox', { name: 'Page title' })).toHaveValue('LPS dose');
-  await expect(properties(page).getByText('Experiment')).toBeVisible();
+  await expect(properties(page).getByText('Experiment', { exact: true })).toBeVisible();
   await properties(page).getByLabel('Aim').fill('Climbing at day 7 after LPS');
   await properties(page).getByLabel('Aim').press('Enter');
   await properties(page).getByLabel('Datasets').fill('climbing-day7');

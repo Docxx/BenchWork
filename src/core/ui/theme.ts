@@ -29,6 +29,13 @@ export function applyAppearance(
   root.dataset['preset'] = appearance.preset;
   root.dataset['decoration'] = appearance.decoration ? 'on' : 'off';
   root.dataset['motion'] = appearance.motion ? 'on' : 'off';
+  root.dataset['studioMotion'] = appearance.motion ? (appearance.studioMotion ?? 'off') : 'off';
+  root.dataset['wallpaper'] = appearance.workspaceImage ? 'on' : 'off';
+  root.style.setProperty(
+    '--workspace-image',
+    appearance.workspaceImage ? `url("${appearance.workspaceImage}")` : 'none',
+  );
+  root.style.setProperty('--workspace-dim', `${String(appearance.workspaceDim ?? 85)}%`);
   root.style.colorScheme = scheme;
   for (const [name, value] of Object.entries(appearanceTokens(appearance, scheme))) {
     root.style.setProperty(name, value);
