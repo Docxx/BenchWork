@@ -40,10 +40,11 @@ Settings > General, open
 manual download link, not an automatic update check or installer. BenchWork
 does not claim a newer version exists or contact a release service at launch.
 
-The maintainer must publish each installer as a GitHub release asset before it
-is available on that page. There were no published releases when this feature
-was added. Publishing a release is a separate action from building or sharing
-an installer file.
+The first public preview is [0.15.0](https://github.com/Docxx/BenchWork/releases/tag/v0.15.0),
+with the Windows x64 installer and SHA-256 checksums. The maintainer must publish
+each newer installer as a GitHub release asset before it is available on that
+page. Publishing a release is a separate action from building or sharing an
+installer file.
 
 To update, save work, close BenchWork and run the newer installer over the
 existing installation. Keep the same app identifier so device preferences and

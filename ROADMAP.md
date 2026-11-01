@@ -202,7 +202,7 @@ See [Teaching and Creative guide](docs/teaching-creative.md).
 - [x] Visible temporary feedback toolbar with per-device hiding and a finished-build off switch
 - [x] Reviewed email drafts to the feedback inbox, optional app details and copy-report fallback
 - [x] Manual latest-installer link, build identification and preview-sharing instructions
-- [ ] Publish the first downloadable preview release after review
+- [x] Publish the first downloadable preview release after review ([0.15.0](https://github.com/Docxx/BenchWork/releases/tag/v0.15.0))
 
 See [preview testing](docs/preview-testing.md).
 
