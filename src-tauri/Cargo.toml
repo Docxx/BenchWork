@@ -23,6 +23,14 @@ notify-debouncer-full = "0.7.0"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 sha2 = "0.11.1"
 zip = { version = "9.1.3", default-features = false, features = ["deflate"] }
+axum = { version = "0.8", features = ["json"] }
+tokio = { version = "1", features = ["net", "sync", "time", "rt-multi-thread"] }
+axum-server = { version = "0.8", default-features = false, features = ["tls-rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rcgen = "0.14"
+rand = "0.9"
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
+base64 = "0.22"
 
 # Android has no Recycle Bin; deleted items go to the vault's own trash folder there.
 [target.'cfg(not(target_os = "android"))'.dependencies]

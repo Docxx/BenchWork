@@ -19,6 +19,7 @@ export interface HttpResponse {
 }
 
 export interface PlatformAdapter {
+  readonly nativeSync?: NativeSyncAdapter | null;
   readonly materials?: MaterialFiles;
   readonly audience?: AudienceDisplay | null;
   readonly fileTransfers?: FileTransfers | null;
@@ -149,6 +150,49 @@ export interface PlatformAdapter {
   pandocVersion(): Promise<string | null>;
   /** Converts Markdown to Word with Pandoc. Every path is a vault path. */
   pandocToWord(options: PandocWordOptions): Promise<void>;
+}
+
+export interface SyncConnection {
+  endpoint: string;
+  certificate: string;
+  vault: string;
+  token: string;
+}
+export interface SyncInvitation {
+  version: number;
+  endpoint: string;
+  certificate: string;
+  vault: string;
+  secret: string;
+  expires: number;
+}
+export interface SyncHostStatus {
+  running: boolean;
+  endpoint: string;
+  devices: string[];
+}
+export interface SyncPairing {
+  text: string;
+  svg: string;
+  expires: number;
+}
+export interface SyncReport {
+  uploaded: number;
+  downloaded: number;
+  conflicts: string[];
+  skipped: string[];
+}
+export interface NativeSyncAdapter {
+  localAddress: () => Promise<string>;
+  start: (ip: string, otherSyncStopped: boolean) => Promise<SyncHostStatus>;
+  stop: () => Promise<void>;
+  status: () => Promise<SyncHostStatus>;
+  invitation: () => Promise<SyncPairing>;
+  exportInvitation: (text: string) => Promise<string>;
+  readInvitation: (source: string) => Promise<SyncInvitation>;
+  join: (invitation: SyncInvitation, name: string) => Promise<SyncConnection>;
+  sync: (connection: SyncConnection, otherSyncStopped: boolean) => Promise<SyncReport>;
+  revoke: () => Promise<void>;
 }
 
 /**

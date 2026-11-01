@@ -6,11 +6,13 @@ import { AppearanceSettings } from './AppearanceSettings';
 import { BackupSettings } from './BackupSettings';
 import { useApp } from './AppStoreContext';
 import { ModulesPanel } from './ModulesPanel';
+import { DesktopSyncSettings } from './DesktopSyncSettings';
 
 const TABS = [
   { id: 'general', label: 'General' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'vault', label: 'Vault' },
+  { id: 'sync', label: 'Sync' },
   { id: 'modules', label: 'Modules' },
 ] as const;
 
@@ -85,6 +87,7 @@ export function SettingsPage({ vault }: { vault: OpenVault }) {
         {tab === 'general' && <SidebarSettings />}
         {tab === 'appearance' && <AppearanceSettings />}
         {tab === 'vault' && <VaultSettings vault={vault} />}
+        {tab === 'sync' && <DesktopSyncSettings />}
         {tab === 'modules' && <ModulesPanel />}
       </div>
     </section>

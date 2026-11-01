@@ -199,6 +199,10 @@ See [Teaching and Creative guide](docs/teaching-creative.md).
 
 ### Sync work
 
+- [x] Desktop-hosted local HTTPS file sync, certificate-based pairing, device revocation and offline reconnects ([guide](docs/desktop-sync.md))
+- [x] Preserve concurrent file versions and deletion/edit conflicts, with local recovery snapshots
+- [ ] Native desktop-to-tablet local-network acceptance check
+
 - [x] Theme atmosphere: stronger fun themes, decorative scenes, optional motion and themed timer cues with volume, preview and silent mode ([guide](docs/themes.md))
 - [x] Save-failure recovery: keep edits open when navigation or shutdown cannot save them, with a retry action and regression tests
 - [x] Draft sync design review ([proposal](docs/phase7-sync-design.md)); protocol decisions still need review

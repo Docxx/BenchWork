@@ -103,6 +103,7 @@ function byName(a: string, b: string): number {
  * and reports its own changes to watchers like the real file watcher does.
  */
 export class MemoryAdapter implements PlatformAdapter {
+  nativeSync: import('./types').NativeSyncAdapter | null = null;
   readonly kind: DeviceKind;
   folderBrowser: FolderBrowser | null = null;
   /** Runs programs as `usePrograms` says; none until then. */

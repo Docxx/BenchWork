@@ -217,6 +217,30 @@ class MainActivity : TauriActivity() {
       }
     }
 
+    /** Reads only a small pairing file selected through Android's document picker. */
+    @JavascriptInterface
+    fun readSyncPairing(source: String): String {
+      return try {
+        val uri = Uri.parse(source)
+        require(uri.scheme == "content") { "Choose a pairing document" }
+        val text = contentResolver.openInputStream(uri).use { input ->
+          requireNotNull(input) { "Cannot open pairing file" }
+          val bytes = ByteArray(16001)
+          var count = 0
+          while (count < bytes.size) {
+            val n = input.read(bytes, count, bytes.size - count)
+            if (n < 0) break
+            count += n
+          }
+          require(count <= 16000) { "Pairing file is too large" }
+          String(bytes, 0, count, Charsets.UTF_8)
+        }
+        JSONObject().put("invitation", JSONObject(text)).toString()
+      } catch (e: Exception) {
+        JSONObject().put("error", e.message ?: "Cannot read pairing file").toString()
+      }
+    }
+
     /** The shared storage folder, where vaults usually live. */
     @JavascriptInterface
     fun sharedStorage(): String = Environment.getExternalStorageDirectory().absolutePath

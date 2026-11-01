@@ -6,6 +6,7 @@ mod folders;
 mod index;
 mod materials;
 mod microsoft;
+mod native_sync;
 mod pandoc;
 mod path_guard;
 mod programs;
@@ -46,6 +47,132 @@ fn main_window(window: &tauri::WebviewWindow) -> VaultResult<()> {
         ));
     }
     Ok(())
+}
+#[tauri::command]
+async fn native_sync_start(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    state: State<'_, VaultState>,
+    sync: State<'_, native_sync::NativeSync>,
+    ip: String,
+    other_sync_stopped: bool,
+) -> Result<native_sync::HostStatus, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    sync.start(
+        state.root().map_err(|e| e.message)?,
+        app.path().app_config_dir().map_err(|e| e.to_string())?,
+        ip,
+        other_sync_stopped,
+    )
+    .await
+}
+#[tauri::command]
+async fn native_sync_stop(
+    window: tauri::WebviewWindow,
+    sync: State<'_, native_sync::NativeSync>,
+) -> Result<(), String> {
+    main_window(&window).map_err(|e| e.message)?;
+    sync.stop().await
+}
+#[tauri::command]
+fn native_sync_status(
+    window: tauri::WebviewWindow,
+    sync: State<'_, native_sync::NativeSync>,
+) -> Result<native_sync::HostStatus, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    sync.status()
+}
+#[tauri::command]
+fn native_sync_ip(window: tauri::WebviewWindow) -> Result<String, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    Ok(native_sync::local_ip())
+}
+#[tauri::command]
+fn native_sync_invitation(
+    window: tauri::WebviewWindow,
+    sync: State<'_, native_sync::NativeSync>,
+) -> Result<native_sync::Pairing, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    sync.invitation()
+}
+#[tauri::command]
+fn native_sync_revoke(
+    window: tauri::WebviewWindow,
+    sync: State<'_, native_sync::NativeSync>,
+) -> Result<(), String> {
+    main_window(&window).map_err(|e| e.message)?;
+    sync.revoke_all()
+}
+#[tauri::command]
+async fn native_sync_join(
+    window: tauri::WebviewWindow,
+    invitation: native_sync::Invitation,
+    name: String,
+) -> Result<native_sync::Connection, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    native_sync::join(invitation, name).await
+}
+#[tauri::command]
+async fn native_sync_run(
+    window: tauri::WebviewWindow,
+    state: State<'_, VaultState>,
+    sync: State<'_, native_sync::NativeSync>,
+    connection: native_sync::Connection,
+    other_sync_stopped: bool,
+) -> Result<native_sync::Report, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    sync.sync(
+        state.root().map_err(|e| e.message)?,
+        connection,
+        other_sync_stopped,
+    )
+    .await
+}
+#[tauri::command]
+fn native_sync_read_invitation(
+    window: tauri::WebviewWindow,
+    source: String,
+) -> Result<native_sync::Invitation, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    let file = std::fs::File::open(source).map_err(|_| "Cannot open the pairing file")?;
+    use std::io::Read;
+    let mut text = String::new();
+    file.take(16001)
+        .read_to_string(&mut text)
+        .map_err(|_| "Cannot read pairing details")?;
+    if text.len() > 16000 {
+        return Err("Pairing file is too large".into());
+    }
+    serde_json::from_str(&text).map_err(|_| "Choose a BenchWork pairing JSON file".into())
+}
+#[tauri::command]
+fn native_sync_export_invitation(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    text: String,
+) -> Result<String, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    if text.len() > 16000 {
+        return Err("Invalid pairing details".into());
+    }
+    let _: native_sync::Invitation =
+        serde_json::from_str(&text).map_err(|_| "Invalid pairing details")?;
+    let directory = app
+        .path()
+        .download_dir()
+        .map_err(|_| "Downloads folder unavailable")?;
+    std::fs::create_dir_all(&directory).map_err(|_| "Cannot open Downloads")?;
+    let path = directory.join(format!("BenchWork-pair-{}.json", rand::random::<u64>()));
+    use std::io::Write;
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .map_err(|_| "Cannot create pairing file")?;
+    file.write_all(text.as_bytes())
+        .and_then(|_| file.sync_all())
+        .map_err(|_| "Cannot save pairing file")?;
+    Ok(path_guard::display_path(&path))
 }
 #[tauri::command]
 async fn import_material_file(
@@ -669,10 +796,78 @@ async fn secure_write(app: AppHandle, key: String, value: Option<String>) -> Vau
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .setup(|app| {
+            // Explicit local setup command; no remote URL or protocol handler can enable hosting.
+            let args: Vec<String> = std::env::args().collect();
+            if let Some(index) = args.iter().position(|a| a == "--host-sync-vault") {
+                let folder = args
+                    .get(index + 1)
+                    .ok_or("Pass a local vault folder after --host-sync-vault")?;
+                let root = path_guard::canonical_root(Path::new(folder))?;
+                if !root.join(".benchwork/config.json").is_file() {
+                    return Err("Choose an existing BenchWork vault".into());
+                }
+                native_sync::check_engine(&root, false).map_err(std::io::Error::other)?;
+                let config = app.path().app_config_dir()?;
+                let ip = native_sync::local_ip();
+                let sync = app.state::<native_sync::NativeSync>();
+                tauri::async_runtime::block_on(sync.start(
+                    root.clone(),
+                    config.clone(),
+                    ip.clone(),
+                    false,
+                ))
+                .map_err(std::io::Error::other)?;
+                let display = path_guard::display_path(&root);
+                let device_key = format!(
+                    "native-sync-{}",
+                    native_sync::files::hash(display.as_bytes())
+                );
+                microsoft::write(
+                    &config,
+                    &device_key,
+                    Some(serde_json::json!({"mode":"host","ip":ip}).to_string()),
+                )?;
+                let settings_file = config.join(APP_SETTINGS_FILE);
+                let mut settings: serde_json::Value = if settings_file.exists() {
+                    serde_json::from_slice(&std::fs::read(&settings_file)?)?
+                } else {
+                    serde_json::json!({})
+                };
+                settings["lastVault"] = display.into();
+                vault_fs::write_atomic(&settings_file, &serde_json::to_vec(&settings)?)?;
+                let invitation = sync.invitation().map_err(std::io::Error::other)?;
+                let downloads = app.path().download_dir()?;
+                std::fs::create_dir_all(&downloads)?;
+                let pairing_file = downloads.join(format!(
+                    "BenchWork-pair-setup-{}.json",
+                    rand::random::<u64>()
+                ));
+                use std::io::Write;
+                let mut file = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(pairing_file)?;
+                file.write_all(invitation.text.as_bytes())?;
+                file.sync_all()?;
+            }
+            Ok(())
+        })
         .plugin(tauri_plugin_dialog::init())
         .manage(VaultState::default())
         .manage(audience::AudienceState::default())
+        .manage(native_sync::NativeSync::default())
         .invoke_handler(tauri::generate_handler![
+            native_sync_read_invitation,
+            native_sync_export_invitation,
+            native_sync_start,
+            native_sync_stop,
+            native_sync_status,
+            native_sync_ip,
+            native_sync_invitation,
+            native_sync_revoke,
+            native_sync_join,
+            native_sync_run,
             import_material_file,
             import_powerpoint,
             audience_monitors,

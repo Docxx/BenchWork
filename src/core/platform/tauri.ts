@@ -4,6 +4,12 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open } from '@tauri-apps/plugin-dialog';
 import { PlatformError } from './errors';
 import type {
+  NativeSyncAdapter,
+  SyncConnection,
+  SyncHostStatus,
+  SyncInvitation,
+  SyncPairing,
+  SyncReport,
   HttpRequest,
   HttpResponse,
   DeviceKind,
@@ -48,6 +54,7 @@ async function call<T>(command: string, args?: () => Record<string, unknown>): P
 
 /** What MainActivity.kt gives the page on Android. */
 interface AndroidBridge {
+  readSyncPairing(source: string): string;
   secureRead(key: string): string;
   secureWrite(key: string, value: string, remove: boolean): string;
   setHandwriting(on: boolean): void;
@@ -205,6 +212,36 @@ function desktopFrame(): WindowFrame {
 }
 
 export class TauriAdapter implements PlatformAdapter {
+  readonly nativeSync: NativeSyncAdapter = {
+    localAddress: () => call<string>('native_sync_ip'),
+    start: (ip, otherSyncStopped) =>
+      call<SyncHostStatus>('native_sync_start', () => ({ ip, otherSyncStopped })),
+    stop: async () => {
+      await call('native_sync_stop');
+    },
+    status: () => call<SyncHostStatus>('native_sync_status'),
+    invitation: () => call<SyncPairing>('native_sync_invitation'),
+    exportInvitation: (text) => call<string>('native_sync_export_invitation', () => ({ text })),
+    readInvitation: (source) => {
+      if (source.startsWith('content:') && window.BenchWorkAndroid) {
+        const result = JSON.parse(window.BenchWorkAndroid.readSyncPairing(source)) as {
+          invitation?: SyncInvitation;
+          error?: string;
+        };
+        if (result.error || !result.invitation)
+          return Promise.reject(new Error(result.error ?? 'Invalid pairing file'));
+        return Promise.resolve(result.invitation);
+      }
+      return call<SyncInvitation>('native_sync_read_invitation', () => ({ source }));
+    },
+    join: (invitation, name) =>
+      call<SyncConnection>('native_sync_join', () => ({ invitation, name })),
+    sync: (connection, otherSyncStopped) =>
+      call<SyncReport>('native_sync_run', () => ({ connection, otherSyncStopped })),
+    revoke: async () => {
+      await call('native_sync_revoke');
+    },
+  };
   readonly materials: MaterialFiles = {
     importFile: (source, folder) =>
       call<string>('import_material_file', () => ({ source, folder: normaliseVaultPath(folder) })),
