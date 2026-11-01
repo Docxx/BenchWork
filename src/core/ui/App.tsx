@@ -7,6 +7,7 @@ import { Shell } from './Shell';
 import { Splash } from './Splash';
 import { WindowControls } from './WindowControls';
 import { StudioAmbience } from './StudioAmbience';
+import { FeedbackTools } from './FeedbackTools';
 import { applyAppearance } from './theme';
 import {
   ChooseFolder,
@@ -140,6 +141,7 @@ export function App() {
     <>
       <Screen />
       <StudioAmbience />
+      <FeedbackTools />
       {status.kind !== 'open' && (
         // Before a vault opens there is no sidebar to drag the window by.
         <>

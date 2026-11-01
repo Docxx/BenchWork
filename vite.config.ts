@@ -1,4 +1,5 @@
 import { fileURLToPath, URL } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
@@ -9,8 +10,18 @@ import { defineConfig } from 'vitest/config';
 const host = process.env['TAURI_DEV_HOST'];
 const LOOPBACK = '127.0.0.1';
 
+let buildId = 'development';
+try {
+  buildId = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim();
+  if (execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim())
+    buildId += '-modified';
+} catch {
+  /* Source archives may not contain Git history. */
+}
+
 export default defineConfig({
   plugins: [react()],
+  define: { 'import.meta.env.VITE_BUILD_ID': JSON.stringify(buildId) },
   resolve: {
     alias: {
       '@core': fileURLToPath(new URL('./src/core', import.meta.url)),

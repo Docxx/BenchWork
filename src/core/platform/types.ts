@@ -19,6 +19,8 @@ export interface HttpResponse {
 }
 
 export interface PlatformAdapter {
+  /** Opens a reviewed draft to the fixed BenchWork feedback address; never sends it. */
+  openFeedbackEmail?: (subject: string, body: string) => Promise<void>;
   readonly nativeSync?: NativeSyncAdapter | null;
   readonly materials?: MaterialFiles;
   readonly audience?: AudienceDisplay | null;

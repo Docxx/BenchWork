@@ -538,6 +538,15 @@ async fn open_vault_file(path: String, state: State<'_, VaultState>) -> VaultRes
 async fn open_web_link(url: String) -> VaultResult<()> {
     web_link::open(&url)
 }
+#[tauri::command]
+fn open_feedback_email(
+    window: tauri::WebviewWindow,
+    subject: String,
+    body: String,
+) -> VaultResult<()> {
+    main_window(&window)?;
+    web_link::open_feedback_email(&subject, &body)
+}
 
 /// Folders inside a full path, for choosing a vault inside the app.
 #[tauri::command]
@@ -891,6 +900,7 @@ pub fn run() {
             snapshot_program_file,
             stop_program,
             open_web_link,
+            open_feedback_email,
             open_vault_file,
             list_backups,
             restore_backup,

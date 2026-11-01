@@ -54,6 +54,7 @@ async function call<T>(command: string, args?: () => Record<string, unknown>): P
 
 /** What MainActivity.kt gives the page on Android. */
 interface AndroidBridge {
+  openFeedbackEmail(subject: string, body: string): string;
   readSyncPairing(source: string): string;
   secureRead(key: string): string;
   secureWrite(key: string, value: string, remove: boolean): string;
@@ -212,6 +213,13 @@ function desktopFrame(): WindowFrame {
 }
 
 export class TauriAdapter implements PlatformAdapter {
+  async openFeedbackEmail(subject: string, body: string): Promise<void> {
+    const bridge = window.BenchWorkAndroid;
+    if (bridge) {
+      const result = JSON.parse(bridge.openFeedbackEmail(subject, body)) as { error?: string };
+      if (result.error) throw new Error(result.error);
+    } else await call<undefined>('open_feedback_email', () => ({ subject, body }));
+  }
   readonly nativeSync: NativeSyncAdapter = {
     localAddress: () => call<string>('native_sync_ip'),
     start: (ip, otherSyncStopped) =>

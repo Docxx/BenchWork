@@ -105,6 +105,8 @@ export interface AppSettings {
   home: Record<string, HomeLayout>;
   /** The first-run guide has been seen, or skipped, on this device. */
   guided: boolean;
+  /** Temporary testing toolbar, saved on this device. */
+  previewBarVisible: boolean;
   /** Keys this version does not know about, kept on save. */
   extra: Record<string, unknown>;
 }
@@ -121,6 +123,7 @@ const KNOWN_KEYS = new Set([
   'backups',
   'home',
   'guided',
+  'previewBarVisible',
 ]);
 
 export function defaultAppSettings(): AppSettings {
@@ -135,6 +138,7 @@ export function defaultAppSettings(): AppSettings {
     backups: {},
     home: {},
     guided: false,
+    previewBarVisible: true,
     extra: {},
   };
 }
@@ -144,6 +148,8 @@ export function parseAppSettings(data: unknown): AppSettings {
   const settings = defaultAppSettings();
   if (typeof data !== 'object' || data === null || Array.isArray(data)) return settings;
   const record = data as Record<string, unknown>;
+  if (typeof record['previewBarVisible'] === 'boolean')
+    settings.previewBarVisible = record['previewBarVisible'];
 
   const lastVault = record['lastVault'];
   if (typeof lastVault === 'string' && lastVault !== '') settings.lastVault = lastVault;

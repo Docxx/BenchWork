@@ -7,6 +7,7 @@ import { BackupSettings } from './BackupSettings';
 import { useApp } from './AppStoreContext';
 import { ModulesPanel } from './ModulesPanel';
 import { DesktopSyncSettings } from './DesktopSyncSettings';
+import { APP_VERSION, BUILD_ID, PREVIEW_BUILD } from '../feedback/report';
 
 const TABS = [
   { id: 'general', label: 'General' },
@@ -98,9 +99,61 @@ function SidebarSettings() {
   const showAllFiles = useApp((s) => s.settings.showAllFiles);
   const setShowAllFiles = useApp((s) => s.setShowAllFiles);
   const startGuide = useApp((s) => s.startGuide);
+  const preview = useApp((s) => s.settings.previewBarVisible);
+  const setPreview = useApp((s) => s.setPreviewBarVisible);
+  const feedback = useApp((s) => s.setFeedbackOpen);
+  const updates = useApp((s) => s.openLatestInstaller);
+  const [updateError, setUpdateError] = useState('');
 
   return (
     <>
+      <fieldset className="field">
+        <legend>About and updates</legend>
+        <p>
+          BenchWork {APP_VERSION}
+          {PREVIEW_BUILD ? ' · Development preview' : ''}
+        </p>
+        <p className="hint">Build {BUILD_ID}</p>
+        <button
+          onClick={() => {
+            void updates().catch((e: unknown) => {
+              setUpdateError(String(e));
+            });
+          }}
+        >
+          Get latest installer
+        </button>
+        <p className="hint">
+          Opens the public releases page. Download and run a newer installer to update this device.
+          Automatic updates are not enabled.
+        </p>
+        {updateError && <p role="alert">{updateError}</p>}
+      </fieldset>
+      {PREVIEW_BUILD && (
+        <fieldset className="field">
+          <legend>Preview testing</legend>
+          <label className="choice">
+            <input
+              type="checkbox"
+              checked={preview}
+              onChange={(e) => {
+                void setPreview(e.target.checked);
+              }}
+            />
+            Show the temporary feedback toolbar
+          </label>
+          <p className="hint">
+            You can hide it on this device. It can be removed from finished releases.
+          </p>
+          <button
+            onClick={() => {
+              feedback(true);
+            }}
+          >
+            Send feedback or report a bug
+          </button>
+        </fieldset>
+      )}
       <fieldset className="field">
         <legend>Sidebar</legend>
         <label className="choice">

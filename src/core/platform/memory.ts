@@ -103,6 +103,11 @@ function byName(a: string, b: string): number {
  * and reports its own changes to watchers like the real file watcher does.
  */
 export class MemoryAdapter implements PlatformAdapter {
+  readonly feedbackDrafts: { subject: string; body: string }[] = [];
+  openFeedbackEmail = (subject: string, body: string): Promise<void> =>
+    this.run(() => {
+      this.feedbackDrafts.push({ subject, body });
+    });
   nativeSync: import('./types').NativeSyncAdapter | null = null;
   readonly kind: DeviceKind;
   folderBrowser: FolderBrowser | null = null;

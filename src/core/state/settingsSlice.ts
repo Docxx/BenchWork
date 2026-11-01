@@ -2,6 +2,7 @@ import { defaultAppearance, type Appearance } from '../settings/appearance';
 import { saveAppSettings, type Theme } from '../settings/appSettings';
 import type { PageLayout } from '../vault/vaultConfig';
 import { describeError, type StoreContext } from './context';
+import { APP_VERSION, BUILD_ID, DOWNLOADS_URL, type FeedbackEnvironment } from '../feedback/report';
 
 /** What the main area shows: pages, Settings, or pages that differ between devices. */
 export type View = 'files' | 'settings' | 'conflicts';
@@ -10,6 +11,12 @@ export type View = 'files' | 'settings' | 'conflicts';
 export const LINK_THRESHOLD_RANGE = { min: 1, max: 100_000 } as const;
 
 export interface SettingsSlice {
+  feedbackOpen: boolean;
+  feedbackEnvironment: FeedbackEnvironment;
+  setFeedbackOpen: (open: boolean) => void;
+  setPreviewBarVisible: (visible: boolean) => Promise<void>;
+  openLatestInstaller: () => Promise<void>;
+  openFeedbackEmail: (subject: string, body: string) => Promise<void>;
   /** What the main area shows while a vault is open. */
   view: View;
   /** Why the last settings change could not be saved. */
@@ -49,6 +56,26 @@ export function createSettingsSlice(ctx: StoreContext): SettingsSlice {
   });
 
   return {
+    feedbackOpen: false,
+    feedbackEnvironment: { version: APP_VERSION, build: BUILD_ID, device: platform.kind },
+    setFeedbackOpen: (feedbackOpen) => {
+      set({ feedbackOpen });
+    },
+    setPreviewBarVisible: async (previewBarVisible) => {
+      const settings = { ...get().settings, previewBarVisible };
+      set({ settings, settingsError: null });
+      try {
+        await saveAppSettings(platform, settings);
+      } catch (err) {
+        set({ settingsError: `This preference could not be saved. ${describeError(err)}` });
+      }
+    },
+    openLatestInstaller: () => platform.openWebLink(DOWNLOADS_URL),
+    openFeedbackEmail: async (subject, body) => {
+      if (!platform.openFeedbackEmail)
+        throw new Error('Copy the report and send it using your email app.');
+      await platform.openFeedbackEmail(subject, body);
+    },
     view: 'files',
     settingsError: null,
     settingsTab: null,

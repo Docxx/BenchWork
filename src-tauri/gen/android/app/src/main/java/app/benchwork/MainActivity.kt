@@ -187,6 +187,20 @@ class MainActivity : TauriActivity() {
       } catch (_: Exception) { JSONObject().put("error", "Private data could not be saved on this device.").toString() }
     }
 
+    /** Opens a user-reviewed email draft. The recipient is fixed and nothing is sent. */
+    @JavascriptInterface
+    fun openFeedbackEmail(subject: String, body: String): String {
+      return try {
+        require(subject.length <= 200 && !subject.any { it.isISOControl() } && body.length <= 16000) { "Copy the report into your email app instead." }
+        val uri = Uri.parse("mailto:raywprice@gmail.com?subject=" + Uri.encode(subject) + "&body=" + Uri.encode(body))
+        require(uri.toString().length <= 6000) { "This report is too long. Copy it into your email app instead." }
+        startActivity(Intent(Intent.ACTION_SENDTO, uri))
+        JSONObject().put("ok", true).toString()
+      } catch (_: Exception) {
+        JSONObject().put("error", "No email app could open this draft. Copy the report and email it to raywprice@gmail.com.").toString()
+      }
+    }
+
     /** Opens a web address in the tablet's browser; anything but http or https is ignored. */
     @JavascriptInterface
     fun openLink(url: String) {

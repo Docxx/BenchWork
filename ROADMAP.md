@@ -197,6 +197,15 @@ See [workspace options](docs/workspace-customisation.md) and [Cloud storage](doc
 
 See [Teaching and Creative guide](docs/teaching-creative.md).
 
+### Preview testing and feedback (0.15.0)
+
+- [x] Visible temporary feedback toolbar with per-device hiding and a finished-build off switch
+- [x] Reviewed email drafts to the feedback inbox, optional app details and copy-report fallback
+- [x] Manual latest-installer link, build identification and preview-sharing instructions
+- [ ] Publish the first downloadable preview release after review
+
+See [preview testing](docs/preview-testing.md).
+
 ### Sync work
 
 - [x] Desktop-hosted local HTTPS file sync, certificate-based pairing, device revocation and offline reconnects ([guide](docs/desktop-sync.md))
