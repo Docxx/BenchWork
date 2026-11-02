@@ -273,6 +273,8 @@ export class TauriAdapter implements PlatformAdapter {
       ? {
           pickFolder: () =>
             this.pickFolder({ title: 'Choose a folder managed by your cloud sync app' }),
+          openFolder: (folder) => call<undefined>('open_storage_folder', () => ({ folder })),
+          openFile: (copy) => call<undefined>('open_storage_file', () => ({ copy })),
           copy: (id, source, folder) =>
             call<VerifiedCopy>('copy_to_storage', () => ({ id, source, folder })),
           cancel: (id) => call<undefined>('stop_program', () => ({ id })),
@@ -288,6 +290,11 @@ export class TauriAdapter implements PlatformAdapter {
       ? (path) => call<undefined>('open_vault_file', () => ({ path: normaliseVaultPath(path) }))
       : null;
   readonly folderBrowser: FolderBrowser | null = androidFolderBrowser();
+  readonly openFolderInSystem =
+    detectKind() === 'desktop'
+      ? (path: string) =>
+          call<undefined>('open_vault_folder', () => ({ path: normaliseVaultPath(path) }))
+      : null;
   readonly handwriting: HandwritingRecognizer | null = androidHandwriting();
   readonly programs: ProgramRunner | null =
     detectKind() === 'desktop'

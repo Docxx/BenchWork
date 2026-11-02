@@ -32,6 +32,14 @@ afterEach(() => {
 });
 
 describe('TauriAdapter', () => {
+  it('keeps folder opening relative to the vault and refuses traversal before IPC', async () => {
+    const calls = record();
+    const adapter = new TauriAdapter();
+    await adapter.openFolderInSystem?.('Lab/Data');
+    expect(calls).toContainEqual({ cmd: 'open_vault_folder', args: { path: 'Lab/Data' } });
+    await expect(adapter.openFolderInSystem?.('../outside')).rejects.toThrow();
+    expect(calls).toHaveLength(1);
+  });
   it.each(['saved', 'blocked', 'failed'])(
     'only destroys the window after a safe close: %s',
     async (result) => {

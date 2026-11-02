@@ -94,6 +94,7 @@ export async function saveAttachment(
   source: FileSource,
   limitBytes: number,
   now: Date = new Date(),
+  folder: string = ATTACHMENTS_DIR,
 ): Promise<string> {
   if (file.size > limitBytes) {
     const limitMB = Math.round(limitBytes / (1024 * 1024));
@@ -102,9 +103,9 @@ export async function saveAttachment(
     );
   }
   const { base, ext } = splitName(attachmentName(file, source, now));
-  await platform.ensureDir(ATTACHMENTS_DIR);
-  const name = await freeName(platform, ATTACHMENTS_DIR, base, ext);
-  const path = joinVaultPath(ATTACHMENTS_DIR, name);
+  await platform.ensureDir(folder);
+  const name = await freeName(platform, folder, base, ext);
+  const path = joinVaultPath(folder, name);
   await platform.writeBytes(path, await file.bytes());
   return path;
 }
@@ -118,6 +119,7 @@ export async function copyInAttachment(
   platform: PlatformAdapter,
   fullPath: string,
   maxBytes: number,
+  folder: string = ATTACHMENTS_DIR,
 ): Promise<string> {
   const file: IncomingFile = {
     name: fullBaseName(fullPath),
@@ -126,9 +128,9 @@ export async function copyInAttachment(
     bytes: () => Promise.resolve(new Uint8Array()),
   };
   const { base, ext } = splitName(attachmentName(file, 'drop', new Date()));
-  await platform.ensureDir(ATTACHMENTS_DIR);
-  const name = await freeName(platform, ATTACHMENTS_DIR, base, ext);
-  const path = joinVaultPath(ATTACHMENTS_DIR, name);
+  await platform.ensureDir(folder);
+  const name = await freeName(platform, folder, base, ext);
+  const path = joinVaultPath(folder, name);
   await platform.copyIn(fullPath, path, maxBytes);
   return path;
 }

@@ -7,6 +7,17 @@ folder, then select a folder managed by that provider's desktop sync app. You
 can connect several providers and accounts. Connections are saved privately on
 this device, outside the vault. Disconnecting leaves all files in place.
 
+Each connected location has a prominent **Open data folder** button. It opens
+Windows Explorer so you can browse existing images and datasets, including
+files that were never copied through BenchWork. **Manage data folders** holds
+connection setup and removal separately from everyday access.
+
+**Files copied with BenchWork** lists the records created by transfers. Select
+one and choose **Open stored file** to open the actual copy in its usual image
+viewer or application. **Show stored file in folder** selects the copy in
+Explorer. These locations are device-local; files may need downloading through
+the provider's desktop app before they can open.
+
 Choose a data file and optionally a dataset record, then select **Copy and
 verify**. BenchWork copies the file in chunks, using a unique destination folder
 and keeping the source. Large files do not pass through JavaScript memory.

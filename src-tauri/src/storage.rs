@@ -160,6 +160,9 @@ pub fn reveal(copy: &VerifiedCopy) -> VaultResult<()> {
         .map(|_| ())
         .map_err(|e| VaultError::io("Cannot open storage folder", &e))
 }
+pub fn open_file(copy: &VerifiedCopy) -> VaultResult<()> {
+    crate::web_link::open_file(&target(copy)?)
+}
 pub fn recycle_source(copy: &VerifiedCopy) -> VaultResult<()> {
     verify(copy)?;
     let source =

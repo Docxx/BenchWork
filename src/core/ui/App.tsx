@@ -24,7 +24,7 @@ import {
 function blockStrayFileDrops(): () => void {
   const hasFiles = (e: DragEvent) => e.dataTransfer?.types.includes('Files') === true;
   const inEditor = (e: DragEvent) =>
-    e.target instanceof Element && e.target.closest('.page-editor') !== null;
+    e.target instanceof Element && e.target.closest('.page-editor, .notebook-tree') !== null;
   const onDragOver = (e: DragEvent) => {
     if (!hasFiles(e) || inEditor(e)) return;
     e.preventDefault();

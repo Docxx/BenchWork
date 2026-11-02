@@ -4,6 +4,30 @@
   gap: 24px;
   padding-bottom: 32px;
 }
+.cloud-data-folders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+}
+.cloud-folder-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: start;
+  padding: 20px;
+  gap: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 12px;
+}
+.cloud-folder-card h3 {
+  margin: 6px 0;
+}
+.cloud-folder-card p {
+  margin: 0;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
 .cloud-intro,
 .cloud-details {
   padding: 24px;

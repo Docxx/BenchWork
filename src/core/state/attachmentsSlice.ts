@@ -41,6 +41,8 @@ export interface AttachQuestion {
 export type AttachChoice = 'link' | 'copy' | null;
 
 export interface AttachmentsSlice {
+  addFilesToFolder: (folder: string, files: readonly IncomingFile[]) => Promise<AddedFile[]>;
+  pickFilesIntoFolder: (folder: string) => Promise<AddedFile[]>;
   attachQuestion: AttachQuestion | null;
   /** Answers attachQuestion: link, copy, or null to skip the file. */
   answerAttach: (choice: AttachChoice) => void;
@@ -63,6 +65,14 @@ function added(path: string): AddedFile {
 export function createAttachmentsSlice(ctx: StoreContext): AttachmentsSlice {
   const { platform, set, get } = ctx;
   let answer: ((choice: AttachChoice) => void) | null = null;
+  let imports: Promise<unknown> = Promise.resolve();
+  let stopping = false;
+  function folderJob(work: () => Promise<AddedFile[]>): Promise<AddedFile[]> {
+    const token = ctx.session();
+    const pending = imports.then(() => (!stopping && ctx.session() === token ? work() : []));
+    imports = pending.catch(() => undefined);
+    return pending;
+  }
 
   function ask(question: AttachQuestion): Promise<AttachChoice> {
     answer?.(null);
@@ -72,9 +82,9 @@ export function createAttachmentsSlice(ctx: StoreContext): AttachmentsSlice {
     });
   }
 
-  function limitBytes(): number | null {
+  function limitBytes(forFolder = false): number | null {
     const status = get().status;
-    if (status.kind !== 'open' || get().page === null) return null;
+    if (status.kind !== 'open' || (!forFolder && get().page === null)) return null;
     return status.vault.config.attachments.linkThresholdMB * 1024 * 1024;
   }
 
@@ -89,14 +99,15 @@ export function createAttachmentsSlice(ctx: StoreContext): AttachmentsSlice {
     items: readonly T[],
     nameOf: (item: T) => string,
     work: (item: T, limit: number) => Promise<string | null>,
+    folder?: string,
   ): Promise<AddedFile[]> {
-    const limit = limitBytes();
+    const limit = limitBytes(folder !== undefined);
     if (limit === null) return [];
     const token = ctx.session();
     const done: AddedFile[] = [];
     const problems: string[] = [];
     for (const item of items) {
-      if (ctx.session() !== token) return [];
+      if (ctx.session() !== token || (folder !== undefined && stopping)) return [];
       try {
         const path = await work(item, limit);
         if (path !== null) done.push(added(path));
@@ -104,8 +115,18 @@ export function createAttachmentsSlice(ctx: StoreContext): AttachmentsSlice {
         problems.push(problem(nameOf(item), err));
       }
     }
-    if (ctx.session() !== token) return [];
-    set({ pageNotice: problems.length > 0 ? problems.join(' ') : null });
+    if (ctx.session() !== token || (folder !== undefined && stopping)) return [];
+    if (folder !== undefined) {
+      await get().reloadFolders([folder]);
+      if (ctx.session() !== token) return [];
+      await get().revealFolder(folder);
+      set({
+        sidebarNotice:
+          problems.length > 0
+            ? problems.join(' ')
+            : `${String(done.length)} file${done.length === 1 ? '' : 's'} added to ${folder || 'the vault'}.`,
+      });
+    } else set({ pageNotice: problems.length > 0 ? problems.join(' ') : null });
     return done;
   }
 
@@ -114,6 +135,17 @@ export function createAttachmentsSlice(ctx: StoreContext): AttachmentsSlice {
   }
 
   ctx.onVault({
+    closing: async () => {
+      stopping = true;
+      answer?.(null);
+      answer = null;
+      set({ attachQuestion: null });
+      try {
+        await imports;
+      } finally {
+        stopping = false;
+      }
+    },
     closed: () => {
       answer?.(null);
       answer = null;
@@ -122,6 +154,53 @@ export function createAttachmentsSlice(ctx: StoreContext): AttachmentsSlice {
   });
 
   return {
+    addFilesToFolder: (folder, files) =>
+      folderJob(() =>
+        each(
+          files,
+          (f) => f.name,
+          async (file, limit) => {
+            if (file.size <= limit)
+              return saveAttachment(platform, file, 'drop', limit, new Date(), folder);
+            const choice = await ask(question(file.name, file.size, limit, false));
+            if (choice === 'copy')
+              return saveAttachment(platform, file, 'drop', NO_LIMIT, new Date(), folder);
+            if (choice !== 'link') return null;
+            const [found] = await platform.pickFiles({
+              title: `Find ${file.name}`,
+              multiple: false,
+            });
+            return found === undefined
+              ? null
+              : linkFile(platform, found, new Date(), undefined, folder);
+          },
+          folder,
+        ),
+      ),
+    pickFilesIntoFolder: (folder) =>
+      folderJob(async () => {
+        if (limitBytes(true) === null) return [];
+        const token = ctx.session();
+        const picked = await platform.pickFiles({
+          title: 'Add files to notebook folder',
+          multiple: true,
+        });
+        if (ctx.session() !== token) return [];
+        return each(
+          picked,
+          fullBaseName,
+          async (full, limit) => {
+            const { size } = await platform.fileInfo(full, true);
+            if (size <= limit) return copyInAttachment(platform, full, limit, folder);
+            const choice = await ask(question(fullBaseName(full), size, limit, true));
+            if (choice === 'copy') return copyInAttachment(platform, full, NO_LIMIT, folder);
+            return choice === 'link'
+              ? linkFile(platform, full, new Date(), undefined, folder)
+              : null;
+          },
+          folder,
+        );
+      }),
     attachQuestion: null,
 
     answerAttach: (choice) => {

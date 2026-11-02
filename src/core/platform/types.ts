@@ -66,6 +66,8 @@ export interface PlatformAdapter {
 
   /** Opens a vault file in the program the system uses for it, such as Word; null on the tablet. */
   readonly openInSystem: ((path: string) => Promise<void>) | null;
+  /** Opens a vault folder in the desktop file manager; relative to the vault. */
+  readonly openFolderInSystem?: ((path: string) => Promise<void>) | null;
 
   /**
    * The app's own window buttons, where the system's title bar is hidden
@@ -366,6 +368,8 @@ export interface VerifiedCopy {
 }
 export interface FileTransfers {
   pickFolder(): Promise<string | null>;
+  openFolder(folder: string): Promise<void>;
+  openFile(copy: VerifiedCopy): Promise<void>;
   copy(id: string, source: string, folder: string): Promise<VerifiedCopy>;
   cancel(id: string): Promise<void>;
   verify(copy: VerifiedCopy): Promise<void>;

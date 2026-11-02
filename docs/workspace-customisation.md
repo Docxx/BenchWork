@@ -1,5 +1,27 @@
 # Workspace customisation
 
+The sidebar's **Tools** heading folds the module list away. With many tools,
+**Find a tool** filters the list, which scrolls independently of notebooks.
+Folding is remembered on this device. Nothing is disabled by hiding the list.
+
+Notebook and section rows are larger. **List options** above Notebooks keeps
+Compact, Comfortable and Roomy row choices. Drag the grip below the notebook
+list to resize its area; the arrow keys also resize it when focused, and a
+double-click resets it. Drag the vertical divider beside the sidebar to change
+its width. Sizes are saved on this device.
+
+Drop individual files onto a notebook or section to copy them directly into
+that folder, or right-click it and choose **Add files…**. Same-named files get
+separate names and source files stay in place. Files over the vault's copy
+limit still offer a copy-or-link choice. A dropped file's original path is not
+available from the browser, so linking asks you to locate it. Existing page
+attachment behaviour and dragging items between notebooks are unchanged.
+
+Folder right-click menus also offer **Open in Windows Explorer** on desktop
+and **Copy folder path**. If the clipboard is unavailable, the path is shown
+for manual copying. Unknown file types can be shown using Settings > General >
+Show all files, and the Pages only filter can be changed in List options.
+
 The Calendar card on Home offers Month, Week and Agenda. Its appearance button
 changes day size, the first weekday, accent colour, daily-page markers and the
 selected-day agenda. Choices are saved for this vault on this device. Use

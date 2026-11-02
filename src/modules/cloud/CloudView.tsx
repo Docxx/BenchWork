@@ -104,10 +104,11 @@ export function CloudView({ ctx, session }: { ctx: ModuleContext; session: Cloud
   return (
     <div className="cloud-workspace">
       <div className="cloud-intro">
-        <h2>Large data, lighter notebooks</h2>
+        <h2>Your data folders</h2>
         <p>
-          Copy images and datasets to a folder managed by your cloud sync app. BenchWork keeps a
-          small linked record and checks that the copied bytes match.
+          Keep large images and datasets in a folder managed by OneDrive, Dropbox or Google Drive.
+          Open a data folder below to browse its files in Windows Explorer. BenchWork keeps a small
+          record of files copied here, with a checksum to check the copy.
         </p>
         <p className="hint">
           Your provider’s desktop app handles uploading and online-only files. A verified local copy
@@ -121,8 +122,33 @@ export function CloudView({ ctx, session }: { ctx: ModuleContext; session: Cloud
       )}
       {ctx.fileTransfers ? (
         <>
+          <section aria-label="Connected data folders" className="cloud-data-folders">
+            {connections.length === 0 && (
+              <p>Start by choosing the data folder inside your provider’s desktop sync folder.</p>
+            )}
+            {connections.map((c) => (
+              <article className="cloud-folder-card" key={c.id}>
+                <div>
+                  <span className="hint">{c.provider}</span>
+                  <h3>{c.name}</h3>
+                  <p>{c.folder}</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void action(async () => {
+                      await ctx.fileTransfers?.openFolder(c.folder);
+                    })
+                  }
+                >
+                  Open data folder · {c.name}
+                </button>
+              </article>
+            ))}
+          </section>
           <details open={connections.length === 0}>
-            <summary>Storage connections</summary>
+            <summary>Manage data folders</summary>
             <div className="cloud-form">
               <label>
                 Provider
@@ -269,7 +295,11 @@ export function CloudView({ ctx, session }: { ctx: ModuleContext; session: Cloud
         </div>
       )}
       <section aria-label="Stored datasets">
-        <h2>Stored files</h2>
+        <h2>Files copied with BenchWork</h2>
+        <p className="hint">
+          Select a file to open it, find its folder or check its copy. Other files already in your
+          data folder are available using Open data folder above.
+        </p>
         {records.length === 0 && (
           <p className="hint">Your verified cloud-storage records will appear here.</p>
         )}
@@ -369,11 +399,22 @@ function StorageDetails({
             disabled={busy}
             onClick={() =>
               void action(async () => {
+                await ctx.fileTransfers?.openFile(copy);
+              })
+            }
+          >
+            Open stored file
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              void action(async () => {
                 await ctx.fileTransfers?.reveal(copy);
               })
             }
           >
-            Open provider folder
+            Show stored file in folder
           </button>
           <button
             type="button"

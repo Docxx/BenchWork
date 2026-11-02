@@ -10,6 +10,14 @@ import {
 } from './appearance';
 
 describe('appearance settings', () => {
+  it('bounds notebook sizing and preserves the chosen tool and row preferences', () => {
+    expect(
+      parseAppearance({ notebookHeight: 3000, toolsCollapsed: true, treeDensity: 'compact' }),
+    ).toMatchObject({ notebookHeight: 900, toolsCollapsed: true, treeDensity: 'compact' });
+    expect(parseAppearance({ notebookHeight: -1 }).notebookHeight).toBe(140);
+    expect(parseAppearance({ notebookHeight: NaN }).notebookHeight).toBe(360);
+    expect(defaultAppearance().treeDensity).toBe('roomy');
+  });
   it('migrates old settings and bounds the atmosphere and sound controls', () => {
     expect(parseAppearance({ preset: 'bridge' })).toMatchObject({
       decoration: true,

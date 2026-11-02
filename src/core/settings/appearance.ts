@@ -77,6 +77,8 @@ export interface Appearance {
   timerVolume: number;
   /** How tall rows in the notebooks list are. */
   treeDensity: Density;
+  toolsCollapsed: boolean;
+  notebookHeight: number;
   /** Lines down the notebooks list, showing what is inside what. */
   treeLines: boolean;
   /** Leave the Daily notebook out of the notebooks list. */
@@ -1020,7 +1022,9 @@ export function defaultAppearance(preset: ThemePreset = 'forest'): Appearance {
     motion: true,
     timerSound: 'theme',
     timerVolume: 35,
-    treeDensity: 'comfortable',
+    treeDensity: 'roomy',
+    toolsCollapsed: false,
+    notebookHeight: 360,
     treeLines: false,
     hideDaily: false,
     pagesOnly: false,
@@ -1106,7 +1110,9 @@ export function parseAppearance(data: unknown): Appearance {
     result.timerVolume = Math.round(Math.min(100, Math.max(0, volume)));
   if (oneOf(record['treeDensity'], ['compact', 'comfortable', 'roomy'] as const))
     result.treeDensity = record['treeDensity'];
-  for (const key of ['treeLines', 'hideDaily', 'pagesOnly'] as const) {
+  if (typeof record['notebookHeight'] === 'number' && Number.isFinite(record['notebookHeight']))
+    result.notebookHeight = clampWidth(record['notebookHeight'], { min: 140, max: 900 });
+  for (const key of ['treeLines', 'hideDaily', 'pagesOnly', 'toolsCollapsed'] as const) {
     const value = record[key];
     if (typeof value === 'boolean') result[key] = value;
   }

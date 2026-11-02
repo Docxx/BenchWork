@@ -104,11 +104,19 @@ test('Cloud storage verifies copies and requires upload confirmation before sour
   await page.getByLabel('Cloud provider').selectOption('Dropbox');
   await page.evaluate(() => window.__benchworkMemory?.queuePick('C:/Dropbox'));
   await page.getByRole('button', { name: 'Choose provider folder' }).click();
+  await page.getByRole('button', { name: 'Open data folder · Dropbox' }).click();
+  expect(await page.evaluate(() => window.__benchworkMemory?.openedFolders.at(-1))).toBe(
+    'C:/Dropbox',
+  );
   await page.evaluate(() => window.__benchworkMemory?.queueFilePick(['C:/Raw/image.tif']));
   await page.getByRole('button', { name: 'Choose data file' }).click();
   await page.getByLabel('Link to dataset').selectOption('Data/images.dataset.yaml');
   await page.getByRole('button', { name: 'Copy and verify' }).click();
   await expect(page.getByRole('region', { name: 'Storage file details' })).toBeVisible();
+  await page.getByRole('button', { name: 'Open stored file', exact: true }).click();
+  expect(await page.evaluate(() => window.__benchworkMemory?.openedFiles.at(-1))).toMatch(
+    /^C:\/Dropbox\/BenchWork-.*\/image.tif$/,
+  );
   await expect(page.getByText(/SHA-256:/)).toContainText(/[a-f0-9]{64}/);
   await page.getByRole('button', { name: 'Verify stored copy' }).click();
   await expect(page.getByRole('status')).toContainText('Stored copy verified');

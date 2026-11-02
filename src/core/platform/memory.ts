@@ -142,6 +142,15 @@ export class MemoryAdapter implements PlatformAdapter {
   private readonly cancelledTransfers = new Set<string>();
   readonly fileTransfers: FileTransfers = {
     pickFolder: () => this.pickFolder(),
+    openFolder: (folder) =>
+      this.run(() => {
+        if (!this.folders.has(folder)) throw new Error('Storage folder is unavailable.');
+        this.openedFolders.push(folder);
+      }),
+    openFile: async (copy) => {
+      await this.fileInfo(copy.target, true);
+      this.openedFiles.push(copy.target);
+    },
     copy: async (id, source, folder) => {
       if (!/^[a-z0-9-]+$/i.test(id)) throw new Error('Invalid transfer identifier');
       if (this.root && (folder === this.root || folder.startsWith(`${this.root}/`)))
@@ -407,6 +416,11 @@ export class MemoryAdapter implements PlatformAdapter {
   private readonly webPages: { prefix: string; text: string | Error }[] = [];
   /** Files opened in their usual program, for tests. */
   readonly openedFiles: string[] = [];
+  readonly openedFolders: string[] = [];
+  openFolderInSystem = async (path: string) => {
+    await this.listDir(path);
+    this.openedFolders.push(path);
+  };
   openInSystem: ((path: string) => Promise<void>) | null = (path) =>
     this.run(() => {
       this.openedFiles.push(path);

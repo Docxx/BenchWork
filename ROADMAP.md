@@ -184,6 +184,10 @@ See [workflow scope and data](docs/reading-analysis-writing.md).
 - [x] Cloud folder connections, chunked verified copies, linked records and explicit local-space management
 - [ ] Live provider sync and large-dataset acceptance check
 
+- [x] Collapsible searchable Tools list, larger notebook rows and adjustable notebook area
+- [x] Direct notebook file drops and Add files, with large-file choices and duplicate preservation
+- [x] Notebook folder Explorer actions and clearer cloud data-folder and stored-file access
+
 See [workspace options](docs/workspace-customisation.md) and [Cloud storage](docs/cloud-storage.md).
 
 ### Teaching and Creative pack

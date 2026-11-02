@@ -1167,6 +1167,8 @@ button.row-menu:first-child {
 
 .menu {
   position: fixed;
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
   z-index: 10;
   min-width: 12rem;
   padding: 0.3rem;

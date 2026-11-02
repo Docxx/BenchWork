@@ -110,6 +110,12 @@ export function NotebookTree() {
   const commands = useApp((s) => s.commands);
   const runCommand = useApp((s) => s.runCommand);
   const openPath = useApp((s) => s.openPath);
+  const addFilesToFolder = useApp((s) => s.addFilesToFolder);
+  const pickFilesIntoFolder = useApp((s) => s.pickFilesIntoFolder);
+  const openFolder = useApp((s) => s.openNotebookFolder);
+  const folderActionsAvailable = useApp((s) => s.folderActionsAvailable);
+  const status = useApp((s) => s.status);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   const options = useMemo(
     () => ({ showAllFiles, pagesOnly: look.pagesOnly, hideDaily: look.hideDaily }),
@@ -220,6 +226,23 @@ export function NotebookTree() {
     }
     return [
       { label: 'New page', onSelect: () => void createThenRename(createPage(node.path)) },
+      { label: 'Add files…', onSelect: () => void pickFilesIntoFolder(node.path) },
+      ...(folderActionsAvailable
+        ? [{ label: 'Open in Windows Explorer', onSelect: () => void openFolder(node.path) }]
+        : []),
+      {
+        label: 'Copy folder path',
+        onSelect: () => {
+          if (status.kind !== 'open') return;
+          const path = `${status.vault.root.replace(/[\\/]$/, '')}/${node.path}`;
+          setCopyError(null);
+          void Promise.resolve()
+            .then(() => navigator.clipboard.writeText(path))
+            .catch(() => {
+              setCopyError(`Copy this folder path: ${path}`);
+            });
+        },
+      },
       {
         label: 'New page from template…',
         onSelect: () => {
@@ -363,6 +386,13 @@ export function NotebookTree() {
   }
 
   function onDragOver(row: NodeRow, event: DragEvent<HTMLLIElement>): void {
+    if (row.node.isDir && event.dataTransfer.types.includes('Files')) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = 'copy';
+      setDrop({ path: row.node.path, place: 'into' });
+      return;
+    }
     const source = dragging.current;
     if (source === null) return;
     const place = placeFor(row, event);
@@ -377,6 +407,27 @@ export function NotebookTree() {
   }
 
   function onDrop(row: NodeRow, event: DragEvent<HTMLLIElement>): void {
+    if (row.node.isDir && event.dataTransfer.files.length > 0) {
+      event.preventDefault();
+      event.stopPropagation();
+      endDrag();
+      if (
+        Array.from(event.dataTransfer.items).some((item) => item.webkitGetAsEntry()?.isDirectory)
+      ) {
+        setCopyError(
+          'Drop individual files into the notebook folder. Folder imports are not supported yet.',
+        );
+        return;
+      }
+      const files = Array.from(event.dataTransfer.files).map((file) => ({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        bytes: async () => new Uint8Array(await file.arrayBuffer()),
+      }));
+      void addFilesToFolder(row.node.path, files);
+      return;
+    }
     const source = dragging.current ?? event.dataTransfer.getData(DRAG_TYPE);
     event.preventDefault();
     event.stopPropagation();
@@ -404,6 +455,7 @@ export function NotebookTree() {
 
   return (
     <>
+      {copyError && <p role="status">{copyError}</p>}
       {templateFolder !== null && (
         <TemplatePicker
           mode="new"

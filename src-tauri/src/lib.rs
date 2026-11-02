@@ -533,6 +533,32 @@ async fn open_vault_file(path: String, state: State<'_, VaultState>) -> VaultRes
     web_link::open_file(&full)
 }
 
+#[tauri::command]
+async fn open_vault_folder(
+    window: tauri::WebviewWindow,
+    path: String,
+    state: State<'_, VaultState>,
+) -> VaultResult<()> {
+    main_window(&window)?;
+    let full = path_guard::resolve(&state.root()?, &path)?;
+    web_link::open_folder(&full)
+}
+
+#[tauri::command]
+async fn open_storage_folder(window: tauri::WebviewWindow, folder: String) -> VaultResult<()> {
+    main_window(&window)?;
+    web_link::open_folder(std::path::Path::new(&folder))
+}
+
+#[tauri::command]
+async fn open_storage_file(
+    window: tauri::WebviewWindow,
+    copy: storage::VerifiedCopy,
+) -> VaultResult<()> {
+    main_window(&window)?;
+    storage::open_file(&copy)
+}
+
 /// Opens a web address in the system's browser.
 #[tauri::command]
 async fn open_web_link(url: String) -> VaultResult<()> {
@@ -896,6 +922,9 @@ pub fn run() {
             copy_to_storage,
             verify_storage_copy,
             reveal_storage_copy,
+            open_vault_folder,
+            open_storage_folder,
+            open_storage_file,
             recycle_storage_source,
             snapshot_program_file,
             stop_program,

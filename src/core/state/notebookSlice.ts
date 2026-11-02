@@ -20,6 +20,8 @@ import type { RelinkPlan } from './linksSlice';
 import { rebasePath } from './treeSlice';
 
 export interface NotebookSlice {
+  folderActionsAvailable: boolean;
+  openNotebookFolder: (path: string) => Promise<void>;
   /** Why the last sidebar action could not be done, shown above the tree. */
   sidebarNotice: string | null;
   dismissSidebarNotice: () => void;
@@ -160,6 +162,14 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
   });
 
   return {
+    folderActionsAvailable: platform.kind === 'desktop' && platform.openFolderInSystem != null,
+    openNotebookFolder: async (path) => {
+      await attempt(async () => {
+        if (!platform.openFolderInSystem)
+          throw new Error('Folder opening is available on desktop.');
+        await platform.openFolderInSystem(path);
+      });
+    },
     sidebarNotice: null,
     dismissSidebarNotice: () => {
       set({ sidebarNotice: null });

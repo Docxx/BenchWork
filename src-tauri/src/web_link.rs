@@ -85,6 +85,23 @@ pub fn open_feedback_email(subject: &str, body: &str) -> VaultResult<()> {
     launch_url(&feedback_link(subject, body)?)
 }
 
+/// Opens an existing folder in the system's file manager.
+pub fn open_folder(full: &std::path::Path) -> VaultResult<()> {
+    let folder = crate::path_guard::canonical_root(full)?;
+    let program = if cfg!(target_os = "windows") {
+        "explorer.exe"
+    } else if cfg!(target_os = "macos") {
+        "open"
+    } else {
+        "xdg-open"
+    };
+    Command::new(program)
+        .arg(folder)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| VaultError::io("Cannot open the folder", &e))
+}
+
 /// Opens a file in the program the system uses for it, such as Word for `.docx`.
 pub fn open_file(full: &std::path::Path) -> VaultResult<()> {
     if !full.is_file() {
@@ -115,6 +132,14 @@ pub fn open_file(full: &std::path::Path) -> VaultResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn folder_open_rejects_files_and_missing_locations_before_launch() {
+        let temp = tempfile::tempdir().unwrap();
+        let file = temp.path().join("data.txt");
+        std::fs::write(&file, "data").unwrap();
+        assert!(open_folder(&file).is_err());
+        assert!(open_folder(&temp.path().join("missing")).is_err());
+    }
     #[test]
     fn feedback_has_one_fixed_recipient_and_encodes_report_text_as_data() {
         let link = feedback_link("Bug & question?", "Text\r\n&bcc=other@example.com").unwrap();
