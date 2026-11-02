@@ -15,6 +15,7 @@ import {
   feedSize,
   labelBatches,
   newLabelDesign,
+  newLabelOnPaper,
   newLabelElement,
   parseLabelDesign,
   type LabelDesign,
@@ -102,7 +103,11 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
     void workspace
       .list()
       .then((found) => {
-        if (live) setTemplates(found);
+        if (live) {
+          setTemplates(found);
+          const last = found.at(-1);
+          if (standalone && last) setDesign(structuredClone(last));
+        }
       })
       .catch((err: unknown) => {
         if (live) setError(errorText(err));
@@ -110,7 +115,7 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
     return () => {
       live = false;
     };
-  }, [workspace]);
+  }, [workspace, standalone]);
   useEffect(
     () => () => {
       void printer.close().catch(() => undefined);
@@ -285,7 +290,7 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
           <button
             disabled={busy}
             onClick={() => {
-              setDesign(newLabelDesign());
+              setDesign(newLabelOnPaper(design));
               setSelected(null);
               setRows([]);
             }}

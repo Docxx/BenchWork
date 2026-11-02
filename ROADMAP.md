@@ -208,7 +208,8 @@ See [Teaching and Creative guide](docs/teaching-creative.md).
 - [x] Shared designer, templates, QR/barcodes, images and spreadsheet/inventory batches
 - [x] Lightweight standalone Android companion and portable BenchWork label files
 - [ ] Automatic companion library synchronisation with the desktop
-- [ ] Native tablet and phone Bluetooth acceptance checks
+- [x] Installed Samsung S26 companion, real Bluetooth classic printing and user-confirmed phone calibration
+- [ ] Native tablet Bluetooth acceptance check
 
 See [Label Studio and calibration](docs/label-studio.md).
 

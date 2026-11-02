@@ -72,6 +72,23 @@ export function newLabelDesign(): LabelDesign {
     elements: [title, detail],
   };
 }
+/** Start a fresh design using the paper and calibration already selected. */
+export function newLabelOnPaper(paper: LabelDesign): LabelDesign {
+  const { width, height, perFeed, layout, gap, offsetX, offsetY, density, threshold } = paper;
+  return {
+    ...newLabelDesign(),
+    width,
+    height,
+    perFeed,
+    layout,
+    gap,
+    offsetX,
+    offsetY,
+    density,
+    threshold,
+  };
+}
+
 /** Whitelist imported fields. Templates contain data, never executable markup. */
 export function parseLabelDesign(value: unknown): LabelDesign {
   const r = obj(value);

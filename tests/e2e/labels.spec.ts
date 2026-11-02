@@ -79,4 +79,12 @@ test('the standalone phone interface opens without a vault or full BenchWork nav
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBe(
     0,
   );
+  await page.getByLabel('Vertical offset (mm)', { exact: true }).fill('1.25');
+  await page.getByRole('textbox', { name: 'Template name', exact: true }).fill('Phone calibration');
+  await page.getByRole('button', { name: 'Save template', exact: true }).click();
+  await expect(page.locator('.label-notice')).toHaveText('Template saved.');
+  await page.reload();
+  await expect(page.getByLabel('Vertical offset (mm)', { exact: true })).toHaveValue('1.25');
+  await page.getByRole('button', { name: 'New label', exact: true }).click();
+  await expect(page.getByLabel('Vertical offset (mm)', { exact: true })).toHaveValue('1.25');
 });

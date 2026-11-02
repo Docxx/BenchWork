@@ -20,9 +20,13 @@ The first test used an incorrect 2 mm internal gap. It was corrected after a
 photo showed feed-direction drift. Paper layout, internal gap, offsets, density
 and monochrome threshold remain adjustable and are saved in each template.
 
-Only B3S model ID 262 is enabled for printing in this first version. Android
-Bluetooth code compiles, but tablet and Samsung phone physical acceptance checks
-are still pending. Browser preview tests are not a substitute for those checks.
+Only B3S model ID 262 is enabled for printing in this first version. The installed
+Samsung S26 companion was also tested over paired Bluetooth classic: the printer
+acknowledged the PHONE TEST jobs and the user confirmed the corrected A2/B2 pair.
+The phone template uses vertical offset **+1.25 mm**, after a requested 2 mm
+downward adjustment from the starting profile. It is saved in the phone's
+library. New designs keep the chosen paper settings, and the companion reopens
+the last saved template. A physical tablet acceptance check is still pending.
 
 ## Design and data
 

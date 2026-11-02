@@ -4,10 +4,18 @@ import {
   labelBatches,
   labelText,
   newLabelDesign,
+  newLabelOnPaper,
   newLabelElement,
   parseLabelDesign,
 } from './model';
 describe('label geometry and portable templates', () => {
+  it('keeps the chosen paper and phone calibration when starting a fresh design', () => {
+    const prior = { ...newLabelDesign(), offsetY: 1.25, gap: 0.5 };
+    const fresh = newLabelOnPaper(prior);
+    expect(fresh).toMatchObject({ width: 50, height: 15, perFeed: 2, offsetY: 1.25, gap: 0.5 });
+    expect(fresh.id).not.toBe(prior.id);
+    expect(fresh.elements[0]?.id).not.toBe(prior.elements[0]?.id);
+  });
   it('retains the physically verified stacked-pair calibration', () => {
     const d = newLabelDesign();
     expect(feedSize(d)).toEqual({ width: 50, height: 30 });
