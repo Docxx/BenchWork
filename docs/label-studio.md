@@ -69,6 +69,9 @@ and linked files are not uploaded to any label service.
 ## Templates and the companion
 
 The **Library** tab shows searchable pair previews of templates and recent prints.
+Phone cards use the full available width for readable label previews. The companion
+has a blue-and-teal header and larger tool buttons; printable artwork stays white
+and monochrome. BenchWork previews use the current workspace theme.
 Create folders, assign a label from the BenchWork editor, or select several saved
 labels and move them together. Folders are portable library metadata inside each
 label JSON, rather than operating-system paths. Empty folders are recorded in

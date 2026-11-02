@@ -808,3 +808,165 @@
   padding: 0;
   margin: 12px 0 0;
 }
+
+/* Larger, clearer label previews with colour around the printable artwork. */
+.label-library-grid {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+.label-studio article.label-library-card {
+  padding: 16px;
+  border-radius: 20px;
+  box-shadow: 0 5px 18px #12213d08;
+  overflow: hidden;
+}
+.label-library-card:has(input:checked) {
+  border-color: var(--accent, #2563eb);
+  box-shadow: 0 0 0 2px var(--accent-soft, #e5eeff);
+}
+.label-open-card .label-preview-frame {
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  min-height: 200px;
+  border-radius: 14px;
+  background: var(--surface, #edf4fc);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent, #2563eb) 10%, var(--bg, white)),
+    var(--surface, #edf4fc)
+  );
+}
+.label-preview-frame img {
+  width: 100%;
+  max-height: 300px;
+  border: 1px solid #d9e0e5;
+  border-radius: 10px;
+  box-shadow: 0 5px 14px #12213d12;
+}
+.label-open-card strong {
+  font-size: 1.05rem;
+  line-height: 1.4;
+  color: var(--text, #172b39);
+}
+.label-open-card > span:not(.label-preview-frame) {
+  font-size: 0.8rem;
+}
+.label-studio .label-library-select {
+  font-size: 0.8rem;
+  min-height: 28px;
+  gap: 10px;
+}
+.label-library-select input {
+  width: 21px;
+  height: 21px;
+  accent-color: var(--accent, #2563eb);
+}
+.label-open-card .label-open-hint {
+  color: var(--accent, #2563eb);
+  font-weight: 600;
+  padding-top: 6px;
+}
+.label-toolbar > button {
+  border-radius: 12px;
+  min-height: 72px;
+  font-weight: 600;
+}
+.label-toolbar > button svg {
+  width: 25px;
+  height: 25px;
+  color: var(--accent, #2563eb);
+}
+.label-standalone {
+  --label-blue: #2563eb;
+}
+.label-standalone .label-header {
+  color: white;
+  background: linear-gradient(115deg, #142a50, #234b91 72%, #087e86);
+  padding: 18px;
+  border-radius: 20px;
+  margin-bottom: 14px;
+  box-shadow: 0 8px 24px #17386c1c;
+}
+.label-standalone .label-title h1 {
+  color: white;
+  font-size: 1.25rem;
+  letter-spacing: -0.025em;
+}
+.label-standalone .label-eyebrow {
+  color: #a5e8ff;
+}
+.label-standalone .label-header > label {
+  color: #e2edff;
+}
+.label-standalone .label-header input {
+  color: #172b39;
+  background: #fff;
+  border-color: #ffffff80;
+  font-weight: 500;
+  padding: 10px;
+}
+.label-standalone .label-header button {
+  color: #fff;
+  background: #ffffff14;
+  border-color: #ffffff40;
+}
+.label-standalone .label-header .is-connected {
+  background: #0d948866;
+  border-color: #5eead499;
+}
+.label-standalone .label-tabs button[aria-pressed='true'] {
+  color: #1d4ed8;
+  background: #e5eeff;
+  border-color: #bad1ff;
+  font-weight: 700;
+}
+.label-standalone .label-canvas-area {
+  background: linear-gradient(160deg, #e9f1ff, #f2f7fc 55%, #edf9f6);
+  border-color: #d0def1;
+}
+.label-standalone .label-bottom-bar .label-print-button {
+  background: linear-gradient(120deg, #2563eb, #087eaa);
+  border-color: #2563eb;
+}
+.label-standalone .label-library-heading h2 {
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+}
+.label-standalone .label-folder-panel nav button[aria-pressed='true'] {
+  color: #1d4ed8;
+  background: #e5eeff;
+  border-color: #bad1ff;
+}
+@container (max-width: 560px) {
+  .label-library-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+@media (max-width: 680px) {
+  .label-library-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .label-studio article.label-library-card {
+    padding: 14px;
+  }
+  .label-preview-frame img {
+    max-height: 280px;
+  }
+  .label-open-card .label-preview-frame {
+    padding: 14px;
+  }
+  .label-standalone .label-header {
+    padding: 14px;
+    gap: 10px;
+  }
+  .label-standalone .label-title h1 {
+    font-size: 1.05rem;
+  }
+  .label-standalone .label-header-actions button {
+    font-size: 0.7rem;
+    gap: 4px;
+  }
+}

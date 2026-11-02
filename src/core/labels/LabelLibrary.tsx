@@ -198,7 +198,9 @@ export function LabelLibrary({
                     onOpen(d);
                   }}
                 >
-                  <LabelThumbnail design={d} />
+                  <span className="label-preview-frame">
+                    <LabelThumbnail design={d} />
+                  </span>
                   <strong>{d.name}</strong>
                   <span>
                     {d.width} × {d.height} mm · {d.perFeed} per feed

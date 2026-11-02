@@ -207,6 +207,7 @@ See [Teaching and Creative guide](docs/teaching-creative.md).
 - [x] User-verified 50 × 15 mm stacked-pair calibration: gap 0, vertical offset −0.75 mm
 - [x] Shared designer, templates, QR/barcodes, images and spreadsheet/inventory batches
 - [x] Simplified Design, Library, Batch data and Printer settings views; live dates, drag resizing and searchable saved-label previews
+- [x] Brighter label companion styling and larger, full-width phone library previews
 - [x] Canvas-adjacent text editing, copy/delete with undo, compact phone editor and extended styling controls
 - [x] Label library folders, bulk moves and portable packs with embedded media and saved field values
 - [x] BenchWork-to-phone export/import preserving the phone calibration for matching paper

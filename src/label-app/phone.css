@@ -1,18 +1,22 @@
 :root {
   font-family: 'Inter Variable', sans-serif;
-  background: #f6f8fa;
+  background: #f3f7fd;
   color: #172b39;
   --bg: #fff;
-  --surface: #edf2f5;
+  --surface: #eef4fc;
   --text: #172b39;
   --muted: #5b6d78;
   --border: #d6e0e6;
   --font-heading: 'Source Serif 4 Variable', Georgia;
-  --accent: #117dba;
-  --accent-soft: #deeff9;
+  --accent: #2563eb;
+  --accent-soft: #e5eeff;
 }
 body {
   margin: 0;
+  min-height: 100dvh;
+  background:
+    radial-gradient(ellipse at 100% 0, #ccfbf138, transparent 48%),
+    radial-gradient(ellipse at 0 30%, #dbeafe80, transparent 60%);
 }
 button,
 input,
@@ -34,6 +38,6 @@ input:focus-visible,
 button:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid #117dba;
+  outline: 2px solid #2563eb;
   outline-offset: 2px;
 }
