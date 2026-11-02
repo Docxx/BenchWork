@@ -153,6 +153,7 @@ export function createModuleContext(
         return bridge.applyAppearance(value);
       },
     },
+    labelBluetooth: deps.platform.labelBluetooth ?? null,
     audience: deps.device === 'desktop' ? (deps.platform.audience ?? null) : null,
     fileTransfers: deps.device === 'desktop' ? (deps.platform.fileTransfers ?? null) : null,
     reading: {

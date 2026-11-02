@@ -4,6 +4,7 @@ mod error;
 mod file_info;
 mod folders;
 mod index;
+mod label_bluetooth;
 mod materials;
 mod microsoft;
 mod native_sync;
@@ -47,6 +48,42 @@ fn main_window(window: &tauri::WebviewWindow) -> VaultResult<()> {
         ));
     }
     Ok(())
+}
+
+async fn label_work<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> VaultResult<T> {
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|e| VaultError::new(ErrorKind::Io, e.to_string()))?
+        .map_err(|e| VaultError::new(ErrorKind::Io, e))
+}
+#[tauri::command]
+async fn label_bluetooth_scan(
+    window: tauri::WebviewWindow,
+) -> VaultResult<Vec<label_bluetooth::PrinterDevice>> {
+    main_window(&window)?;
+    label_work(label_bluetooth::scan).await
+}
+#[tauri::command]
+async fn label_bluetooth_connect(window: tauri::WebviewWindow, id: String) -> VaultResult<()> {
+    main_window(&window)?;
+    label_work(move || label_bluetooth::connect(&id)).await
+}
+#[tauri::command]
+async fn label_bluetooth_disconnect(window: tauri::WebviewWindow) -> VaultResult<()> {
+    main_window(&window)?;
+    label_work(label_bluetooth::disconnect).await
+}
+#[tauri::command]
+async fn label_bluetooth_read(window: tauri::WebviewWindow) -> VaultResult<Vec<u8>> {
+    main_window(&window)?;
+    label_work(label_bluetooth::read).await
+}
+#[tauri::command]
+async fn label_bluetooth_write(window: tauri::WebviewWindow, bytes: Vec<u8>) -> VaultResult<()> {
+    main_window(&window)?;
+    label_work(move || label_bluetooth::write(&bytes)).await
 }
 #[tauri::command]
 async fn native_sync_start(
@@ -922,6 +959,11 @@ pub fn run() {
             copy_to_storage,
             verify_storage_copy,
             reveal_storage_copy,
+            label_bluetooth_scan,
+            label_bluetooth_connect,
+            label_bluetooth_disconnect,
+            label_bluetooth_write,
+            label_bluetooth_read,
             open_vault_folder,
             open_storage_folder,
             open_storage_file,

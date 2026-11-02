@@ -35,6 +35,7 @@ import type {
   WindowFrame,
 } from './types';
 import { normaliseVaultPath } from './vaultPath';
+import { nativeLabelBluetooth } from './labelBluetooth';
 
 /** Matches CHANGE_EVENT in src-tauri/src/watcher.rs. */
 const CHANGE_EVENT = 'vault-change';
@@ -54,6 +55,8 @@ async function call<T>(command: string, args?: () => Record<string, unknown>): P
 
 /** What MainActivity.kt gives the page on Android. */
 interface AndroidBridge {
+  shareLabelTemplate?(name: string, json: string): string;
+  labelBluetooth?(id: string, operation: string, payload: string): void;
   openFeedbackEmail(subject: string, body: string): string;
   readSyncPairing(source: string): string;
   secureRead(key: string): string;
@@ -213,6 +216,7 @@ function desktopFrame(): WindowFrame {
 }
 
 export class TauriAdapter implements PlatformAdapter {
+  readonly labelBluetooth = nativeLabelBluetooth();
   async openFeedbackEmail(subject: string, body: string): Promise<void> {
     const bridge = window.BenchWorkAndroid;
     if (bridge) {

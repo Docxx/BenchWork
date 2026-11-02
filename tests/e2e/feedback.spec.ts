@@ -1,3 +1,5 @@
+import packageInfo from '../../package.json' with { type: 'json' };
+const { version } = packageInfo;
 import { expect, test } from '@playwright/test';
 async function open(page: import('@playwright/test').Page) {
   await page.goto('/');
@@ -25,7 +27,9 @@ test('a tester reviews a report and explicitly opens an email draft without leak
   await dialog
     .getByLabel('Steps to reproduce', { exact: false })
     .fill('Open Home, then click Next month.');
-  await expect(dialog.getByLabel('Report preview', { exact: true })).toHaveValue(/Version: 0.15.0/);
+  await expect(dialog.getByLabel('Report preview', { exact: true })).toHaveValue(
+    new RegExp('Version: ' + version.replaceAll('.', '\\.')),
+  );
   expect(await page.evaluate(() => window.__benchworkMemory?.feedbackDrafts.length)).toBe(0);
   await dialog.getByRole('button', { name: 'Open email draft', exact: true }).click();
   await expect(dialog.getByRole('status')).toContainText('Nothing was sent automatically');

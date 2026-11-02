@@ -1,0 +1,39 @@
+:root {
+  font-family: 'Inter Variable', sans-serif;
+  background: #f6f8fa;
+  color: #172b39;
+  --bg: #fff;
+  --surface: #edf2f5;
+  --text: #172b39;
+  --muted: #5b6d78;
+  --border: #d6e0e6;
+  --font-heading: 'Source Serif 4 Variable', Georgia;
+  --accent: #117dba;
+  --accent-soft: #deeff9;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+.hint {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+.notice {
+  background: #fff0e8;
+  padding: 14px;
+  border-left: 3px solid #b75b24;
+}
+input:focus-visible,
+button:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #117dba;
+  outline-offset: 2px;
+}

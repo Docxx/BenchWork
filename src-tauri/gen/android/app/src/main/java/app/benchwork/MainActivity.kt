@@ -56,6 +56,11 @@ class MainActivity : TauriActivity() {
   }
 
   private var webView: WebView? = null
+  private val labelPrinter by lazy { LabelBluetooth(this) }
+  override fun onDestroy() {
+    Thread { labelPrinter.disconnect() }.start()
+    super.onDestroy()
+  }
 
   override fun onWebViewCreate(webView: WebView) {
     this.webView = webView
@@ -86,6 +91,37 @@ class MainActivity : TauriActivity() {
   private fun failed(id: String, e: Exception) = reply(id, false, JSONObject.quote(e.message ?: "Failed"))
 
   inner class StorageAccess {
+    @JavascriptInterface
+    fun shareLabelTemplate(name:String,json:String):String {
+      return try {
+        require(json.length<=5*1024*1024) {"Template is too large to share."}
+        val folder=java.io.File(cacheDir,"label-exports").apply {mkdirs()}
+        val safe=name.replace(Regex("[^a-zA-Z0-9._-]"),"_").take(100).removeSuffix(".label.json")+".label.json"
+        val file=java.io.File(folder,safe)
+        require(file.canonicalFile.parentFile==folder.canonicalFile)
+        file.writeText(json,Charsets.UTF_8)
+        val uri=androidx.core.content.FileProvider.getUriForFile(this@MainActivity,packageName+".labels",file)
+        runOnUiThread {startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {type="application/json";putExtra(Intent.EXTRA_STREAM,uri);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)},"Share label template"))}
+        JSONObject().put("ok",true).toString()
+      } catch(e:Exception) {JSONObject().put("error",e.message?:"Could not share template").toString()}
+    }
+    @JavascriptInterface
+    fun labelBluetooth(id: String, operation: String, payload: String) {
+      Thread {
+        try {
+          val data=JSONObject(payload)
+          val result: Any = when(operation) {
+            "scan" -> labelPrinter.scan()
+            "connect" -> {labelPrinter.connect(data.getString("id"));JSONObject.NULL}
+            "disconnect" -> {labelPrinter.disconnect();JSONObject.NULL}
+            "read" -> labelPrinter.read()
+            "write" -> {labelPrinter.write(data.getJSONArray("bytes"));JSONObject.NULL}
+            else -> throw IllegalArgumentException("Unknown printer operation")
+          }
+          runOnUiThread {webView?.evaluateJavascript("window.__benchworkLabelReply && window.__benchworkLabelReply(${JSONObject.quote(id)}, true, $result)",null)}
+        } catch(e:Exception) {runOnUiThread {webView?.evaluateJavascript("window.__benchworkLabelReply && window.__benchworkLabelReply(${JSONObject.quote(id)}, false, ${JSONObject.quote(e.message?:"Bluetooth operation failed")})",null)}}
+      }.start()
+    }
     /** Whether the handwriting model is on the tablet. */
     @JavascriptInterface
     fun inkModelReady(id: String) {

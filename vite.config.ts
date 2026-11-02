@@ -9,6 +9,7 @@ import { defineConfig } from 'vitest/config';
 // accepts network connections.
 const host = process.env['TAURI_DEV_HOST'];
 const LOOPBACK = '127.0.0.1';
+const labelOnly = process.env['BENCHWORK_LABEL_STUDIO'] === '1';
 
 let buildId = 'development';
 try {
@@ -42,11 +43,15 @@ export default defineConfig({
     watch: { ignored: ['**/src-tauri/**'] },
   },
   build: {
+    outDir: labelOnly ? 'dist-labels' : 'dist',
     rolldownOptions: {
-      input: {
-        main: fileURLToPath(new URL('./index.html', import.meta.url)),
-        audience: fileURLToPath(new URL('./audience.html', import.meta.url)),
-      },
+      input: labelOnly
+        ? { labels: fileURLToPath(new URL('./labels.html', import.meta.url)) }
+        : {
+            main: fileURLToPath(new URL('./index.html', import.meta.url)),
+            audience: fileURLToPath(new URL('./audience.html', import.meta.url)),
+            labels: fileURLToPath(new URL('./labels.html', import.meta.url)),
+          },
     },
     target: 'es2022',
     sourcemap: Boolean(process.env['TAURI_ENV_DEBUG']),

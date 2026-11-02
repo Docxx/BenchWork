@@ -30,6 +30,7 @@ export const PACKS: readonly ModulePack[] = [
       'knowledge-graph',
       'lab-notebook',
       'lab-tools',
+      'labels',
       'research',
       'protocol-runner',
       'sample-tracker',

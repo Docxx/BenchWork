@@ -13,13 +13,16 @@ val tauriProperties = Properties().apply {
         propFile.inputStream().use { load(it) }
     }
 }
+val labelStudioBuild = System.getenv("BENCHWORK_LABEL_STUDIO") == "1"
 
 android {
     compileSdk = 37
     namespace = "app.benchwork"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "app.benchwork"
+        applicationId = if (labelStudioBuild) "app.benchwork.labels" else "app.benchwork"
+        manifestPlaceholders["benchworkAppTitle"] = if (labelStudioBuild) "BenchWork Labels" else "BenchWork"
+        manifestPlaceholders["vaultAccessPermission"] = if (labelStudioBuild) "android.permission.INTERNET" else "android.permission.MANAGE_EXTERNAL_STORAGE"
         minSdk = 24
         targetSdk = 37
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()

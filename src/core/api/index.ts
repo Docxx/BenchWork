@@ -8,6 +8,10 @@
  * and Pandoc. Block renderers and index hooks are added in the phases that
  * first need them.
  */
+export { LabelStudio } from '../labels/load';
+export { newLabelDesign, parseLabelDesign } from '../labels/model';
+export type { LabelDesign, LabelRow } from '../labels/model';
+export type { LabelWorkspace } from '../labels/workspace';
 import type { ReactNode } from 'react';
 import type { PdfDocument } from '../files/pdf';
 import type { InkPoint, InkStroke, InkTool } from '../ink/inkFile';
@@ -86,6 +90,7 @@ export function defineModule(definition: ModuleDefinition): ModuleDefinition {
 }
 
 export interface ModuleContext {
+  readonly labelBluetooth: import('../platform/labelBluetooth').LabelBluetoothTransport | null;
   readonly appearance: { current(): Appearance; apply(value: Appearance): Promise<void> };
   readonly audience: AudienceDisplay | null;
   /** Large verified copies into user-selected external folders. Desktop only. */

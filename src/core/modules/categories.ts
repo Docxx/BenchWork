@@ -9,6 +9,7 @@ export const MODULE_CATEGORIES: Record<string, string> = {
   'equipment-planner': 'Lab and experiments',
   inventory: 'Lab and experiments',
   'lab-tools': 'Lab and experiments',
+  labels: 'Lab and experiments',
   references: 'Reading and writing',
   papers: 'Reading and writing',
   manuscript: 'Reading and writing',

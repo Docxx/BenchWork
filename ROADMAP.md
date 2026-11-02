@@ -201,6 +201,17 @@ See [workspace options](docs/workspace-customisation.md) and [Cloud storage](doc
 
 See [Teaching and Creative guide](docs/teaching-creative.md).
 
+### Label Studio
+
+- [x] Windows B3S Bluetooth discovery, identity query and a single acknowledged calibration print
+- [x] User-verified 50 × 15 mm stacked-pair calibration: gap 0, vertical offset −0.75 mm
+- [x] Shared designer, templates, QR/barcodes, images and spreadsheet/inventory batches
+- [x] Lightweight standalone Android companion and portable BenchWork label files
+- [ ] Automatic companion library synchronisation with the desktop
+- [ ] Native tablet and phone Bluetooth acceptance checks
+
+See [Label Studio and calibration](docs/label-studio.md).
+
 ### Preview testing and feedback (0.15.0)
 
 - [x] Visible temporary feedback toolbar with per-device hiding and a finished-build off switch

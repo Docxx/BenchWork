@@ -19,6 +19,7 @@ export interface HttpResponse {
 }
 
 export interface PlatformAdapter {
+  readonly labelBluetooth?: import('./labelBluetooth').LabelBluetoothTransport | null;
   /** Opens a reviewed draft to the fixed BenchWork feedback address; never sends it. */
   openFeedbackEmail?: (subject: string, body: string) => Promise<void>;
   readonly nativeSync?: NativeSyncAdapter | null;
