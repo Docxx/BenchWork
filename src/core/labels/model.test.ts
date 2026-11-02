@@ -47,6 +47,25 @@ describe('label geometry and portable templates', () => {
       labelText('{Sample ID} {n} {missing}', { 'Sample ID': 'A<script>', n: 'wrong' }, 7),
     ).toBe('A<script> 7 {missing}');
   });
+  it('resolves today at print time using the local date and ignores stale imported date fields', () => {
+    const template = parseLabelDesign({
+      ...newLabelDesign(),
+      savedAs: 'printed',
+      savedAt: '2026-11-02T12:00:00Z',
+    });
+    expect(template.elements[0]?.text).toBe('Label text');
+    expect(
+      labelText(
+        '{today} / {date}',
+        { today: 'old', date: 'fixed date' },
+        1,
+        new Date(2026, 10, 3, 12),
+      ),
+    ).toBe('03/11/2026 / fixed date');
+    expect(labelText('{today}', {}, 1, new Date(2026, 10, 4, 12))).toBe('04/11/2026');
+    expect(template.savedAs).toBe('printed');
+    expect(template.savedAt).toBe('2026-11-02T12:00:00Z');
+  });
   it('rejects active image sources and bounds imported geometry and layer count', () => {
     const d = newLabelDesign();
     expect(() =>

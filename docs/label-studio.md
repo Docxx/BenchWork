@@ -30,13 +30,23 @@ the last saved template. A physical tablet acceptance check is still pending.
 
 ## Design and data
 
-Add and drag text, QR codes, Code 128 barcodes, images, boxes and lines. The
+The **Design** tab focuses on **Text**, **Date** and **Image**. New designs start
+with plain editable text. Choose **Date** to add a date, then
+use **Always use today's date** to keep it current at print time, or untick it
+to enter a fixed date. Existing templates remain compatible.
+
+Drag elements to move them and drag the selected blue corner to resize them.
+Text size scales with the corner handle. Arrow keys move a focused element;
+arrow keys on its resize handle resize it. Hold Shift for larger steps.
+Width and height are directly editable; position and rotation are in a disclosure.
+QR codes, Code 128 barcodes, boxes and lines are under **More elements**. The
 properties panel controls dimensions, position, rotation, text size, font family,
 alignment and bold text. Images are embedded PNG, JPEG or WebP data; no remote
 images or executable SVG content is accepted. Print preview shows calibrated
 monochrome output separately from editing guides.
 
-Use `{name}`, `{id}`, `{date}` or any spreadsheet column heading in braces.
+Use the **Batch data** tab for CSV, Excel and BenchWork records.
+Use `{today}` for the current local date, `{name}`, `{id}`, `{date}` or any spreadsheet column heading in braces.
 `{n}` inserts the sequence number. CSV strings retain leading zeroes and dates;
 Excel uses displayed cell values. The first worksheet is used. Jobs are limited
 to 500 labels, and spreadsheet imports to 10 MB. Template imports are limited to
@@ -49,6 +59,11 @@ and linked files are not uploaded to any label service.
 
 ## Templates and the companion
 
+The **Library** tab shows searchable previews of templates and recent prints.
+After acknowledged printing, the first label in each job is saved as a separate
+recent-print record with resolved text, so it can be reopened without its original
+spreadsheet. This does not store a full batch history. A library-save failure
+after printing reports that the labels have already printed.
 Save templates explicitly before leaving the editor. BenchWork stores them as
 ordinary `Labels/<id>.label.json` files; replacing a template keeps a recovery
 snapshot. Disabling the module leaves those files in place. Vault sync can carry
@@ -63,8 +78,14 @@ automatic companion-to-desktop synchronisation is not included yet.
 
 ## Printing
 
-Turn the B3S on and close other apps connected to it. Choose **Search printers**,
-select its entry and **Connect**. Android asks for Nearby devices permission
+Paper size, calibration, density and Bluetooth controls live in **Printer settings**.
+Turn the B3S on and close other apps connected to it. Choose **Search printers**.
+A single result connects automatically; if there are several, select one and
+choose **Connect**. Installed apps remember the last successful printer and retry
+its connection every 15 seconds while Label Studio is open. Background retries
+do not block editing and are paused during print jobs. **Disconnect** turns off
+automatic reconnection; re-enable it using **Auto-connect to last printer**.
+Browser Bluetooth still requires a user click to connect. Android asks for Nearby devices permission
 (Location on Android 11 and earlier). If permission was just requested, allow it
 and tap Search printers again. Bluetooth LE does not require manual OS pairing;
 the classic transport uses an already-paired device.

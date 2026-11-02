@@ -106,6 +106,9 @@ export class LabelPrinter {
       throw err;
     }
   }
+  isConnected() {
+    return this.client?.isConnected() ?? false;
+  }
   stop() {
     this.stopRequested = true;
   }

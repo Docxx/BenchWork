@@ -206,6 +206,8 @@ See [Teaching and Creative guide](docs/teaching-creative.md).
 - [x] Windows B3S Bluetooth discovery, identity query and a single acknowledged calibration print
 - [x] User-verified 50 × 15 mm stacked-pair calibration: gap 0, vertical offset −0.75 mm
 - [x] Shared designer, templates, QR/barcodes, images and spreadsheet/inventory batches
+- [x] Simplified Design, Library, Batch data and Printer settings views; live dates, drag resizing and searchable saved-label previews
+- [x] Remembered native printer auto-reconnection, with pause during printing and explicit opt-out
 - [x] Lightweight standalone Android companion and portable BenchWork label files
 - [ ] Automatic companion library synchronisation with the desktop
 - [x] Installed Samsung S26 companion, real Bluetooth classic printing and user-confirmed phone calibration

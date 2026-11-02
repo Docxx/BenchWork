@@ -14,6 +14,7 @@ import {
 import {
   feedSize,
   labelBatches,
+  labelText,
   newLabelDesign,
   newLabelOnPaper,
   newLabelElement,
@@ -25,6 +26,7 @@ import {
 } from './model';
 import { renderFeed, renderLabel } from './render';
 import { LabelPrinter } from './printer';
+import { usePrinterConnection } from './usePrinterConnection';
 import type { LabelBluetoothDevice, LabelBluetoothTransport } from '../platform/labelBluetooth';
 import type { LabelWorkspace } from './workspace';
 import './labels.css';
@@ -75,13 +77,16 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
   const [notice, setNotice] = useState('');
   const [devices, setDevices] = useState<LabelBluetoothDevice[]>([]);
   const [device, setDevice] = useState('');
-  const [printerName, setPrinterName] = useState('Not connected');
-  const [connected, setConnected] = useState(false);
+  const [tab, setTab] = useState<'design' | 'library' | 'batch' | 'printer'>('design');
+  const [search, setSearch] = useState('');
+  const [libraryFilter, setLibraryFilter] = useState('all');
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [progress, setProgress] = useState('');
   const [dataIndex, setDataIndex] = useState(0);
   const printer = useMemo(() => new LabelPrinter(transport), [transport]);
+  const connection = usePrinterConnection(printer, transport !== null, busy);
+  const { connected, connecting, name: printerName } = connection;
   const dialog = useRef<HTMLDialogElement>(null);
   const drag = useRef<{
     id: string;
@@ -91,6 +96,10 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
     fromY: number;
     width: number;
     height: number;
+    elementWidth: number;
+    elementHeight: number;
+    size: number;
+    resize: boolean;
   } | null>(null);
   const imageInput = useRef<HTMLInputElement>(null);
   const active = design.elements.find((e) => e.id === selected);
@@ -105,7 +114,7 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
       .then((found) => {
         if (live) {
           setTemplates(found);
-          const last = found.at(-1);
+          const last = [...found].reverse().find((d) => d.savedAs !== 'printed') ?? found.at(-1);
           if (standalone && last) setDesign(structuredClone(last));
         }
       })
@@ -116,12 +125,6 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
       live = false;
     };
   }, [workspace, standalone]);
-  useEffect(
-    () => () => {
-      void printer.close().catch(() => undefined);
-    },
-    [printer],
-  );
   useEffect(() => {
     let live = true;
     const sample = Array.from(
@@ -147,6 +150,17 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
       live = false;
     };
   }, [design, row, rows, start, dataIndex, copies]);
+  useEffect(() => {
+    const refresh = () => {
+      setRow((r) => ({ ...r }));
+    };
+    const timer = setInterval(refresh, 60000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+    };
+  }, []);
   useEffect(() => {
     if (confirm && !dialog.current?.open) dialog.current?.showModal();
     if (!confirm) dialog.current?.close();
@@ -177,7 +191,7 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
       imageInput.current?.click();
       return;
     }
-    const e = newLabelElement(kind);
+    const e = { ...newLabelElement(kind), ...(kind === 'text' ? { text: 'Your text' } : {}) };
     change({ elements: [...design.elements, e] });
     setSelected(e.id);
   }
@@ -263,6 +277,41 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
       }
     });
   }
+  function moveElement(clientX: number, clientY: number) {
+    const from = drag.current;
+    if (!from) return;
+    const dx = ((clientX - from.fromX) * design.width) / from.width;
+    const dy = ((clientY - from.fromY) * design.height) / from.height;
+    setDesign((d) => ({
+      ...d,
+      elements: d.elements.map((layer) => {
+        if (layer.id !== from.id) return layer;
+        if (!from.resize)
+          return {
+            ...layer,
+            x: Math.round(Math.max(0, Math.min(d.width - layer.width, from.x + dx)) * 4) / 4,
+            y: Math.round(Math.max(0, Math.min(d.height - layer.height, from.y + dy)) * 4) / 4,
+          };
+        const angle = (layer.rotation * Math.PI) / 180;
+        const width = Math.max(
+          0.5,
+          Math.min(d.width, from.elementWidth + dx * Math.cos(angle) + dy * Math.sin(angle)),
+        );
+        const height = Math.max(
+          0.5,
+          Math.min(d.height, from.elementHeight - dx * Math.sin(angle) + dy * Math.cos(angle)),
+        );
+        return {
+          ...layer,
+          width,
+          height,
+          ...(layer.kind === 'text'
+            ? { size: Math.max(0.8, Math.min(20, (from.size * height) / from.elementHeight)) }
+            : {}),
+        };
+      }),
+    }));
+  }
   function moveLayer(delta: number) {
     if (!active) return;
     const elements = [...design.elements],
@@ -291,6 +340,7 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
             disabled={busy}
             onClick={() => {
               setDesign(newLabelOnPaper(design));
+              setTab('design');
               setSelected(null);
               setRows([]);
             }}
@@ -301,7 +351,11 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
             disabled={busy}
             onClick={() =>
               void act(async () => {
-                await workspace.save(design);
+                await workspace.save({
+                  ...design,
+                  savedAs: 'template',
+                  savedAt: new Date().toISOString(),
+                });
                 setTemplates(await workspace.list());
                 setNotice('Template saved.');
               })
@@ -322,10 +376,96 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
           {notice}
         </p>
       )}
-      <fieldset disabled={busy} className="label-editor">
-        <aside className="label-controls">
-          <section>
-            <h2>Library</h2>
+      <nav className="label-tabs" aria-label="Label Studio views">
+        {(['design', 'library', 'batch', 'printer'] as const).map((view) => (
+          <button
+            key={view}
+            aria-pressed={tab === view}
+            onClick={() => {
+              setTab(view);
+            }}
+          >
+            {
+              {
+                design: 'Design',
+                library: 'Library',
+                batch: 'Batch data',
+                printer: 'Printer settings',
+              }[view]
+            }
+          </button>
+        ))}
+      </nav>
+      <fieldset disabled={busy} className={`label-editor label-view-${tab}`}>
+        <aside className="label-controls" hidden={tab !== 'library' && tab !== 'printer'}>
+          <section hidden={tab !== 'library'}>
+            <h2>Templates and saved labels</h2>
+            <label>
+              Search saved labels
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                }}
+              />
+            </label>
+            <label>
+              Show
+              <select
+                value={libraryFilter}
+                onChange={(e) => {
+                  setLibraryFilter(e.target.value);
+                }}
+              >
+                <option value="all">All labels</option>
+                <option value="templates">Templates</option>
+                <option value="printed">Recent prints</option>
+              </select>
+            </label>
+            <div className="label-library-grid">
+              {[...templates]
+                .reverse()
+                .filter(
+                  (d) =>
+                    d.name.toLowerCase().includes(search.toLowerCase()) &&
+                    (libraryFilter === 'all' ||
+                      (libraryFilter === 'printed'
+                        ? d.savedAs === 'printed'
+                        : d.savedAs !== 'printed')),
+                )
+                .map((d) => (
+                  <button
+                    key={d.id}
+                    className="label-library-card"
+                    onClick={() => {
+                      setDesign(structuredClone(d));
+                      setSelected(null);
+                      setRows([]);
+                      setTab('design');
+                    }}
+                  >
+                    <LabelThumbnail design={d} />
+                    <strong>{d.name}</strong>
+                    <span>
+                      {d.width} × {d.height} mm ·{' '}
+                      {d.savedAs === 'printed' ? 'Printed label' : 'Template'}
+                    </span>
+                  </button>
+                ))}
+            </div>
+            {!!templates.length &&
+              !templates.some(
+                (d) =>
+                  d.name.toLowerCase().includes(search.toLowerCase()) &&
+                  (libraryFilter === 'all' ||
+                    (libraryFilter === 'printed'
+                      ? d.savedAs === 'printed'
+                      : d.savedAs !== 'printed')),
+              ) && <p>No labels match your search.</p>}
+            {!templates.length && (
+              <p>Save a template to find it here. Completed prints also appear here.</p>
+            )}
             <label>
               Saved template
               <select
@@ -346,16 +486,6 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                   </option>
                 ))}
               </select>
-            </label>
-            <label>
-              Template name
-              <input
-                value={design.name}
-                maxLength={100}
-                onChange={(e) => {
-                  change({ name: e.target.value });
-                }}
-              />
             </label>
             <div className="label-mini-actions">
               <label className="label-file-button">
@@ -385,7 +515,7 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
               this template in the current library.
             </p>
           </section>
-          <section>
+          <section hidden={tab !== 'printer'}>
             <h2>Paper and calibration</h2>
             <div className="label-two">
               <NumberField
@@ -463,153 +593,341 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                 }}
               />
             </div>
+            <NumberField
+              label="Print density"
+              value={design.density}
+              min={1}
+              max={5}
+              onChange={(density) => {
+                change({ density: Math.round(density) });
+              }}
+            />
+            <NumberField
+              label="Black threshold"
+              value={design.threshold}
+              min={1}
+              max={254}
+              onChange={(threshold) => {
+                change({ threshold: Math.round(threshold) });
+              }}
+            />
             <p className="hint">
               Positive offsets move artwork right or down. B3S starting profile: 50 × 15 mm, two
               stacked, gap 0, vertical offset −0.75 mm.
             </p>
           </section>
         </aside>
-        <main className="label-stage">
-          <div className="label-toolbar">
-            {kinds.map((kind) => (
+        <main className="label-stage" hidden={tab === 'library' || tab === 'printer'}>
+          <div hidden={tab !== 'design'}>
+            {' '}
+            <label>
+              Template name
+              <input
+                value={design.name}
+                maxLength={100}
+                onChange={(e) => {
+                  change({ name: e.target.value });
+                }}
+              />
+            </label>
+            <div className="label-toolbar">
+              {(['text', 'image'] as const).map((kind) => (
+                <button
+                  key={kind}
+                  disabled={design.elements.length >= 100}
+                  onClick={() => {
+                    add(kind);
+                  }}
+                >
+                  <Plus size={14} />
+                  {kindName(kind)}
+                </button>
+              ))}
               <button
-                key={kind}
                 disabled={design.elements.length >= 100}
                 onClick={() => {
-                  add(kind);
+                  const element = {
+                    ...newLabelElement('text'),
+                    text: '{today}',
+                    y: Math.max(0, Math.min(design.height - 4, 8)),
+                    width: 22,
+                    height: 4,
+                    size: 2,
+                  };
+                  change({ elements: [...design.elements, element] });
+                  setSelected(element.id);
                 }}
               >
                 <Plus size={14} />
-                {kindName(kind)}
+                Date
               </button>
-            ))}
-            <input
-              ref={imageInput}
-              hidden
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(e) => void importImage(e)}
-            />
-          </div>
-          <div className="label-canvas-area">
-            <div className="label-paper-caption">
-              {design.width} × {design.height} mm · 203 dpi · drag an element to move it
+              <details className="label-more">
+                <summary>More elements</summary>
+                <div className="label-mini-actions">
+                  {kinds
+                    .filter((kind) => kind !== 'text' && kind !== 'image')
+                    .map((kind) => (
+                      <button
+                        key={kind}
+                        disabled={design.elements.length >= 100}
+                        onClick={() => {
+                          add(kind);
+                        }}
+                      >
+                        {kindName(kind)}
+                      </button>
+                    ))}
+                </div>
+              </details>
+              <input
+                ref={imageInput}
+                hidden
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(e) => void importImage(e)}
+              />
             </div>
-            <svg
-              className="label-layout"
-              style={{ pointerEvents: busy ? 'none' : undefined }}
-              viewBox={`0 0 ${String(design.width)} ${String(design.height)}`}
-              role="img"
-              aria-label="Label design canvas"
-            >
-              <rect width={design.width} height={design.height} fill="white" />
-              {artwork && (
-                <image
-                  href={artwork}
-                  width={design.width}
-                  height={design.height}
-                  pointerEvents="none"
-                />
-              )}
-              {design.elements.map((element) => (
-                <g
-                  key={element.id}
-                  transform={`translate(${String(element.x)} ${String(element.y)}) rotate(${String(element.rotation)})`}
-                >
-                  <rect
-                    width={element.width}
-                    height={element.height}
-                    fill={selected === element.id ? '#1284ff18' : 'transparent'}
-                    stroke={selected === element.id ? '#1284ff' : '#91a7b344'}
-                    strokeWidth={0.15}
-                    tabIndex={0}
-                    role="button"
-                    aria-label={`Select ${kindName(element.kind)}: ${element.text.slice(0, 40)}`}
-                    onClick={() => {
-                      setSelected(element.id);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
+            <div className="label-canvas-area">
+              <div className="label-paper-caption">
+                {design.width} × {design.height} mm · drag to move · blue corner to resize
+              </div>
+              <svg
+                className="label-layout"
+                style={{ pointerEvents: busy ? 'none' : undefined }}
+                viewBox={`0 0 ${String(design.width)} ${String(design.height)}`}
+                role="img"
+                aria-label="Label design canvas"
+              >
+                <rect width={design.width} height={design.height} fill="white" />
+                {artwork && (
+                  <image
+                    href={artwork}
+                    width={design.width}
+                    height={design.height}
+                    pointerEvents="none"
+                  />
+                )}
+                {design.elements.map((element) => (
+                  <g
+                    key={element.id}
+                    transform={`translate(${String(element.x)} ${String(element.y)}) rotate(${String(element.rotation)})`}
+                  >
+                    <rect
+                      width={element.width}
+                      height={element.height}
+                      fill={selected === element.id ? '#1284ff18' : 'transparent'}
+                      stroke={selected === element.id ? '#1284ff' : '#91a7b344'}
+                      strokeWidth={0.15}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`Select ${kindName(element.kind)}: ${element.text.slice(0, 40)}`}
+                      onClick={() => {
+                        setSelected(element.id);
+                      }}
+                      onKeyDown={(e) => {
+                        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                          e.preventDefault();
+                          setSelected(element.id);
+                          const delta = e.shiftKey ? 1 : 0.25;
+                          setDesign((d) => ({
+                            ...d,
+                            elements: d.elements.map((layer) =>
+                              layer.id !== element.id
+                                ? layer
+                                : {
+                                    ...layer,
+                                    x: Math.max(
+                                      0,
+                                      Math.min(
+                                        d.width - layer.width,
+                                        layer.x +
+                                          (e.key === 'ArrowRight'
+                                            ? delta
+                                            : e.key === 'ArrowLeft'
+                                              ? -delta
+                                              : 0),
+                                      ),
+                                    ),
+                                    y: Math.max(
+                                      0,
+                                      Math.min(
+                                        d.height - layer.height,
+                                        layer.y +
+                                          (e.key === 'ArrowDown'
+                                            ? delta
+                                            : e.key === 'ArrowUp'
+                                              ? -delta
+                                              : 0),
+                                      ),
+                                    ),
+                                  },
+                            ),
+                          }));
+                        }
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelected(element.id);
+                        }
+                      }}
+                      onPointerDown={(e) => {
+                        if (e.button !== 0) return;
                         e.preventDefault();
                         setSelected(element.id);
-                      }
-                    }}
-                    onPointerDown={(e) => {
-                      if (e.button !== 0) return;
-                      e.preventDefault();
-                      setSelected(element.id);
-                      e.currentTarget.setPointerCapture(e.pointerId);
-                      const box = e.currentTarget.ownerSVGElement?.getBoundingClientRect();
-                      if (box)
-                        drag.current = {
-                          id: element.id,
-                          x: element.x,
-                          y: element.y,
-                          fromX: e.clientX,
-                          fromY: e.clientY,
-                          width: box.width,
-                          height: box.height,
-                        };
-                    }}
-                    onPointerMove={(e) => {
-                      const from = drag.current;
-                      if (!from || from.id !== element.id) return;
-                      const x = Math.max(
-                          0,
-                          Math.min(
-                            design.width - element.width,
-                            from.x + ((e.clientX - from.fromX) * design.width) / from.width,
-                          ),
-                        ),
-                        y = Math.max(
-                          0,
-                          Math.min(
-                            design.height - element.height,
-                            from.y + ((e.clientY - from.fromY) * design.height) / from.height,
-                          ),
-                        );
-                      setDesign((d) => ({
-                        ...d,
-                        elements: d.elements.map((layer) =>
-                          layer.id === from.id
-                            ? { ...layer, x: Math.round(x * 4) / 4, y: Math.round(y * 4) / 4 }
-                            : layer,
-                        ),
-                      }));
-                    }}
-                    onPointerUp={() => {
-                      drag.current = null;
-                    }}
-                    onPointerCancel={() => {
-                      drag.current = null;
-                    }}
-                  />
-                  <text pointerEvents="none" x={0.4} y={1.5} fontSize={0.85} fill="#345">
-                    {kindName(element.kind)}
-                  </text>
-                </g>
-              ))}
-            </svg>
-            <div className="label-print-preview">
-              <h2>Print preview</h2>
-              <p className="hint">
-                This includes the paper layout and calibration. The element boxes above are editing
-                guides.
-              </p>
-              {previewError ? (
-                <p role="alert">{previewError}</p>
-              ) : (
-                preview && (
-                  <img
-                    src={preview}
-                    alt="Actual monochrome label print preview"
-                    style={{ aspectRatio: `${String(size.width)} / ${String(size.height)}` }}
-                  />
-                )
-              )}
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                        const box = e.currentTarget.ownerSVGElement?.getBoundingClientRect();
+                        if (box)
+                          drag.current = {
+                            id: element.id,
+                            x: element.x,
+                            y: element.y,
+                            fromX: e.clientX,
+                            fromY: e.clientY,
+                            width: box.width,
+                            height: box.height,
+                            elementWidth: element.width,
+                            elementHeight: element.height,
+                            size: element.size,
+                            resize: false,
+                          };
+                      }}
+                      onPointerMove={(e) => {
+                        moveElement(e.clientX, e.clientY);
+                      }}
+                      onPointerUp={() => {
+                        drag.current = null;
+                      }}
+                      onLostPointerCapture={() => {
+                        drag.current = null;
+                      }}
+                      onPointerCancel={() => {
+                        drag.current = null;
+                      }}
+                    />
+                    {selected === element.id && (
+                      <rect
+                        className="label-resize-handle"
+                        role="button"
+                        aria-label="Resize selected element"
+                        tabIndex={0}
+                        x={element.width - 2}
+                        y={element.height - 2}
+                        width={4}
+                        height={4}
+                        rx={0.35}
+                        fill="#1284ff"
+                        stroke="white"
+                        strokeWidth={0.2}
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          e.currentTarget.setPointerCapture(e.pointerId);
+                          const box = e.currentTarget.ownerSVGElement?.getBoundingClientRect();
+                          if (box)
+                            drag.current = {
+                              id: element.id,
+                              x: element.x,
+                              y: element.y,
+                              fromX: e.clientX,
+                              fromY: e.clientY,
+                              width: box.width,
+                              height: box.height,
+                              elementWidth: element.width,
+                              elementHeight: element.height,
+                              size: element.size,
+                              resize: true,
+                            };
+                        }}
+                        onPointerMove={(e) => {
+                          moveElement(e.clientX, e.clientY);
+                        }}
+                        onPointerUp={() => {
+                          drag.current = null;
+                        }}
+                        onLostPointerCapture={() => {
+                          drag.current = null;
+                        }}
+                        onPointerCancel={() => {
+                          drag.current = null;
+                        }}
+                        onKeyDown={(e) => {
+                          const delta = e.shiftKey ? 1 : 0.25;
+                          if (['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                            e.preventDefault();
+                            edit({
+                              width: Math.max(
+                                0.2,
+                                Math.min(
+                                  design.width,
+                                  element.width +
+                                    (e.key === 'ArrowRight'
+                                      ? delta
+                                      : e.key === 'ArrowLeft'
+                                        ? -delta
+                                        : 0),
+                                ),
+                              ),
+                              height: Math.max(
+                                0.2,
+                                Math.min(
+                                  design.height,
+                                  element.height +
+                                    (e.key === 'ArrowDown'
+                                      ? delta
+                                      : e.key === 'ArrowUp'
+                                        ? -delta
+                                        : 0),
+                                ),
+                              ),
+                            });
+                          }
+                        }}
+                      />
+                    )}
+                  </g>
+                ))}
+              </svg>
+              <details className="label-print-preview">
+                <summary>Print preview</summary>
+                <p className="hint">
+                  This includes the paper layout and calibration. The element boxes above are
+                  editing guides.
+                </p>
+                {previewError ? (
+                  <p role="alert">{previewError}</p>
+                ) : (
+                  preview && (
+                    <img
+                      src={preview}
+                      alt="Actual monochrome label print preview"
+                      style={{ aspectRatio: `${String(size.width)} / ${String(size.height)}` }}
+                    />
+                  )
+                )}
+              </details>
             </div>
+            {fields.some((key) => design.elements.some((e) => e.text.includes(`{${key}}`))) && (
+              <section>
+                <h2>Label text</h2>
+                <div className="label-two">
+                  {fields
+                    .filter((key) => design.elements.some((e) => e.text.includes(`{${key}}`)))
+                    .map((key) => (
+                      <label key={key}>
+                        {key}
+                        <input
+                          value={shown[key] ?? ''}
+                          disabled={rows.length > 0}
+                          onChange={(e) => {
+                            setRow((r) => ({ ...r, [key]: e.target.value }));
+                          }}
+                        />
+                      </label>
+                    ))}
+                </div>
+              </section>
+            )}
           </div>
-          <section className="label-data">
+          <section className="label-data" hidden={tab !== 'batch'}>
             <h2>Label data</h2>
             <p className="hint">
               Use fields such as {'{name}'}, {'{id}'}, {'{date}'} and {'{n}'} in text, QR codes and
@@ -711,15 +1029,6 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
             )}
             <div className="label-two">
               <NumberField
-                label="Copies (without batch)"
-                value={copies}
-                min={1}
-                max={500}
-                onChange={(v) => {
-                  setCopies(Math.round(v));
-                }}
-              />
-              <NumberField
                 label="Sequence starts at"
                 value={start}
                 min={0}
@@ -731,7 +1040,7 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
             </div>
           </section>
         </main>
-        <aside className="label-inspector">
+        <aside className="label-inspector" hidden={tab !== 'design'}>
           <section>
             <h2>Elements</h2>
             <div className="label-layer-list">
@@ -751,12 +1060,25 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
           {active && (
             <section>
               <h2>{kindName(active.kind)} properties</h2>
+              {active.kind === 'text' && (
+                <label className="label-check">
+                  <input
+                    type="checkbox"
+                    checked={active.text === '{today}'}
+                    onChange={(e) => {
+                      edit({ text: e.target.checked ? '{today}' : today() });
+                    }}
+                  />
+                  Always use today's date
+                </label>
+              )}
               {['text', 'qr', 'barcode'].includes(active.kind) && (
                 <label>
                   Content
                   <textarea
                     rows={3}
-                    value={active.text}
+                    value={active.text === '{today}' ? today() : active.text}
+                    disabled={active.text === '{today}'}
                     onChange={(e) => {
                       edit({ text: e.target.value });
                     }}
@@ -764,26 +1086,6 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                 </label>
               )}
               <div className="label-two">
-                <NumberField
-                  label="X (mm)"
-                  value={active.x}
-                  min={0}
-                  max={design.width}
-                  step={0.25}
-                  onChange={(x) => {
-                    edit({ x });
-                  }}
-                />
-                <NumberField
-                  label="Y (mm)"
-                  value={active.y}
-                  min={0}
-                  max={design.height}
-                  step={0.25}
-                  onChange={(y) => {
-                    edit({ y });
-                  }}
-                />
                 <NumberField
                   label="Width (mm)"
                   value={active.width}
@@ -805,21 +1107,46 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                   }}
                 />
               </div>
-              <label>
-                Rotation
-                <select
-                  value={active.rotation}
-                  onChange={(e) => {
-                    edit({ rotation: Number(e.target.value) as LabelElement['rotation'] });
-                  }}
-                >
-                  {[0, 90, 180, 270].map((v) => (
-                    <option value={v} key={v}>
-                      {v}°
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <details>
+                <summary>Position and rotation</summary>
+                <div className="label-two">
+                  <NumberField
+                    label="X (mm)"
+                    value={active.x}
+                    min={0}
+                    max={design.width}
+                    step={0.25}
+                    onChange={(x) => {
+                      edit({ x });
+                    }}
+                  />
+                  <NumberField
+                    label="Y (mm)"
+                    value={active.y}
+                    min={0}
+                    max={design.height}
+                    step={0.25}
+                    onChange={(y) => {
+                      edit({ y });
+                    }}
+                  />
+                </div>{' '}
+                <label>
+                  Rotation
+                  <select
+                    value={active.rotation}
+                    onChange={(e) => {
+                      edit({ rotation: Number(e.target.value) as LabelElement['rotation'] });
+                    }}
+                  >
+                    {[0, 90, 180, 270].map((v) => (
+                      <option value={v} key={v}>
+                        {v}°
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </details>
               {active.kind === 'text' && (
                 <>
                   <NumberField
@@ -924,14 +1251,16 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
           </h2>
           <p>{printerName}</p>
         </div>
-        <div className="label-mini-actions">
+        <div className="label-mini-actions" hidden={tab !== 'printer'}>
           <button
-            disabled={busy}
+            disabled={busy || connecting}
             onClick={() =>
               void act(async () => {
                 const found = await printer.scan();
                 setDevices(found);
                 setDevice(found[0]?.id ?? '');
+                if (found.length === 1 && found[0] && connection.autoConnect)
+                  await connection.connect(found[0].id);
                 if (!found.length)
                   setNotice('No B3S found. Turn it on, keep it nearby and close the NIIMBOT app.');
               })
@@ -942,7 +1271,7 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
           <select
             aria-label="Label printer"
             value={device}
-            disabled={busy}
+            disabled={busy || connecting}
             onChange={(e) => {
               setDevice(e.target.value);
             }}
@@ -955,15 +1284,10 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
             ))}
           </select>
           <button
-            disabled={busy || !device}
+            disabled={busy || connecting || !device}
             onClick={() =>
               void act(async () => {
-                setConnected(false);
-                const info = await printer.connect(device);
-                setConnected(true);
-                setPrinterName(
-                  `B3S · firmware ${info.softwareVersion ?? 'unknown'} · battery ${String(info.batteryPercents ?? '?')}%`,
-                );
+                await connection.connect(device);
               })
             }
           >
@@ -971,12 +1295,10 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
           </button>
           {connected && (
             <button
-              disabled={busy}
+              disabled={busy || connecting}
               onClick={() =>
                 void act(async () => {
-                  await printer.close();
-                  setConnected(false);
-                  setPrinterName('Not connected');
+                  await connection.disconnect();
                 })
               }
             >
@@ -984,27 +1306,42 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
             </button>
           )}
         </div>
-        <NumberField
-          label="Print density"
-          value={design.density}
-          min={1}
-          max={5}
-          onChange={(density) => {
-            change({ density: Math.round(density) });
+        <label className="label-check" hidden={tab !== 'printer'}>
+          <input
+            type="checkbox"
+            checked={connection.autoConnect}
+            onChange={(e) => {
+              connection.setAuto(e.target.checked);
+            }}
+          />
+          Auto-connect to last printer
+        </label>
+        {!transport && tab === 'printer' && (
+          <p>
+            Browser Bluetooth needs you to click Connect. Automatic reconnection is available in the
+            installed apps.
+          </p>
+        )}
+        <button
+          hidden={tab === 'printer'}
+          onClick={() => {
+            setTab('printer');
           }}
-        />
+        >
+          Manage printer
+        </button>
         <NumberField
-          label="Black threshold"
-          value={design.threshold}
+          label="Copies (without batch)"
+          value={copies}
           min={1}
-          max={254}
-          onChange={(threshold) => {
-            change({ threshold: Math.round(threshold) });
+          max={500}
+          onChange={(v) => {
+            setCopies(Math.round(v));
           }}
         />
         <button
           className="label-print-button"
-          disabled={busy || !connected || !!previewError}
+          disabled={busy || connecting || !connected || !!previewError}
           onClick={() => {
             try {
               labelBatches(rows, copies, design.perFeed);
@@ -1079,6 +1416,26 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                   },
                 );
                 setProgress('Printer acknowledged completion.');
+                try {
+                  const printed = {
+                    ...design,
+                    id: crypto.randomUUID(),
+                    savedAs: 'printed' as const,
+                    savedAt: new Date().toISOString(),
+                    name: `${design.name} · ${new Date().toLocaleString('en-GB')}`,
+                    elements: design.elements.map((e) => ({
+                      ...e,
+                      text: labelText(e.text, rows.length ? { ...row, ...rows[0] } : row, start),
+                    })),
+                  };
+                  await workspace.save(printed);
+                  setTemplates(await workspace.list());
+                } catch {
+                  setError(
+                    'Labels printed successfully, but the recent label could not be saved. Save your template separately.',
+                  );
+                }
+
                 setNotice('Print job completed.');
               });
             }}
@@ -1088,6 +1445,25 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
         </div>
       </dialog>
     </div>
+  );
+}
+function LabelThumbnail({ design }: { design: LabelDesign }) {
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    let live = true;
+    void renderLabel(design, seed(), 1)
+      .then((c) => {
+        if (live) setSrc(c.toDataURL());
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [design]);
+  return src ? (
+    <img src={src} alt={`Preview of ${design.name}`} />
+  ) : (
+    <span className="label-thumbnail-empty">Label preview</span>
   );
 }
 function NumberField({

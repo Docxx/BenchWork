@@ -329,3 +329,86 @@
     padding: 14px;
   }
 }
+
+/* Keep secondary tasks out of the design workspace, including on small screens. */
+.label-studio [hidden] {
+  display: none !important;
+}
+.label-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.label-editor.label-view-design {
+  grid-template-columns: minmax(0, 1fr) 270px;
+}
+.label-editor.label-view-library,
+.label-editor.label-view-batch,
+.label-editor.label-view-printer {
+  display: block;
+}
+.label-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+.label-studio .label-library-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  text-align: left;
+  padding: 16px;
+}
+.label-library-card img,
+.label-thumbnail-empty {
+  width: 100%;
+  aspect-ratio: 10 / 3;
+  object-fit: contain;
+  background: white;
+  color: #172b39;
+  border: 1px solid #d9e0e5;
+  border-radius: 5px;
+}
+.label-library-card span {
+  font-size: 0.75rem;
+  color: var(--muted, #60717c);
+}
+.label-more {
+  align-self: center;
+}
+.label-more summary {
+  cursor: pointer;
+  padding: 10px;
+  font-size: 0.8rem;
+}
+.label-layout .label-resize-handle {
+  cursor: nwse-resize;
+}
+@container (max-width: 700px) {
+  .label-editor.label-view-design {
+    display: flex;
+    flex-direction: column;
+  }
+  .label-view-design .label-inspector {
+    display: block;
+  }
+}
+@media (max-width: 680px) {
+  .label-editor.label-view-design {
+    display: flex;
+    flex-direction: column;
+  }
+  .label-studio .label-printer-panel {
+    order: initial;
+  }
+  .label-studio button,
+  .label-studio summary {
+    min-height: 44px;
+  }
+  .label-library-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}

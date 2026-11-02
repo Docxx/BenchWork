@@ -28,6 +28,8 @@ export interface LabelDesign {
   density: number;
   threshold: number;
   elements: LabelElement[];
+  savedAs?: 'template' | 'printed';
+  savedAt?: string;
 }
 export type LabelRow = Record<string, string>;
 const n = (v: unknown, fallback: number, min: number, max: number) =>
@@ -54,8 +56,7 @@ export function newLabelElement(kind: LabelKind): LabelElement {
   };
 }
 export function newLabelDesign(): LabelDesign {
-  const title = { ...newLabelElement('text'), text: '{name}', bold: true, width: 45 };
-  const detail = { ...newLabelElement('text'), y: 8, text: '{id}   {date}', width: 45, size: 1.8 };
+  const title = { ...newLabelElement('text'), text: 'Label text', bold: true, width: 45 };
   return {
     version: 1,
     id: crypto.randomUUID(),
@@ -69,7 +70,7 @@ export function newLabelDesign(): LabelDesign {
     offsetY: -0.75,
     density: 2,
     threshold: 180,
-    elements: [title, detail],
+    elements: [title],
   };
 }
 /** Start a fresh design using the paper and calibration already selected. */
@@ -138,11 +139,19 @@ export function parseLabelDesign(value: unknown): LabelDesign {
     density: Math.round(n(r['density'], 2, 1, 5)),
     threshold: Math.round(n(r['threshold'], 180, 1, 254)),
     elements,
+    ...(r['savedAs'] === 'printed' ? { savedAs: 'printed' as const } : {}),
+    ...(typeof r['savedAt'] === 'string' ? { savedAt: r['savedAt'].slice(0, 40) } : {}),
   };
 }
-export function labelText(text: string, row: LabelRow, sequence: number): string {
+export function labelText(text: string, row: LabelRow, sequence: number, now = new Date()): string {
   return text.replace(/\{([^{}]+)\}/g, (_, key: string) =>
-    key === 'n' ? String(sequence) : Object.hasOwn(row, key) ? (row[key] ?? '') : `{${key}}`,
+    key === 'today'
+      ? now.toLocaleDateString('en-GB')
+      : key === 'n'
+        ? String(sequence)
+        : Object.hasOwn(row, key)
+          ? (row[key] ?? '')
+          : `{${key}}`,
   );
 }
 export function feedSize(d: LabelDesign): { width: number; height: number } {
