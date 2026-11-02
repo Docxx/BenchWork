@@ -94,14 +94,15 @@ class MainActivity : TauriActivity() {
     @JavascriptInterface
     fun shareLabelTemplate(name:String,json:String):String {
       return try {
-        require(json.length<=5*1024*1024) {"Template is too large to share."}
+        require(json.toByteArray(Charsets.UTF_8).size<=25*1024*1024) {"Template is too large to share."}
         val folder=java.io.File(cacheDir,"label-exports").apply {mkdirs()}
-        val safe=name.replace(Regex("[^a-zA-Z0-9._-]"),"_").take(100).removeSuffix(".label.json")+".label.json"
+        val suffix=if(name.endsWith(".labelpack.json")) ".labelpack.json" else ".label.json"
+        val safe=name.replace(Regex("[^a-zA-Z0-9._-]"),"_").removeSuffix(suffix).take(80)+suffix
         val file=java.io.File(folder,safe)
         require(file.canonicalFile.parentFile==folder.canonicalFile)
         file.writeText(json,Charsets.UTF_8)
         val uri=androidx.core.content.FileProvider.getUriForFile(this@MainActivity,packageName+".labels",file)
-        runOnUiThread {startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {type="application/json";putExtra(Intent.EXTRA_STREAM,uri);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)},"Share label template"))}
+        runOnUiThread {startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {type="application/json";putExtra(Intent.EXTRA_STREAM,uri);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)},"Share labels"))}
         JSONObject().put("ok",true).toString()
       } catch(e:Exception) {JSONObject().put("error",e.message?:"Could not share template").toString()}
     }

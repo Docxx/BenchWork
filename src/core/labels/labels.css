@@ -412,3 +412,399 @@
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   }
 }
+
+/* A canvas-first editor with the same direct actions on desktop and touch. */
+.label-header {
+  gap: 12px;
+  padding: 4px 0 18px;
+}
+.label-title h1 {
+  font-family: inherit;
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 3px 0 0;
+}
+.label-header > label {
+  flex: 1;
+  max-width: 420px;
+  margin: 0;
+}
+.label-studio .label-connection-badge {
+  border-radius: 24px;
+  font-size: 0.72rem;
+}
+.label-studio .label-connection-badge.is-connected {
+  background: var(--accent-soft, #e6f4f0);
+}
+.label-tabs {
+  gap: 4px;
+  border-bottom: 1px solid var(--border, #d9e0e5);
+  padding-bottom: 10px;
+}
+.label-tabs button {
+  border-color: transparent;
+  background: transparent;
+}
+.label-editor.label-view-design {
+  grid-template-columns: minmax(0, 1fr);
+}
+.label-editor.label-view-design.label-properties-open {
+  grid-template-columns: minmax(0, 1fr) 270px;
+}
+.label-canvas-area {
+  border-radius: 14px;
+  border-top: 1px solid var(--border, #d9e0e5);
+  padding: 22px;
+}
+.label-layout {
+  display: block;
+  max-width: 850px;
+  margin: 30px auto;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px #172b3912;
+}
+.label-selection-hint {
+  color: var(--muted, #60717c);
+  font-size: 0.8rem;
+  text-align: center;
+  margin: 12px 0;
+}
+.label-object-tools {
+  max-width: 850px;
+  margin: 20px auto 12px;
+  border: 1px solid var(--border, #d9e0e5);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--bg, white);
+}
+.label-object-heading,
+.label-context-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.label-object-heading {
+  justify-content: space-between;
+  font-size: 0.8rem;
+  margin-bottom: 10px;
+}
+.label-context-actions > button {
+  flex: 1;
+  min-height: 44px;
+  white-space: nowrap;
+}
+.label-studio .label-delete-action {
+  color: #b73535;
+}
+.label-toolbar {
+  border-radius: 12px;
+  padding: 10px;
+  max-width: 850px;
+  margin: 12px auto;
+  align-items: center;
+  justify-content: center;
+}
+.label-toolbar > button {
+  flex-direction: column;
+  min-width: 68px;
+  min-height: 64px;
+  border-color: transparent;
+}
+.label-objects,
+.label-print-preview {
+  max-width: 850px;
+  margin: 12px auto;
+  font-size: 0.8rem;
+}
+.label-studio summary {
+  cursor: pointer;
+  padding: 10px 0;
+  color: var(--muted, #60717c);
+}
+.label-layer-list {
+  padding: 10px 0;
+}
+.label-bottom-bar {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+  padding: 12px;
+  border: 1px solid var(--border, #d9e0e5);
+  border-radius: 12px;
+  background: var(--bg, white);
+}
+.label-studio .label-bottom-bar .label-print-button,
+.label-studio .label-save-button {
+  position: static;
+  padding: 12px 18px;
+  min-height: 48px;
+}
+.label-printer-panel > div:first-child {
+  min-width: 120px;
+}
+.label-library-grid {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+}
+.label-studio .label-library-card {
+  padding: 16px;
+  border-radius: 16px;
+  gap: 12px;
+  transition:
+    border-color 120ms,
+    box-shadow 120ms;
+}
+.label-library-card:hover {
+  border-color: var(--accent, #117dba);
+  box-shadow: 0 5px 18px #172b3910;
+}
+.label-library-card img {
+  max-height: 180px;
+  border-radius: 8px;
+}
+@container (max-width: 700px) {
+  .label-editor.label-view-design.label-properties-open {
+    display: flex;
+    flex-direction: column;
+  }
+}
+@media (max-width: 680px) {
+  .label-studio {
+    padding-bottom: 110px;
+  }
+  .label-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    padding-bottom: 10px;
+  }
+  .label-header > label {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    max-width: none;
+  }
+  .label-header-actions {
+    gap: 6px;
+  }
+  .label-header-actions button {
+    padding: 7px;
+  }
+  .label-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px;
+    margin-bottom: 10px;
+  }
+  .label-tabs button {
+    font-size: 0.72rem;
+    padding: 6px;
+  }
+  .label-canvas-area {
+    padding: 12px;
+  }
+  .label-paper-caption {
+    font-size: 0.68rem;
+  }
+  .label-layout {
+    margin: 22px auto;
+  }
+  .label-object-tools {
+    padding: 10px;
+  }
+  .label-context-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .label-toolbar {
+    gap: 4px;
+    padding: 6px;
+  }
+  .label-toolbar > button {
+    min-width: 62px;
+  }
+  .label-toolbar .label-more summary {
+    font-size: 0.72rem;
+    padding: 6px;
+  }
+  .label-standalone .label-bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    margin: 0;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    border-radius: 0;
+    border-width: 1px 0 0;
+    box-shadow: 0 -4px 18px #172b3908;
+  }
+  .label-bottom-bar > button {
+    flex: 1;
+    font-size: 0.9rem;
+  }
+  .label-library-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .label-studio .label-library-card {
+    padding: 10px;
+    font-size: 0.8rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .label-library-card {
+    transition: none;
+  }
+}
+
+.label-library-heading,
+.label-library-search,
+.label-library-actions,
+.label-design-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.label-library-heading {
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.label-library-heading h2 {
+  margin-bottom: 4px;
+}
+.label-library-layout {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 20px;
+}
+.label-folder-panel nav {
+  display: grid;
+  gap: 6px;
+}
+.label-folder-panel nav button {
+  justify-content: flex-start;
+  overflow-wrap: anywhere;
+}
+.label-folder-panel nav span {
+  margin-left: auto;
+  font-size: 0.72rem;
+  opacity: 0.7;
+}
+.label-library-content {
+  min-width: 0;
+}
+.label-library-search > label:first-child {
+  flex: 1;
+  min-width: 140px;
+}
+.label-library-search > label:last-child {
+  width: 140px;
+}
+.label-library-actions {
+  padding: 8px 0;
+  gap: 6px;
+}
+.label-library-actions label {
+  margin: 0;
+}
+.label-studio article.label-library-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  background: var(--bg, white);
+  border: 1px solid var(--border, #d9e0e5);
+}
+.label-studio .label-open-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.label-library-card strong {
+  overflow-wrap: anywhere;
+}
+.label-studio .label-library-select {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0;
+  color: var(--muted, #60717c);
+  font-size: 0.7rem;
+}
+.label-library-select input {
+  width: 18px;
+  height: 18px;
+}
+.label-open-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.label-design-options {
+  margin-bottom: 12px;
+  justify-content: space-between;
+}
+.label-design-options label {
+  width: 180px;
+  margin: 0;
+}
+.label-transfer-help {
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border, #d9e0e5);
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+@container (max-width: 700px) {
+  .label-library-layout {
+    display: block;
+  }
+  .label-folder-panel nav {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+  .label-folder-panel nav button {
+    flex-shrink: 0;
+  }
+}
+@media (max-width: 680px) {
+  .label-library-layout {
+    display: block;
+  }
+  .label-folder-panel nav {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+  .label-folder-panel nav button {
+    flex-shrink: 0;
+  }
+  .label-library-heading {
+    gap: 8px;
+  }
+  .label-library-heading .hint {
+    display: none;
+  }
+  .label-design-options {
+    gap: 6px;
+  }
+  .label-design-options label {
+    width: 45%;
+  }
+  .label-design-options button {
+    font-size: 0.72rem;
+  }
+}
+
+.label-studio .label-printer-compact {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 12px 0 0;
+}

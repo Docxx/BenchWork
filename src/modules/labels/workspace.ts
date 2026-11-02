@@ -1,5 +1,6 @@
 import {
   parseLabelDesign,
+  labelFolder,
   type ModuleContext,
   type LabelWorkspace,
   type LabelRow,
@@ -12,7 +13,7 @@ export function labelWorkspace(ctx: ModuleContext): LabelWorkspace {
       return Promise.all(
         entries
           .filter((e) => !e.isDir && e.name.endsWith('.label.json'))
-          .slice(0, 100)
+          .slice(0, 2000)
           .map(async (e) =>
             parseLabelDesign(JSON.parse(await ctx.vault.readText(`Labels/${e.name}`))),
           ),
@@ -24,6 +25,27 @@ export function labelWorkspace(ctx: ModuleContext): LabelWorkspace {
       const path = `Labels/${validated.id}.label.json`;
       if (await ctx.vault.exists(path)) await ctx.vault.keepSnapshot(path);
       await ctx.vault.writeText(path, JSON.stringify(validated, null, 2));
+    },
+    folders: async () => {
+      const path = 'Labels/folders.json';
+      if (!(await ctx.vault.exists(path))) return [];
+      const raw: unknown = JSON.parse(await ctx.vault.readText(path));
+      return Array.isArray(raw)
+        ? raw
+            .filter((v): v is string => typeof v === 'string')
+            .map(labelFolder)
+            .filter(Boolean)
+        : [];
+    },
+    createFolder: async (name) => {
+      await ctx.vault.ensureDir('Labels');
+      const path = 'Labels/folders.json';
+      const folders = (await labelWorkspace(ctx).folders?.()) ?? [];
+      if (await ctx.vault.exists(path)) await ctx.vault.keepSnapshot(path);
+      await ctx.vault.writeText(
+        path,
+        JSON.stringify([...new Set([...folders, labelFolder(name)])].filter(Boolean), null, 2),
+      );
     },
     records: async () => {
       const items = (await ctx.app.items())

@@ -41,12 +41,22 @@ export async function renderLabel(
     if (['text', 'qr', 'barcode'].includes(e.kind) && /\{[^{}]+\}/.test(text))
       throw new Error('Fill the missing label data fields before printing.');
     if (e.kind === 'text') {
-      ctx.font = `${e.bold ? 'bold ' : ''}${String(e.size)}px ${e.font === 'mono' ? 'monospace' : e.font === 'serif' ? 'Georgia' : 'Arial'}`;
+      ctx.font = `${e.italic ? 'italic ' : ''}${e.bold ? 'bold ' : ''}${String(e.size)}px ${e.font === 'mono' ? 'monospace' : e.font === 'serif' ? 'Georgia' : 'Arial'}`;
       ctx.textBaseline = 'top';
       ctx.textAlign = e.align;
       const x = e.align === 'center' ? e.width / 2 : e.align === 'right' ? e.width : 0;
       text.split('\n').forEach((line, i) => {
-        ctx.fillText(line, x, i * e.size * 1.2, e.width);
+        const y = i * e.size * (e.lineSpacing ?? 1.2);
+        ctx.fillText(line, x, y, e.width);
+        if (e.underline) {
+          const width = Math.min(ctx.measureText(line).width, e.width);
+          const left = e.align === 'center' ? x - width / 2 : e.align === 'right' ? x - width : x;
+          ctx.lineWidth = Math.max(0.1, e.size / 18);
+          ctx.beginPath();
+          ctx.moveTo(left, y + e.size);
+          ctx.lineTo(left + width, y + e.size);
+          ctx.stroke();
+        }
       });
     } else if (e.kind === 'box') {
       ctx.strokeRect(0.1, 0.1, e.width - 0.2, e.height - 0.2);

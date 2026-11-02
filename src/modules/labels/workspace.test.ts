@@ -16,9 +16,20 @@ it('keeps templates in ordinary vault files, preserves snapshots on replacement 
   const library = labelWorkspace(handle.ctx),
     design = newLabelDesign();
   expect(await library.list()).toEqual([]);
+  await library.createFolder?.('Fly stocks');
+  expect(await library.folders?.()).toEqual(['Fly stocks']);
   await library.save(design);
   expect((await library.list())[0]?.name).toBe('Sample label');
-  await library.save({ ...design, name: 'Updated' });
+  await library.save({
+    ...design,
+    name: 'Updated',
+    folder: 'Fly stocks',
+    data: { name: 'DrsGFP' },
+  });
+  expect((await library.list())[0]).toMatchObject({
+    folder: 'Fly stocks',
+    data: { name: 'DrsGFP' },
+  });
   handle.dispose();
   expect(platform.snapshot()[`Labels/${design.id}.label.json`]).toContain('Updated');
   expect(

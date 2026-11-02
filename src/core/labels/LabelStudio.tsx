@@ -10,6 +10,12 @@ import {
   ArrowUp,
   ArrowDown,
   Bluetooth,
+  Type,
+  CalendarDays,
+  ImagePlus,
+  SlidersHorizontal,
+  Undo2,
+  Check,
 } from 'lucide-react';
 import {
   feedSize,
@@ -18,7 +24,7 @@ import {
   newLabelDesign,
   newLabelOnPaper,
   newLabelElement,
-  parseLabelDesign,
+  labelFolder,
   type LabelDesign,
   type LabelElement,
   type LabelKind,
@@ -26,6 +32,9 @@ import {
 } from './model';
 import { renderFeed, renderLabel } from './render';
 import { LabelPrinter } from './printer';
+import { LabelLibrary } from './LabelLibrary';
+import { labelPack, unpackLabels, LABEL_PACK_LIMIT } from './transfer';
+import { exportLabelFile } from '../platform/labelFiles';
 import { usePrinterConnection } from './usePrinterConnection';
 import type { LabelBluetoothDevice, LabelBluetoothTransport } from '../platform/labelBluetooth';
 import type { LabelWorkspace } from './workspace';
@@ -42,22 +51,6 @@ const kindName = (kind: LabelKind) =>
   ({ text: 'Text', qr: 'QR code', barcode: 'Barcode', image: 'Image', box: 'Box', line: 'Line' })[
     kind
   ];
-function download(name: string, content: string, type: string) {
-  if (window.BenchWorkAndroid?.shareLabelTemplate) {
-    const response: unknown = JSON.parse(window.BenchWorkAndroid.shareLabelTemplate(name, content));
-    if (typeof response === 'object' && response !== null && 'error' in response)
-      throw new Error(String(response.error));
-    return;
-  }
-  const url = URL.createObjectURL(new Blob([content], { type }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => {
-    URL.revokeObjectURL(url);
-  }, 10000);
-}
 function errorText(err: unknown) {
   return err instanceof Error ? err.message : String(err);
 }
@@ -78,8 +71,15 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
   const [devices, setDevices] = useState<LabelBluetoothDevice[]>([]);
   const [device, setDevice] = useState('');
   const [tab, setTab] = useState<'design' | 'library' | 'batch' | 'printer'>('design');
-  const [search, setSearch] = useState('');
-  const [libraryFilter, setLibraryFilter] = useState('all');
+  const [folders, setFolders] = useState<string[]>([]);
+  const [keepAlignment, setKeepAlignment] = useState(true);
+  const [showProperties, setShowProperties] = useState(!standalone);
+  const [removed, setRemoved] = useState<{
+    designId: string;
+    element: LabelElement;
+    index: number;
+  } | null>(null);
+  const contentInput = useRef<HTMLTextAreaElement>(null);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [progress, setProgress] = useState('');
@@ -107,15 +107,23 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
   const total = rows.length || copies;
   const feeds = Math.ceil(total / design.perFeed);
   const fields = Array.from(new Set([...Object.keys(row), ...Object.keys(shown)])).slice(0, 24);
+  const knownFolders = [
+    ...new Set([...folders, ...templates.map((d) => d.folder ?? ''), design.folder ?? '']),
+  ]
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
   useEffect(() => {
     let live = true;
-    void workspace
-      .list()
-      .then((found) => {
+    void Promise.all([workspace.list(), workspace.folders?.() ?? Promise.resolve([])])
+      .then(([found, savedFolders]) => {
         if (live) {
           setTemplates(found);
+          setFolders(savedFolders);
           const last = [...found].reverse().find((d) => d.savedAs !== 'printed') ?? found.at(-1);
-          if (standalone && last) setDesign(structuredClone(last));
+          if (standalone && last) {
+            setDesign(structuredClone(last));
+            setRow({ ...seed(), ...last.data });
+          }
         }
       })
       .catch((err: unknown) => {
@@ -186,6 +194,68 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
       elements: d.elements.map((e) => (e.id === selected ? { ...e, ...patch } : e)),
     }));
   }
+  function duplicateElement(element: LabelElement) {
+    if (design.elements.length >= 100) return;
+    const clone = {
+      ...element,
+      id: crypto.randomUUID(),
+      x: Math.max(0, Math.min(design.width - element.width, element.x + 1)),
+      y: Math.max(0, Math.min(design.height - element.height, element.y + 1)),
+    };
+    change({ elements: [...design.elements, clone] });
+    setSelected(clone.id);
+  }
+  function deleteElement(element: LabelElement) {
+    setRemoved({
+      designId: design.id,
+      element,
+      index: design.elements.findIndex((e) => e.id === element.id),
+    });
+    change({ elements: design.elements.filter((e) => e.id !== element.id) });
+    setSelected(null);
+    setShowProperties(false);
+  }
+  function restoreElement() {
+    if (
+      !removed ||
+      removed.designId !== design.id ||
+      design.elements.some((e) => e.id === removed.element.id)
+    )
+      return;
+    const elements = [...design.elements];
+    elements.splice(removed.index, 0, removed.element);
+    change({ elements });
+    setSelected(removed.element.id);
+    setRemoved(null);
+  }
+  function focusContent() {
+    contentInput.current?.focus();
+    contentInput.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  async function saveDesign() {
+    await workspace.save({
+      ...design,
+      data: row,
+      savedAs: 'template',
+      savedAt: new Date().toISOString(),
+    });
+    setTemplates(await workspace.list());
+    setNotice('Template saved.');
+  }
+  function openDesign(d: LabelDesign) {
+    setDesign(structuredClone(d));
+    setRow({ ...seed(), ...d.data });
+    setRows([]);
+    setSelected(null);
+    setShowProperties(!standalone);
+    setTab('design');
+  }
+  function exportForPhone(labels: LabelDesign[]) {
+    return act(async () => {
+      const text = labelPack(labels);
+      setNotice(await exportLabelFile('BenchWork-labels.labelpack.json', text));
+    });
+  }
   function add(kind: LabelKind) {
     if (kind === 'image') {
       imageInput.current?.click();
@@ -200,13 +270,33 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
     e.target.value = '';
     if (!f) return;
     await act(async () => {
-      if (f.size > 5 * 1024 * 1024) throw new Error('Label files must be below 5 MB.');
-      const imported = parseLabelDesign(JSON.parse(await f.text()));
-      setDesign({ ...imported, id: crypto.randomUUID(), name: `${imported.name} (imported)` });
-      setSelected(null);
-      setNotice('Template imported. Save it to add it to this library.');
+      if (f.size > LABEL_PACK_LIMIT) throw new Error('Choose a label pack below 25 MB.');
+      const imported = unpackLabels(await f.text(), keepAlignment ? design : undefined);
+      let count = 0;
+      try {
+        if (workspace.saveMany) {
+          await workspace.saveMany(imported);
+          count = imported.length;
+        } else
+          for (const d of imported) {
+            await workspace.save(d);
+            count++;
+          }
+      } catch (err) {
+        throw new Error(
+          `Imported ${String(count)} of ${String(imported.length)} labels. ${errorText(err)}`,
+        );
+      } finally {
+        setTemplates(await workspace.list());
+      }
+      const first = imported[0];
+      if (first) openDesign(first);
+      setNotice(
+        `${String(imported.length)} ${imported.length === 1 ? 'label' : 'labels'} imported and saved. Existing labels were kept. ${keepAlignment ? 'Matching paper uses this device print alignment.' : 'Imported print alignment was kept.'}`,
+      );
     });
   }
+
   async function importRows(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     e.target.value = '';
@@ -330,11 +420,20 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
   return (
     <div className={`label-studio ${standalone ? 'label-standalone' : ''}`}>
       <header className="label-header">
-        <div>
-          <span className="label-eyebrow">BENCHWORK · LABEL STUDIO</span>
-          <h1>Make your mark.</h1>
-          <p>Design once. Print a pair, a whole experiment or a box of samples.</p>
+        <div className="label-title">
+          <span className="label-eyebrow">BENCHWORK</span>
+          <h1>Label Studio</h1>
         </div>
+        <label>
+          Template name
+          <input
+            value={design.name}
+            maxLength={100}
+            onChange={(e) => {
+              change({ name: e.target.value });
+            }}
+          />
+        </label>
         <div className="label-header-actions">
           <button
             disabled={busy}
@@ -342,27 +441,23 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
               setDesign(newLabelOnPaper(design));
               setTab('design');
               setSelected(null);
+              setShowProperties(false);
               setRows([]);
             }}
           >
+            <Plus size={16} />
             New label
           </button>
+
           <button
-            disabled={busy}
-            onClick={() =>
-              void act(async () => {
-                await workspace.save({
-                  ...design,
-                  savedAs: 'template',
-                  savedAt: new Date().toISOString(),
-                });
-                setTemplates(await workspace.list());
-                setNotice('Template saved.');
-              })
-            }
+            className={`label-connection-badge ${connected ? 'is-connected' : ''}`}
+            onClick={() => {
+              setTab('printer');
+            }}
+            aria-label="Printer connection settings"
           >
-            <Save size={16} />
-            Save template
+            <Bluetooth size={15} />
+            {connected ? 'B3S connected' : connecting ? 'Connecting' : 'Connect printer'}
           </button>
         </div>
       </header>
@@ -396,125 +491,39 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
           </button>
         ))}
       </nav>
-      <fieldset disabled={busy} className={`label-editor label-view-${tab}`}>
+      <fieldset
+        disabled={busy}
+        className={`label-editor label-view-${tab} ${showProperties && active ? 'label-properties-open' : ''}`}
+      >
         <aside className="label-controls" hidden={tab !== 'library' && tab !== 'printer'}>
-          <section hidden={tab !== 'library'}>
-            <h2>Templates and saved labels</h2>
-            <label>
-              Search saved labels
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                }}
-              />
-            </label>
-            <label>
-              Show
-              <select
-                value={libraryFilter}
-                onChange={(e) => {
-                  setLibraryFilter(e.target.value);
-                }}
-              >
-                <option value="all">All labels</option>
-                <option value="templates">Templates</option>
-                <option value="printed">Recent prints</option>
-              </select>
-            </label>
-            <div className="label-library-grid">
-              {[...templates]
-                .reverse()
-                .filter(
-                  (d) =>
-                    d.name.toLowerCase().includes(search.toLowerCase()) &&
-                    (libraryFilter === 'all' ||
-                      (libraryFilter === 'printed'
-                        ? d.savedAs === 'printed'
-                        : d.savedAs !== 'printed')),
-                )
-                .map((d) => (
-                  <button
-                    key={d.id}
-                    className="label-library-card"
-                    onClick={() => {
-                      setDesign(structuredClone(d));
-                      setSelected(null);
-                      setRows([]);
-                      setTab('design');
-                    }}
-                  >
-                    <LabelThumbnail design={d} />
-                    <strong>{d.name}</strong>
-                    <span>
-                      {d.width} × {d.height} mm ·{' '}
-                      {d.savedAs === 'printed' ? 'Printed label' : 'Template'}
-                    </span>
-                  </button>
-                ))}
-            </div>
-            {!!templates.length &&
-              !templates.some(
-                (d) =>
-                  d.name.toLowerCase().includes(search.toLowerCase()) &&
-                  (libraryFilter === 'all' ||
-                    (libraryFilter === 'printed'
-                      ? d.savedAs === 'printed'
-                      : d.savedAs !== 'printed')),
-              ) && <p>No labels match your search.</p>}
-            {!templates.length && (
-              <p>Save a template to find it here. Completed prints also appear here.</p>
-            )}
-            <label>
-              Saved template
-              <select
-                aria-label="Saved label template"
-                value=""
-                onChange={(e) => {
-                  const found = templates.find((d) => d.id === e.target.value);
-                  if (found) {
-                    setDesign(structuredClone(found));
-                    setSelected(null);
-                  }
-                }}
-              >
-                <option value="">Choose a template</option>
-                {templates.map((d) => (
-                  <option value={d.id} key={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="label-mini-actions">
-              <label className="label-file-button">
-                <Upload size={15} />
-                Import template
-                <input type="file" accept=".json" onChange={(e) => void importTemplate(e)} />
-              </label>
-              <button
-                onClick={() => {
-                  try {
-                    download(
-                      `${design.name.replace(/[^a-z0-9 _-]/gi, '') || 'label'}.label.json`,
-                      JSON.stringify(design, null, 2),
-                      'application/json',
-                    );
-                  } catch (err) {
-                    setError(errorText(err));
-                  }
-                }}
-              >
-                <Download size={15} />
-                Export template
-              </button>
-            </div>
-            <p className="hint">
-              Import and export the same label files between BenchWork and the phone app. Save keeps
-              this template in the current library.
-            </p>
-          </section>
+          <div hidden={tab !== 'library'}>
+            <LabelLibrary
+              templates={templates}
+              folders={knownFolders}
+              onOpen={openDesign}
+              keepAlignment={keepAlignment}
+              onKeepAlignment={setKeepAlignment}
+              onImport={(e) => void importTemplate(e)}
+              onExport={exportForPhone}
+              onCreateFolder={(name) =>
+                act(async () => {
+                  const folder = labelFolder(name);
+                  if (!folder) throw new Error('Enter a folder name.');
+                  await workspace.createFolder?.(folder);
+                  setFolders((f) => [...new Set([...f, folder])]);
+                })
+              }
+              onMove={(ids, folder) =>
+                act(async () => {
+                  for (const d of templates.filter((d) => ids.includes(d.id)))
+                    await workspace.save({ ...d, folder });
+                  if (ids.includes(design.id)) change({ folder });
+                  setTemplates(await workspace.list());
+                  setNotice('Labels moved.');
+                })
+              }
+            />
+          </div>
           <section hidden={tab !== 'printer'}>
             <h2>Paper and calibration</h2>
             <div className="label-two">
@@ -619,74 +628,32 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
         </aside>
         <main className="label-stage" hidden={tab === 'library' || tab === 'printer'}>
           <div hidden={tab !== 'design'}>
-            {' '}
-            <label>
-              Template name
-              <input
-                value={design.name}
-                maxLength={100}
-                onChange={(e) => {
-                  change({ name: e.target.value });
-                }}
-              />
-            </label>
-            <div className="label-toolbar">
-              {(['text', 'image'] as const).map((kind) => (
-                <button
-                  key={kind}
-                  disabled={design.elements.length >= 100}
-                  onClick={() => {
-                    add(kind);
+            <div className="label-design-options" hidden={standalone}>
+              <label>
+                Label folder
+                <select
+                  aria-label="Label folder"
+                  value={design.folder ?? ''}
+                  onChange={(e) => {
+                    change({ folder: e.target.value });
                   }}
                 >
-                  <Plus size={14} />
-                  {kindName(kind)}
-                </button>
-              ))}
+                  <option value="">Unfiled</option>
+                  {knownFolders.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button
-                disabled={design.elements.length >= 100}
-                onClick={() => {
-                  const element = {
-                    ...newLabelElement('text'),
-                    text: '{today}',
-                    y: Math.max(0, Math.min(design.height - 4, 8)),
-                    width: 22,
-                    height: 4,
-                    size: 2,
-                  };
-                  change({ elements: [...design.elements, element] });
-                  setSelected(element.id);
-                }}
+                disabled={busy}
+                onClick={() => void exportForPhone([{ ...design, data: shown }])}
               >
-                <Plus size={14} />
-                Date
+                <Download size={16} />
+                Export for phone
               </button>
-              <details className="label-more">
-                <summary>More elements</summary>
-                <div className="label-mini-actions">
-                  {kinds
-                    .filter((kind) => kind !== 'text' && kind !== 'image')
-                    .map((kind) => (
-                      <button
-                        key={kind}
-                        disabled={design.elements.length >= 100}
-                        onClick={() => {
-                          add(kind);
-                        }}
-                      >
-                        {kindName(kind)}
-                      </button>
-                    ))}
-                </div>
-              </details>
-              <input
-                ref={imageInput}
-                hidden
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={(e) => void importImage(e)}
-              />
-            </div>
+            </div>{' '}
             <div className="label-canvas-area">
               <div className="label-paper-caption">
                 {design.width} × {design.height} mm · drag to move · blue corner to resize
@@ -725,6 +692,22 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                         setSelected(element.id);
                       }}
                       onKeyDown={(e) => {
+                        if (e.key === 'Delete' || e.key === 'Backspace') {
+                          e.preventDefault();
+                          deleteElement(element);
+                          return;
+                        }
+                        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+                          e.preventDefault();
+                          duplicateElement(element);
+                          return;
+                        }
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          setSelected(element.id);
+                          setTimeout(focusContent, 0);
+                          return;
+                        }
                         if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
                           e.preventDefault();
                           setSelected(element.id);
@@ -886,6 +869,174 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                   </g>
                 ))}
               </svg>
+              <div className="label-object-tools" aria-label="Selected element actions">
+                {active ? (
+                  <>
+                    <div className="label-object-heading">
+                      <strong>{kindName(active.kind)} selected</strong>
+                      <button
+                        aria-label="Deselect element"
+                        onClick={() => {
+                          setSelected(null);
+                          setShowProperties(false);
+                        }}
+                      >
+                        <Check size={16} />
+                        Done
+                      </button>
+                    </div>
+                    <div className="label-context-actions">
+                      {['text', 'qr', 'barcode'].includes(active.kind) && (
+                        <button onClick={focusContent}>
+                          <Type size={17} />
+                          Edit text
+                        </button>
+                      )}
+                      <button
+                        aria-label="Copy selected element"
+                        disabled={design.elements.length >= 100}
+                        onClick={() => {
+                          duplicateElement(active);
+                        }}
+                      >
+                        <Copy size={17} />
+                        Copy
+                      </button>
+                      <button
+                        aria-label="Delete selected element"
+                        className="label-delete-action"
+                        onClick={() => {
+                          deleteElement(active);
+                        }}
+                      >
+                        <Trash2 size={17} />
+                        Delete
+                      </button>
+                      <button
+                        aria-pressed={showProperties}
+                        onClick={() => {
+                          setShowProperties((v) => !v);
+                        }}
+                      >
+                        <SlidersHorizontal size={17} />
+                        Style and size
+                      </button>
+                    </div>
+                    {active.kind === 'text' &&
+                      (active.text === '{today}' || /^\d{2}\/\d{2}\/\d{4}$/.test(active.text)) && (
+                        <label className="label-check">
+                          <input
+                            type="checkbox"
+                            checked={active.text === '{today}'}
+                            onChange={(e) => {
+                              edit({ text: e.target.checked ? '{today}' : today() });
+                            }}
+                          />
+                          Always use today's date
+                        </label>
+                      )}
+                    {['text', 'qr', 'barcode'].includes(active.kind) && (
+                      <label>
+                        Content
+                        <textarea
+                          ref={contentInput}
+                          rows={2}
+                          value={active.text === '{today}' ? today() : active.text}
+                          disabled={active.text === '{today}'}
+                          onChange={(e) => {
+                            edit({ text: e.target.value });
+                          }}
+                        />
+                      </label>
+                    )}
+                  </>
+                ) : (
+                  <p className="label-selection-hint">
+                    Tap text or an image on the label to edit, copy or delete it.
+                  </p>
+                )}
+                {removed?.designId === design.id &&
+                  !design.elements.some((e) => e.id === removed.element.id) && (
+                    <button disabled={design.elements.length >= 100} onClick={restoreElement}>
+                      <Undo2 size={16} />
+                      Undo delete
+                    </button>
+                  )}
+              </div>
+              <div className="label-toolbar">
+                {(['text', 'image'] as const).map((kind) => (
+                  <button
+                    key={kind}
+                    disabled={design.elements.length >= 100}
+                    onClick={() => {
+                      add(kind);
+                    }}
+                  >
+                    {kind === 'text' ? <Type size={22} /> : <ImagePlus size={22} />}
+                    {kindName(kind)}
+                  </button>
+                ))}
+                <button
+                  disabled={design.elements.length >= 100}
+                  onClick={() => {
+                    const element = {
+                      ...newLabelElement('text'),
+                      text: '{today}',
+                      y: Math.max(0, Math.min(design.height - 4, 8)),
+                      width: 22,
+                      height: 4,
+                      size: 2,
+                    };
+                    change({ elements: [...design.elements, element] });
+                    setSelected(element.id);
+                  }}
+                >
+                  <CalendarDays size={22} />
+                  Date
+                </button>
+                <details className="label-more">
+                  <summary>More elements</summary>
+                  <div className="label-mini-actions">
+                    {kinds
+                      .filter((kind) => kind !== 'text' && kind !== 'image')
+                      .map((kind) => (
+                        <button
+                          key={kind}
+                          disabled={design.elements.length >= 100}
+                          onClick={() => {
+                            add(kind);
+                          }}
+                        >
+                          {kindName(kind)}
+                        </button>
+                      ))}
+                  </div>
+                </details>
+                <input
+                  ref={imageInput}
+                  hidden
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(e) => void importImage(e)}
+                />
+              </div>
+              <details className="label-objects">
+                <summary>All objects ({design.elements.length})</summary>
+                <div className="label-layer-list">
+                  {design.elements.map((element, i) => (
+                    <button
+                      key={element.id}
+                      aria-pressed={selected === element.id}
+                      onClick={() => {
+                        setSelected(element.id);
+                      }}
+                    >
+                      {i + 1}. {kindName(element.kind)}{' '}
+                      {labelText(element.text, shown, start + dataIndex).slice(0, 40)}
+                    </button>
+                  ))}
+                </div>
+              </details>
               <details className="label-print-preview">
                 <summary>Print preview</summary>
                 <p className="hint">
@@ -1040,51 +1191,10 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
             </div>
           </section>
         </main>
-        <aside className="label-inspector" hidden={tab !== 'design'}>
-          <section>
-            <h2>Elements</h2>
-            <div className="label-layer-list">
-              {design.elements.map((element, i) => (
-                <button
-                  key={element.id}
-                  aria-pressed={selected === element.id}
-                  onClick={() => {
-                    setSelected(element.id);
-                  }}
-                >
-                  {i + 1}. {kindName(element.kind)} {element.text.slice(0, 25)}
-                </button>
-              ))}
-            </div>
-          </section>
+        <aside className="label-inspector" hidden={tab !== 'design' || !showProperties || !active}>
           {active && (
             <section>
               <h2>{kindName(active.kind)} properties</h2>
-              {active.kind === 'text' && (
-                <label className="label-check">
-                  <input
-                    type="checkbox"
-                    checked={active.text === '{today}'}
-                    onChange={(e) => {
-                      edit({ text: e.target.checked ? '{today}' : today() });
-                    }}
-                  />
-                  Always use today's date
-                </label>
-              )}
-              {['text', 'qr', 'barcode'].includes(active.kind) && (
-                <label>
-                  Content
-                  <textarea
-                    rows={3}
-                    value={active.text === '{today}' ? today() : active.text}
-                    disabled={active.text === '{today}'}
-                    onChange={(e) => {
-                      edit({ text: e.target.value });
-                    }}
-                  />
-                </label>
-              )}
               <div className="label-two">
                 <NumberField
                   label="Width (mm)"
@@ -1185,6 +1295,36 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                       <option value="right">Right</option>
                     </select>
                   </label>
+                  <NumberField
+                    label="Line spacing"
+                    value={active.lineSpacing ?? 1.2}
+                    min={0.8}
+                    max={3}
+                    step={0.1}
+                    onChange={(lineSpacing) => {
+                      edit({ lineSpacing });
+                    }}
+                  />
+                  <label className="label-check">
+                    <input
+                      type="checkbox"
+                      checked={active.italic ?? false}
+                      onChange={(e) => {
+                        edit({ italic: e.target.checked });
+                      }}
+                    />
+                    Italic
+                  </label>
+                  <label className="label-check">
+                    <input
+                      type="checkbox"
+                      checked={active.underline ?? false}
+                      onChange={(e) => {
+                        edit({ underline: e.target.checked });
+                      }}
+                    />
+                    Underline
+                  </label>
                   <label className="label-check">
                     <input
                       type="checkbox"
@@ -1199,19 +1339,18 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
               )}
               <div className="label-mini-actions">
                 <button
-                  aria-label="Duplicate label element"
                   onClick={() => {
-                    const clone = {
-                      ...active,
-                      id: crypto.randomUUID(),
-                      x: Math.min(design.width - active.width, active.x + 1),
-                      y: Math.min(design.height - active.height, active.y + 1),
-                    };
-                    change({ elements: [...design.elements, clone] });
-                    setSelected(clone.id);
+                    edit({ x: Math.max(0, (design.width - active.width) / 2) });
                   }}
                 >
-                  <Copy size={15} />
+                  Centre horizontally
+                </button>
+                <button
+                  onClick={() => {
+                    edit({ y: Math.max(0, (design.height - active.height) / 2) });
+                  }}
+                >
+                  Centre vertically
                 </button>
                 <button
                   aria-label="Move layer up"
@@ -1229,22 +1368,15 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                 >
                   <ArrowDown size={15} />
                 </button>
-                <button
-                  aria-label="Delete label element"
-                  onClick={() => {
-                    change({ elements: design.elements.filter((e) => e.id !== selected) });
-                    setSelected(null);
-                  }}
-                >
-                  <Trash2 size={15} />
-                </button>
               </div>
             </section>
           )}
         </aside>
       </fieldset>
-      <section className="label-printer-panel">
-        <div>
+      <section
+        className={`label-printer-panel ${tab !== 'printer' ? 'label-printer-compact' : ''}`}
+      >
+        <div hidden={tab !== 'printer'}>
           <h2>
             <Bluetooth size={18} />
             NIIMBOT B3S
@@ -1322,39 +1454,32 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
             installed apps.
           </p>
         )}
-        <button
-          hidden={tab === 'printer'}
-          onClick={() => {
-            setTab('printer');
-          }}
-        >
-          Manage printer
-        </button>
-        <NumberField
-          label="Copies (without batch)"
-          value={copies}
-          min={1}
-          max={500}
-          onChange={(v) => {
-            setCopies(Math.round(v));
-          }}
-        />
-        <button
-          className="label-print-button"
-          disabled={busy || connecting || !connected || !!previewError}
-          onClick={() => {
-            try {
-              labelBatches(rows, copies, design.perFeed);
-              feedSize(design);
-              setConfirm(true);
-            } catch (err) {
-              setError(errorText(err));
-            }
-          }}
-        >
-          <Printer size={18} />
-          Review {total} labels
-        </button>
+        <div className="label-bottom-bar">
+          <button
+            className="label-save-button"
+            disabled={busy}
+            onClick={() => void act(saveDesign)}
+          >
+            <Save size={20} />
+            Save template
+          </button>
+          <button
+            className="label-print-button"
+            disabled={busy || connecting || !connected || !!previewError}
+            onClick={() => {
+              try {
+                labelBatches(rows, copies, design.perFeed);
+                feedSize(design);
+                setConfirm(true);
+              } catch (err) {
+                setError(errorText(err));
+              }
+            }}
+          >
+            <Printer size={18} />
+            Review {total} labels
+          </button>
+        </div>
         {busy && progress && (
           <button
             onClick={() => {
@@ -1381,6 +1506,19 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
           {feeds} feed position{feeds === 1 ? '' : 's'} · {design.width} × {design.height} mm ·{' '}
           {design.perFeed} per feed
         </p>
+        {!rows.length && (
+          <>
+            <NumberField
+              label="Number of labels"
+              value={copies}
+              min={1}
+              max={500}
+              onChange={(v) => {
+                setCopies(Math.round(v));
+              }}
+            />
+          </>
+        )}
         {total % design.perFeed !== 0 && (
           <p>One spare label will be left blank on the final feed.</p>
         )}
@@ -1445,25 +1583,6 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
         </div>
       </dialog>
     </div>
-  );
-}
-function LabelThumbnail({ design }: { design: LabelDesign }) {
-  const [src, setSrc] = useState('');
-  useEffect(() => {
-    let live = true;
-    void renderLabel(design, seed(), 1)
-      .then((c) => {
-        if (live) setSrc(c.toDataURL());
-      })
-      .catch(() => undefined);
-    return () => {
-      live = false;
-    };
-  }, [design]);
-  return src ? (
-    <img src={src} alt={`Preview of ${design.name}`} />
-  ) : (
-    <span className="label-thumbnail-empty">Label preview</span>
   );
 }
 function NumberField({

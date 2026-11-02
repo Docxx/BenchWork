@@ -66,6 +66,13 @@ describe('label geometry and portable templates', () => {
     expect(template.savedAs).toBe('printed');
     expect(template.savedAt).toBe('2026-11-02T12:00:00Z');
   });
+  it('retains element identities when loading saved labels and separates duplicate imported IDs', () => {
+    const d = newLabelDesign();
+    const loaded = parseLabelDesign(d);
+    expect(loaded.elements[0]?.id).toBe(d.elements[0]?.id);
+    const duplicate = parseLabelDesign({ ...d, elements: [d.elements[0], d.elements[0]] });
+    expect(duplicate.elements[0]?.id).not.toBe(duplicate.elements[1]?.id);
+  });
   it('rejects active image sources and bounds imported geometry and layer count', () => {
     const d = newLabelDesign();
     expect(() =>

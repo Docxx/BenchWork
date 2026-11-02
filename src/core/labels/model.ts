@@ -13,6 +13,9 @@ export interface LabelElement {
   align: 'left' | 'center' | 'right';
   rotation: 0 | 90 | 180 | 270;
   image: string;
+  italic?: boolean;
+  underline?: boolean;
+  lineSpacing?: number;
 }
 export interface LabelDesign {
   version: 1;
@@ -30,6 +33,8 @@ export interface LabelDesign {
   elements: LabelElement[];
   savedAs?: 'template' | 'printed';
   savedAt?: string;
+  folder?: string;
+  data?: LabelRow;
 }
 export type LabelRow = Record<string, string>;
 const n = (v: unknown, fallback: number, min: number, max: number) =>
@@ -97,6 +102,7 @@ export function parseLabelDesign(value: unknown): LabelDesign {
   const base = newLabelDesign();
   const width = n(r['width'], 50, 5, 72),
     height = n(r['height'], 15, 5, 150);
+  const elementIds = new Set<string>();
   const elements = Array.isArray(r['elements'])
     ? r['elements'].slice(0, 100).map((value) => {
         const e = obj(value),
@@ -104,11 +110,15 @@ export function parseLabelDesign(value: unknown): LabelDesign {
         if (!['text', 'qr', 'barcode', 'image', 'box', 'line'].includes(String(kind)))
           throw new Error('Unknown label element.');
         const k = kind as LabelKind;
+        let id = /^[a-f0-9-]{36}$/i.test(str(e['id'])) ? str(e['id']) : crypto.randomUUID();
+        if (elementIds.has(id)) id = crypto.randomUUID();
+        elementIds.add(id);
         const image = str(e['image'], '', 750000);
         if (image && !/^data:image\/(png|jpeg|webp);base64,[a-zA-Z0-9+/=]+$/.test(image))
           throw new Error('Only embedded PNG, JPEG and WebP images are supported.');
         return {
           ...newLabelElement(k),
+          id,
           x: n(e['x'], 2, 0, width),
           y: n(e['y'], 2, 0, height),
           width: n(e['width'], 10, 0.2, width),
@@ -117,6 +127,9 @@ export function parseLabelDesign(value: unknown): LabelDesign {
           image,
           size: n(e['size'], 2.5, 0.8, 20),
           bold: e['bold'] === true,
+          italic: e['italic'] === true,
+          underline: e['underline'] === true,
+          lineSpacing: n(e['lineSpacing'], 1.2, 0.8, 3),
           font: e['font'] === 'serif' || e['font'] === 'mono' ? e['font'] : 'sans',
           align: e['align'] === 'center' || e['align'] === 'right' ? e['align'] : 'left',
           rotation: [90, 180, 270].includes(Number(e['rotation']))
@@ -139,6 +152,12 @@ export function parseLabelDesign(value: unknown): LabelDesign {
     density: Math.round(n(r['density'], 2, 1, 5)),
     threshold: Math.round(n(r['threshold'], 180, 1, 254)),
     elements,
+    folder: labelFolder(str(r['folder'], '', 80)),
+    data: Object.fromEntries(
+      Object.entries(obj(r['data']))
+        .slice(0, 100)
+        .map(([k, v]) => [k.slice(0, 100), str(v)]),
+    ),
     ...(r['savedAs'] === 'printed' ? { savedAs: 'printed' as const } : {}),
     ...(typeof r['savedAt'] === 'string' ? { savedAt: r['savedAt'].slice(0, 40) } : {}),
   };
@@ -176,4 +195,14 @@ export function labelBatches(
   return Array.from({ length: Math.ceil(labels.length / perFeed) }, (_, i) =>
     labels.slice(i * perFeed, (i + 1) * perFeed),
   );
+}
+
+/** A library folder is portable metadata, never a filesystem path. */
+export function labelFolder(value: string): string {
+  return value
+    .trim()
+    .replace(/[\\/\x00-\x1f:*?"<>|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .slice(0, 80)
+    .trim();
 }

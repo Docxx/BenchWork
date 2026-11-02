@@ -9,7 +9,7 @@
  * first need them.
  */
 export { LabelStudio } from '../labels/load';
-export { newLabelDesign, parseLabelDesign } from '../labels/model';
+export { newLabelDesign, parseLabelDesign, labelFolder } from '../labels/model';
 export type { LabelDesign, LabelRow } from '../labels/model';
 export type { LabelWorkspace } from '../labels/workspace';
 import type { ReactNode } from 'react';

@@ -5,6 +5,7 @@ mod file_info;
 mod folders;
 mod index;
 mod label_bluetooth;
+mod label_exports;
 mod materials;
 mod microsoft;
 mod native_sync;
@@ -57,6 +58,23 @@ async fn label_work<T: Send + 'static>(
         .await
         .map_err(|e| VaultError::new(ErrorKind::Io, e.to_string()))?
         .map_err(|e| VaultError::new(ErrorKind::Io, e))
+}
+#[tauri::command]
+async fn label_export_file(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    name: String,
+    text: String,
+) -> VaultResult<String> {
+    main_window(&window)?;
+    let dir = app
+        .path()
+        .download_dir()
+        .map_err(|e| VaultError::new(ErrorKind::Io, e.to_string()))?;
+    label_work(move || {
+        label_exports::save(&dir, &name, &text).map(|path| path_guard::display_path(&path))
+    })
+    .await
 }
 #[tauri::command]
 async fn label_bluetooth_scan(
@@ -959,6 +977,7 @@ pub fn run() {
             copy_to_storage,
             verify_storage_copy,
             reveal_storage_copy,
+            label_export_file,
             label_bluetooth_scan,
             label_bluetooth_connect,
             label_bluetooth_disconnect,

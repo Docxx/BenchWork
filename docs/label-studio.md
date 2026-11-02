@@ -35,13 +35,22 @@ with plain editable text. Choose **Date** to add a date, then
 use **Always use today's date** to keep it current at print time, or untick it
 to enter a fixed date. Existing templates remain compatible.
 
+Tap an existing element on the label to reveal **Edit text**, **Copy**, **Delete**
+and **Style and size** immediately beneath the canvas. Copy makes an independent
+editable element. **Undo delete** restores the last removed element without
+replacing later edits. Delete/Backspace removes a focused canvas element;
+Ctrl+D duplicates it. These shortcuts do not intercept typing in text fields.
+The phone has a compact editor with a fixed Save/Review bar. BenchWork exposes
+the broader folder and export controls alongside the canvas.
+
 Drag elements to move them and drag the selected blue corner to resize them.
 Text size scales with the corner handle. Arrow keys move a focused element;
 arrow keys on its resize handle resize it. Hold Shift for larger steps.
 Width and height are directly editable; position and rotation are in a disclosure.
 QR codes, Code 128 barcodes, boxes and lines are under **More elements**. The
 properties panel controls dimensions, position, rotation, text size, font family,
-alignment and bold text. Images are embedded PNG, JPEG or WebP data; no remote
+alignment, bold, italic, underline and line spacing. Centre horizontally or
+vertically to position an element, and use the layer controls for overlaps. Images are embedded PNG, JPEG or WebP data; no remote
 images or executable SVG content is accepted. Print preview shows calibrated
 monochrome output separately from editing guides.
 
@@ -49,8 +58,8 @@ Use the **Batch data** tab for CSV, Excel and BenchWork records.
 Use `{today}` for the current local date, `{name}`, `{id}`, `{date}` or any spreadsheet column heading in braces.
 `{n}` inserts the sequence number. CSV strings retain leading zeroes and dates;
 Excel uses displayed cell values. The first worksheet is used. Jobs are limited
-to 500 labels, and spreadsheet imports to 10 MB. Template imports are limited to
-5 MB, with at most 100 elements.
+to 500 labels, and spreadsheet imports to 10 MB. Each design supports at most
+100 elements. Portable packs contain 1 to 100 designs and are limited to 25 MB.
 
 Load BenchWork records to fill one label or use the loaded set as a batch.
 Supported record kinds include samples, reagents, antibodies, stocks, datasets
@@ -59,7 +68,12 @@ and linked files are not uploaded to any label service.
 
 ## Templates and the companion
 
-The **Library** tab shows searchable previews of templates and recent prints.
+The **Library** tab shows searchable pair previews of templates and recent prints.
+Create folders, assign a label from the BenchWork editor, or select several saved
+labels and move them together. Folders are portable library metadata inside each
+label JSON, rather than operating-system paths. Empty folders are recorded in
+`Labels/folders.json` in a vault, or local storage in the companion. All underlying
+label files retain their stable IDs when organised into folders.
 After acknowledged printing, the first label in each job is saved as a separate
 recent-print record with resolved text, so it can be reopened without its original
 spreadsheet. This does not store a full batch history. A library-save failure
@@ -71,8 +85,36 @@ them between BenchWork installations.
 
 The standalone companion has its own local template library and its own Android
 application ID, `app.benchwork.labels`. It does not require opening a full vault
-or All files access. Export and import `.label.json` files to transfer templates
-between BenchWork and the companion. Android export opens the system share
+or All files access. Both apps accept individual `.label.json` files and
+`.labelpack.json` packs. A pack carries folder names, editable elements, embedded
+images, styles and saved text-field values. No spreadsheet needs to accompany it.
+A live `{today}` element updates on the printing device.
+
+### Desktop to phone
+
+1. Create and save labels in BenchWork, and assign them to a folder if useful.
+2. Choose **Export for phone** for the open label, or select labels in the Library
+   and choose **Export selected**. Open a folder and choose **Export folder** to
+   take its visible labels together. Search and template/recent-print filters apply.
+3. Windows saves a uniquely named pack in Downloads and displays its path.
+   Android opens its system share chooser. Transfer the pack using Quick Share,
+   USB or a cloud folder.
+4. On the phone, open **Library > Import labels** and choose the pack. Imported
+   copies are saved locally with new IDs, preserving existing labels. Images and
+   saved field values remain available offline.
+5. Open a label, review the print count and print with the paired B3S.
+
+**Use this device's print alignment when importing matching paper** is on by
+default under **Taking labels to the lab**. Matching means the same label width,
+height, arrangement, labels per feed and internal gap. The phone's offsets and
+density are kept for matching designs, so desktop exports do not overwrite the
+verified +1.25 mm phone offset. Different paper keeps its imported settings and
+needs a matching calibration check. Untick the option to retain imported offsets.
+The phone imports a whole pack with one local-storage write; a storage-full error
+leaves its existing library intact. Vault imports report how many labels were
+saved if a write fails partway through.
+
+Android export opens the system share
 chooser with a temporary read-only file. This is manual library exchange;
 automatic companion-to-desktop synchronisation is not included yet.
 
@@ -90,7 +132,8 @@ Browser Bluetooth still requires a user click to connect. Android asks for Nearb
 and tap Search printers again. Bluetooth LE does not require manual OS pairing;
 the classic transport uses an already-paired device.
 
-Printing always requires **Review labels** followed by **Print now**. All pages
+Printing always requires **Review labels** followed by **Print now**. Set the
+number of labels in the review dialog when printing without a spreadsheet batch. All pages
 are rendered and validated before the first print command. Each feed contains up
 to two labels; an unused label on the last feed stays blank. Progress distinguishes
 sent pages from acknowledged completion. Stop requests finish the current feed.
