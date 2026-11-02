@@ -43,10 +43,23 @@ Ctrl+D duplicates it. These shortcuts do not intercept typing in text fields.
 The phone has a compact editor with a fixed Save/Review bar. BenchWork exposes
 the broader folder and export controls alongside the canvas.
 
-Drag elements to move them and drag the selected blue corner to resize them.
-Text size scales with the corner handle. Arrow keys move a focused element;
+Drag elements to move them and use the small neutral corner grip to resize them.
+Elements can extend beyond every paper edge; the editing margin shows the boundary,
+and printing crops artwork to the physical label. Negative X/Y positions survive
+saving and pack transfer.
+Text size scales with the corner handle. The editor renders at four times the
+printer resolution for smoother on-screen text, while the print bitmap remains
+203 dpi. Inter, Open Sans, Source Serif and Roboto Mono are bundled offline, with
+Arial, Georgia and system monospace retained for existing labels. Font files
+finish loading before a preview or print job is rendered. See [font sources and
+licences](label-fonts.md). Arrow keys move a focused element;
 arrow keys on its resize handle resize it. Hold Shift for larger steps.
 Width and height are directly editable; position and rotation are in a disclosure.
+**Lab images** opens 13 monochrome lab images, including a fruit fly,
+fly vial, DNA, antibody, tablet, capsule, syringe and common lab equipment. The fruit fly uses the supplied silhouette, also shown inside the fly vial; the remaining artwork uses original line drawings. These
+become embedded PNG images, so they travel with label packs and work offline.
+Imported SVGs and remote images remain unsupported.
+
 QR codes, Code 128 barcodes, boxes and lines are under **More elements**. The
 properties panel controls dimensions, position, rotation, text size, font family,
 alignment, bold, italic, underline and line spacing. Centre horizontally or
@@ -81,6 +94,10 @@ After acknowledged printing, the first label in each job is saved as a separate
 recent-print record with resolved text, so it can be reopened without its original
 spreadsheet. This does not store a full batch history. A library-save failure
 after printing reports that the labels have already printed.
+**Save as** creates a new named label, optionally in a different folder, while
+keeping the original unchanged. The new copy retains the layout, field values,
+images and print settings.
+
 Save templates explicitly before leaving the editor. BenchWork stores them as
 ordinary `Labels/<id>.label.json` files; replacing a template keeps a recovery
 snapshot. Disabling the module leaves those files in place. Vault sync can carry

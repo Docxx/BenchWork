@@ -970,3 +970,82 @@
     gap: 4px;
   }
 }
+
+/* The editing margin makes edge alignment possible without changing print bounds. */
+.label-layout {
+  background: var(--surface, #eff3f7);
+  overflow: hidden;
+  box-shadow: none;
+}
+.label-layout rect[role='button']:focus-visible {
+  outline: none;
+  stroke: var(--label-selection, #64748b);
+  stroke-width: 0.15;
+}
+.label-print-preview img,
+.label-confirm img {
+  image-rendering: auto;
+}
+.label-image-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+.label-studio .label-image-grid button {
+  flex-direction: column;
+  padding: 14px 8px;
+  min-height: 120px;
+  border-radius: 12px;
+}
+.label-image-grid svg {
+  width: 54px;
+  height: 54px;
+  color: var(--text, #172b39);
+}
+.label-image-grid span {
+  font-size: 0.7rem;
+  color: var(--muted, #60717c);
+}
+.label-image-grid strong {
+  font-size: 0.78rem;
+}
+.label-studio .label-bottom-bar > button {
+  min-width: 0;
+}
+@media (max-width: 680px) {
+  .label-desktop-word {
+    display: none;
+  }
+  .label-studio .label-bottom-bar > button {
+    padding: 10px 8px;
+    font-size: 0.8rem;
+    gap: 5px;
+  }
+  .label-toolbar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .label-toolbar > button {
+    min-width: 0;
+    padding: 8px 3px;
+    font-size: 0.72rem;
+  }
+  .label-toolbar .label-more {
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+}
+
+.label-image-grid img {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+  background: white;
+  border-radius: 4px;
+}
+
+.label-image-grid img {
+  border: 0;
+  box-shadow: none;
+}

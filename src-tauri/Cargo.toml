@@ -1,7 +1,7 @@
 [package]
 name = "benchwork"
 default-run = "benchwork"
-version = "0.16.0"
+version = "0.16.1"
 description = "Local-first research workspace"
 authors = ["Ray Price"]
 edition = "2021"

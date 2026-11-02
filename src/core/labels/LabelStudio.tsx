@@ -22,6 +22,7 @@ import {
   labelBatches,
   labelText,
   newLabelDesign,
+  copyLabelDesign,
   newLabelOnPaper,
   newLabelElement,
   labelFolder,
@@ -31,6 +32,8 @@ import {
   type LabelRow,
 } from './model';
 import { renderFeed, renderLabel } from './render';
+import { labelFonts } from './fontOptions';
+import { labImages, LabImage, labImagePng } from './labImages';
 import { LabelPrinter } from './printer';
 import { LabelLibrary } from './LabelLibrary';
 import { labelPack, unpackLabels, LABEL_PACK_LIMIT } from './transfer';
@@ -44,6 +47,7 @@ export interface LabelStudioProps {
   transport: LabelBluetoothTransport | null;
   standalone?: boolean;
 }
+const BLEED = 2;
 const today = () => new Date().toLocaleDateString('en-GB');
 const seed = (): LabelRow => ({ name: 'Sample name', id: 'SAMPLE-001', date: today() });
 const kinds: readonly LabelKind[] = ['text', 'qr', 'barcode', 'image', 'box', 'line'];
@@ -83,6 +87,13 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [progress, setProgress] = useState('');
+  const [saveAsOpen, setSaveAsOpen] = useState(false);
+  const [copyName, setCopyName] = useState('');
+  const [copyFolder, setCopyFolder] = useState('');
+  const [imageGalleryOpen, setImageGalleryOpen] = useState(false);
+  const [imageSearch, setImageSearch] = useState('');
+  const saveAsDialog = useRef<HTMLDialogElement>(null);
+  const imageDialog = useRef<HTMLDialogElement>(null);
   const [dataIndex, setDataIndex] = useState(0);
   const printer = useMemo(() => new LabelPrinter(transport), [transport]);
   const connection = usePrinterConnection(printer, transport !== null, busy);
@@ -142,7 +153,13 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
     ).filter((r): r is LabelRow => r !== undefined);
     void Promise.all([
       renderFeed(design, sample, start + dataIndex),
-      renderLabel(design, rows.length ? { ...row, ...rows[dataIndex] } : row, start + dataIndex),
+      renderLabel(
+        design,
+        rows.length ? { ...row, ...rows[dataIndex] } : row,
+        start + dataIndex,
+        false,
+        4,
+      ),
     ])
       .then(([c, label]) => {
         if (live) {
@@ -173,6 +190,14 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
     if (confirm && !dialog.current?.open) dialog.current?.showModal();
     if (!confirm) dialog.current?.close();
   }, [confirm]);
+  useEffect(() => {
+    if (saveAsOpen && !saveAsDialog.current?.open) saveAsDialog.current?.showModal();
+    if (!saveAsOpen) saveAsDialog.current?.close();
+  }, [saveAsOpen]);
+  useEffect(() => {
+    if (imageGalleryOpen && !imageDialog.current?.open) imageDialog.current?.showModal();
+    if (!imageGalleryOpen) imageDialog.current?.close();
+  }, [imageGalleryOpen]);
   const act = async (run: () => Promise<void>) => {
     setBusy(true);
     setError('');
@@ -199,8 +224,8 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
     const clone = {
       ...element,
       id: crypto.randomUUID(),
-      x: Math.max(0, Math.min(design.width - element.width, element.x + 1)),
-      y: Math.max(0, Math.min(design.height - element.height, element.y + 1)),
+      x: Math.max(-design.width, Math.min(design.width, element.x + 1)),
+      y: Math.max(-design.height, Math.min(design.height, element.y + 1)),
     };
     change({ elements: [...design.elements, clone] });
     setSelected(clone.id);
@@ -370,8 +395,8 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
   function moveElement(clientX: number, clientY: number) {
     const from = drag.current;
     if (!from) return;
-    const dx = ((clientX - from.fromX) * design.width) / from.width;
-    const dy = ((clientY - from.fromY) * design.height) / from.height;
+    const dx = ((clientX - from.fromX) * (design.width + BLEED * 2)) / from.width;
+    const dy = ((clientY - from.fromY) * (design.height + BLEED * 2)) / from.height;
     setDesign((d) => ({
       ...d,
       elements: d.elements.map((layer) => {
@@ -379,8 +404,8 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
         if (!from.resize)
           return {
             ...layer,
-            x: Math.round(Math.max(0, Math.min(d.width - layer.width, from.x + dx)) * 4) / 4,
-            y: Math.round(Math.max(0, Math.min(d.height - layer.height, from.y + dy)) * 4) / 4,
+            x: Math.round(Math.max(-d.width, Math.min(d.width, from.x + dx)) * 4) / 4,
+            y: Math.round(Math.max(-d.height, Math.min(d.height, from.y + dy)) * 4) / 4,
           };
         const angle = (layer.rotation * Math.PI) / 180;
         const width = Math.max(
@@ -656,12 +681,12 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
             </div>{' '}
             <div className="label-canvas-area">
               <div className="label-paper-caption">
-                {design.width} × {design.height} mm · drag to move · blue corner to resize
+                {design.width} × {design.height} mm · drag to move · corner grip to resize
               </div>
               <svg
                 className="label-layout"
                 style={{ pointerEvents: busy ? 'none' : undefined }}
-                viewBox={`0 0 ${String(design.width)} ${String(design.height)}`}
+                viewBox={`${String(-BLEED)} ${String(-BLEED)} ${String(design.width + BLEED * 2)} ${String(design.height + BLEED * 2)}`}
                 role="img"
                 aria-label="Label design canvas"
               >
@@ -682,9 +707,13 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                     <rect
                       width={element.width}
                       height={element.height}
-                      fill={selected === element.id ? '#1284ff18' : 'transparent'}
-                      stroke={selected === element.id ? '#1284ff' : '#91a7b344'}
-                      strokeWidth={0.15}
+                      fill="transparent"
+                      rx={0.25}
+                      stroke={
+                        selected === element.id ? 'var(--label-selection, #64748b)' : 'transparent'
+                      }
+                      strokeDasharray={selected === element.id ? '0.45 0.25' : undefined}
+                      strokeWidth={0.1}
                       tabIndex={0}
                       role="button"
                       aria-label={`Select ${kindName(element.kind)}: ${element.text.slice(0, 40)}`}
@@ -720,9 +749,9 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                                 : {
                                     ...layer,
                                     x: Math.max(
-                                      0,
+                                      -d.width,
                                       Math.min(
-                                        d.width - layer.width,
+                                        d.width,
                                         layer.x +
                                           (e.key === 'ArrowRight'
                                             ? delta
@@ -732,9 +761,9 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                                       ),
                                     ),
                                     y: Math.max(
-                                      0,
+                                      -d.height,
                                       Math.min(
-                                        d.height - layer.height,
+                                        d.height,
                                         layer.y +
                                           (e.key === 'ArrowDown'
                                             ? delta
@@ -787,84 +816,96 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                       }}
                     />
                     {selected === element.id && (
-                      <rect
-                        className="label-resize-handle"
-                        role="button"
-                        aria-label="Resize selected element"
-                        tabIndex={0}
-                        x={element.width - 2}
-                        y={element.height - 2}
-                        width={4}
-                        height={4}
-                        rx={0.35}
-                        fill="#1284ff"
-                        stroke="white"
-                        strokeWidth={0.2}
-                        onPointerDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          e.currentTarget.setPointerCapture(e.pointerId);
-                          const box = e.currentTarget.ownerSVGElement?.getBoundingClientRect();
-                          if (box)
-                            drag.current = {
-                              id: element.id,
-                              x: element.x,
-                              y: element.y,
-                              fromX: e.clientX,
-                              fromY: e.clientY,
-                              width: box.width,
-                              height: box.height,
-                              elementWidth: element.width,
-                              elementHeight: element.height,
-                              size: element.size,
-                              resize: true,
-                            };
-                        }}
-                        onPointerMove={(e) => {
-                          moveElement(e.clientX, e.clientY);
-                        }}
-                        onPointerUp={() => {
-                          drag.current = null;
-                        }}
-                        onLostPointerCapture={() => {
-                          drag.current = null;
-                        }}
-                        onPointerCancel={() => {
-                          drag.current = null;
-                        }}
-                        onKeyDown={(e) => {
-                          const delta = e.shiftKey ? 1 : 0.25;
-                          if (['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                      <g>
+                        <rect
+                          className="label-resize-handle"
+                          role="button"
+                          aria-label="Resize selected element"
+                          tabIndex={0}
+                          x={element.width - 2}
+                          y={element.height - 2}
+                          width={4}
+                          height={4}
+                          rx={0.35}
+                          fill="transparent"
+                          stroke="none"
+                          onPointerDown={(e) => {
                             e.preventDefault();
-                            edit({
-                              width: Math.max(
-                                0.2,
-                                Math.min(
-                                  design.width,
-                                  element.width +
-                                    (e.key === 'ArrowRight'
-                                      ? delta
-                                      : e.key === 'ArrowLeft'
-                                        ? -delta
-                                        : 0),
+                            e.stopPropagation();
+                            e.currentTarget.setPointerCapture(e.pointerId);
+                            const box = e.currentTarget.ownerSVGElement?.getBoundingClientRect();
+                            if (box)
+                              drag.current = {
+                                id: element.id,
+                                x: element.x,
+                                y: element.y,
+                                fromX: e.clientX,
+                                fromY: e.clientY,
+                                width: box.width,
+                                height: box.height,
+                                elementWidth: element.width,
+                                elementHeight: element.height,
+                                size: element.size,
+                                resize: true,
+                              };
+                          }}
+                          onPointerMove={(e) => {
+                            moveElement(e.clientX, e.clientY);
+                          }}
+                          onPointerUp={() => {
+                            drag.current = null;
+                          }}
+                          onLostPointerCapture={() => {
+                            drag.current = null;
+                          }}
+                          onPointerCancel={() => {
+                            drag.current = null;
+                          }}
+                          onKeyDown={(e) => {
+                            const delta = e.shiftKey ? 1 : 0.25;
+                            if (
+                              ['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown'].includes(e.key)
+                            ) {
+                              e.preventDefault();
+                              edit({
+                                width: Math.max(
+                                  0.2,
+                                  Math.min(
+                                    design.width,
+                                    element.width +
+                                      (e.key === 'ArrowRight'
+                                        ? delta
+                                        : e.key === 'ArrowLeft'
+                                          ? -delta
+                                          : 0),
+                                  ),
                                 ),
-                              ),
-                              height: Math.max(
-                                0.2,
-                                Math.min(
-                                  design.height,
-                                  element.height +
-                                    (e.key === 'ArrowDown'
-                                      ? delta
-                                      : e.key === 'ArrowUp'
-                                        ? -delta
-                                        : 0),
+                                height: Math.max(
+                                  0.2,
+                                  Math.min(
+                                    design.height,
+                                    element.height +
+                                      (e.key === 'ArrowDown'
+                                        ? delta
+                                        : e.key === 'ArrowUp'
+                                          ? -delta
+                                          : 0),
+                                  ),
                                 ),
-                              ),
-                            });
-                          }
-                        }}
-                      />
+                              });
+                            }
+                          }}
+                        />
+                        <circle
+                          cx={element.width}
+                          cy={element.height}
+                          r={0.65}
+                          fill="white"
+                          stroke="var(--label-selection, #64748b)"
+                          strokeWidth={0.12}
+                          pointerEvents="none"
+                        />
+                      </g>
                     )}
                   </g>
                 ))}
@@ -994,6 +1035,16 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                   <CalendarDays size={22} />
                   Date
                 </button>
+                <button
+                  disabled={design.elements.length >= 100}
+                  onClick={() => {
+                    setImageSearch('');
+                    setImageGalleryOpen(true);
+                  }}
+                >
+                  <ImagePlus size={22} />
+                  Lab images
+                </button>
                 <details className="label-more">
                   <summary>More elements</summary>
                   <div className="label-mini-actions">
@@ -1040,8 +1091,8 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
               <details className="label-print-preview">
                 <summary>Print preview</summary>
                 <p className="hint">
-                  This includes the paper layout and calibration. The element boxes above are
-                  editing guides.
+                  Printer view at 203 dpi, including calibration. Artwork beyond the label edge is
+                  cropped.
                 </p>
                 {previewError ? (
                   <p role="alert">{previewError}</p>
@@ -1056,12 +1107,21 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                 )}
               </details>
             </div>
-            {fields.some((key) => design.elements.some((e) => e.text.includes(`{${key}}`))) && (
+            {fields.some((key) =>
+              design.elements.some(
+                (e) => ['text', 'qr', 'barcode'].includes(e.kind) && e.text.includes(`{${key}}`),
+              ),
+            ) && (
               <section>
                 <h2>Label text</h2>
                 <div className="label-two">
                   {fields
-                    .filter((key) => design.elements.some((e) => e.text.includes(`{${key}}`)))
+                    .filter((key) =>
+                      design.elements.some(
+                        (e) =>
+                          ['text', 'qr', 'barcode'].includes(e.kind) && e.text.includes(`{${key}}`),
+                      ),
+                    )
                     .map((key) => (
                       <label key={key}>
                         {key}
@@ -1223,7 +1283,7 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                   <NumberField
                     label="X (mm)"
                     value={active.x}
-                    min={0}
+                    min={-design.width}
                     max={design.width}
                     step={0.25}
                     onChange={(x) => {
@@ -1233,7 +1293,7 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                   <NumberField
                     label="Y (mm)"
                     value={active.y}
-                    min={0}
+                    min={-design.height}
                     max={design.height}
                     step={0.25}
                     onChange={(y) => {
@@ -1272,14 +1332,17 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                   <label>
                     Font
                     <select
+                      aria-label="Font"
                       value={active.font}
                       onChange={(e) => {
                         edit({ font: e.target.value as LabelElement['font'] });
                       }}
                     >
-                      <option value="sans">Sans serif</option>
-                      <option value="serif">Serif</option>
-                      <option value="mono">Monospace</option>
+                      {labelFonts.map((font) => (
+                        <option value={font.id} key={font.id}>
+                          {font.name}
+                        </option>
+                      ))}
                     </select>
                   </label>
                   <label>
@@ -1457,14 +1520,28 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
         <div className="label-bottom-bar">
           <button
             className="label-save-button"
+            aria-label="Save template"
             disabled={busy}
             onClick={() => void act(saveDesign)}
           >
             <Save size={20} />
-            Save template
+            <span>
+              Save<span className="label-desktop-word"> template</span>
+            </span>
+          </button>
+          <button
+            disabled={busy}
+            onClick={() => {
+              setCopyName(`${design.name} copy`);
+              setCopyFolder(design.folder ?? '');
+              setSaveAsOpen(true);
+            }}
+          >
+            Save as
           </button>
           <button
             className="label-print-button"
+            aria-label={`Review ${String(total)} labels`}
             disabled={busy || connecting || !connected || !!previewError}
             onClick={() => {
               try {
@@ -1477,7 +1554,10 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
             }}
           >
             <Printer size={18} />
-            Review {total} labels
+            <span>
+              Review {total}
+              <span className="label-desktop-word"> labels</span>
+            </span>
           </button>
         </div>
         {busy && progress && (
@@ -1492,6 +1572,133 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
         )}
         {progress && <p role="status">{progress}</p>}
       </section>
+      <dialog
+        ref={saveAsDialog}
+        className="label-confirm"
+        aria-label="Save label as"
+        onCancel={(e) => {
+          e.preventDefault();
+          setSaveAsOpen(false);
+        }}
+      >
+        <h2>Save a new label</h2>
+        {error && <p role="alert">{error}</p>}
+        <p className="hint">Keep the original and save this variation separately.</p>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void act(async () => {
+              const copy = copyLabelDesign({ ...design, data: row }, copyName, copyFolder);
+              await workspace.save(copy);
+              setTemplates(await workspace.list());
+              openDesign(copy);
+              setSaveAsOpen(false);
+              setNotice('New label saved. The original is unchanged.');
+            });
+          }}
+        >
+          <label>
+            New label name
+            <input
+              autoFocus
+              required
+              maxLength={100}
+              value={copyName}
+              onChange={(e) => {
+                setCopyName(e.target.value);
+              }}
+            />
+          </label>
+          <label>
+            Save in folder
+            <select
+              value={copyFolder}
+              onChange={(e) => {
+                setCopyFolder(e.target.value);
+              }}
+            >
+              <option value="">Unfiled</option>
+              {knownFolders.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="label-mini-actions">
+            <button
+              type="button"
+              onClick={() => {
+                setSaveAsOpen(false);
+              }}
+            >
+              Cancel
+            </button>
+            <button disabled={busy || !copyName.trim()}>Save new label</button>
+          </div>
+        </form>
+      </dialog>
+      <dialog
+        ref={imageDialog}
+        className="label-confirm label-image-gallery"
+        aria-label="Add lab image"
+        onCancel={(e) => {
+          e.preventDefault();
+          setImageGalleryOpen(false);
+        }}
+      >
+        <h2>Lab image collection</h2>
+        <p className="hint">Monochrome artwork for lab labels, ready to use offline.</p>
+        <label>
+          Search lab images
+          <input
+            type="search"
+            value={imageSearch}
+            onChange={(e) => {
+              setImageSearch(e.target.value);
+            }}
+          />
+        </label>
+        <div className="label-image-grid">
+          {labImages
+            .filter((image) =>
+              `${image.name} ${image.category}`.toLowerCase().includes(imageSearch.toLowerCase()),
+            )
+            .map((image) => (
+              <button
+                key={image.id}
+                aria-label={`Add ${image.name}`}
+                disabled={busy}
+                onClick={() =>
+                  void act(async () => {
+                    const element = {
+                      ...newLabelElement('image'),
+                      x: Math.max(0, design.width - 12),
+                      y: Math.max(0, (design.height - 10) / 2),
+                      width: Math.min(10, design.width),
+                      height: Math.min(10, design.height),
+                      image: await labImagePng(image.id),
+                    };
+                    change({ elements: [...design.elements, element] });
+                    setSelected(element.id);
+                    setImageGalleryOpen(false);
+                  })
+                }
+              >
+                <LabImage id={image.id} />
+                <strong>{image.name}</strong>
+                <span>{image.category}</span>
+              </button>
+            ))}
+        </div>
+        <button
+          onClick={() => {
+            setImageGalleryOpen(false);
+          }}
+        >
+          Close collection
+        </button>
+      </dialog>
       <dialog
         ref={dialog}
         className="label-confirm"

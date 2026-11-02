@@ -1,3 +1,4 @@
+import { labelFonts, type LabelFont } from './fontOptions';
 export type LabelKind = 'text' | 'qr' | 'barcode' | 'image' | 'box' | 'line';
 export interface LabelElement {
   id: string;
@@ -7,7 +8,7 @@ export interface LabelElement {
   width: number;
   height: number;
   text: string;
-  font: 'sans' | 'serif' | 'mono';
+  font: LabelFont;
   size: number;
   bold: boolean;
   align: 'left' | 'center' | 'right';
@@ -52,7 +53,7 @@ export function newLabelElement(kind: LabelKind): LabelElement {
     width: kind === 'qr' ? 10 : 40,
     height: kind === 'qr' ? 10 : 5,
     text: kind === 'qr' || kind === 'barcode' ? '{id}' : '{name}',
-    font: 'sans',
+    font: 'inter',
     size: 2.5,
     bold: false,
     align: 'left',
@@ -119,8 +120,8 @@ export function parseLabelDesign(value: unknown): LabelDesign {
         return {
           ...newLabelElement(k),
           id,
-          x: n(e['x'], 2, 0, width),
-          y: n(e['y'], 2, 0, height),
+          x: n(e['x'], 2, -width, width),
+          y: n(e['y'], 2, -height, height),
           width: n(e['width'], 10, 0.2, width),
           height: n(e['height'], 5, 0.2, height),
           text: str(e['text']),
@@ -130,7 +131,7 @@ export function parseLabelDesign(value: unknown): LabelDesign {
           italic: e['italic'] === true,
           underline: e['underline'] === true,
           lineSpacing: n(e['lineSpacing'], 1.2, 0.8, 3),
-          font: e['font'] === 'serif' || e['font'] === 'mono' ? e['font'] : 'sans',
+          font: labelFonts.find((f) => f.id === e['font'])?.id ?? 'sans',
           align: e['align'] === 'center' || e['align'] === 'right' ? e['align'] : 'left',
           rotation: [90, 180, 270].includes(Number(e['rotation']))
             ? (e['rotation'] as 90 | 180 | 270)
@@ -205,4 +206,22 @@ export function labelFolder(value: string): string {
     .replace(/\s+/g, ' ')
     .slice(0, 80)
     .trim();
+}
+
+/** A named variant is independent of the original saved design. */
+export function copyLabelDesign(
+  design: LabelDesign,
+  name: string,
+  folder = design.folder ?? '',
+): LabelDesign {
+  if (!name.trim()) throw new Error('Enter a name for the new label.');
+  return {
+    ...structuredClone(design),
+    id: crypto.randomUUID(),
+    name: name.trim().slice(0, 100),
+    folder: labelFolder(folder),
+    savedAs: 'template',
+    savedAt: new Date().toISOString(),
+    elements: design.elements.map((e) => ({ ...e, id: crypto.randomUUID() })),
+  };
 }

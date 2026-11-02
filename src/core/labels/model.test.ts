@@ -1,6 +1,7 @@
 // @vitest-environment node
 import {
   feedSize,
+  copyLabelDesign,
   labelBatches,
   labelText,
   newLabelDesign,
@@ -73,6 +74,22 @@ describe('label geometry and portable templates', () => {
     const duplicate = parseLabelDesign({ ...d, elements: [d.elements[0], d.elements[0]] });
     expect(duplicate.elements[0]?.id).not.toBe(duplicate.elements[1]?.id);
   });
+  it('keeps off-edge positioning and font choices when saving a named variation', () => {
+    const original = newLabelDesign();
+    const element = original.elements[0];
+    if (!element) throw new Error('Missing title');
+    original.elements[0] = { ...element, x: -2, y: -0.5, font: 'open-sans' };
+    const copy = copyLabelDesign(original, 'Stock variation', 'Fly stocks');
+    expect(copy.id).not.toBe(original.id);
+    expect(copy.elements[0]?.id).not.toBe(element.id);
+    expect(parseLabelDesign(copy)).toMatchObject({
+      name: 'Stock variation',
+      folder: 'Fly stocks',
+      elements: [{ x: -2, y: -0.5, font: 'open-sans' }],
+    });
+    expect(original.name).toBe('Sample label');
+    expect(() => copyLabelDesign(original, '  ')).toThrow();
+  });
   it('rejects active image sources and bounds imported geometry and layer count', () => {
     const d = newLabelDesign();
     expect(() =>
@@ -96,6 +113,6 @@ describe('label geometry and portable templates', () => {
     expect(loaded.width).toBe(72);
     expect(loaded.offsetY).toBe(-0.75);
     expect(loaded.elements).toHaveLength(100);
-    expect(loaded.elements[0]?.x).toBe(0);
+    expect(loaded.elements[0]?.x).toBe(-50);
   });
 });

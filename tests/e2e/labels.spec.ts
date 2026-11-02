@@ -1,6 +1,68 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
+test('supports off-edge alignment, clean fonts, save as and portable lab illustrations', async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 412, height: 915 });
+  await page.goto('/labels.html');
+  await page.getByRole('button', { name: 'Select Text: Label text', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Content', exact: true }).fill('OreR stock');
+  await page.getByRole('button', { name: 'Style and size', exact: true }).click();
+  await page.getByLabel('Font', { exact: true }).selectOption('open-sans');
+  await page.getByText('Position and rotation', { exact: true }).click();
+  await page.getByLabel('X (mm)', { exact: true }).fill('-1');
+  await page.getByLabel('Y (mm)', { exact: true }).fill('-0.5');
+  const element = page.getByRole('button', { name: 'Select Text: OreR stock', exact: true });
+  await element.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('-1.25');
+  await page.getByLabel('Template name', { exact: true }).fill('Original stock');
+  await page.getByRole('button', { name: 'Save template', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Content', exact: true }).fill('OreR drug treatment');
+  await page.getByRole('button', { name: 'Save as', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Save label as', exact: true });
+  await dialog.getByLabel('New label name', { exact: true }).fill('Drug treatment');
+  await dialog.getByRole('button', { name: 'Save new label', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByLabel('Template name', { exact: true })).toHaveValue('Drug treatment');
+  await page.getByRole('button', { name: 'Lab images', exact: true }).click();
+  const gallery = page.getByRole('dialog', { name: 'Add lab image', exact: true });
+  await expect(gallery.getByRole('button', { name: 'Add Fruit fly', exact: true })).toBeVisible();
+  await page.screenshot({
+    path: info.outputPath('lab-illustration-collection.png'),
+    fullPage: true,
+  });
+  await gallery.getByRole('button', { name: 'Add Fruit fly', exact: true }).click();
+  await expect(gallery).not.toBeVisible();
+  await page.getByRole('button', { name: 'Save template', exact: true }).click();
+  const saved = await page.evaluate(
+    () =>
+      JSON.parse(localStorage.getItem('benchwork.label-studio.templates') ?? '[]') as {
+        name: string;
+        elements: { text: string; font: string; x: number; image: string }[];
+      }[],
+  );
+  expect(saved).toHaveLength(2);
+  expect(saved.find((d) => d.name === 'Original stock')?.elements[0]?.text).toBe('OreR stock');
+  const variation = saved.find((d) => d.name === 'Drug treatment');
+  expect(variation?.elements[0]).toMatchObject({ font: 'open-sans', x: -1.25 });
+  expect(variation?.elements[1]?.image).toMatch(/^data:image\/png;base64,/);
+  await expect
+    .poll(() => page.evaluate(() => document.fonts.check('14px "BenchWork Open Sans"')))
+    .toBe(true);
+  const editorWidth = await page.locator('.label-layout image').evaluate(async (el) => {
+    const image = new Image();
+    image.src = el.getAttribute('href') ?? '';
+    await image.decode();
+    return image.naturalWidth;
+  });
+  expect(editorWidth).toBeGreaterThan(1500);
+  await page.getByRole('button', { name: 'Select Text: OreR drug treatment', exact: true }).click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
+  await page.screenshot({ path: info.outputPath('smooth-font-and-selection.png'), fullPage: true });
+});
+
 test('exports a BenchWork folder as an editable phone pack with the phone calibration retained', async ({
   page,
 }, info) => {

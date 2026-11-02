@@ -1,11 +1,17 @@
 import bwip from 'bwip-js/browser';
+import { labelFontFamily } from './fontOptions';
+import '@fontsource-variable/inter';
+import '@fontsource-variable/inter/wght-italic.css';
+import '@fontsource-variable/source-serif-4';
+import '@fontsource-variable/source-serif-4/wght-italic.css';
+import './fonts.css';
 import { feedSize, labelText, type LabelDesign, type LabelRow } from './model';
 export const LABEL_DPI = 203;
-const dots = (mm: number) => Math.round((mm * LABEL_DPI) / 25.4);
-function canvas(width: number, height: number) {
+const dots = (mm: number, dpi = LABEL_DPI) => Math.round((mm * dpi) / 25.4);
+function canvas(width: number, height: number, dpi = LABEL_DPI) {
   const c = document.createElement('canvas');
-  c.width = dots(width);
-  c.height = dots(height);
+  c.width = dots(width, dpi);
+  c.height = dots(height, dpi);
   return c;
 }
 async function picture(source: string): Promise<HTMLImageElement> {
@@ -19,13 +25,15 @@ export async function renderLabel(
   row: LabelRow,
   sequence: number,
   offset = false,
+  quality = 1,
 ): Promise<HTMLCanvasElement> {
-  const c = canvas(d.width, d.height),
+  const dpi = LABEL_DPI * Math.max(1, Math.min(4, quality));
+  const c = canvas(d.width, d.height, dpi),
     ctx = c.getContext('2d');
   if (!ctx) throw new Error('Label drawing is unavailable.');
   ctx.fillStyle = 'white';
   ctx.fillRect(0, 0, c.width, c.height);
-  ctx.scale(LABEL_DPI / 25.4, LABEL_DPI / 25.4);
+  ctx.scale(dpi / 25.4, dpi / 25.4);
   if (offset) ctx.translate(d.offsetX, d.offsetY);
   for (const e of d.elements) {
     ctx.save();
@@ -41,7 +49,9 @@ export async function renderLabel(
     if (['text', 'qr', 'barcode'].includes(e.kind) && /\{[^{}]+\}/.test(text))
       throw new Error('Fill the missing label data fields before printing.');
     if (e.kind === 'text') {
-      ctx.font = `${e.italic ? 'italic ' : ''}${e.bold ? 'bold ' : ''}${String(e.size)}px ${e.font === 'mono' ? 'monospace' : e.font === 'serif' ? 'Georgia' : 'Arial'}`;
+      const font = `${e.italic ? 'italic ' : ''}${e.bold ? 'bold ' : ''}${String(e.size)}px ${labelFontFamily(e.font)}`;
+      await document.fonts.load(font, text || 'Aa');
+      ctx.font = font;
       ctx.textBaseline = 'top';
       ctx.textAlign = e.align;
       const x = e.align === 'center' ? e.width / 2 : e.align === 'right' ? e.width : 0;
