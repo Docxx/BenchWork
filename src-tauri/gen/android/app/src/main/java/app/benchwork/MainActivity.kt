@@ -56,6 +56,11 @@ class MainActivity : TauriActivity() {
   }
 
   private var webView: WebView? = null
+  private val labelPrinter by lazy { LabelBluetooth(this) }
+  override fun onDestroy() {
+    Thread { labelPrinter.disconnect() }.start()
+    super.onDestroy()
+  }
 
   override fun onWebViewCreate(webView: WebView) {
     this.webView = webView
@@ -86,6 +91,38 @@ class MainActivity : TauriActivity() {
   private fun failed(id: String, e: Exception) = reply(id, false, JSONObject.quote(e.message ?: "Failed"))
 
   inner class StorageAccess {
+    @JavascriptInterface
+    fun shareLabelTemplate(name:String,json:String):String {
+      return try {
+        require(json.toByteArray(Charsets.UTF_8).size<=25*1024*1024) {"Template is too large to share."}
+        val folder=java.io.File(cacheDir,"label-exports").apply {mkdirs()}
+        val suffix=if(name.endsWith(".labelpack.json")) ".labelpack.json" else ".label.json"
+        val safe=name.replace(Regex("[^a-zA-Z0-9._-]"),"_").removeSuffix(suffix).take(80)+suffix
+        val file=java.io.File(folder,safe)
+        require(file.canonicalFile.parentFile==folder.canonicalFile)
+        file.writeText(json,Charsets.UTF_8)
+        val uri=androidx.core.content.FileProvider.getUriForFile(this@MainActivity,packageName+".labels",file)
+        runOnUiThread {startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {type="application/json";putExtra(Intent.EXTRA_STREAM,uri);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)},"Share labels"))}
+        JSONObject().put("ok",true).toString()
+      } catch(e:Exception) {JSONObject().put("error",e.message?:"Could not share template").toString()}
+    }
+    @JavascriptInterface
+    fun labelBluetooth(id: String, operation: String, payload: String) {
+      Thread {
+        try {
+          val data=JSONObject(payload)
+          val result: Any = when(operation) {
+            "scan" -> labelPrinter.scan()
+            "connect" -> {labelPrinter.connect(data.getString("id"));JSONObject.NULL}
+            "disconnect" -> {labelPrinter.disconnect();JSONObject.NULL}
+            "read" -> labelPrinter.read()
+            "write" -> {labelPrinter.write(data.getJSONArray("bytes"));JSONObject.NULL}
+            else -> throw IllegalArgumentException("Unknown printer operation")
+          }
+          runOnUiThread {webView?.evaluateJavascript("window.__benchworkLabelReply && window.__benchworkLabelReply(${JSONObject.quote(id)}, true, $result)",null)}
+        } catch(e:Exception) {runOnUiThread {webView?.evaluateJavascript("window.__benchworkLabelReply && window.__benchworkLabelReply(${JSONObject.quote(id)}, false, ${JSONObject.quote(e.message?:"Bluetooth operation failed")})",null)}}
+      }.start()
+    }
     /** Whether the handwriting model is on the tablet. */
     @JavascriptInterface
     fun inkModelReady(id: String) {
@@ -140,6 +177,67 @@ class MainActivity : TauriActivity() {
       runOnUiThread { webView?.setAutoHandwritingEnabled(on) }
     }
 
+    /** Private tokens and cache encrypted with a non-exportable Android Keystore key. */
+    private fun privateKey(): javax.crypto.SecretKey {
+      val store = java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+      val alias = "BenchWork.deviceData.v1"
+      val existing = store.getKey(alias, null) as? javax.crypto.SecretKey
+      if (existing != null) return existing
+      val generator = javax.crypto.KeyGenerator.getInstance("AES", "AndroidKeyStore")
+      generator.init(android.security.keystore.KeyGenParameterSpec.Builder(alias,
+        android.security.keystore.KeyProperties.PURPOSE_ENCRYPT or android.security.keystore.KeyProperties.PURPOSE_DECRYPT)
+        .setBlockModes(android.security.keystore.KeyProperties.BLOCK_MODE_GCM)
+        .setEncryptionPaddings(android.security.keystore.KeyProperties.ENCRYPTION_PADDING_NONE).build())
+      return generator.generateKey()
+    }
+    @JavascriptInterface
+    @Synchronized
+    fun secureRead(key: String): String {
+      return try {
+        require(key.matches(Regex("[a-zA-Z0-9_.-]{1,128}")))
+        val data = getSharedPreferences("private-device-data", MODE_PRIVATE).getString(key, null)
+          ?: return JSONObject().put("value", JSONObject.NULL).toString()
+        val parts = data.split(":")
+        val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(javax.crypto.Cipher.DECRYPT_MODE, privateKey(), javax.crypto.spec.GCMParameterSpec(128,
+          android.util.Base64.decode(parts[0], android.util.Base64.NO_WRAP)))
+        cipher.updateAAD(key.toByteArray(Charsets.UTF_8))
+        JSONObject().put("value", String(cipher.doFinal(android.util.Base64.decode(parts[1], android.util.Base64.NO_WRAP)), Charsets.UTF_8)).toString()
+      } catch (_: Exception) { JSONObject().put("error", "Private data could not be unlocked. Reconnect the account.").toString() }
+    }
+    @JavascriptInterface
+    @Synchronized
+    fun secureWrite(key: String, value: String, remove: Boolean): String {
+      return try {
+        require(key.matches(Regex("[a-zA-Z0-9_.-]{1,128}")) && value.toByteArray(Charsets.UTF_8).size <= 8 * 1024 * 1024)
+        val editor = getSharedPreferences("private-device-data", MODE_PRIVATE).edit()
+        if (remove) editor.remove(key)
+        else {
+          val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+          cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, privateKey())
+          cipher.updateAAD(key.toByteArray(Charsets.UTF_8))
+          val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
+          editor.putString(key, android.util.Base64.encodeToString(cipher.iv, android.util.Base64.NO_WRAP) + ":" + android.util.Base64.encodeToString(encrypted, android.util.Base64.NO_WRAP))
+        }
+        check(editor.commit())
+        "{}"
+      } catch (_: Exception) { JSONObject().put("error", "Private data could not be saved on this device.").toString() }
+    }
+
+    /** Opens a user-reviewed email draft. The recipient is fixed and nothing is sent. */
+    @JavascriptInterface
+    fun openFeedbackEmail(subject: String, body: String): String {
+      return try {
+        require(subject.length <= 200 && !subject.any { it.isISOControl() } && body.length <= 16000) { "Copy the report into your email app instead." }
+        val uri = Uri.parse("mailto:raywprice@gmail.com?subject=" + Uri.encode(subject) + "&body=" + Uri.encode(body))
+        require(uri.toString().length <= 6000) { "This report is too long. Copy it into your email app instead." }
+        startActivity(Intent(Intent.ACTION_SENDTO, uri))
+        JSONObject().put("ok", true).toString()
+      } catch (_: Exception) {
+        JSONObject().put("error", "No email app could open this draft. Copy the report and email it to raywprice@gmail.com.").toString()
+      }
+    }
+
     /** Opens a web address in the tablet's browser; anything but http or https is ignored. */
     @JavascriptInterface
     fun openLink(url: String) {
@@ -167,6 +265,30 @@ class MainActivity : TauriActivity() {
         val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
         intent.data = Uri.parse("package:$packageName")
         startActivity(intent)
+      }
+    }
+
+    /** Reads only a small pairing file selected through Android's document picker. */
+    @JavascriptInterface
+    fun readSyncPairing(source: String): String {
+      return try {
+        val uri = Uri.parse(source)
+        require(uri.scheme == "content") { "Choose a pairing document" }
+        val text = contentResolver.openInputStream(uri).use { input ->
+          requireNotNull(input) { "Cannot open pairing file" }
+          val bytes = ByteArray(16001)
+          var count = 0
+          while (count < bytes.size) {
+            val n = input.read(bytes, count, bytes.size - count)
+            if (n < 0) break
+            count += n
+          }
+          require(count <= 16000) { "Pairing file is too large" }
+          String(bytes, 0, count, Charsets.UTF_8)
+        }
+        JSONObject().put("invitation", JSONObject(text)).toString()
+      } catch (e: Exception) {
+        JSONObject().put("error", e.message ?: "Cannot read pairing file").toString()
       }
     }
 

@@ -3,7 +3,16 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'src-tauri/target', 'src-tauri/gen', 'playwright-report', 'test-results'] },
+  {
+    ignores: [
+      'dist',
+      'dist-labels',
+      'src-tauri/target',
+      'src-tauri/gen',
+      'playwright-report',
+      'test-results',
+    ],
+  },
   tseslint.configs.eslintRecommended,
   ...tseslint.configs.strictTypeChecked,
   {
@@ -19,7 +28,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.js'],
+    files: ['**/*.js', '**/*.mjs'],
     ...tseslint.configs.disableTypeChecked,
   },
   {

@@ -6,7 +6,31 @@
  * All vault paths are relative to the open vault, use `/` separators, and
  * `""` means the vault root. See `vaultPath.ts` for the rules.
  */
+export interface HttpRequest {
+  url: string;
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  headers?: Record<string, string>;
+  body?: string;
+}
+export interface HttpResponse {
+  status: number;
+  body: string;
+  retryAfter: string | null;
+}
+
 export interface PlatformAdapter {
+  readonly labelBluetooth?: import('./labelBluetooth').LabelBluetoothTransport | null;
+  /** Opens a reviewed draft to the fixed BenchWork feedback address; never sends it. */
+  openFeedbackEmail?: (subject: string, body: string) => Promise<void>;
+  readonly nativeSync?: NativeSyncAdapter | null;
+  readonly materials?: MaterialFiles;
+  readonly audience?: AudienceDisplay | null;
+  readonly fileTransfers?: FileTransfers | null;
+  /** Authenticated Microsoft HTTPS, without browser cookies or redirects. */
+  microsoftRequest(request: HttpRequest): Promise<HttpResponse>;
+  /** Device-local encrypted data, never written into a vault. */
+  secureRead(key: string): Promise<string | null>;
+  secureWrite(key: string, value: string | null): Promise<void>;
   readonly kind: DeviceKind;
 
   /** Shows a folder picker. Resolves to the chosen folder, or null if cancelled. */
@@ -43,6 +67,8 @@ export interface PlatformAdapter {
 
   /** Opens a vault file in the program the system uses for it, such as Word; null on the tablet. */
   readonly openInSystem: ((path: string) => Promise<void>) | null;
+  /** Opens a vault folder in the desktop file manager; relative to the vault. */
+  readonly openFolderInSystem?: ((path: string) => Promise<void>) | null;
 
   /**
    * The app's own window buttons, where the system's title bar is hidden
@@ -113,9 +139,10 @@ export interface PlatformAdapter {
   assetUrl(path: string): string | null;
   /**
    * Runs `handler` when the user closes the app, and waits for it before
-   * closing, so unsaved work can be saved. Returns a function that stops it.
+   * closing, so unsaved work can be saved. False or rejection cancels closing.
+   * Returns a function that stops listening.
    */
-  onExitRequested(handler: () => Promise<void>): () => void;
+  onExitRequested(handler: () => Promise<boolean>): () => void;
 
   /** Per-device settings, stored outside the vault. Null if never saved. */
   loadAppSettings(): Promise<unknown>;
@@ -128,6 +155,49 @@ export interface PlatformAdapter {
   pandocVersion(): Promise<string | null>;
   /** Converts Markdown to Word with Pandoc. Every path is a vault path. */
   pandocToWord(options: PandocWordOptions): Promise<void>;
+}
+
+export interface SyncConnection {
+  endpoint: string;
+  certificate: string;
+  vault: string;
+  token: string;
+}
+export interface SyncInvitation {
+  version: number;
+  endpoint: string;
+  certificate: string;
+  vault: string;
+  secret: string;
+  expires: number;
+}
+export interface SyncHostStatus {
+  running: boolean;
+  endpoint: string;
+  devices: string[];
+}
+export interface SyncPairing {
+  text: string;
+  svg: string;
+  expires: number;
+}
+export interface SyncReport {
+  uploaded: number;
+  downloaded: number;
+  conflicts: string[];
+  skipped: string[];
+}
+export interface NativeSyncAdapter {
+  localAddress: () => Promise<string>;
+  start: (ip: string, otherSyncStopped: boolean) => Promise<SyncHostStatus>;
+  stop: () => Promise<void>;
+  status: () => Promise<SyncHostStatus>;
+  invitation: () => Promise<SyncPairing>;
+  exportInvitation: (text: string) => Promise<string>;
+  readInvitation: (source: string) => Promise<SyncInvitation>;
+  join: (invitation: SyncInvitation, name: string) => Promise<SyncConnection>;
+  sync: (connection: SyncConnection, otherSyncStopped: boolean) => Promise<SyncReport>;
+  revoke: () => Promise<void>;
 }
 
 /**
@@ -252,9 +322,60 @@ export interface ProgramResult {
 }
 
 export interface ProgramRunner {
+  /** Copy a user-selected script into a new vault file, without overwriting. Returns its SHA-256. */
+  snapshotFile?(source: string, destination: string): Promise<string>;
   /** Runs a program; resolves when it ends or is stopped. Fails if it cannot be started. */
   run(run: ProgramRun): Promise<ProgramResult>;
   stop(id: string): Promise<void>;
+}
+
+export interface ImportedSlides {
+  source: string;
+  slides: { title: string; notes: string; image: string }[];
+}
+export interface MaterialFiles {
+  /** Copies into a new vault folder. No overwrite; 64 MB per source. */
+  importFile(source: string, folder: string): Promise<string>;
+  /** Windows PowerPoint renders static slide images and extracts private notes. */
+  importPowerPoint(source: string, folder: string): Promise<ImportedSlides>;
+}
+export interface AudienceFrame {
+  title: string;
+  body: string;
+  image: string | null;
+  background: string;
+  foreground: string;
+  accent: string;
+  blank: boolean;
+  strokes: { colour: string; width: number; points: [number, number][] }[];
+}
+export interface DisplayInfo {
+  index: number;
+  name: string;
+}
+export interface AudienceDisplay {
+  monitors(): Promise<DisplayInfo[]>;
+  open(frame: AudienceFrame, monitor: number): Promise<void>;
+  update(frame: AudienceFrame): Promise<void>;
+  close(): Promise<void>;
+}
+
+export interface VerifiedCopy {
+  source: string;
+  target: string;
+  folder: string;
+  size: number;
+  sha256: string;
+}
+export interface FileTransfers {
+  pickFolder(): Promise<string | null>;
+  openFolder(folder: string): Promise<void>;
+  openFile(copy: VerifiedCopy): Promise<void>;
+  copy(id: string, source: string, folder: string): Promise<VerifiedCopy>;
+  cancel(id: string): Promise<void>;
+  verify(copy: VerifiedCopy): Promise<void>;
+  reveal(copy: VerifiedCopy): Promise<void>;
+  recycleSource(copy: VerifiedCopy): Promise<void>;
 }
 
 /** Handwriting to text, on the device. */

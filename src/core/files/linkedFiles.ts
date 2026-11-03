@@ -61,6 +61,7 @@ export async function linkFile(
   fullPath: string,
   now: Date = new Date(),
   newId: () => string = () => crypto.randomUUID(),
+  folder: string = ATTACHMENTS_DIR,
 ): Promise<string> {
   const info = await platform.fileInfo(fullPath, true);
   const sha256 = await platform.hashFile(fullPath, true);
@@ -71,10 +72,10 @@ export async function linkFile(
     modified: info.modified === null ? null : localTimestamp(new Date(info.modified)),
     added: localTimestamp(now),
   };
-  await platform.ensureDir(ATTACHMENTS_DIR);
+  await platform.ensureDir(folder);
   const ending = `.${LINK_RECORD}.yaml`;
-  const name = await freeName(platform, ATTACHMENTS_DIR, fullBaseName(fullPath), ending);
-  const path = joinVaultPath(ATTACHMENTS_DIR, name);
+  const name = await freeName(platform, folder, fullBaseName(fullPath), ending);
+  const path = joinVaultPath(folder, name);
   await platform.createNew(path, linkRecordText(record, newId()));
   return path;
 }

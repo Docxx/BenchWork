@@ -20,6 +20,8 @@ import type { RelinkPlan } from './linksSlice';
 import { rebasePath } from './treeSlice';
 
 export interface NotebookSlice {
+  folderActionsAvailable: boolean;
+  openNotebookFolder: (path: string) => Promise<void>;
   /** Why the last sidebar action could not be done, shown above the tree. */
   sidebarNotice: string | null;
   dismissSidebarNotice: () => void;
@@ -126,6 +128,7 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
     );
     const selected = tree.selected === null ? null : rebasePath(tree.selected, from, to);
     set({ tree: { folders, expanded, selected } });
+    await get().moveItemTags(from, to);
     await get().reloadFolders([parentVaultPath(from) ?? '', parentVaultPath(to) ?? '']);
     for (const p of expanded.filter((e) => e === to || e.startsWith(`${to}/`))) {
       await get().revealFolder(p);
@@ -159,6 +162,14 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
   });
 
   return {
+    folderActionsAvailable: platform.kind === 'desktop' && platform.openFolderInSystem != null,
+    openNotebookFolder: async (path) => {
+      await attempt(async () => {
+        if (!platform.openFolderInSystem)
+          throw new Error('Folder opening is available on desktop.');
+        await platform.openFolderInSystem(path);
+      });
+    },
     sidebarNotice: null,
     dismissSidebarNotice: () => {
       set({ sidebarNotice: null });
@@ -307,7 +318,7 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
         // Save and close the open page first if it is going, so its latest text is recycled.
         const open = get().page?.path;
         if (open !== undefined && (open === path || open.startsWith(`${path}/`))) {
-          await get().closePage();
+          if (!(await get().closePage())) return false;
         }
         const file = get().openFile;
         if (file !== null && (file === path || file.startsWith(`${path}/`))) get().closeFile();

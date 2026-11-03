@@ -15,14 +15,28 @@ export interface ModulePack {
 
 export const PACKS: readonly ModulePack[] = [
   {
+    id: 'teaching-creative',
+    name: 'Teaching and Creative',
+    description:
+      'Reusable lessons, a private presenter desk, rehearsals, personal quizzes and custom appearance profiles.',
+    modules: ['teaching', 'study-arcade', 'theme-studio'],
+  },
+  {
     id: 'research',
     name: 'Research',
     description:
       'Lab notebooks, experiments and datasets, references from Zotero, inventory and fly flips, lab calculators and timers, the latest papers, tasks, plans and writing up.',
     modules: [
+      'knowledge-graph',
       'lab-notebook',
       'lab-tools',
+      'labels',
       'research',
+      'protocol-runner',
+      'sample-tracker',
+      'equipment-planner',
+      'research-questions',
+      'meeting-organiser',
       'references',
       'papers',
       'data-viewer',
@@ -37,6 +51,6 @@ export const PACKS: readonly ModulePack[] = [
     id: 'notes',
     name: 'General notes',
     description: 'Notes and handwriting, tasks with a board, mind maps and a free canvas.',
-    modules: ['tasks', 'handwriting', 'mind-maps'],
+    modules: ['knowledge-graph', 'tasks', 'handwriting', 'mind-maps'],
   },
 ];

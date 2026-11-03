@@ -1,0 +1,238 @@
+.knowledge-graph {
+  --graph-bg: #08101b;
+  --graph-fg: #d6eaf4;
+  --graph-line: #41c9dc;
+  --graph-panel: #101e2eee;
+  --graph-border: #355068;
+  --graph-field: #132638;
+  color: var(--graph-fg);
+  background: var(--graph-bg);
+  border: 1px solid var(--graph-border);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 18px 60px #0002;
+  container-type: inline-size;
+}
+.graph-ember {
+  --graph-bg: #160d13;
+  --graph-line: #efab65;
+  --graph-panel: #291a23ee;
+  --graph-field: #32212b;
+}
+.graph-violet {
+  --graph-bg: #110f21;
+  --graph-line: #a49bf5;
+  --graph-panel: #211c37ee;
+  --graph-field: #2d2644;
+}
+.graph-theme {
+  --graph-bg: var(--bg);
+  --graph-fg: var(--text);
+  --graph-line: var(--accent);
+  --graph-panel: var(--surface);
+  --graph-border: var(--border);
+  --graph-field: var(--bg);
+}
+.graph-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--graph-border);
+}
+.graph-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--graph-line);
+  margin-right: auto;
+  font-size: 0.9rem;
+}
+.knowledge-graph input:not([type='checkbox']):not([type='range']),
+.knowledge-graph select {
+  color: var(--graph-fg);
+  background: var(--graph-field);
+  border: 1px solid var(--graph-border);
+  border-radius: 7px;
+  min-width: 0;
+}
+.graph-toolbar > input {
+  flex: 1;
+  min-width: 180px !important;
+  max-width: 360px;
+}
+.knowledge-graph button.quiet {
+  color: var(--graph-fg);
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.knowledge-graph button:focus-visible,
+.knowledge-graph input:focus-visible,
+.knowledge-graph select:focus-visible {
+  outline: 2px solid var(--graph-line);
+  outline-offset: 3px;
+}
+.graph-stage {
+  position: relative;
+  min-height: 380px;
+  height: clamp(420px, 67vh, 1000px);
+  background: radial-gradient(
+    ellipse at 48% 45%,
+    color-mix(in srgb, var(--graph-line) 9%, transparent),
+    transparent 65%
+  );
+}
+.graph-stage canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+.graph-stage canvas:active {
+  cursor: grabbing;
+}
+.graph-corner {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  pointer-events: none;
+  opacity: 0.65;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+.graph-empty {
+  position: absolute;
+  inset: 40% 10% auto;
+  pointer-events: none;
+  text-align: center;
+  line-height: 1.6;
+}
+.graph-empty span {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+.graph-settings {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  width: min(270px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 1rem;
+  background: var(--graph-panel);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--graph-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 45px #0004;
+}
+.graph-settings h2 {
+  font-size: 1rem;
+  color: var(--graph-fg);
+  margin: 0 0 1rem;
+}
+.graph-settings > label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.7rem 0;
+  font-size: 0.8rem;
+}
+.graph-settings input[type='range'] {
+  width: 100%;
+  accent-color: var(--graph-line);
+}
+.graph-check,
+.graph-settings > label.graph-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+}
+.graph-settings p {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+.graph-setting-actions,
+.graph-selection > div {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.graph-selection {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  max-width: min(340px, calc(100% - 2rem));
+  padding: 0.85rem;
+  border: 1px solid var(--graph-border);
+  border-radius: 12px;
+  background: var(--graph-panel);
+  backdrop-filter: blur(16px);
+}
+.graph-selection-title,
+.graph-selection small {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-bottom: 0.45rem;
+}
+.graph-selection small {
+  opacity: 0.6;
+}
+.graph-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--graph-border);
+  opacity: 0.7;
+  font-size: 0.72rem;
+}
+.graph-files {
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  border-top: 1px solid var(--graph-border);
+}
+.graph-files ul {
+  max-height: 220px;
+  overflow: auto;
+  padding: 0;
+  list-style: none;
+}
+.graph-files li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.graph-files li > span {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+@container (max-width: 600px) {
+  .graph-brand {
+    width: 100%;
+  }
+  .graph-toolbar > input {
+    max-width: none;
+  }
+  .graph-stage {
+    height: 60vh;
+  }
+  .graph-footer span:first-child {
+    display: none;
+  }
+}
+.graph-presets {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+}

@@ -2,8 +2,8 @@
   "id": "analysis",
   "name": "Analysis bridge",
   "version": "0.1.0",
-  "description": "Run your own Python scripts, such as Buzzz, on a dataset, with the results kept beside it and listed on its record. On the computer only",
+  "description": "Run Python and R on a computer, with script snapshots, input hashes, parameters and saved history available on every device",
   "dependsOn": ["research"],
-  "platforms": ["desktop"],
+  "platforms": ["desktop", "tablet"],
   "defaultEnabled": false
 }

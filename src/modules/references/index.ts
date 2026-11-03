@@ -5,6 +5,9 @@ import { LibraryPanel } from './LibraryPanel';
 import { openNote, referenceType } from './notes';
 import { ReferencesSettings } from './SettingsPanel';
 import { LibraryState } from './state';
+import { ReadingDesk } from './ReadingDesk';
+import { evidenceType, READING, type CaptureMode } from './evidence';
+import { BookOpen } from 'lucide-react';
 
 /**
  * The References module: citations from a Zotero library, through the CSL
@@ -15,6 +18,27 @@ import { LibraryState } from './state';
 export default defineModule({
   async activate(ctx) {
     const library = new LibraryState(ctx);
+    ctx.pageTypes.register(evidenceType());
+    ctx.views.registerPageView({
+      id: READING,
+      title: 'Reading desk',
+      render: (param) => createElement(ReadingDesk, { ctx, library, param }),
+      tool: {
+        icon: createElement(BookOpen, { size: 18 }),
+        hint: 'PDFs, highlights and linked evidence notes',
+      },
+    });
+    const modes: [CaptureMode, string][] = [
+      ['excerpt', 'Excerpt + comment'],
+      ['structured', 'Structured note'],
+      ['linked', 'Link evidence'],
+    ];
+    for (const [mode, title] of modes)
+      ctx.reading.register({
+        id: `references.${mode}`,
+        title,
+        run: (excerpt) => ctx.app.openView(READING, JSON.stringify({ ...excerpt, mode })),
+      });
 
     ctx.citations.register({
       id: 'references.zotero',

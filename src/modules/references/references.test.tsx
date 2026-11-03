@@ -211,6 +211,7 @@ describe('References module', () => {
       </AppStoreProvider>,
     );
     await settle();
+    fireEvent.click(screen.getByText('Configure References', { exact: true }));
     expect(screen.getByText('references/library.json')).toBeDefined();
     expect(screen.getByRole('status').textContent).toBe('No file there yet.');
     expect(screen.getByRole('button', { name: 'Choose library file' })).toBeDefined();
@@ -224,6 +225,7 @@ describe('References module', () => {
       </AppStoreProvider>,
     );
     await settle();
+    fireEvent.click(screen.getByText('Configure References', { exact: true }));
     expect(provider().describe('smith2024')).toBeNull();
 
     platform.queueFilePick(['C:/Vault/Zotero/My library.json']);
@@ -245,6 +247,7 @@ describe('References module', () => {
       </AppStoreProvider>,
     );
     await settle();
+    fireEvent.click(screen.getByText('Configure References', { exact: true }));
     platform.queueFilePick(['D:/Elsewhere/library.json']);
     fireEvent.click(screen.getByRole('button', { name: 'Choose library file' }));
     await vi.waitFor(() => {

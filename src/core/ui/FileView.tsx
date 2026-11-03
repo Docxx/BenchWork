@@ -1,3 +1,4 @@
+import { TagEditor } from './TagEditor';
 import { Component, useEffect, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
 import type { TableData } from '../files/csv';
 import { parseCsv } from '../files/csv';
@@ -38,6 +39,7 @@ export function FileView({ path }: { path: string }) {
         <span className="file-kind">{handler?.name ?? kindLabel(path)}</span>
         <OpenInSystem path={path} />
       </header>
+      <TagEditor key={path} path={path} />
       {handler?.penTools === true && (
         <div className="ribbon-tools pen-bar file-pen-bar" role="toolbar" aria-label="Draw">
           <PenTools />
@@ -46,7 +48,7 @@ export function FileView({ path }: { path: string }) {
       {/* Keyed so a change on disk, or another file, starts afresh, unless the view watches its file. */}
       <div
         className="file-body"
-        key={handler?.watchesFile === true ? path : `${path}\n${String(version)}`}
+        key={handler?.watchesFile === true ? `file:${path}` : `file:${path}\n${String(version)}`}
       >
         {handler ? (
           <ModuleBoundary moduleId={handler.moduleId}>{handler.render({ path })}</ModuleBoundary>

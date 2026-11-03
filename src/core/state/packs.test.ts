@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { createContributions } from '../modules/contributions';
 import { PACKS } from '../modules/packs';
+import { findBuiltInModules } from '../modules/loader';
 import { ModuleRegistry } from '../modules/registry';
 import { fakeModule } from '../modules/testModules';
 import { MemoryAdapter } from '../platform/memory';
@@ -49,11 +50,9 @@ describe('module packs', () => {
 
   it('name only modules that exist in BenchWork', () => {
     const ids = PACKS.flatMap((p) => p.modules);
-    const manifests = import.meta.glob<{ id: string }>('../../modules/*/manifest.json', {
-      eager: true,
-      import: 'default',
-    });
-    const known = new Set(Object.values(manifests).map((m) => m.id));
+    const { sources, broken } = findBuiltInModules();
+    expect(broken).toEqual([]);
+    const known = new Set(sources.map((source) => source.manifest.id));
     expect(ids.filter((id) => !known.has(id))).toEqual([]);
   });
 });

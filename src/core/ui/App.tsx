@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
+import { prepareTimerAudio } from '../audio/timerSound';
 import type { PenMode } from '../settings/appSettings';
 import { FirstRunGuide } from './FirstRunGuide';
 import { useApp } from './AppStoreContext';
 import { Shell } from './Shell';
 import { Splash } from './Splash';
 import { WindowControls } from './WindowControls';
+import { StudioAmbience } from './StudioAmbience';
+import { FeedbackTools } from './FeedbackTools';
 import { applyAppearance } from './theme';
 import {
   ChooseFolder,
@@ -21,7 +24,7 @@ import {
 function blockStrayFileDrops(): () => void {
   const hasFiles = (e: DragEvent) => e.dataTransfer?.types.includes('Files') === true;
   const inEditor = (e: DragEvent) =>
-    e.target instanceof Element && e.target.closest('.page-editor') !== null;
+    e.target instanceof Element && e.target.closest('.page-editor, .notebook-tree') !== null;
   const onDragOver = (e: DragEvent) => {
     if (!hasFiles(e) || inEditor(e)) return;
     e.preventDefault();
@@ -88,6 +91,28 @@ export function App() {
   }, [appearance, theme, systemDark]);
 
   useEffect(blockStrayFileDrops, []);
+  useEffect(() => {
+    const prepare = () => {
+      if (appearance.timerSound !== 'off' && appearance.timerVolume > 0) prepareTimerAudio();
+    };
+    window.addEventListener('pointerdown', prepare, true);
+    window.addEventListener('keydown', prepare, true);
+    return () => {
+      window.removeEventListener('pointerdown', prepare, true);
+      window.removeEventListener('keydown', prepare, true);
+    };
+  }, [appearance.timerSound, appearance.timerVolume]);
+
+  useEffect(() => {
+    const update = () => {
+      document.documentElement.dataset['inactive'] = document.hidden ? 'true' : 'false';
+    };
+    update();
+    document.addEventListener('visibilitychange', update);
+    return () => {
+      document.removeEventListener('visibilitychange', update);
+    };
+  }, []);
 
   // Whether the system turns pen writing into text, as chosen in the pen tools.
   const penMode = settings.penMode;
@@ -115,6 +140,8 @@ export function App() {
   return (
     <>
       <Screen />
+      <StudioAmbience />
+      <FeedbackTools />
       {status.kind !== 'open' && (
         // Before a vault opens there is no sidebar to drag the window by.
         <>
@@ -124,7 +151,7 @@ export function App() {
       )}
       <Splash
         settingsKnown={settingsKnown || status.kind !== 'starting'}
-        enabled={appearance.startupAnimation}
+        enabled={appearance.startupAnimation && appearance.motion}
         ready={status.kind !== 'starting'}
       />
     </>

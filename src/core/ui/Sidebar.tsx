@@ -23,6 +23,9 @@ import { Logo } from './Logo';
 import { Menu } from './Menu';
 import { ModulePanels } from './ModulePanels';
 import { NotebookTree } from './NotebookTree';
+import { SidebarTools } from './SidebarTools';
+import { NotebookResize } from './NotebookResize';
+import './sidebar.css';
 import { SearchBox, SearchResults } from './SearchPanel';
 import { useFavourites, useHomeLayout, useWidgets } from './widgets';
 
@@ -64,9 +67,6 @@ export function Sidebar({
   const openToday = useApp((s) => s.openToday);
   const newCommands = useApp((s) => s.commands).filter((c) => c.places?.includes('new'));
   const runCommand = useApp((s) => s.runCommand);
-  const tools = useApp((s) => s.pageViews).filter((v) => v.tool !== undefined);
-  const moduleView = useApp((s) => s.moduleView);
-  const openModuleView = useApp((s) => s.openModuleView);
   const atHome = useApp((s) => s.atHome());
   const goHome = useApp((s) => s.goHome);
   const [newMenu, setNewMenu] = useState<{ x: number; y: number } | null>(null);
@@ -84,7 +84,7 @@ export function Sidebar({
   return (
     <nav className="sidebar" aria-label="Vault">
       <header className="sidebar-header" data-window-drag>
-        <Logo className="brand-mark" size={32} />
+        <Logo className="brand-mark" size={40} />
         <div className="brand-text">
           <span className="brand-name">BenchWork</span>
           <h1 className="vault-name" title={vault.root}>
@@ -143,27 +143,7 @@ export function Sidebar({
             <kbd>Ctrl K</kbd>
           </button>
         </li>
-        {tools.length > 0 && (
-          <li className="nav-group" aria-label="Tools">
-            <span className="nav-group-name">Tools</span>
-            <ul>
-              {tools.map((v) => (
-                <li key={v.id}>
-                  <button
-                    type="button"
-                    className="nav-item"
-                    title={v.tool?.hint}
-                    aria-pressed={moduleView?.id === v.id}
-                    onClick={() => void openModuleView(v.id)}
-                  >
-                    {v.tool?.icon}
-                    {v.title}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </li>
-        )}
+        <SidebarTools />
         {conflicts > 0 && (
           <li>
             <button
@@ -274,9 +254,10 @@ export function Sidebar({
         />
       )}
 
-      <div className="sidebar-body">
+      <div className="sidebar-body notebook-pane" style={{ flexBasis: look.notebookHeight }}>
         {results === null ? <NotebookTree /> : <SearchResults results={results} />}
       </div>
+      <NotebookResize />
       <ModulePanels />
       <LeftDock />
 

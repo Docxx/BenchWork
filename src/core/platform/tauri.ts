@@ -4,9 +4,23 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open } from '@tauri-apps/plugin-dialog';
 import { PlatformError } from './errors';
 import type {
+  NativeSyncAdapter,
+  SyncConnection,
+  SyncHostStatus,
+  SyncInvitation,
+  SyncPairing,
+  SyncReport,
+  HttpRequest,
+  HttpResponse,
   DeviceKind,
   DirEntry,
   FileInfo,
+  MaterialFiles,
+  AudienceDisplay,
+  ImportedSlides,
+  DisplayInfo,
+  FileTransfers,
+  VerifiedCopy,
   FolderBrowser,
   BackupFile,
   VaultBackups,
@@ -21,6 +35,7 @@ import type {
   WindowFrame,
 } from './types';
 import { normaliseVaultPath } from './vaultPath';
+import { nativeLabelBluetooth } from './labelBluetooth';
 
 /** Matches CHANGE_EVENT in src-tauri/src/watcher.rs. */
 const CHANGE_EVENT = 'vault-change';
@@ -40,6 +55,12 @@ async function call<T>(command: string, args?: () => Record<string, unknown>): P
 
 /** What MainActivity.kt gives the page on Android. */
 interface AndroidBridge {
+  shareLabelTemplate?(name: string, json: string): string;
+  labelBluetooth?(id: string, operation: string, payload: string): void;
+  openFeedbackEmail(subject: string, body: string): string;
+  readSyncPairing(source: string): string;
+  secureRead(key: string): string;
+  secureWrite(key: string, value: string, remove: boolean): string;
   setHandwriting(on: boolean): void;
   inkModelReady(id: string): void;
   inkPrepare(id: string): void;
@@ -195,6 +216,77 @@ function desktopFrame(): WindowFrame {
 }
 
 export class TauriAdapter implements PlatformAdapter {
+  readonly labelBluetooth = nativeLabelBluetooth();
+  async openFeedbackEmail(subject: string, body: string): Promise<void> {
+    const bridge = window.BenchWorkAndroid;
+    if (bridge) {
+      const result = JSON.parse(bridge.openFeedbackEmail(subject, body)) as { error?: string };
+      if (result.error) throw new Error(result.error);
+    } else await call<undefined>('open_feedback_email', () => ({ subject, body }));
+  }
+  readonly nativeSync: NativeSyncAdapter = {
+    localAddress: () => call<string>('native_sync_ip'),
+    start: (ip, otherSyncStopped) =>
+      call<SyncHostStatus>('native_sync_start', () => ({ ip, otherSyncStopped })),
+    stop: async () => {
+      await call('native_sync_stop');
+    },
+    status: () => call<SyncHostStatus>('native_sync_status'),
+    invitation: () => call<SyncPairing>('native_sync_invitation'),
+    exportInvitation: (text) => call<string>('native_sync_export_invitation', () => ({ text })),
+    readInvitation: (source) => {
+      if (source.startsWith('content:') && window.BenchWorkAndroid) {
+        const result = JSON.parse(window.BenchWorkAndroid.readSyncPairing(source)) as {
+          invitation?: SyncInvitation;
+          error?: string;
+        };
+        if (result.error || !result.invitation)
+          return Promise.reject(new Error(result.error ?? 'Invalid pairing file'));
+        return Promise.resolve(result.invitation);
+      }
+      return call<SyncInvitation>('native_sync_read_invitation', () => ({ source }));
+    },
+    join: (invitation, name) =>
+      call<SyncConnection>('native_sync_join', () => ({ invitation, name })),
+    sync: (connection, otherSyncStopped) =>
+      call<SyncReport>('native_sync_run', () => ({ connection, otherSyncStopped })),
+    revoke: async () => {
+      await call('native_sync_revoke');
+    },
+  };
+  readonly materials: MaterialFiles = {
+    importFile: (source, folder) =>
+      call<string>('import_material_file', () => ({ source, folder: normaliseVaultPath(folder) })),
+    importPowerPoint: (source, folder) =>
+      call<ImportedSlides>('import_powerpoint', () => ({
+        source,
+        folder: normaliseVaultPath(folder),
+      })),
+  };
+  readonly audience: AudienceDisplay | null =
+    detectKind() === 'desktop'
+      ? {
+          monitors: () => call<DisplayInfo[]>('audience_monitors'),
+          open: (frame, monitor) => call<undefined>('open_audience', () => ({ frame, monitor })),
+          update: (frame) => call<undefined>('update_audience', () => ({ frame })),
+          close: () => call<undefined>('close_audience'),
+        }
+      : null;
+  readonly fileTransfers: FileTransfers | null =
+    detectKind() === 'desktop'
+      ? {
+          pickFolder: () =>
+            this.pickFolder({ title: 'Choose a folder managed by your cloud sync app' }),
+          openFolder: (folder) => call<undefined>('open_storage_folder', () => ({ folder })),
+          openFile: (copy) => call<undefined>('open_storage_file', () => ({ copy })),
+          copy: (id, source, folder) =>
+            call<VerifiedCopy>('copy_to_storage', () => ({ id, source, folder })),
+          cancel: (id) => call<undefined>('stop_program', () => ({ id })),
+          verify: (copy) => call<undefined>('verify_storage_copy', () => ({ copy })),
+          reveal: (copy) => call<undefined>('reveal_storage_copy', () => ({ copy })),
+          recycleSource: (copy) => call<undefined>('recycle_storage_source', () => ({ copy })),
+        }
+      : null;
   readonly kind: DeviceKind = detectKind();
   readonly windowFrame: WindowFrame | null = detectKind() === 'desktop' ? desktopFrame() : null;
   readonly openInSystem: ((path: string) => Promise<void>) | null =
@@ -202,10 +294,20 @@ export class TauriAdapter implements PlatformAdapter {
       ? (path) => call<undefined>('open_vault_file', () => ({ path: normaliseVaultPath(path) }))
       : null;
   readonly folderBrowser: FolderBrowser | null = androidFolderBrowser();
+  readonly openFolderInSystem =
+    detectKind() === 'desktop'
+      ? (path: string) =>
+          call<undefined>('open_vault_folder', () => ({ path: normaliseVaultPath(path) }))
+      : null;
   readonly handwriting: HandwritingRecognizer | null = androidHandwriting();
   readonly programs: ProgramRunner | null =
     detectKind() === 'desktop'
       ? {
+          snapshotFile: (source: string, destination: string) =>
+            call<string>('snapshot_program_file', () => ({
+              source,
+              destination: normaliseVaultPath(destination),
+            })),
           run: (r) =>
             call<ProgramResult>('run_program', () => ({
               id: r.id,
@@ -230,6 +332,25 @@ export class TauriAdapter implements PlatformAdapter {
 
   setStylusHandwriting(on: boolean): void {
     window.BenchWorkAndroid?.setHandwriting(on);
+  }
+
+  microsoftRequest(request: HttpRequest): Promise<HttpResponse> {
+    return call('microsoft_request', () => ({ request }));
+  }
+  async secureRead(key: string): Promise<string | null> {
+    const bridge = window.BenchWorkAndroid;
+    if (!bridge) return call('secure_read', () => ({ key }));
+    const result = JSON.parse(bridge.secureRead(key)) as { value?: string; error?: string };
+    if (result.error) throw new Error(result.error);
+    return result.value ?? null;
+  }
+  async secureWrite(key: string, value: string | null): Promise<void> {
+    const bridge = window.BenchWorkAndroid;
+    if (!bridge) return call('secure_write', () => ({ key, value }));
+    const result = JSON.parse(bridge.secureWrite(key, value ?? '', value === null)) as {
+      error?: string;
+    };
+    if (result.error) throw new Error(result.error);
   }
 
   fetchText(url: string): Promise<string> {
@@ -387,7 +508,7 @@ export class TauriAdapter implements PlatformAdapter {
     return convertFileSrc(fullPath(this.root, normaliseVaultPath(path)));
   }
 
-  onExitRequested(handler: () => Promise<void>): () => void {
+  onExitRequested(handler: () => Promise<boolean>): () => void {
     const win = getCurrentWindow();
     let stopped = false;
     let unlisten: (() => void) | null = null;
@@ -396,9 +517,9 @@ export class TauriAdapter implements PlatformAdapter {
         // Hold the window open until the work is saved, then close it.
         event.preventDefault();
         try {
-          await handler();
-        } finally {
-          await win.destroy();
+          if (await handler()) await win.destroy();
+        } catch (err) {
+          console.error('Could not close the app safely', err);
         }
       })
       .then((fn) => {

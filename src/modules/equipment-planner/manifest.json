@@ -1,0 +1,9 @@
+{
+  "id": "equipment-planner",
+  "name": "Equipment Planner",
+  "version": "0.1.0",
+  "description": "Local equipment reservations, preparation, maintenance and clash checks",
+  "dependsOn": ["research"],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

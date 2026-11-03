@@ -1,11 +1,18 @@
+mod audience;
 mod backup;
 mod error;
 mod file_info;
 mod folders;
 mod index;
+mod label_bluetooth;
+mod label_exports;
+mod materials;
+mod microsoft;
+mod native_sync;
 mod pandoc;
 mod path_guard;
 mod programs;
+mod storage;
 mod vault_fs;
 mod vault_root;
 mod watcher;
@@ -32,6 +39,314 @@ struct VaultState {
 
 fn unavailable() -> VaultError {
     VaultError::new(ErrorKind::Io, "Vault state is unavailable")
+}
+
+fn main_window(window: &tauri::WebviewWindow) -> VaultResult<()> {
+    if window.label() != "main" {
+        return Err(VaultError::new(
+            ErrorKind::Io,
+            "This command is for the presenter window",
+        ));
+    }
+    Ok(())
+}
+
+async fn label_work<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> VaultResult<T> {
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|e| VaultError::new(ErrorKind::Io, e.to_string()))?
+        .map_err(|e| VaultError::new(ErrorKind::Io, e))
+}
+#[tauri::command]
+async fn label_export_file(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    name: String,
+    text: String,
+) -> VaultResult<String> {
+    main_window(&window)?;
+    let dir = app
+        .path()
+        .download_dir()
+        .map_err(|e| VaultError::new(ErrorKind::Io, e.to_string()))?;
+    label_work(move || {
+        label_exports::save(&dir, &name, &text).map(|path| path_guard::display_path(&path))
+    })
+    .await
+}
+#[tauri::command]
+async fn label_bluetooth_scan(
+    window: tauri::WebviewWindow,
+) -> VaultResult<Vec<label_bluetooth::PrinterDevice>> {
+    main_window(&window)?;
+    label_work(label_bluetooth::scan).await
+}
+#[tauri::command]
+async fn label_bluetooth_connect(window: tauri::WebviewWindow, id: String) -> VaultResult<()> {
+    main_window(&window)?;
+    label_work(move || label_bluetooth::connect(&id)).await
+}
+#[tauri::command]
+async fn label_bluetooth_disconnect(window: tauri::WebviewWindow) -> VaultResult<()> {
+    main_window(&window)?;
+    label_work(label_bluetooth::disconnect).await
+}
+#[tauri::command]
+async fn label_bluetooth_read(window: tauri::WebviewWindow) -> VaultResult<Vec<u8>> {
+    main_window(&window)?;
+    label_work(label_bluetooth::read).await
+}
+#[tauri::command]
+async fn label_bluetooth_write(window: tauri::WebviewWindow, bytes: Vec<u8>) -> VaultResult<()> {
+    main_window(&window)?;
+    label_work(move || label_bluetooth::write(&bytes)).await
+}
+#[tauri::command]
+async fn native_sync_start(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    state: State<'_, VaultState>,
+    sync: State<'_, native_sync::NativeSync>,
+    ip: String,
+    other_sync_stopped: bool,
+) -> Result<native_sync::HostStatus, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    sync.start(
+        state.root().map_err(|e| e.message)?,
+        app.path().app_config_dir().map_err(|e| e.to_string())?,
+        ip,
+        other_sync_stopped,
+    )
+    .await
+}
+#[tauri::command]
+async fn native_sync_stop(
+    window: tauri::WebviewWindow,
+    sync: State<'_, native_sync::NativeSync>,
+) -> Result<(), String> {
+    main_window(&window).map_err(|e| e.message)?;
+    sync.stop().await
+}
+#[tauri::command]
+fn native_sync_status(
+    window: tauri::WebviewWindow,
+    sync: State<'_, native_sync::NativeSync>,
+) -> Result<native_sync::HostStatus, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    sync.status()
+}
+#[tauri::command]
+fn native_sync_ip(window: tauri::WebviewWindow) -> Result<String, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    Ok(native_sync::local_ip())
+}
+#[tauri::command]
+fn native_sync_invitation(
+    window: tauri::WebviewWindow,
+    sync: State<'_, native_sync::NativeSync>,
+) -> Result<native_sync::Pairing, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    sync.invitation()
+}
+#[tauri::command]
+fn native_sync_revoke(
+    window: tauri::WebviewWindow,
+    sync: State<'_, native_sync::NativeSync>,
+) -> Result<(), String> {
+    main_window(&window).map_err(|e| e.message)?;
+    sync.revoke_all()
+}
+#[tauri::command]
+async fn native_sync_join(
+    window: tauri::WebviewWindow,
+    invitation: native_sync::Invitation,
+    name: String,
+) -> Result<native_sync::Connection, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    native_sync::join(invitation, name).await
+}
+#[tauri::command]
+async fn native_sync_run(
+    window: tauri::WebviewWindow,
+    state: State<'_, VaultState>,
+    sync: State<'_, native_sync::NativeSync>,
+    connection: native_sync::Connection,
+    other_sync_stopped: bool,
+) -> Result<native_sync::Report, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    sync.sync(
+        state.root().map_err(|e| e.message)?,
+        connection,
+        other_sync_stopped,
+    )
+    .await
+}
+#[tauri::command]
+fn native_sync_read_invitation(
+    window: tauri::WebviewWindow,
+    source: String,
+) -> Result<native_sync::Invitation, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    let file = std::fs::File::open(source).map_err(|_| "Cannot open the pairing file")?;
+    use std::io::Read;
+    let mut text = String::new();
+    file.take(16001)
+        .read_to_string(&mut text)
+        .map_err(|_| "Cannot read pairing details")?;
+    if text.len() > 16000 {
+        return Err("Pairing file is too large".into());
+    }
+    serde_json::from_str(&text).map_err(|_| "Choose a BenchWork pairing JSON file".into())
+}
+#[tauri::command]
+fn native_sync_export_invitation(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    text: String,
+) -> Result<String, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    if text.len() > 16000 {
+        return Err("Invalid pairing details".into());
+    }
+    let _: native_sync::Invitation =
+        serde_json::from_str(&text).map_err(|_| "Invalid pairing details")?;
+    let directory = app
+        .path()
+        .download_dir()
+        .map_err(|_| "Downloads folder unavailable")?;
+    std::fs::create_dir_all(&directory).map_err(|_| "Cannot open Downloads")?;
+    let path = directory.join(format!("BenchWork-pair-{}.json", rand::random::<u64>()));
+    use std::io::Write;
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .map_err(|_| "Cannot create pairing file")?;
+    file.write_all(text.as_bytes())
+        .and_then(|_| file.sync_all())
+        .map_err(|_| "Cannot save pairing file")?;
+    Ok(path_guard::display_path(&path))
+}
+#[tauri::command]
+async fn import_material_file(
+    source: String,
+    folder: String,
+    window: tauri::WebviewWindow,
+    state: State<'_, VaultState>,
+) -> VaultResult<String> {
+    main_window(&window)?;
+    let root = state.root()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        materials::import_file(&root, Path::new(&source), &folder)
+    })
+    .await
+    .map_err(|e| VaultError::new(ErrorKind::Io, e.to_string()))?
+}
+#[tauri::command]
+async fn import_powerpoint(
+    source: String,
+    folder: String,
+    window: tauri::WebviewWindow,
+    state: State<'_, VaultState>,
+) -> VaultResult<materials::ImportedSlides> {
+    main_window(&window)?;
+    let root = state.root()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        materials::import_powerpoint(&root, Path::new(&source), &folder)
+    })
+    .await
+    .map_err(|e| VaultError::new(ErrorKind::Io, e.to_string()))?
+}
+#[tauri::command]
+fn audience_monitors(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+) -> VaultResult<Vec<audience::DisplayInfo>> {
+    main_window(&window)?;
+    audience::monitors(&app)
+}
+#[tauri::command]
+async fn open_audience(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    frame: audience::Frame,
+    monitor: usize,
+) -> VaultResult<()> {
+    main_window(&window)?;
+    audience::open(&app, frame, monitor)
+}
+#[tauri::command]
+fn update_audience(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    frame: audience::Frame,
+) -> VaultResult<()> {
+    main_window(&window)?;
+    audience::update(&app, frame)
+}
+#[tauri::command]
+fn close_audience(app: AppHandle, window: tauri::WebviewWindow) -> VaultResult<()> {
+    main_window(&window)?;
+    audience::close(&app)
+}
+#[tauri::command]
+fn audience_ready(
+    window: tauri::WebviewWindow,
+    state: State<'_, audience::AudienceState>,
+) -> VaultResult<Option<audience::Frame>> {
+    if window.label() != "audience" {
+        return Err(unavailable());
+    }
+    Ok(state.0.lock().map_err(|_| unavailable())?.clone())
+}
+
+#[tauri::command]
+async fn copy_to_storage(
+    id: String,
+    source: String,
+    folder: String,
+    state: State<'_, VaultState>,
+) -> VaultResult<storage::VerifiedCopy> {
+    let root = state.root()?;
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    state
+        .runs
+        .lock()
+        .map_err(|_| unavailable())?
+        .insert(id.clone(), stop.clone());
+    let transfer_id = id.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        storage::copy(
+            &root,
+            Path::new(&source),
+            Path::new(&folder),
+            &transfer_id,
+            &stop,
+        )
+    })
+    .await
+    .map_err(|e| VaultError::new(ErrorKind::Io, e.to_string()));
+    state.runs.lock().map_err(|_| unavailable())?.remove(&id);
+    result?
+}
+
+#[tauri::command]
+async fn verify_storage_copy(copy: storage::VerifiedCopy) -> VaultResult<()> {
+    tauri::async_runtime::spawn_blocking(move || storage::verify(&copy))
+        .await
+        .map_err(|e| VaultError::new(ErrorKind::Io, e.to_string()))?
+}
+#[tauri::command]
+async fn reveal_storage_copy(copy: storage::VerifiedCopy) -> VaultResult<()> {
+    storage::reveal(&copy)
+}
+#[tauri::command]
+async fn recycle_storage_source(copy: storage::VerifiedCopy) -> VaultResult<()> {
+    tauri::async_runtime::spawn_blocking(move || storage::recycle_source(&copy))
+        .await
+        .map_err(|e| VaultError::new(ErrorKind::Io, e.to_string()))?
 }
 
 impl VaultState {
@@ -236,6 +551,27 @@ async fn run_program(
     result
 }
 
+/// Copies the main script into a new, size-limited vault snapshot.
+#[tauri::command]
+async fn snapshot_program_file(
+    source: String,
+    destination: String,
+    state: State<'_, VaultState>,
+) -> VaultResult<String> {
+    let root = state.root()?;
+    let full = if Path::new(&source).is_absolute() {
+        PathBuf::from(&source)
+    } else {
+        path_guard::resolve(&root, &source)?
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        vault_fs::copy_in(&root, &full, &destination, 4 * 1024 * 1024)?;
+        file_info::sha256(&path_guard::resolve(&root, &destination)?)
+    })
+    .await
+    .map_err(|e| VaultError::new(ErrorKind::Io, format!("The script snapshot failed: {e}")))?
+}
+
 /// Stops a program started with run_program.
 #[tauri::command]
 async fn stop_program(id: String, state: State<'_, VaultState>) -> VaultResult<()> {
@@ -252,10 +588,45 @@ async fn open_vault_file(path: String, state: State<'_, VaultState>) -> VaultRes
     web_link::open_file(&full)
 }
 
+#[tauri::command]
+async fn open_vault_folder(
+    window: tauri::WebviewWindow,
+    path: String,
+    state: State<'_, VaultState>,
+) -> VaultResult<()> {
+    main_window(&window)?;
+    let full = path_guard::resolve(&state.root()?, &path)?;
+    web_link::open_folder(&full)
+}
+
+#[tauri::command]
+async fn open_storage_folder(window: tauri::WebviewWindow, folder: String) -> VaultResult<()> {
+    main_window(&window)?;
+    web_link::open_folder(std::path::Path::new(&folder))
+}
+
+#[tauri::command]
+async fn open_storage_file(
+    window: tauri::WebviewWindow,
+    copy: storage::VerifiedCopy,
+) -> VaultResult<()> {
+    main_window(&window)?;
+    storage::open_file(&copy)
+}
+
 /// Opens a web address in the system's browser.
 #[tauri::command]
 async fn open_web_link(url: String) -> VaultResult<()> {
     web_link::open(&url)
+}
+#[tauri::command]
+fn open_feedback_email(
+    window: tauri::WebviewWindow,
+    subject: String,
+    body: String,
+) -> VaultResult<()> {
+    main_window(&window)?;
+    web_link::open_feedback_email(&subject, &body)
 }
 
 /// Folders inside a full path, for choosing a vault inside the app.
@@ -497,20 +868,129 @@ async fn save_app_settings(app: AppHandle, settings: serde_json::Value) -> Vault
     vault_fs::write_atomic(&path, text.as_bytes())
 }
 
+#[tauri::command]
+async fn microsoft_request(request: microsoft::Request) -> VaultResult<microsoft::Response> {
+    microsoft::request(request).await
+}
+#[tauri::command]
+async fn secure_read(app: AppHandle, key: String) -> VaultResult<Option<String>> {
+    let root = app.path().app_config_dir().map_err(|_| unavailable())?;
+    microsoft::read(&root, &key)
+}
+#[tauri::command]
+async fn secure_write(app: AppHandle, key: String, value: Option<String>) -> VaultResult<()> {
+    let root = app.path().app_config_dir().map_err(|_| unavailable())?;
+    microsoft::write(&root, &key, value)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .setup(|app| {
+            // Explicit local setup command; no remote URL or protocol handler can enable hosting.
+            let args: Vec<String> = std::env::args().collect();
+            if let Some(index) = args.iter().position(|a| a == "--host-sync-vault") {
+                let folder = args
+                    .get(index + 1)
+                    .ok_or("Pass a local vault folder after --host-sync-vault")?;
+                let root = path_guard::canonical_root(Path::new(folder))?;
+                if !root.join(".benchwork/config.json").is_file() {
+                    return Err("Choose an existing BenchWork vault".into());
+                }
+                native_sync::check_engine(&root, false).map_err(std::io::Error::other)?;
+                let config = app.path().app_config_dir()?;
+                let ip = native_sync::local_ip();
+                let sync = app.state::<native_sync::NativeSync>();
+                tauri::async_runtime::block_on(sync.start(
+                    root.clone(),
+                    config.clone(),
+                    ip.clone(),
+                    false,
+                ))
+                .map_err(std::io::Error::other)?;
+                let display = path_guard::display_path(&root);
+                let device_key = format!(
+                    "native-sync-{}",
+                    native_sync::files::hash(display.as_bytes())
+                );
+                microsoft::write(
+                    &config,
+                    &device_key,
+                    Some(serde_json::json!({"mode":"host","ip":ip}).to_string()),
+                )?;
+                let settings_file = config.join(APP_SETTINGS_FILE);
+                let mut settings: serde_json::Value = if settings_file.exists() {
+                    serde_json::from_slice(&std::fs::read(&settings_file)?)?
+                } else {
+                    serde_json::json!({})
+                };
+                settings["lastVault"] = display.into();
+                vault_fs::write_atomic(&settings_file, &serde_json::to_vec(&settings)?)?;
+                let invitation = sync.invitation().map_err(std::io::Error::other)?;
+                let downloads = app.path().download_dir()?;
+                std::fs::create_dir_all(&downloads)?;
+                let pairing_file = downloads.join(format!(
+                    "BenchWork-pair-setup-{}.json",
+                    rand::random::<u64>()
+                ));
+                use std::io::Write;
+                let mut file = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(pairing_file)?;
+                file.write_all(invitation.text.as_bytes())?;
+                file.sync_all()?;
+            }
+            Ok(())
+        })
         .plugin(tauri_plugin_dialog::init())
         .manage(VaultState::default())
+        .manage(audience::AudienceState::default())
+        .manage(native_sync::NativeSync::default())
         .invoke_handler(tauri::generate_handler![
+            native_sync_read_invitation,
+            native_sync_export_invitation,
+            native_sync_start,
+            native_sync_stop,
+            native_sync_status,
+            native_sync_ip,
+            native_sync_invitation,
+            native_sync_revoke,
+            native_sync_join,
+            native_sync_run,
+            import_material_file,
+            import_powerpoint,
+            audience_monitors,
+            open_audience,
+            update_audience,
+            close_audience,
+            audience_ready,
+            microsoft_request,
+            secure_read,
+            secure_write,
             set_vault_root,
             find_vault_root,
             list_folders,
             make_folder,
             backup_vault,
             run_program,
+            copy_to_storage,
+            verify_storage_copy,
+            reveal_storage_copy,
+            label_export_file,
+            label_bluetooth_scan,
+            label_bluetooth_connect,
+            label_bluetooth_disconnect,
+            label_bluetooth_write,
+            label_bluetooth_read,
+            open_vault_folder,
+            open_storage_folder,
+            open_storage_file,
+            recycle_storage_source,
+            snapshot_program_file,
             stop_program,
             open_web_link,
+            open_feedback_email,
             open_vault_file,
             list_backups,
             restore_backup,

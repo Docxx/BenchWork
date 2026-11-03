@@ -1,0 +1,230 @@
+.workflow-workspace {
+  display: grid;
+  grid-template-columns: minmax(190px, 260px) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+.workflow-question-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.workflow-question-board .workflow-box {
+  margin: 0;
+}
+.workflow-question-board h3 {
+  text-transform: capitalize;
+}
+.workflow-workspace > aside {
+  border-right: 1px solid var(--border);
+  padding-right: 1rem;
+  min-width: 0;
+}
+.workflow-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.workflow-toolbar h2 {
+  margin: 0;
+  flex: 1;
+  font-family: var(--font-heading);
+}
+.workflow-toolbar input {
+  min-width: 0;
+  max-width: 100%;
+}
+button.workflow-list-item {
+  display: grid;
+  gap: 0.35rem;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 0.5rem;
+  padding: 0.75rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+button.workflow-list-item[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.workflow-list-item span {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.workflow-detail {
+  min-width: 0;
+}
+.workflow-workspace button.link-button,
+.workflow-question-board button.link-button {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  padding: 0;
+  text-align: left;
+}
+.workflow-form {
+  display: grid;
+  gap: 1rem;
+  max-width: 50rem;
+}
+.workflow-form > label {
+  display: grid;
+  gap: 0.4rem;
+}
+.workflow-form textarea {
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+}
+.workflow-form input,
+.workflow-form select {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.workflow-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.workflow-summary dt {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+.workflow-summary dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.workflow-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.workflow-links select {
+  max-width: 100%;
+}
+.workflow-chip {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  background: var(--accent-soft);
+}
+.workflow-chip button {
+  padding: 0 0.3rem;
+  min-height: 28px;
+  background: transparent;
+  color: var(--text);
+}
+.workflow-related {
+  padding: 0;
+  list-style: none;
+}
+.workflow-related li {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding: 0.5rem 0;
+}
+.workflow-box {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+  background: var(--surface);
+}
+.workflow-box h3 {
+  margin-top: 0;
+}
+.workflow-box label {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+.workflow-box textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 80px;
+}
+.workflow-box .choice {
+  display: flex;
+  align-items: center;
+}
+.workflow-steps {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.workflow-step {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.workflow-step.done {
+  border-color: var(--accent);
+}
+.workflow-step-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.workflow-step-head strong {
+  flex: 1;
+  min-width: 120px;
+}
+.workflow-step-editor {
+  display: grid;
+  grid-template-columns: 1fr 100px 100px;
+  gap: 0.5rem;
+}
+.workflow-step-editor label {
+  font-size: 0.8rem;
+}
+.workflow-step-editor input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.workflow-error {
+  color: var(--warn-text);
+  background: var(--warn-bg);
+  padding: 0.75rem;
+}
+.workflow-review table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.workflow-review th,
+.workflow-review td {
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  padding: 0.5rem;
+}
+@media (max-width: 760px) {
+  .workflow-workspace {
+    grid-template-columns: 1fr;
+  }
+  .workflow-workspace > aside {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 0 0 1rem;
+  }
+  .workflow-step-editor {
+    grid-template-columns: 1fr 1fr;
+  }
+  .workflow-step-editor > label:first-child {
+    grid-column: 1/-1;
+  }
+}

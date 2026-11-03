@@ -48,6 +48,20 @@ async function settle(): Promise<void> {
 }
 
 describe('NotebookTree', () => {
+  it('shows a folder path for manual copying if the clipboard API is unavailable', async () => {
+    await renderSidebar();
+    const previous = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+    try {
+      fireEvent.contextMenu(item('LPS model'));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Copy folder path' }));
+      await settle();
+      expect(screen.getByRole('status').textContent).toContain('C:/Vault/LPS model');
+    } finally {
+      if (previous) Object.defineProperty(navigator, 'clipboard', previous);
+      else Reflect.deleteProperty(navigator, 'clipboard');
+    }
+  });
   it('shows notebooks, pages and data files, without .md or reserved folders', async () => {
     await renderSidebar();
     expect(names()).toEqual(['Archive', 'LPS model', 'readme']);
@@ -159,6 +173,8 @@ describe('NotebookTree', () => {
     const target = item('Archive');
     const data = new Map<string, string>();
     const dataTransfer = {
+      types: ['application/x-benchwork-path'],
+      files: [],
       setData: (type: string, value: string) => data.set(type, value),
       getData: (type: string) => data.get(type) ?? '',
       effectAllowed: 'move',

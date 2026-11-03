@@ -60,6 +60,11 @@ export function createSearchSlice(ctx: StoreContext): SearchSlice {
         tag === undefined
           ? await service.search(query, SEARCH_LIMIT)
           : await service.tagged(tag, SEARCH_LIMIT);
+      if (tag !== undefined) {
+        const documents = await get().documentTagHits(tag);
+        const paths = new Set(hits.map((hit) => hit.path));
+        hits = [...hits, ...documents.filter((hit) => !paths.has(hit.path))].slice(0, SEARCH_LIMIT);
+      }
     } catch {
       hits = [];
     }

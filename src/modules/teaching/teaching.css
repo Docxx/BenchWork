@@ -1,0 +1,241 @@
+.teaching-workspace {
+  container-type: inline-size;
+  width: 100%;
+  padding: clamp(16px, 2vw, 32px);
+  overflow: auto;
+}
+
+.teaching-heading,
+.teaching-toolbar,
+.teaching-fields {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.teaching-heading {
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.teaching-heading h1 {
+  margin: 4px 0;
+}
+.teaching-heading nav {
+  display: flex;
+  gap: 6px;
+}
+.teaching-eyebrow {
+  letter-spacing: 0.18em;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.teaching-toolbar {
+  margin: 12px 0;
+}
+.teaching-workspace button {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.teaching-workspace button[aria-pressed='true'],
+.teaching-sequence button[aria-current='step'] {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  border-color: var(--accent);
+}
+.teaching-workspace button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.teaching-workspace label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.85rem;
+  flex: 1;
+}
+.teaching-workspace input,
+.teaching-workspace select,
+.teaching-workspace textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px;
+  min-width: 0;
+  max-width: 100%;
+}
+.teaching-workspace input[type='checkbox'],
+.teaching-workspace input[type='color'] {
+  flex: none;
+  width: 50px;
+}
+.teaching-workspace textarea {
+  width: 100%;
+  resize: vertical;
+}
+.teaching-layout {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr) minmax(230px, 290px);
+  align-items: start;
+  gap: 20px;
+}
+.teaching-main,
+.teaching-private {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.teaching-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+}
+.teaching-card h2,
+.teaching-sequence h2 {
+  font-size: 0.95rem;
+  margin: 0 0 12px;
+}
+.teaching-card small {
+  display: block;
+  margin-top: 10px;
+  color: var(--muted);
+}
+.teaching-sequence {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 78vh;
+  overflow: auto;
+}
+.teaching-sequence button {
+  display: flex;
+  gap: 10px;
+  text-align: left;
+  align-items: start;
+}
+.teaching-sequence button span {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.teaching-sequence small {
+  display: block;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.teaching-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.teaching-stage {
+  position: relative;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 12px 36px #0002;
+}
+.teaching-stage.is-drawing {
+  touch-action: none;
+  cursor: crosshair;
+}
+.teaching-stage img {
+  pointer-events: none;
+}
+.teaching-muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+.teaching-clock {
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+}
+.teaching-workspace [role='alert'] {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  padding: 12px;
+  border-radius: 8px;
+}
+@media (min-width: 1800px) {
+  .teaching-layout {
+    grid-template-columns: 220px minmax(0, 1fr) 340px;
+  }
+}
+@media (max-width: 1100px) {
+  .teaching-layout {
+    grid-template-columns: 150px minmax(0, 1fr);
+  }
+  .teaching-private {
+    grid-column: 2;
+  }
+}
+@media (max-width: 650px) {
+  .teaching-layout {
+    display: flex;
+    flex-direction: column;
+  }
+  .teaching-sequence {
+    flex-direction: row;
+    width: 100%;
+    max-height: 130px;
+  }
+  .teaching-sequence h2 {
+    display: none;
+  }
+  .teaching-sequence button {
+    min-width: 150px;
+  }
+  .teaching-main,
+  .teaching-private {
+    width: 100%;
+  }
+}
+
+.teaching-workspace input[type='color'] {
+  height: 40px;
+  padding: 4px;
+}
+.teaching-fields label:has(input[type='checkbox']) {
+  flex-direction: row;
+  align-items: center;
+}
+.teaching-workspace input[type='checkbox'] {
+  width: 20px;
+}
+
+@container (max-width: 950px) {
+  .teaching-layout {
+    grid-template-columns: 150px minmax(0, 1fr);
+  }
+  .teaching-private {
+    grid-column: 2;
+  }
+}
+@container (max-width: 580px) {
+  .teaching-layout {
+    display: flex;
+    flex-direction: column;
+  }
+  .teaching-sequence {
+    flex-direction: row;
+    width: 100%;
+    max-height: 130px;
+  }
+  .teaching-sequence h2 {
+    display: none;
+  }
+  .teaching-sequence button {
+    min-width: 150px;
+  }
+  .teaching-main,
+  .teaching-private {
+    width: 100%;
+  }
+}

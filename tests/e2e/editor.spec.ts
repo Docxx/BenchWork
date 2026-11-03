@@ -52,6 +52,39 @@ test('opens a page without showing Markdown', async ({ page }) => {
   expect(await file(page, 'Lab/Plan.md')).toBe(PLAN);
 });
 
+test('keeps unsaved edits visible when navigation fails and offers a save retry', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    const memory = window.__benchworkMemory;
+    if (!memory) throw new Error('Missing memory adapter');
+    const write = memory.writeTextAtomic.bind(memory);
+    memory.writeTextAtomic = () => Promise.reject(new Error('Disk full'));
+    window.addEventListener(
+      'restore-writes',
+      () => {
+        memory.writeTextAtomic = write;
+      },
+      { once: true },
+    );
+  });
+  await clickInto(editor(page).locator('p').last());
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Research that must survive.');
+  await expect(page.getByRole('alert')).toContainText('Disk full');
+  await tree(page).getByRole('treeitem', { name: 'Other' }).click();
+  await expect(page.getByRole('textbox', { name: 'Page title' })).toHaveValue('Plan');
+  await expect(editor(page)).toContainText('Research that must survive.');
+  expect(await file(page, 'Lab/Plan.md')).toBe(PLAN);
+  await page.evaluate(() => window.dispatchEvent(new Event('restore-writes')));
+  await page.getByRole('button', { name: 'Retry save' }).click();
+  await expect.poll(() => file(page, 'Lab/Plan.md')).toContain('Research that must survive.');
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+  await tree(page).getByRole('treeitem', { name: 'Other' }).click();
+  await expect(page.getByRole('textbox', { name: 'Page title' })).toHaveValue('Other');
+});
+
 test('autosaves typing, leaving untouched blocks exactly as written', async ({ page }) => {
   await clickInto(editor(page).locator('p').last());
   await page.keyboard.press('End');

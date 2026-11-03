@@ -1,0 +1,73 @@
+.desktop-sync-settings {
+  max-width: 1200px;
+}
+.desktop-sync-settings header {
+  margin-bottom: 24px;
+}
+.desktop-sync-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+  margin: 20px 0;
+}
+.desktop-sync-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  min-width: 0;
+}
+.desktop-sync-step {
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+}
+.desktop-sync-card label:not(.choice) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 16px 0;
+}
+.desktop-sync-card input:not([type='checkbox']),
+.desktop-sync-card textarea {
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 8px;
+  max-width: 100%;
+  width: 100%;
+}
+.desktop-sync-card button {
+  margin: 8px 8px 8px 0;
+}
+.desktop-sync-card details {
+  margin: 16px 0;
+}
+.desktop-sync-card textarea {
+  resize: vertical;
+}
+.desktop-sync-endpoint {
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+.desktop-sync-pairing img {
+  width: 100%;
+  max-width: 330px;
+  border: 12px solid white;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+.desktop-sync-settings li {
+  overflow-wrap: anywhere;
+}
+.desktop-sync-settings > [role='status'] {
+  border-left: 3px solid var(--accent);
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .desktop-sync-grid {
+    grid-template-columns: 1fr;
+  }
+}

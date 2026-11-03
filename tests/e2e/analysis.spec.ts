@@ -26,7 +26,10 @@ test('a script is added, run on a dataset, and its results kept with the dataset
     const memory = window.__benchworkMemory;
     if (!memory) throw new Error('Run Playwright with VITE_PLATFORM=memory');
     memory.addFolder('C:/Vault', files);
+    memory.addExternalFile('C:\\Scripts\\buzzz.py', 'print("Buzzz")\n');
     memory.usePrograms(async (run, vault) => {
+      if (run.args[0]?.value === '--version')
+        return { code: 0, stdout: 'Python test runtime', stderr: '', stopped: false };
       const output = run.args.at(-1)?.value ?? '';
       const inputs = run.args.filter((a) => a.kind === 'vault').map((a) => a.value);
       await vault.writeTextAtomic(`${output}/climbing.csv`, 'fly,mean\n1,4\n');

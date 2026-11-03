@@ -172,7 +172,7 @@ MyVault/
 **Sync, in two stages**
 
 1. **Folder sync (phase 4):** the vault syncs between PC and Android tablet with Syncthing. The app excludes `index.sqlite`, detects conflict copies created by the sync service and offers a side-by-side merge.
-2. **Native sync (phase 7):** a small sync service using the Yjs documents for conflict-free merging of edits and ink strokes, with end-to-end encryption; then live co-editing with accounts. Self-hosted or a low-cost cloud host.
+2. **Native sync (phase 7):** begin with a desktop-hosted local HTTPS service for saved vault files, authenticated device pairing and preserve-both conflict handling. The PC stays awake with BenchWork running; Android reconnects while the app runs. Hidden/device-local files and large datasets are excluded. This first transport keeps ordinary files authoritative and does not claim CRDT merging. Next, add durable Yjs history and reviewed end-to-end encrypted envelopes before a cloud relay, followed by live co-editing and accounts. See [Desktop Sync](docs/desktop-sync.md) and the [history and encryption proposal](docs/phase7-sync-design.md).
 
 **Large data:** raw imaging, DAM and video files stay on lab or university storage. The vault holds a dataset record with path, checksum and metadata, so notes link to data without copying it into sync.
 
@@ -259,6 +259,16 @@ Propose the folder structure and the module API before writing code.
 ```
 
 ## Risks and open decisions
+
+### Research workflow expansion, 31 October 2026
+
+Ray requested an Experiment Hub and all five connected additions: Protocol Runner,
+Sample Tracker, Equipment Planner, Research Questions and Meeting Organiser, before
+native sync. Their files, module boundaries and review-first planning behaviour
+are documented in [research-workflows.md](docs/research-workflows.md).
+The Research pack includes the new modules. Existing vaults enable them explicitly;
+turning a module off leaves its records intact. Equipment reservations are local
+plans and do not submit bookings to outside systems.
 
 The two biggest risks are sync conflicts and ink responsiveness on tablets; both are deferred to phase 4 or later so the core is usable first.
 

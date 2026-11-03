@@ -18,6 +18,19 @@ async function setup() {
 }
 
 describe('module context', () => {
+  it('publishes PDF reading actions and removes them when the provider is disabled', async () => {
+    const { ctx, handle } = await setup();
+    const listener = vi.fn();
+    ctx.reading.subscribe(listener);
+    ctx.reading.register({ id: 'hello.capture', title: 'Capture', run: () => undefined });
+    expect(ctx.reading.actions()).toHaveLength(1);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(() => ctx.reading.register({ id: 'wrong', title: 'x', run: () => undefined })).toThrow(
+      'must start',
+    );
+    handle.dispose();
+    expect(ctx.reading.actions()).toHaveLength(0);
+  });
   it('adds and removes sidebar panels', async () => {
     const { contributions, ctx } = await setup();
     const panel = ctx.views.registerSidebarPanel({
@@ -180,5 +193,23 @@ describe('module context: Phase 2 extension points', () => {
   it('says so when the app is not connected yet', async () => {
     const { ctx } = await setup();
     await expect(Promise.resolve().then(() => ctx.app.items())).rejects.toThrow('not ready');
+  });
+  it('keeps device JSON separate from vault files and refuses private storage paths', async () => {
+    const { ctx, platform } = await setup();
+    await ctx.deviceStorage.write('account.json', { token: 'test-only' });
+    expect(await ctx.deviceStorage.read('account.json')).toEqual({ token: 'test-only' });
+    expect(await platform.exists('.benchwork/modules/hello/account.json')).toBe(false);
+    await expect(ctx.deviceStorage.read('../account.json')).rejects.toThrow('plain storage');
+    await ctx.deviceStorage.remove('account.json');
+    expect(await ctx.deviceStorage.read('account.json')).toBeNull();
+  });
+  it('requires declared Microsoft hosts for authenticated module requests', async () => {
+    const { ctx, platform } = await setup();
+    const handler = vi.fn();
+    platform.httpHandler = handler;
+    await expect(
+      ctx.web.request({ url: 'https://graph.microsoft.com/v1.0/me', method: 'GET' }),
+    ).rejects.toThrow('not allowed');
+    expect(handler).not.toHaveBeenCalled();
   });
 });

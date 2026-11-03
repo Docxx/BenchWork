@@ -10,6 +10,30 @@ import {
 } from './appearance';
 
 describe('appearance settings', () => {
+  it('bounds notebook sizing and preserves the chosen tool and row preferences', () => {
+    expect(
+      parseAppearance({ notebookHeight: 3000, toolsCollapsed: true, treeDensity: 'compact' }),
+    ).toMatchObject({ notebookHeight: 900, toolsCollapsed: true, treeDensity: 'compact' });
+    expect(parseAppearance({ notebookHeight: -1 }).notebookHeight).toBe(140);
+    expect(parseAppearance({ notebookHeight: NaN }).notebookHeight).toBe(360);
+    expect(defaultAppearance().treeDensity).toBe('roomy');
+  });
+  it('migrates old settings and bounds the atmosphere and sound controls', () => {
+    expect(parseAppearance({ preset: 'bridge' })).toMatchObject({
+      decoration: true,
+      motion: true,
+      timerSound: 'theme',
+      timerVolume: 35,
+    });
+    expect(
+      parseAppearance({ decoration: false, motion: false, timerSound: 'off', timerVolume: 500 }),
+    ).toMatchObject({ decoration: false, motion: false, timerSound: 'off', timerVolume: 100 });
+    expect(parseAppearance({ timerSound: 'bad', timerVolume: NaN })).toMatchObject({
+      timerSound: 'theme',
+      timerVolume: 35,
+    });
+    expect(parseAppearance({ timerVolume: -1 }).timerVolume).toBe(0);
+  });
   it('starts with the Forest look: serif pages, a dark sidebar', () => {
     const tokens = appearanceTokens(defaultAppearance(), 'light');
     expect(tokens['--bg']).toBe('#f8f7f3');

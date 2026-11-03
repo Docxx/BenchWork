@@ -66,6 +66,7 @@ test('cards are dragged and resized while editing, then stay put', async ({ page
 
   // Drag Reminders by its heading to the top left.
   const reminders = home.getByRole('region', { name: 'Reminders' });
+  await reminders.getByRole('heading').scrollIntoViewIfNeeded();
   const from = await reminders.getByRole('heading').boundingBox();
   const to = await home.getByRole('region', { name: 'Today', exact: true }).boundingBox();
   if (!from || !to) throw new Error('Cards not drawn');

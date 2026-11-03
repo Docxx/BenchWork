@@ -1,0 +1,9 @@
+{
+  "id": "theme-studio",
+  "name": "Theme Studio",
+  "version": "0.1.0",
+  "description": "Personal, teaching and presentation appearance profiles, local media and shareable theme packs",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

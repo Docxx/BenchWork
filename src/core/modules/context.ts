@@ -14,9 +14,13 @@ import {
 import { VAULT_DIR } from '../vault/vaultConfig';
 import type { Contributions, ContributionsState } from './contributions';
 import type { ModuleManifest } from './manifest';
+import { defaultAppearance, type Appearance } from '../settings/appearance';
 
 /** What the app gives modules: ModuleApp, plus the open vault's full path. */
 export interface AppBridge extends ModuleApp {
+  appearance?(): Appearance;
+  applyAppearance?(value: Appearance): Promise<void>;
+  pdfPage?(path: string): number | null;
   vaultRoot(): string | null;
   /** The pen tools, filters and module tools, for a writing surface a module attaches. */
   inkHooks(): Omit<SurfaceHooks, 'onChange'>;
@@ -34,6 +38,8 @@ export interface ContextDeps {
 
 /** Lists in ContributionsState that hold registered items. */
 type ListKey =
+  | 'readingActions'
+  | 'timerProviders'
   | 'panels'
   | 'pageTypes'
   | 'commands'
@@ -126,6 +132,11 @@ export function createModuleContext(
     }
   }
 
+  function deviceKey(name: string): string {
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}$/.test(name))
+      throw new Error('Use a plain storage name');
+    return `${id}.${name}`;
+  }
   function app(): AppBridge {
     const bridge = deps.app?.() ?? null;
     if (bridge === null) throw new Error('The app is not ready yet');
@@ -133,6 +144,55 @@ export function createModuleContext(
   }
 
   const ctx: ModuleContext = {
+    appearance: {
+      current: () => app().appearance?.() ?? defaultAppearance(),
+      apply: (value) => {
+        const bridge = app();
+        if (!bridge.applyAppearance)
+          return Promise.reject(new Error('Appearance settings are unavailable'));
+        return bridge.applyAppearance(value);
+      },
+    },
+    labelBluetooth: deps.platform.labelBluetooth ?? null,
+    audience: deps.device === 'desktop' ? (deps.platform.audience ?? null) : null,
+    fileTransfers: deps.device === 'desktop' ? (deps.platform.fileTransfers ?? null) : null,
+    reading: {
+      register(spec) {
+        checkId('Reading action', spec.id);
+        return contribute(
+          'readingActions',
+          { ...spec, moduleId: id },
+          (p) => p.id === spec.id,
+          `Reading action '${spec.id}'`,
+        );
+      },
+      actions: () => deps.contributions.getState().readingActions,
+      subscribe: (listener) =>
+        track(
+          deps.contributions.subscribe((next, prev) => {
+            if (next.readingActions !== prev.readingActions) listener();
+          }),
+        ),
+      page: (path) => app().pdfPage?.(path) ?? null,
+    },
+    timers: {
+      register(spec) {
+        checkId('Timer provider', spec.id);
+        return contribute(
+          'timerProviders',
+          { ...spec, moduleId: id },
+          (p) => p.id === spec.id,
+          `A timer provider with id '${spec.id}'`,
+        );
+      },
+      start(name, milliseconds) {
+        if (!Number.isFinite(milliseconds) || milliseconds <= 0) return false;
+        const provider = deps.contributions.getState().timerProviders[0];
+        if (!provider) return false;
+        provider.start(name, milliseconds);
+        return true;
+      },
+    },
     manifest,
     platform: deps.device,
     log,
@@ -193,7 +253,31 @@ export function createModuleContext(
       },
     },
     programs: deps.platform.programs,
+    deviceStorage: {
+      read: async <T>(name: string): Promise<T | null> => {
+        const value = await deps.platform.secureRead(deviceKey(name));
+        return value === null ? null : (JSON.parse(value) as T);
+      },
+      write: async (name, data) => {
+        await deps.platform.secureWrite(deviceKey(name), JSON.stringify(data));
+      },
+      remove: async (name) => {
+        await deps.platform.secureWrite(deviceKey(name), null);
+      },
+    },
     web: {
+      request: async (request) => {
+        const url = new URL(request.url);
+        if (
+          url.protocol !== 'https:' ||
+          url.username ||
+          url.password ||
+          url.port ||
+          !manifest.network.includes(url.hostname)
+        )
+          throw new Error('This network address is not allowed by the module');
+        return deps.platform.microsoftRequest(request);
+      },
       getText: async (url) => {
         let host: string;
         try {
@@ -311,6 +395,16 @@ export function createModuleContext(
       },
     },
     files: {
+      importFile: (source, folder) => {
+        if (!deps.platform.materials)
+          return Promise.reject(new Error('Import files from the desktop app.'));
+        return deps.platform.materials.importFile(source, folder);
+      },
+      importPowerPoint: (source, folder) => {
+        if (!deps.platform.materials)
+          return Promise.reject(new Error('Import PowerPoint files from the desktop app.'));
+        return deps.platform.materials.importPowerPoint(source, folder);
+      },
       openPdf: (bytes) => openPdf(bytes),
       register(spec) {
         checkId('File handler', spec.id);
@@ -370,6 +464,7 @@ export function createModuleContext(
       },
     },
     app: {
+      graph: () => app().graph(),
       open: (path, options) => app().open(path, options),
       createFolder: (folder, title) => app().createFolder(folder, title),
       createPage: (folder, title, type, content) => app().createPage(folder, title, type, content),
@@ -391,6 +486,9 @@ export function createModuleContext(
       askText: (options) => app().askText(options),
       notify: (message) => {
         app().notify(message);
+      },
+      timerAlert: () => {
+        app().timerAlert();
       },
       items: () => app().items(),
       linksTo: (path) => app().linksTo(path),

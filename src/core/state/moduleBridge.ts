@@ -1,10 +1,12 @@
 import type { VaultItem } from '../api';
+import { playTimerSound } from '../audio/timerSound';
 import { linkTargetFor, resolveLink, suffixKeys } from '../links/resolve';
 import { dayOf } from '../pages/daily';
 import type { AppBridge } from '../modules/context';
 import { pageProperties, parsePage, serialisePage, updateProperties } from '../pages/frontmatter';
 import type { PageRef, PlatformAdapter } from '../platform';
 import type { AppStore } from './appStore';
+import { parseAppearance } from '../settings/appearance';
 
 function item(ref: PageRef): VaultItem {
   return { path: ref.path, title: ref.title, type: ref.type, changed: ref.mtime ?? null };
@@ -22,6 +24,18 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
   }
 
   return {
+    appearance: () => state().settings.appearance,
+    applyAppearance: async (value) => {
+      await state().setAppearance(parseAppearance(value));
+      if (state().settingsError)
+        throw new Error(state().settingsError ?? 'Appearance could not be saved');
+    },
+    pdfPage: (path) => {
+      const s = state();
+      const match = s.openFile === path ? /^page=(\d+)$/.exec(s.revealHeading ?? '') : null;
+      return match ? Math.max(1, Number(match[1])) : null;
+    },
+    graph: () => state().vaultGraph(),
     inkHooks: () => ({
       settings: () => state().pen,
       onPen: () => {
@@ -79,7 +93,11 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
       await source.move(key, start, end);
     },
     appendToPage: async (path, markdown) => {
-      if (state().page?.path === path) await state().savePageNow();
+      if (state().page?.path === path) {
+        await state().savePageNow();
+        if (state().saveState !== 'saved' || state().pageConflict)
+          throw new Error('Save the current page before adding linked content.');
+      }
       const text = await platform.readText(path);
       const line = markdown.endsWith('\n') ? markdown : `${markdown}\n`;
       const gap = text === '' || text.endsWith('\n') ? '' : '\n';
@@ -98,8 +116,12 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
     setPageProperties: async (path, changes) => {
       // The open page changes through the editor's session, so nothing is lost.
       if (state().page?.path === path) {
+        if (state().pageConflict)
+          throw new Error('Resolve the page conflict before changing properties.');
         state().setPageProperties(changes);
         await state().savePageNow();
+        if (state().saveState !== 'saved')
+          throw new Error('The page properties could not be saved.');
         return;
       }
       const page = parsePage(await platform.readText(path));
@@ -108,6 +130,9 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
     askText: (options) => state().askText(options),
     notify: (message) => {
       store.setState({ sidebarNotice: message });
+    },
+    timerAlert: () => {
+      void playTimerSound(state().settings.appearance);
     },
     items: async () => (await pages()).map(item),
     linksTo: async (path) => {

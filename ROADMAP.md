@@ -129,6 +129,116 @@ Planned 31 Oct 2026, released as 0.11.0.
 
 ## Phase 7: Own sync and co-editing
 
+### Research workflow additions requested 31 October 2026 (0.12.0)
+
+- [x] Experiment Hub with connected plans, notes, records, datasets and conclusions
+- [x] Protocol Runner with reusable steps, timers, deviations, repeat/carry-forward, comparison and reviewed date changes
+- [x] Sample Tracker with lineage, storage, treatments and aliquots
+- [x] Equipment Planner with local reservations, clashes, suggestions and maintenance dates
+- [x] Research Questions board linking hypotheses, evidence and next experiments
+- [x] Meeting Organiser with linked agendas, decisions and deduplicated follow-up tasks
+- [ ] Real tablet and week-of-lab-work acceptance check for the connected workflow
+
+See [workflow design and data](docs/research-workflows.md). New modules can be
+enabled separately, or together with the Research pack. Schedule changes require
+review; equipment reservations are local to the vault.
+
+### Workspace and branding (0.13.0)
+
+- [x] Full-width responsive Home and previews, quieter Home editing, optional full-width notes
+- [x] Larger lab calculators and visible side-docking controls for tools
+- [x] Note and document tags with tag search, plus a customisable knowledge graph ([guide](docs/knowledge-graph.md))
+
+- [x] Open Record identity: shared vector notebook mark, blue and magenta inks, academic wordmark, startup writing animation, favicon and regenerated desktop/tablet app icons ([assets and rebuilding](docs/branding.md))
+
+### Outlook module (0.14.0)
+
+- [x] Microsoft 365 mail and calendar UI, explicit sending/replies, drafts and attachment exports
+- [x] Delegated device-code sign-in, token renewal and device-local encrypted recent cache
+- [x] Windows DPAPI and Android Keystore storage, constrained Microsoft HTTPS and sanitised email rendering
+- [ ] University IT app registration / consent and live-account acceptance check
+
+See [Outlook setup and scope](docs/outlook.md).
+
+### Connected reading, analysis and writing (0.14.0)
+
+- [x] Reading desk with PDF excerpt actions, source-linked evidence notes and Zotero citation choices
+- [x] Python/R presets and parameters, unique run folders, script snapshots, file hashes and persistent run history
+- [x] Writing workspace for paper/thesis sections, aims, status, word targets and linked evidence/results
+- [ ] Real Python/R environment and tablet acceptance checks for the connected workflow
+
+See [workflow scope and data](docs/reading-analysis-writing.md).
+
+### Code maintenance
+
+- [x] Split Outlook, analysis setup and writing section forms into focused components; isolate email rendering helpers
+- [x] Remove obsolete Gantt build settings, refresh comments and fix page-history React keys and the Android Pandoc warning
+- [x] Keep writing sections and evidence choices current when file indexing catches up
+
+### Workspace refinements and Cloud storage
+
+- [x] Home calendar with saved month/week/agenda, density, weekday, colour and marker preferences
+- [x] Reading desk papers-folder selection, subfolder control and library search
+- [x] Knowledge graph separated groups, deduplicated connections, label collision handling, filters and presets
+- [x] Categorised module settings with search and status filters
+- [x] Cloud folder connections, chunked verified copies, linked records and explicit local-space management
+- [ ] Live provider sync and large-dataset acceptance check
+
+- [x] Collapsible searchable Tools list, larger notebook rows and adjustable notebook area
+- [x] Direct notebook file drops and Add files, with large-file choices and duplicate preservation
+- [x] Notebook folder Explorer actions and clearer cloud data-folder and stored-file access
+
+See [workspace options](docs/workspace-customisation.md) and [Cloud storage](docs/cloud-storage.md).
+
+### Teaching and Creative pack
+
+- [x] Lesson Studio with reusable sequences and PDF, image, note and static PowerPoint imports
+- [x] Presenter Desk with public-only audience display, private notes and reveals
+- [x] Rehearsal Room with section timings, bookmarks and saved practice notes
+- [x] Study Arcade with personal image quizzes, flashcards and practice history
+- [x] Theme Studio with local media, optional motion, named profiles and theme packs
+- [ ] Desktop projector and tablet acceptance checks
+
+See [Teaching and Creative guide](docs/teaching-creative.md).
+
+### Label Studio
+
+- [x] Windows B3S Bluetooth discovery, identity query and a single acknowledged calibration print
+- [x] User-verified 50 × 15 mm stacked-pair calibration: gap 0, vertical offset −0.75 mm
+- [x] Shared designer, templates, QR/barcodes, images and spreadsheet/inventory batches
+- [x] Simplified Design, Library, Batch data and Printer settings views; live dates, drag resizing and searchable saved-label previews
+- [x] Off-edge label alignment, neutral selection grip, smooth editor previews and offline font choices
+- [x] Save as variations and portable lab illustration collection
+- [x] Brighter label companion styling and larger, full-width phone library previews
+- [x] Canvas-adjacent text editing, copy/delete with undo, compact phone editor and extended styling controls
+- [x] Label library folders, bulk moves and portable packs with embedded media and saved field values
+- [x] BenchWork-to-phone export/import preserving the phone calibration for matching paper
+- [x] Remembered native printer auto-reconnection, with pause during printing and explicit opt-out
+- [x] Lightweight standalone Android companion and portable BenchWork label files
+- [ ] Automatic companion library synchronisation with the desktop
+- [x] Installed Samsung S26 companion, real Bluetooth classic printing and user-confirmed phone calibration
+- [ ] Native tablet Bluetooth acceptance check
+
+See [Label Studio and calibration](docs/label-studio.md).
+
+### Preview testing and feedback (0.15.0)
+
+- [x] Visible temporary feedback toolbar with per-device hiding and a finished-build off switch
+- [x] Reviewed email drafts to the feedback inbox, optional app details and copy-report fallback
+- [x] Manual latest-installer link, build identification and preview-sharing instructions
+- [x] Publish the first downloadable preview release after review ([0.15.0](https://github.com/Docxx/BenchWork/releases/tag/v0.15.0))
+
+See [preview testing](docs/preview-testing.md).
+
+### Sync work
+
+- [x] Desktop-hosted local HTTPS file sync, certificate-based pairing, device revocation and offline reconnects ([guide](docs/desktop-sync.md))
+- [x] Preserve concurrent file versions and deletion/edit conflicts, with local recovery snapshots
+- [ ] Native desktop-to-tablet local-network acceptance check
+
+- [x] Theme atmosphere: stronger fun themes, decorative scenes, optional motion and themed timer cues with volume, preview and silent mode ([guide](docs/themes.md))
+- [x] Save-failure recovery: keep edits open when navigation or shutdown cannot save them, with a retry action and regression tests
+- [x] Draft sync design review ([proposal](docs/phase7-sync-design.md)); protocol decisions still need review
 - [ ] Native CRDT sync (Yjs) with end-to-end encryption, without Syncthing
 - [ ] Live co-editing with accounts
 - [ ] Choose the server host (self-hosted or a low-cost cloud host)

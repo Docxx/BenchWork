@@ -1,0 +1,9 @@
+{
+  "id": "sample-tracker",
+  "name": "Sample Tracker",
+  "version": "0.1.0",
+  "description": "Sample lineage, treatments, storage and linked measurements",
+  "dependsOn": ["research"],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

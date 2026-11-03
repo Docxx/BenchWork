@@ -276,13 +276,15 @@ export class ModuleRegistry {
 
   private async stop(id: string): Promise<void> {
     const running = this.running.get(id);
-    this.running.delete(id);
     if (running) {
       try {
         await running.definition.deactivate?.();
       } catch (err) {
         running.handle.ctx.log.error('Error while switching off:', err);
+        this.update(id, { error: `Could not finish saving. ${message(err)}` });
+        throw err;
       }
+      this.running.delete(id);
       running.handle.dispose();
     }
     const info = this.get(id);

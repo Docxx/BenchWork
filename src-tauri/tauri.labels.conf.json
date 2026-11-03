@@ -1,0 +1,23 @@
+{
+  "productName": "BenchWork Labels",
+  "version": "0.16.1",
+  "identifier": "app.benchwork.labels",
+  "build": {
+    "frontendDist": "../dist-labels"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "BenchWork Label Studio",
+        "url": "labels.html",
+        "width": 1100,
+        "height": 800,
+        "minWidth": 360,
+        "minHeight": 480,
+        "decorations": true,
+        "dragDropEnabled": false
+      }
+    ]
+  }
+}

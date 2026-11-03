@@ -37,6 +37,7 @@ describe('app settings', () => {
       backups: {},
       home: {},
       guided: true,
+      previewBarVisible: true,
     });
   });
 

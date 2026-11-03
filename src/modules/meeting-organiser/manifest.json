@@ -1,0 +1,9 @@
+{
+  "id": "meeting-organiser",
+  "name": "Meeting Organiser",
+  "version": "0.1.0",
+  "description": "Research agendas, decisions and linked follow-up tasks",
+  "dependsOn": ["research"],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

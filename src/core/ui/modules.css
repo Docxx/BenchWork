@@ -1,0 +1,45 @@
+.modules-summary {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  color: var(--muted);
+}
+.modules-summary strong {
+  color: var(--text);
+}
+.modules-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.modules-filters input {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.module-category-title h3 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 28px 0 8px;
+}
+.modules .module {
+  padding: 18px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin: 8px 0;
+  gap: 16px;
+}
+.modules .module-text {
+  flex: 1 1 240px;
+  gap: 6px;
+}
+.modules .module-settings {
+  flex-basis: 100%;
+  order: 3;
+}
+.modules .module-name .version {
+  display: none;
+}

@@ -31,9 +31,15 @@ export type Scheme = 'light' | 'dark';
 export type SidebarStyle = 'dark' | 'light';
 export type FontChoice = 'serif' | 'sans' | 'mono';
 export type Density = 'compact' | 'comfortable' | 'roomy';
-export type PageWidth = 'narrow' | 'normal' | 'wide';
+export type PageWidth = 'narrow' | 'normal' | 'wide' | 'full';
+export type TimerSound = 'theme' | 'classic' | 'chime' | 'off';
 
 export interface Appearance {
+  workspaceImage?: string | null;
+  workspaceDim?: number;
+  ambientSound?: string | null;
+  ambientVolume?: number;
+  studioMotion?: 'off' | 'stars' | 'drift';
   preset: ThemePreset;
   /** A colour such as `#5b8a76`, or null for the preset's own. */
   accent: string | null;
@@ -62,8 +68,17 @@ export interface Appearance {
   panelWidth: number;
   /** A short animation as the app opens. */
   startupAnimation: boolean;
+  /** Decorative theme details around the workspace, never over page content. */
+  decoration: boolean;
+  /** Subtle theme animation, also subject to the system's reduced-motion setting. */
+  motion: boolean;
+  timerSound: TimerSound;
+  /** Timer alert volume, from 0 to 100. */
+  timerVolume: number;
   /** How tall rows in the notebooks list are. */
   treeDensity: Density;
+  toolsCollapsed: boolean;
+  notebookHeight: number;
   /** Lines down the notebooks list, showing what is inside what. */
   treeLines: boolean;
   /** Leave the Daily notebook out of the notebooks list. */
@@ -437,12 +452,12 @@ const BRIDGE: PresetSpec = {
 };
 
 const DINO_DARK: Palette = {
-  bg: '#14130c',
-  surface: '#1f1d13',
-  border: '#3a3723',
-  text: '#efe8d2',
-  muted: '#b2aa84',
-  accent: '#e3a72f',
+  bg: '#0d1714',
+  surface: '#17251f',
+  border: '#354638',
+  text: '#f0ead8',
+  muted: '#b4bea3',
+  accent: '#e8b64b',
   warnBg: '#3b2a0c',
   warnText: '#ffd27a',
 };
@@ -455,7 +470,7 @@ const DINO: PresetSpec = {
   fun: true,
   sidebar: 'dark',
   darkSidebar: {
-    bg: '#0e180b',
+    bg: '#08110f',
     hover: 'rgba(227, 167, 47, 0.12)',
     active: 'rgba(227, 167, 47, 0.24)',
     text: '#e6dfc4',
@@ -972,12 +987,22 @@ const FONTS: Record<FontChoice, string> = {
 
 /** Spacing multiplier for each density. */
 const SPACE: Record<Density, string> = { compact: '0.8', comfortable: '1', roomy: '1.25' };
-const WIDTH: Record<PageWidth, string> = { narrow: '38rem', normal: '46rem', wide: '60rem' };
+const WIDTH: Record<PageWidth, string> = {
+  narrow: '38rem',
+  normal: '46rem',
+  wide: '60rem',
+  full: 'none',
+};
 
 export function defaultAppearance(preset: ThemePreset = 'forest'): Appearance {
   const spec = PRESETS[preset];
   return {
     preset,
+    workspaceImage: null,
+    workspaceDim: 85,
+    ambientSound: null,
+    ambientVolume: 25,
+    studioMotion: 'off',
     accent: null,
     sidebar: null,
     headingFont: spec.headingFont,
@@ -993,7 +1018,13 @@ export function defaultAppearance(preset: ThemePreset = 'forest'): Appearance {
     sidebarWidth: SIDEBAR_WIDTH.initial,
     panelWidth: PANEL_WIDTH.initial,
     startupAnimation: true,
-    treeDensity: 'comfortable',
+    decoration: true,
+    motion: true,
+    timerSound: 'theme',
+    timerVolume: 35,
+    treeDensity: 'roomy',
+    toolsCollapsed: false,
+    notebookHeight: 360,
     treeLines: false,
     hideDaily: false,
     pagesOnly: false,
@@ -1017,6 +1048,25 @@ export function parseAppearance(data: unknown): Appearance {
       : {};
   const preset = oneOf(record['preset'], PRESET_IDS) ? record['preset'] : 'forest';
   const result = defaultAppearance(preset);
+  const image = record['workspaceImage'];
+  if (
+    typeof image === 'string' &&
+    image.length <= 6_000_000 &&
+    /^data:image\/(png|jpeg|webp|gif);base64,[a-z0-9+/=]+$/i.test(image)
+  )
+    result.workspaceImage = image;
+  const sound = record['ambientSound'];
+  if (
+    typeof sound === 'string' &&
+    sound.length <= 8_000_000 &&
+    /^data:audio\/(mpeg|mp3|ogg|wav|x-wav|mp4);base64,[a-z0-9+/=]+$/i.test(sound)
+  )
+    result.ambientSound = sound;
+  for (const key of ['workspaceDim', 'ambientVolume'] as const)
+    if (typeof record[key] === 'number' && Number.isFinite(record[key]))
+      result[key] = Math.max(0, Math.min(100, record[key]));
+  if (oneOf(record['studioMotion'], ['off', 'stars', 'drift'] as const))
+    result.studioMotion = record['studioMotion'];
   const accent = record['accent'];
   if (typeof accent === 'string' && HEX.test(accent)) result.accent = accent.toLowerCase();
   if (oneOf(record['sidebar'], ['dark', 'light'] as const)) result.sidebar = record['sidebar'];
@@ -1032,7 +1082,7 @@ export function parseAppearance(data: unknown): Appearance {
   }
   if (oneOf(record['density'], ['compact', 'comfortable', 'roomy'] as const))
     result.density = record['density'];
-  if (oneOf(record['pageWidth'], ['narrow', 'normal', 'wide'] as const))
+  if (oneOf(record['pageWidth'], ['narrow', 'normal', 'wide', 'full'] as const))
     result.pageWidth = record['pageWidth'];
   if (typeof record['sidePanel'] === 'boolean') result.sidePanel = record['sidePanel'];
   if (typeof record['ribbon'] === 'boolean') result.ribbon = record['ribbon'];
@@ -1050,9 +1100,19 @@ export function parseAppearance(data: unknown): Appearance {
   }
   if (typeof record['startupAnimation'] === 'boolean')
     result.startupAnimation = record['startupAnimation'];
+  for (const key of ['decoration', 'motion'] as const) {
+    if (typeof record[key] === 'boolean') result[key] = record[key];
+  }
+  if (oneOf(record['timerSound'], ['theme', 'classic', 'chime', 'off'] as const))
+    result.timerSound = record['timerSound'];
+  const volume = record['timerVolume'];
+  if (typeof volume === 'number' && Number.isFinite(volume))
+    result.timerVolume = Math.round(Math.min(100, Math.max(0, volume)));
   if (oneOf(record['treeDensity'], ['compact', 'comfortable', 'roomy'] as const))
     result.treeDensity = record['treeDensity'];
-  for (const key of ['treeLines', 'hideDaily', 'pagesOnly'] as const) {
+  if (typeof record['notebookHeight'] === 'number' && Number.isFinite(record['notebookHeight']))
+    result.notebookHeight = clampWidth(record['notebookHeight'], { min: 140, max: 900 });
+  for (const key of ['treeLines', 'hideDaily', 'pagesOnly', 'toolsCollapsed'] as const) {
     const value = record[key];
     if (typeof value === 'boolean') result[key] = value;
   }

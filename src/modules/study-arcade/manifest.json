@@ -1,0 +1,9 @@
+{
+  "id": "study-arcade",
+  "name": "Study Arcade",
+  "version": "0.1.0",
+  "description": "Personal flashcards and image quizzes, timed rounds and missed-question review",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

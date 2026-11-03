@@ -18,24 +18,25 @@ const PROGRAM: &str = "pandoc";
 
 /// Where Pandoc's installers put it, besides folders on PATH.
 fn known_places() -> Vec<PathBuf> {
-    let mut places = Vec::new();
     #[cfg(windows)]
     {
-        if let Some(local) = std::env::var_os("LOCALAPPDATA") {
-            places.push(PathBuf::from(local).join("Pandoc").join(PROGRAM));
-        }
-        for var in ["ProgramFiles", "ProgramFiles(x86)"] {
-            if let Some(dir) = std::env::var_os(var) {
-                places.push(PathBuf::from(dir).join("Pandoc").join(PROGRAM));
-            }
-        }
+        ["LOCALAPPDATA", "ProgramFiles", "ProgramFiles(x86)"]
+            .into_iter()
+            .filter_map(std::env::var_os)
+            .map(|dir| PathBuf::from(dir).join("Pandoc").join(PROGRAM))
+            .collect()
     }
     #[cfg(target_os = "macos")]
     {
-        places.push(PathBuf::from("/opt/homebrew/bin").join(PROGRAM));
-        places.push(PathBuf::from("/usr/local/bin").join(PROGRAM));
+        ["/opt/homebrew/bin", "/usr/local/bin"]
+            .into_iter()
+            .map(|dir| PathBuf::from(dir).join(PROGRAM))
+            .collect()
     }
-    places
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        Vec::new()
+    }
 }
 
 /// Pandoc's full path: on PATH first, then where its installers put it.

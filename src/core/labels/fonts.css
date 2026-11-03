@@ -1,0 +1,28 @@
+@font-face {
+  font-family: 'BenchWork Open Sans';
+  src: url('/label-fonts/opensans-normal.ttf') format('truetype');
+  font-weight: 300 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'BenchWork Open Sans';
+  src: url('/label-fonts/opensans-italic.ttf') format('truetype');
+  font-weight: 300 800;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'BenchWork Roboto Mono';
+  src: url('/label-fonts/robotomono-normal.ttf') format('truetype');
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'BenchWork Roboto Mono';
+  src: url('/label-fonts/robotomono-italic.ttf') format('truetype');
+  font-weight: 100 700;
+  font-style: italic;
+  font-display: swap;
+}

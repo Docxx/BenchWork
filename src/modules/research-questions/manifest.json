@@ -1,0 +1,9 @@
+{
+  "id": "research-questions",
+  "name": "Research Questions",
+  "version": "0.1.0",
+  "description": "Questions, hypotheses, experiments, evidence and conclusions",
+  "dependsOn": ["research"],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

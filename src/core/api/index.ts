@@ -8,10 +8,22 @@
  * and Pandoc. Block renderers and index hooks are added in the phases that
  * first need them.
  */
+export { LabelStudio } from '../labels/load';
+export { newLabelDesign, parseLabelDesign, labelFolder } from '../labels/model';
+export type { LabelDesign, LabelRow } from '../labels/model';
+export type { LabelWorkspace } from '../labels/workspace';
 import type { ReactNode } from 'react';
 import type { PdfDocument } from '../files/pdf';
 import type { InkPoint, InkStroke, InkTool } from '../ink/inkFile';
 import type {
+  HttpRequest,
+  HttpResponse,
+  MaterialFiles,
+  AudienceDisplay,
+  AudienceFrame,
+  ImportedSlides,
+  FileTransfers,
+  VerifiedCopy,
   DeviceKind,
   DirEntry,
   FileInfo,
@@ -23,8 +35,24 @@ import type {
   VaultChange,
 } from '../platform/types';
 import type { ModuleManifest } from '../modules/manifest';
+import { PRESETS } from '../settings/appearance';
+import type { Appearance } from '../settings/appearance';
+export type { Appearance, ThemePreset } from '../settings/appearance';
+export { defaultAppearance, parseAppearance } from '../settings/appearance';
+export const themePresets = Object.entries(PRESETS).map(([id, preset]) => ({
+  id,
+  name: preset.name,
+}));
 
 export type {
+  MaterialFiles,
+  AudienceDisplay,
+  AudienceFrame,
+  ImportedSlides,
+  FileTransfers,
+  VerifiedCopy,
+  HttpRequest,
+  HttpResponse,
   DeviceKind,
   DirEntry,
   FileInfo,
@@ -40,6 +68,7 @@ export type {
   VaultChange,
 };
 export { newStrokeId } from '../ink/inkFile';
+export { AudienceSlide } from '../presentation/AudienceSlide';
 export type { PdfRender } from '../files/pdf';
 export type { PdfDocument };
 
@@ -61,6 +90,12 @@ export function defineModule(definition: ModuleDefinition): ModuleDefinition {
 }
 
 export interface ModuleContext {
+  readonly labelBluetooth: import('../platform/labelBluetooth').LabelBluetoothTransport | null;
+  readonly appearance: { current(): Appearance; apply(value: Appearance): Promise<void> };
+  readonly audience: AudienceDisplay | null;
+  /** Large verified copies into user-selected external folders. Desktop only. */
+  readonly fileTransfers: FileTransfers | null;
+  readonly timers: ModuleTimers;
   readonly manifest: ModuleManifest;
   /** The device the app is running on. */
   readonly platform: DeviceKind;
@@ -68,6 +103,7 @@ export interface ModuleContext {
   readonly pageTypes: ModulePageTypes;
   readonly commands: ModuleCommands;
   readonly files: ModuleFiles;
+  readonly reading: ModuleReading;
   readonly citations: ModuleCitations;
   /** Pen writing: changing strokes as they are finished, and tools of its own. */
   readonly ink: ModuleInk;
@@ -79,6 +115,12 @@ export interface ModuleContext {
   readonly pandoc: ModulePandoc;
   /** JSON files in `.benchwork/modules/<id>/`, the module's private folder. */
   readonly storage: ModuleStorage;
+  /** Encrypted device-local JSON. Sign-in and private caches belong here, not in vault storage. */
+  readonly deviceStorage: {
+    read<T = unknown>(name: string): Promise<T | null>;
+    write(name: string, data: unknown): Promise<void>;
+    remove(name: string): Promise<void>;
+  };
   /** The vault's files. Modules keep their files in normal vault folders. */
   readonly vault: ModuleVault;
   /** Pages, links and messages in the app. */
@@ -86,6 +128,16 @@ export interface ModuleContext {
   readonly log: ModuleLogger;
   /** Runs `fn` when the module is switched off, for timers and listeners. */
   onDispose(fn: () => void): void;
+}
+
+export interface TimerProviderSpec {
+  id: string;
+  start(name: string, milliseconds: number): void;
+}
+export interface ModuleTimers {
+  register(spec: TimerProviderSpec): Disposable;
+  /** False if no timer module is active. Uses the same timers shown on Home. */
+  start(name: string, milliseconds: number): boolean;
 }
 
 // ---- Page types ----
@@ -178,9 +230,33 @@ export interface CommandTarget {
 // ---- File handlers ----
 
 export interface ModuleFiles {
+  importFile(source: string, folder: string): Promise<string>;
+  importPowerPoint(source: string, folder: string): Promise<ImportedSlides>;
   register(spec: FileHandlerSpec): Disposable;
   /** Opens a PDF's bytes for drawing its pages, with pdf.js. */
   openPdf(bytes: Uint8Array): Promise<PdfDocument>;
+}
+
+/** A source selection, kept independent of any particular reference manager. */
+export interface PdfExcerpt {
+  path: string;
+  page: number;
+  highlightId: string;
+  text: string;
+}
+
+export interface ReadingAction {
+  id: string;
+  title: string;
+  run(excerpt: PdfExcerpt): void | Promise<void>;
+}
+
+export interface ModuleReading {
+  register(spec: ReadingAction): Disposable;
+  actions(): readonly ReadingAction[];
+  subscribe(listener: () => void): Disposable;
+  /** Requested source page when opening a PDF link. */
+  page(path: string): number | null;
 }
 
 /** Shows files of a custom type when they are opened from the sidebar. */
@@ -206,7 +282,8 @@ export interface FileHandlerSpec {
 
 /**
  * Reading and writing vault files. Paths are vault-relative with `/`.
- * There is no delete: a module can never remove a user's files.
+ * This interface has no deletion methods. Verified-copy source cleanup is
+ * a separate desktop capability and requires an explicit user action.
  */
 export interface ModuleVault {
   listDir(path: string): Promise<DirEntry[]>;
@@ -274,7 +351,15 @@ export interface VaultItem {
   changed: number | null;
 }
 
+export interface VaultGraph {
+  nodes: { id: string; path: string; title: string; kind: 'note' | 'document'; tags: string[] }[];
+  edges: { source: string; target: string }[];
+  warnings: string[];
+}
+
 export interface ModuleApp {
+  /** Notes, documents, tags and resolved links, read from the current vault. */
+  graph(): Promise<VaultGraph>;
   /**
    * Opens a page in the editor, or another file in its viewer. With
    * `heading`, the editor goes to the first heading with that text.
@@ -329,6 +414,8 @@ export interface ModuleApp {
   askText(options: { title: string; label: string; initial?: string }): Promise<string | null>;
   /** Shows a short message. */
   notify(message: string): void;
+  /** Plays the timer cue using this device's current theme, volume and sound setting. */
+  timerAlert(): void;
   /** Every page and record, by path. */
   items(): Promise<VaultItem[]>;
   /** Items linking to `path`. */
@@ -633,6 +720,8 @@ export interface SidebarPanelSpec {
 }
 
 export interface ModuleWeb {
+  /** Microsoft API requests to HTTPS hosts declared in the manifest. */
+  request(request: HttpRequest): Promise<HttpResponse>;
   /**
    * Reads a web address's text, such as a search's JSON. Only https
    * addresses on the sites the manifest lists under "network"; others fail.

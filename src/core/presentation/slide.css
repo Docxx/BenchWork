@@ -1,0 +1,49 @@
+.audience-slide {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  position: relative;
+  overflow: hidden;
+  border-radius: inherit;
+  container-type: inline-size;
+  font-family: 'Inter Variable', Inter, sans-serif;
+}
+.audience-text {
+  position: absolute;
+  inset: 0;
+  padding: 6%;
+  display: flex;
+  flex-direction: column;
+  gap: 4%;
+}
+.audience-rule {
+  width: 8%;
+  height: 4px;
+  min-height: 3px;
+  background: var(--slide-accent);
+}
+.audience-slide h1 {
+  font-size: clamp(18px, 5cqw, 80px);
+  margin: 0;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.audience-body {
+  white-space: pre-wrap;
+  font-size: clamp(10px, calc(var(--slide-font-size) / 10 * 1cqw), 50px);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.audience-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.audience-annotations {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}

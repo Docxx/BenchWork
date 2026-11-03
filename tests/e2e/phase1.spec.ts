@@ -72,6 +72,12 @@ test('lab notes are written in today’s page and found again', async ({ page })
 });
 
 test('an earlier version of a page can be restored', async ({ page }) => {
+  const duplicateKeyWarnings: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error' && message.text().includes('same key')) {
+      duplicateKeyWarnings.push(message.text());
+    }
+  });
   await tree(page).getByRole('treeitem', { name: 'Getting started' }).click();
   await tree(page).getByRole('treeitem', { name: 'Welcome' }).click();
   const original = await file(page, 'Getting started/Welcome.md');
@@ -90,4 +96,5 @@ test('an earlier version of a page can be restored', async ({ page }) => {
   await expect(page.getByText('Restored an earlier version')).toBeVisible();
   await expect.poll(() => file(page, 'Getting started/Welcome.md')).toBe(original);
   await expect(editor(page)).not.toContainText('by mistake');
+  expect(duplicateKeyWarnings).toEqual([]);
 });

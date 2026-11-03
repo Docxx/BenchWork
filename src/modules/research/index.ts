@@ -1,9 +1,11 @@
 import { createElement } from 'react';
+import { FlaskConical } from 'lucide-react';
 import { defineModule, type ModuleContext } from '@core/api';
 import { DatasetView } from './DatasetView';
 import { checkFile, DATASET, DATASET_ENDING, datasetFiles } from './datasets';
 import { experimentType, newProject, projectType } from './projects';
 import './research.css';
+import { ExperimentHub } from './ExperimentHub';
 
 /**
  * The Research module: projects, experiment pages and dataset records.
@@ -56,6 +58,16 @@ async function checkAllDatasets(ctx: ModuleContext): Promise<void> {
 
 export default defineModule({
   activate(ctx) {
+    ctx.views.registerPageView({
+      id: 'research.experiments',
+      title: 'Experiment Hub',
+      render: (initial) => createElement(ExperimentHub, { ctx, initial }),
+      tool: {
+        icon: createElement(FlaskConical, { size: 18, 'aria-hidden': true }),
+        hint: 'Plans, protocols, notes, samples and results together',
+      },
+      pageButton: { icon: createElement(FlaskConical, { size: 16, 'aria-hidden': true }) },
+    });
     ctx.pageTypes.register(projectType());
     ctx.pageTypes.register(experimentType(ctx));
 

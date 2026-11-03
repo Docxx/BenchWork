@@ -1,4 +1,5 @@
 import { parseGrid, type Grid } from './homeGrid';
+import { parseCalendar, type CalendarPreferences } from './calendar';
 import { defaultDocks, parseDocks, type DockLayout } from './layout';
 import type { PlatformAdapter } from '../platform';
 import { defaultAppearance, parseAppearance, type Appearance } from './appearance';
@@ -25,6 +26,7 @@ export interface BackupPlan {
 
 /** How Home and the docks look for one vault on this device. */
 export interface HomeLayout {
+  calendar?: CalendarPreferences;
   /** Card ids in the order shown; cards not listed follow in their usual order. */
   order: string[];
   hidden: string[];
@@ -57,6 +59,7 @@ export function parseHomeLayout(value: unknown): HomeLayout {
     pinned: strings(record['pinned']),
     docks: parseDocks(record['docks']),
     grid: parseGrid(record['grid']),
+    ...(record['calendar'] === undefined ? {} : { calendar: parseCalendar(record['calendar']) }),
   };
 }
 
@@ -102,6 +105,8 @@ export interface AppSettings {
   home: Record<string, HomeLayout>;
   /** The first-run guide has been seen, or skipped, on this device. */
   guided: boolean;
+  /** Temporary testing toolbar, saved on this device. */
+  previewBarVisible: boolean;
   /** Keys this version does not know about, kept on save. */
   extra: Record<string, unknown>;
 }
@@ -118,6 +123,7 @@ const KNOWN_KEYS = new Set([
   'backups',
   'home',
   'guided',
+  'previewBarVisible',
 ]);
 
 export function defaultAppSettings(): AppSettings {
@@ -132,6 +138,7 @@ export function defaultAppSettings(): AppSettings {
     backups: {},
     home: {},
     guided: false,
+    previewBarVisible: true,
     extra: {},
   };
 }
@@ -141,6 +148,8 @@ export function parseAppSettings(data: unknown): AppSettings {
   const settings = defaultAppSettings();
   if (typeof data !== 'object' || data === null || Array.isArray(data)) return settings;
   const record = data as Record<string, unknown>;
+  if (typeof record['previewBarVisible'] === 'boolean')
+    settings.previewBarVisible = record['previewBarVisible'];
 
   const lastVault = record['lastVault'];
   if (typeof lastVault === 'string' && lastVault !== '') settings.lastVault = lastVault;

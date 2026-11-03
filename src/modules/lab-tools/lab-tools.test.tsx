@@ -156,6 +156,8 @@ describe('Lab tools: timers', () => {
 
   function fakeCtx(saved: unknown = null) {
     const written: unknown[] = [];
+    const notify = vi.fn();
+    const timerAlert = vi.fn();
     const ctx = {
       storage: {
         read: () => Promise.resolve(saved),
@@ -164,9 +166,9 @@ describe('Lab tools: timers', () => {
           return Promise.resolve();
         },
       },
-      app: { notify: () => undefined },
+      app: { notify, timerAlert },
     } as unknown as ModuleContext;
-    return { ctx, written };
+    return { ctx, written, notify, timerAlert };
   }
 
   it('show the one that is done, or ends soonest, large', () => {
@@ -181,6 +183,18 @@ describe('Lab tools: timers', () => {
     expect(leadTimer([timer('a', 9000), timer('b', 5000), timer('c', null)], 0)?.id).toBe('b');
     expect(leadTimer([timer('a', 9000), timer('d', null, true)], 0)?.id).toBe('d');
     expect(leadTimer([], 0)).toBeNull();
+  });
+
+  it('uses the core timer cue and keeps the completion message', async () => {
+    vi.useFakeTimers();
+    const { ctx, notify, timerAlert } = fakeCtx();
+    const store = new TimerStore(ctx);
+    await store.load();
+    store.add('Incubation', 1000);
+    vi.advanceTimersByTime(1100);
+    expect(timerAlert).toHaveBeenCalledOnce();
+    expect(notify).toHaveBeenCalledWith('Timer done: Incubation');
+    store.dispose();
   });
 
   it('show time left as a clock', () => {

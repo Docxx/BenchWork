@@ -6,6 +6,8 @@ import type { PlatformAdapter } from './types';
 export { PlatformError, type PlatformErrorKind } from './errors';
 export { MATCH_END, MATCH_START } from './types';
 export type {
+  HttpRequest,
+  HttpResponse,
   DeviceKind,
   WindowFrame,
   FolderBrowser,

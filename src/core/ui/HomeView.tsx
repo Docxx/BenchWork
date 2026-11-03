@@ -20,6 +20,8 @@ import {
 import { homeWidgets } from '../settings/layout';
 import { orderCards } from '../state/homeSlice';
 import { useApp } from './AppStoreContext';
+import { THEME_EXPERIENCES } from '../settings/themeExperience';
+import { ThemeScene } from './ThemeScene';
 import { Menu } from './Menu';
 import { ViewBoundary } from './ModuleView';
 import { SidePanelToggle } from './PageView';
@@ -39,11 +41,20 @@ export function greeting(now: Date): string {
 }
 
 /** Whether the window is narrow enough to stack the cards. */
-function useStacked(): boolean {
+function useStacked(ref: { current: HTMLDivElement | null }): boolean {
   const [stacked, setStacked] = useState(
     () => typeof window.matchMedia === 'function' && window.matchMedia(STACK_QUERY).matches,
   );
   useEffect(() => {
+    if (typeof ResizeObserver !== 'undefined' && ref.current) {
+      const observer = new ResizeObserver(([entry]) => {
+        if (entry) setStacked(entry.contentRect.width < 640);
+      });
+      observer.observe(ref.current);
+      return () => {
+        observer.disconnect();
+      };
+    }
     if (typeof window.matchMedia !== 'function') return;
     const query = window.matchMedia(STACK_QUERY);
     const onChange = (e: MediaQueryListEvent) => {
@@ -53,7 +64,7 @@ function useStacked(): boolean {
     return () => {
       query.removeEventListener('change', onChange);
     };
-  }, []);
+  }, [ref]);
   return stacked;
 }
 
@@ -64,17 +75,19 @@ function useStacked(): boolean {
  * Saved per vault, on this device.
  */
 export function HomeView() {
+  const appearance = useApp((s) => s.settings.appearance);
+  const experience = appearance.decoration ? THEME_EXPERIENCES[appearance.preset] : undefined;
   const status = useApp((s) => s.status);
   const layout = useHomeLayout();
   const setLayout = useApp((s) => s.setHomeLayout);
   const addToHome = useApp((s) => s.addToHome);
   const widgets = useWidgets();
-  const stacked = useStacked();
+  const gridRef = useRef<HTMLDivElement>(null);
+  const stacked = useStacked(gridRef);
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState<{ x: number; y: number } | null>(null);
   const [moving, setMoving] = useState<string | null>(null);
   const [preview, setPreview] = useState<Grid | null>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
   const now = new Date();
 
   const byId = new Map(widgets.map((w) => [w.id, w]));
@@ -153,27 +166,29 @@ export function HomeView() {
 
   return (
     <article className="home" aria-label="Home">
+      <div className="home-controls" aria-label="Home controls">
+        <button
+          type="button"
+          className={editing ? 'home-edit-done' : 'quiet'}
+          aria-pressed={editing}
+          onClick={() => {
+            setEditing((e) => !e);
+          }}
+        >
+          {editing ? 'Done' : 'Edit home'}
+        </button>
+        <SidePanelToggle />
+      </div>
       <header className="home-header" data-window-drag>
+        {experience && <ThemeScene preset={appearance.preset} />}
         <div>
+          {experience && <p className="theme-caption">{experience.caption}</p>}
           <h1>{greeting(now)}</h1>
           <p className="home-date">
             {now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
             {status.kind === 'open' && <span> · {vaultName(status.vault.root)}</span>}
           </p>
         </div>
-        <span className="home-header-tools">
-          <button
-            type="button"
-            className={editing ? 'home-edit-done' : 'quiet'}
-            aria-pressed={editing}
-            onClick={() => {
-              setEditing((e) => !e);
-            }}
-          >
-            {editing ? 'Done' : 'Edit home'}
-          </button>
-          <SidePanelToggle />
-        </span>
       </header>
 
       {editing && (

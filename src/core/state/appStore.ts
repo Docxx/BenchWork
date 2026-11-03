@@ -1,3 +1,4 @@
+import { createKnowledgeSlice, type KnowledgeSlice } from './knowledgeSlice';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { createContributions } from '../modules/contributions';
 import { ModuleRegistry } from '../modules/registry';
@@ -10,6 +11,7 @@ import { createGuideSlice, type GuideSlice } from './guideSlice';
 import { createInkSlice, type InkSlice } from './inkSlice';
 import { createScreenSlice, type ScreenSlice } from './screenSlice';
 import { createSyncSlice, type SyncSlice } from './syncSlice';
+import { createNativeSyncSlice, type NativeSyncSlice } from './nativeSyncSlice';
 import { createBackupSlice, type BackupSlice } from './backupSlice';
 import { createHomeSlice, type HomeSlice } from './homeSlice';
 import { createLinksSlice, type LinksSlice } from './linksSlice';
@@ -33,7 +35,8 @@ export { LINK_THRESHOLD_RANGE, type View } from './settingsSlice';
 export type { PickMode, VaultStatus } from './vaultSlice';
 
 /** The whole app state: one slice per area, sharing a StoreContext. */
-export type AppState = VaultSlice &
+export type AppState = KnowledgeSlice &
+  VaultSlice &
   TreeSlice &
   NotebookSlice &
   PageSlice &
@@ -47,6 +50,7 @@ export type AppState = VaultSlice &
   InkSlice &
   ScreenSlice &
   SyncSlice &
+  NativeSyncSlice &
   BackupSlice &
   HomeSlice &
   GuideSlice;
@@ -71,6 +75,7 @@ export function createAppStore(
     // closing in reverse.
     return {
       ...createVaultSlice(ctx),
+      ...createKnowledgeSlice(ctx),
       ...createTreeSlice(ctx),
       ...createNotebookSlice(ctx),
       ...createPageSlice(ctx),
@@ -87,6 +92,7 @@ export function createAppStore(
       ...createBackupSlice(ctx),
       ...createHomeSlice(ctx),
       ...createGuideSlice(ctx),
+      ...createNativeSyncSlice(ctx),
     };
   });
 

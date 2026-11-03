@@ -1,0 +1,9 @@
+{
+  "id": "cloud",
+  "name": "Cloud storage",
+  "version": "0.1.0",
+  "description": "Keep large files in chosen OneDrive, Dropbox or Google Drive folders, with verified copies and linked records",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

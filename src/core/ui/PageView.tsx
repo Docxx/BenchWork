@@ -1,3 +1,4 @@
+import { TagEditor } from './TagEditor';
 import {
   ChevronRight,
   FileText,
@@ -35,6 +36,9 @@ export function PageView() {
   const page = useApp((s) => s.page);
   const notice = useApp((s) => s.pageNotice);
   const dismissNotice = useApp((s) => s.dismissPageNotice);
+  const saveState = useApp((s) => s.saveState);
+  const conflict = useApp((s) => s.pageConflict);
+  const saveNow = useApp((s) => s.savePageNow);
   const openFile = useApp((s) => s.openFile);
   const moduleView = useApp((s) => s.moduleView);
   const [showHistory, setShowHistory] = useState(false);
@@ -67,6 +71,11 @@ export function PageView() {
         {notice !== null && (
           <div className="notice page-notice" role="alert">
             <span>{notice}</span>
+            {page !== null && saveState === 'error' && conflict === null && (
+              <button type="button" onClick={() => void saveNow()}>
+                Retry save
+              </button>
+            )}
             <button type="button" className="quiet" aria-label="Dismiss" onClick={dismissNotice}>
               ×
             </button>
@@ -84,11 +93,12 @@ export function PageView() {
               <TitleField key={page.path} page={page} />
               {dayOfPath(page.path) !== null && <DayArrows />}
             </header>
+            <TagEditor key={`tags:${page.path}`} path={page.path} />
             <PageLead />
             <ConflictBanner />
             {showHistory && (
               <HistoryPanel
-                key={page.path}
+                key={`history:${page.path}`}
                 onClose={() => {
                   setShowHistory(false);
                 }}

@@ -1,0 +1,10 @@
+{
+  "id": "labels",
+  "name": "Label Studio",
+  "version": "0.1.0",
+  "description": "Design and print calibrated NIIMBOT B3S labels, templates, barcodes and lab batches.",
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false,
+  "dependsOn": [],
+  "network": []
+}

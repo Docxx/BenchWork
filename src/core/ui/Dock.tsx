@@ -36,7 +36,11 @@ export function Dock({
   const closeWidget = useApp((s) => s.closeWidget);
   const addToHome = useApp((s) => s.addToHome);
   const pagePath = useApp((s) => s.page?.path ?? null);
-  const [chosen, setChosen] = useState<string | null>(null);
+  const chosen = useApp((s) => s.dockChosen[place]);
+  const focus = useApp((s) => s.focusDockWidget);
+  const setChosen = (id: string) => {
+    focus(place, id);
+  };
   const [menu, setMenu] = useState<{ kind: 'add' | 'more'; x: number; y: number } | null>(null);
   const [dropping, setDropping] = useState(false);
 

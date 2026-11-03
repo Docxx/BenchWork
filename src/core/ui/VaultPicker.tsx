@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { describeError, type PickMode } from '../state/appStore';
 import { useApp } from './AppStoreContext';
 import { vaultName } from './Sidebar';
+import { Logo } from './Logo';
 
 /** The folder above a full path, or null at the top. */
 function parentOf(path: string): string | null {
@@ -190,6 +191,7 @@ export function VaultPicker() {
 
   return (
     <main className="app picker">
+      <Logo className="picker-logo" size={100} />
       <h1>BenchWork</h1>
       <p>Choose a folder to keep your notebooks in.</p>
       {notice !== null && (

@@ -55,6 +55,18 @@ describe('backlinks', () => {
 });
 
 describe('following links', () => {
+  it('opens relative and vault PDF links at their source page', async () => {
+    const { platform, state } = await openVault();
+    await platform.writeTextAtomic('Lab/paper.pdf', 'pdf');
+    await state().openPage('Lab/Notes.md');
+    await state().followLink('paper.pdf#page=2');
+    expect(state().openFile).toBe('Lab/paper.pdf');
+    expect(state().revealHeading).toBe('page=2');
+    await state().openPage('Home/List.md');
+    await state().followLink('Lab/paper.pdf#page=3');
+    expect(state().openFile).toBe('Lab/paper.pdf');
+    expect(state().revealHeading).toBe('page=3');
+  });
   it('opens the page a link means, from where the link is', async () => {
     const { state } = await openVault();
     await state().openPage('Home/List.md');

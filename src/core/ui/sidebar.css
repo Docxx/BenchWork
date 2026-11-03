@@ -1,0 +1,118 @@
+.sidebar > .sidebar-header,
+.sidebar > .sidebar-nav,
+.sidebar > .sidebar-section-head,
+.sidebar > .sidebar-footer {
+  flex-shrink: 0;
+}
+.sidebar .tools-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 0.78rem;
+}
+.tools-toggle span {
+  margin-left: auto;
+}
+.tools-toggle .folded {
+  transform: rotate(-90deg);
+}
+.sidebar .tools-scroll {
+  max-height: 156px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.tools-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 8px 6px;
+  color: var(--muted);
+}
+.tools-search input {
+  min-width: 0;
+  width: 100%;
+  font-size: 0.8rem;
+  padding: 6px;
+}
+.sidebar .notebook-pane {
+  flex-grow: 0;
+  flex-shrink: 1;
+  min-height: 140px;
+}
+.sidebar-footer {
+  margin-top: auto;
+}
+.sidebar > .dock-left {
+  flex: 0 0 auto;
+  min-height: 36px;
+}
+.sidebar > .module-panels {
+  flex-shrink: 0;
+  min-height: 34px;
+}
+.sidebar {
+  overflow-y: auto;
+}
+.notebook-resize {
+  flex: 0 0 12px;
+  display: grid;
+  place-items: center;
+  cursor: row-resize;
+  touch-action: none;
+}
+.notebook-resize span {
+  width: 36px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--sidebar-muted);
+  opacity: 0.6;
+}
+.notebook-resize:hover,
+.notebook-resize:focus-visible {
+  background: var(--sidebar-hover);
+  outline: 1px solid var(--accent);
+}
+.resize-edge::before {
+  width: 10px;
+  left: -5px;
+}
+.resize-edge::after {
+  content: '';
+  position: absolute;
+  top: 45%;
+  left: -2px;
+  width: 4px;
+  height: 40px;
+  border-radius: 4px;
+  background: var(--muted);
+  opacity: 0.45;
+  pointer-events: none;
+}
+.notebook-tree .tree-item.notebook,
+.notebook-tree .tree-item.section {
+  min-height: 36px;
+  font-size: 0.94rem;
+}
+.notebook-tree .tree-item {
+  box-sizing: border-box;
+}
+.notebook-tree.density-roomy .tree-item.notebook,
+.notebook-tree.density-roomy .tree-item.section {
+  min-height: 42px;
+}
+.notebook-tree.density-compact .tree-item.notebook,
+.notebook-tree.density-compact .tree-item.section {
+  min-height: 28px;
+  font-size: 0.85rem;
+}
+.notebook-tree .drop-into {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: var(--sidebar-active);
+}

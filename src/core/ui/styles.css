@@ -223,25 +223,18 @@ button.quiet:hover {
   padding: 1.1rem 0.9rem 0.9rem 1.1rem;
 }
 
-/* The logo takes the theme's colours: a B outline, with accent liquid. */
-.logo .logo-tile {
-  fill: var(--logo-tile, var(--accent));
+/* Open Record keeps its blue and magenta inks across app themes. */
+.logo {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
 }
-
-.logo .logo-b {
-  fill: none;
-  stroke: var(--logo-ink, var(--accent-text));
-  stroke-width: 9;
-  stroke-linejoin: round;
-  stroke-linecap: round;
+.picker-logo {
+  margin-bottom: 0.5rem;
 }
-
-.logo .logo-liquid {
-  fill: var(--logo-liquid, color-mix(in srgb, var(--accent-text) 45%, var(--accent)));
-}
-
-.logo .logo-bubble {
-  fill: var(--logo-ink, var(--accent-text));
+.picker > h1,
+.brand-name {
+  font-family: 'Source Serif 4 Variable', Georgia, serif;
 }
 
 .brand-mark {
@@ -256,7 +249,7 @@ button.quiet:hover {
 }
 
 .brand-name {
-  font-family: var(--font-heading);
+  font-family: 'Source Serif 4 Variable', Georgia, serif;
   font-size: 1.1rem;
   font-weight: 600;
   line-height: 1.2;
@@ -1174,6 +1167,8 @@ button.row-menu:first-child {
 
 .menu {
   position: fixed;
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
   z-index: 10;
   min-width: 12rem;
   padding: 0.3rem;
@@ -3047,44 +3042,30 @@ button.backlink:focus-visible {
   animation: splash-mark 550ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
 }
 
-/* The liquid fills, then the bubbles rise. */
-.splash-mark .logo-liquid {
-  transform-origin: 50% 100%;
-  animation: splash-fill 600ms 200ms ease-out both;
+/* The research entry is written after the notebook appears. */
+.splash-mark .logo-writing,
+.splash-mark .logo-trace {
+  stroke-dasharray: 1;
+  animation: splash-write 500ms 200ms ease-out both;
 }
-
-.splash-mark .logo-bubble {
-  animation: splash-bubble 700ms ease-out both;
+.splash-mark .logo-trace {
+  animation-delay: 450ms;
 }
-
-.splash-mark .logo-bubble:nth-of-type(1) {
-  animation-delay: 550ms;
-}
-
-.splash-mark .logo-bubble:nth-of-type(2) {
-  animation-delay: 650ms;
-}
-
-.splash-mark .logo-bubble:nth-of-type(3) {
-  animation-delay: 750ms;
-}
-
-@keyframes splash-fill {
+@keyframes splash-write {
   from {
-    transform: scaleY(0);
+    stroke-dashoffset: 1;
   }
-}
-
-@keyframes splash-bubble {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
+  to {
+    stroke-dashoffset: 0;
   }
 }
 
 .splash-name {
   display: flex;
-  font: 600 1.9rem/1.2 var(--font-heading);
+  font:
+    600 1.9rem/1.2 'Source Serif 4 Variable',
+    Georgia,
+    serif;
   letter-spacing: -0.01em;
 }
 
@@ -3096,7 +3077,7 @@ button.backlink:focus-visible {
   width: 9rem;
   height: 2px;
   border-radius: 2px;
-  background: var(--accent);
+  background: linear-gradient(90deg, #159dff, #f058de);
   transform-origin: left;
   animation: splash-rule 500ms 650ms ease-out both;
 }
@@ -4472,4 +4453,123 @@ button.guide-more {
 .guide .dialog-title {
   font-family: var(--font-heading);
   font-size: 1.35rem;
+}
+
+/* Workspaces use the available device width; reading width remains a preference. */
+.home {
+  max-width: none;
+  width: 100%;
+  box-sizing: border-box;
+  padding: clamp(1rem, 2vw, 2rem);
+}
+.home-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  margin-bottom: 0.65rem;
+}
+.home-controls button {
+  font-size: 0.85rem;
+}
+.file-view {
+  max-width: none;
+}
+.module-view,
+.file-view {
+  min-width: 0;
+  container-type: inline-size;
+}
+.module-view-header h1 {
+  flex: 1;
+}
+@media (max-width: 760px) {
+  .module-view,
+  .file-view {
+    padding: 1rem;
+  }
+}
+
+.item-tags {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 1rem;
+  color: var(--muted);
+  min-height: 32px;
+}
+.item-tag {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  padding: 0 0.2rem;
+}
+.item-tag button.quiet {
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
+  padding: 0.2rem 0.35rem;
+  font-size: 0.8rem;
+}
+.item-tags form {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.item-tags input {
+  width: 140px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 0.82rem;
+  padding: 0.35rem;
+}
+.item-tags input:focus {
+  border-color: var(--accent);
+}
+.item-tag-error {
+  flex-basis: 100%;
+  color: var(--danger);
+  font-size: 0.8rem;
+}
+
+.docked-tool {
+  container-type: inline-size;
+  min-width: 0;
+  overflow: auto;
+}
+.docked-tool .workflow-layout,
+.docked-tool .workflow-grid {
+  grid-template-columns: 1fr;
+}
+.module-view-header > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+@container (max-width: 650px) {
+  .module-view-header {
+    flex-wrap: wrap;
+  }
+  .module-view-header h1 {
+    flex-basis: 100%;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.shell:has(> .sidebar-reveal) .module-view-header,
+.shell:has(> .sidebar-reveal) .file-header {
+  padding-left: 2.5rem;
 }

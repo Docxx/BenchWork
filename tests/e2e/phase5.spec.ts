@@ -130,6 +130,7 @@ test('a chapter draft is exported to Word with its citations', async ({ page }) 
 test('the Manuscript settings say whether Pandoc is installed', async ({ page }) => {
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('tab', { name: 'Modules' }).click();
+  await page.getByText('Configure Manuscript', { exact: true }).click();
   await expect(page.getByText('Pandoc 3.6 (in memory) is installed.')).toBeVisible();
   await expect(page.getByText('Chicago author-date (Pandoc’s own)')).toBeVisible();
 });

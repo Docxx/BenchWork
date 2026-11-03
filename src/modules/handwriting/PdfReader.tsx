@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { InkAttachment, InkStroke, ModuleContext, PdfDocument } from '@core/api';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import type {
+  InkAttachment,
+  InkStroke,
+  ModuleContext,
+  PdfDocument,
+  ReadingAction,
+} from '@core/api';
 import { newStrokeId } from '@core/api';
 import {
   emptyNotes,
@@ -104,6 +110,8 @@ function Page({
   onInk,
   onHighlight,
   onRemoveHighlight,
+  actions,
+  onRead,
 }: {
   ctx: ModuleContext;
   doc: PdfDocument;
@@ -115,6 +123,8 @@ function Page({
   onInk: (n: number, strokes: InkStroke[]) => void;
   onHighlight: (n: number, highlight: PdfHighlight) => void;
   onRemoveHighlight: (n: number, id: string) => void;
+  actions: readonly ReadingAction[];
+  onRead: (action: ReadingAction, n: number, h: PdfHighlight) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -206,18 +216,38 @@ function Page({
       <div ref={text} className="pdf-text" />
       <div ref={ink} className="pdf-ink" />
       {chosen !== null && (
-        <button
-          type="button"
-          className="pdf-remove-highlight"
-          onClick={() => {
-            onRemoveHighlight(n, chosen);
-            setChosen(null);
-          }}
-        >
-          Remove highlight
-        </button>
+        <div className="pdf-remove-highlight">
+          <button
+            type="button"
+            onClick={() => {
+              onRemoveHighlight(n, chosen);
+              setChosen(null);
+            }}
+          >
+            Remove highlight
+          </button>
+          {actions.map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              onClick={() => {
+                const h = here.highlights.find((h) => h.id === chosen);
+                if (h) onRead(action, n, h);
+              }}
+            >
+              {action.title}
+            </button>
+          ))}
+        </div>
       )}
-      <SelectionHighlighter n={n} box={box} active={mode === 'select'} onHighlight={onHighlight} />
+      <SelectionHighlighter
+        n={n}
+        box={box}
+        active={mode === 'select'}
+        onHighlight={onHighlight}
+        actions={actions}
+        onRead={onRead}
+      />
     </div>
   );
 }
@@ -228,11 +258,15 @@ function SelectionHighlighter({
   box,
   active,
   onHighlight,
+  actions,
+  onRead,
 }: {
   n: number;
   box: React.RefObject<HTMLDivElement | null>;
   active: boolean;
   onHighlight: (n: number, highlight: PdfHighlight) => void;
+  actions: readonly ReadingAction[];
+  onRead: (action: ReadingAction, n: number, h: PdfHighlight) => void;
 }) {
   const [offer, setOffer] = useState<{ x: number; y: number } | null>(null);
   useEffect(() => {
@@ -257,7 +291,7 @@ function SelectionHighlighter({
   }, [active, box]);
   if (!active || offer === null) return null;
 
-  const highlight = () => {
+  const highlight = (action?: ReadingAction) => {
     const sel = window.getSelection();
     const page = box.current;
     if (!sel || sel.isCollapsed || !page) return;
@@ -269,29 +303,47 @@ function SelectionHighlighter({
     }));
     const boxes = highlightBoxes(rects, page.getBoundingClientRect());
     if (boxes.length > 0) {
-      onHighlight(n, {
+      const h = {
         id: newStrokeId(),
         colour: HIGHLIGHT,
         rects: boxes,
         text: sel.toString().replace(/\s+/g, ' ').trim(),
-      });
+      };
+      onHighlight(n, h);
+      if (action) onRead(action, n, h);
     }
     sel.removeAllRanges();
     setOffer(null);
   };
 
   return (
-    <button
-      type="button"
+    <div
       className="pdf-highlight-offer"
       style={{ left: offer.x, top: offer.y }}
       onPointerDown={(e) => {
         e.preventDefault();
       }}
-      onClick={highlight}
     >
-      Highlight
-    </button>
+      <button
+        type="button"
+        onClick={() => {
+          highlight();
+        }}
+      >
+        Highlight
+      </button>
+      {actions.map((action) => (
+        <button
+          key={action.id}
+          type="button"
+          onClick={() => {
+            highlight(action);
+          }}
+        >
+          {action.title}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -300,11 +352,23 @@ function SelectionHighlighter({
  * `<file>.pdf.annot.json`; the PDF is only ever read.
  */
 export function PdfReader({ ctx, path }: { ctx: ModuleContext; path: string }) {
+  const subscribe = useCallback(
+    (fn: () => void) => {
+      const sub = ctx.reading.subscribe(fn);
+      return () => {
+        sub.dispose();
+      };
+    },
+    [ctx],
+  );
+  const getActions = useCallback(() => ctx.reading.actions(), [ctx]);
+  const actions = useSyncExternalStore(subscribe, getActions);
   const [doc, setDoc] = useState<PdfDocument | null>(null);
   const [sizes, setSizes] = useState<PageSize[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<PdfNotes>(emptyNotes());
   const [unreadable, setUnreadable] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [zoom, setZoom] = useState<number | 'fit'>('fit');
   const [fitWidth, setFitWidth] = useState(800);
   const [mode, setMode] = useState<Mode>(ctx.platform === 'tablet' ? 'write' : 'select');
@@ -313,6 +377,28 @@ export function PdfReader({ ctx, path }: { ctx: ModuleContext; path: string }) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const written = useRef<string | null>(null);
   const latestNotes = useRef(notes);
+  const writes = useRef(Promise.resolve());
+  const flush = useCallback(() => {
+    if (saveTimer.current !== null) clearTimeout(saveTimer.current);
+    saveTimer.current = null;
+    const text = serialiseNotes(latestNotes.current);
+    const next = writes.current
+      .catch(() => undefined)
+      .then(async () => {
+        written.current = text;
+        await ctx.vault.writeText(notesPath(path), text);
+      });
+    writes.current = next;
+    return next;
+  }, [ctx, path]);
+  useEffect(() => {
+    if (!doc) return;
+    const page = ctx.reading.page(path);
+    if (page)
+      pagesRef.current
+        ?.querySelector(`[data-page="${String(Math.min(page, doc.pages))}"]`)
+        ?.scrollIntoView({ block: 'start' });
+  }, [ctx, path, doc]);
   useEffect(() => {
     latestNotes.current = notes;
   }, [notes]);
@@ -387,17 +473,18 @@ export function PdfReader({ ctx, path }: { ctx: ModuleContext; path: string }) {
 
   const save = useCallback(
     (next: PdfNotes) => {
+      latestNotes.current = next;
       setNotes(next);
       if (unreadable) return;
       if (saveTimer.current !== null) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
         saveTimer.current = null;
-        const text = serialiseNotes(latestNotes.current);
-        written.current = text;
-        void ctx.vault.writeText(notesPath(path), text);
+        void flush().catch((err: unknown) => {
+          setSaveError(String(err));
+        });
       }, SAVE_DELAY_MS);
     },
-    [ctx, path, unreadable],
+    [flush, unreadable],
   );
 
   // Anything waiting is written when the reader closes.
@@ -405,10 +492,12 @@ export function PdfReader({ ctx, path }: { ctx: ModuleContext; path: string }) {
     () => () => {
       if (saveTimer.current !== null) {
         clearTimeout(saveTimer.current);
-        void ctx.vault.writeText(notesPath(path), serialiseNotes(latestNotes.current));
+        void flush().catch((err: unknown) => {
+          ctx.app.notify(`PDF notes could not be saved: ${String(err)}`);
+        });
       }
     },
-    [ctx, path],
+    [ctx, flush],
   );
 
   if (error !== null) return <p className="notice">This PDF could not be opened. {error}</p>;
@@ -435,6 +524,25 @@ export function PdfReader({ ctx, path }: { ctx: ModuleContext; path: string }) {
 
   return (
     <div className="pdf-reader">
+      {saveError && (
+        <p className="notice" role="alert">
+          PDF notes could not be saved. {saveError}{' '}
+          <button
+            type="button"
+            onClick={() =>
+              void flush()
+                .then(() => {
+                  setSaveError(null);
+                })
+                .catch((err: unknown) => {
+                  setSaveError(String(err));
+                })
+            }
+          >
+            Retry save
+          </button>
+        </p>
+      )}
       <div className="pdf-bar" role="toolbar" aria-label="Reading">
         <button
           type="button"
@@ -526,6 +634,14 @@ export function PdfReader({ ctx, path }: { ctx: ModuleContext; path: string }) {
               width={width(i + 1)}
               mode={mode}
               notes={notes}
+              actions={unreadable ? [] : actions}
+              onRead={(action, n, h) => {
+                void flush()
+                  .then(() => action.run({ path, page: n, highlightId: h.id, text: h.text }))
+                  .catch((err: unknown) => {
+                    setSaveError(String(err));
+                  });
+              }}
               onInk={(n, strokes) => {
                 save(withPage(latestNotes.current, n, { strokes }));
               }}
