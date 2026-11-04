@@ -341,3 +341,203 @@ button.fly-swap {
 .fly-today-name {
   font-weight: 600;
 }
+
+select.fly-status {
+  width: auto;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--border);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.fly-carries {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.75rem 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.fly-carry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.fly-carry > .label {
+  min-width: 4.5rem;
+}
+
+button.fly-allele,
+button.fly-allele:first-child {
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.78rem;
+}
+
+.fly-balancer {
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.78rem;
+}
+
+.fly-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.fly-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+button.fly-tag-filter,
+button.fly-tag-filter:first-child {
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+button.fly-tag-filter[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast, #fff);
+}
+
+.fly-row-tags {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.fly-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.fly-head .fly-tabs {
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.fly-look {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  padding-bottom: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.fly-look select {
+  width: auto;
+}
+
+/* Colour by chromosome: X, 2, 3 and 4, with balancers marked. */
+.genotype.coloured .chr-0 {
+  color: var(--section-blue, #2f6fb3);
+}
+
+.genotype.coloured .chr-1 {
+  color: var(--section-green, #3b7a3b);
+}
+
+.genotype.coloured .chr-2 {
+  color: var(--section-orange, #b8650a);
+}
+
+.genotype.coloured .chr-3 {
+  color: var(--section-purple, #7a4bb3);
+}
+
+.genotype.coloured .genotype-sep {
+  color: var(--muted);
+}
+
+.genotype-copy.balancer {
+  border-radius: 3px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  font-weight: 700;
+}
+
+.fly-cross-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  margin: 0.5rem 0 0.25rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid var(--border);
+  border-radius: 0 0 50% 50% / 0 0 0.6rem 0.6rem;
+}
+
+.fly-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.6rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fly-card {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: center;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-align: center;
+}
+
+.fly-card.fly-target {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.fly-card-top {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.fly-card-sex {
+  font-size: 1.1rem;
+}
+
+.fly-card-share {
+  font-weight: 600;
+}
+
+.fly-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  justify-content: center;
+}
+
+.genotype.line .genotype-one {
+  white-space: nowrap;
+}

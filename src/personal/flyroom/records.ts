@@ -31,6 +31,10 @@ export interface Stock {
   established: string;
   /** Alleles that kill in two copies, besides the usual markers. */
   lethal: string[];
+  /** A FlyBase ID such as FBst0093769, or empty. */
+  flybase: string;
+  /** Projects and the like, for finding stocks together. */
+  tags: string[];
   flipEvery: number | null;
   lastFlipped: string;
   notes: string;
@@ -98,6 +102,8 @@ export function readStock(path: string, data: Record<string, unknown>): Stock {
     status: oneOf(data['status'], STOCK_STATUSES, 'Healthy'),
     established: text(data['established']).slice(0, 10),
     lethal: list(data['lethal']),
+    flybase: text(data['flybase']),
+    tags: list(data['tags']),
     flipEvery: Number.isFinite(every) && every > 0 ? Math.round(every) : null,
     lastFlipped: text(data['lastFlipped']).slice(0, 10),
     notes: text(data['notes']),

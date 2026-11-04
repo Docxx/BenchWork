@@ -105,7 +105,7 @@ export function PlannerTab({
   onTracked: (path: string) => void;
 }) {
   const { stocks, settings } = useFly(store);
-  const [view, setView] = useState<'flies' | 'chromosomes'>('flies');
+  const [view, setView] = useState<'flies' | 'cards' | 'chromosomes'>('flies');
   const [note, setNote] = useState<string | null>(null);
   const ready = plan.mother.genotype.trim() !== '' && plan.father.genotype.trim() !== '';
   const lethal = [plan.mother.stock, plan.father.stock].flatMap(
@@ -207,7 +207,8 @@ export function PlannerTab({
             <div className="ribbon-tabs" role="tablist" aria-label="Show progeny as">
               {(
                 [
-                  ['flies', 'Flies'],
+                  ['flies', 'Table'],
+                  ['cards', 'Cards'],
                   ['chromosomes', 'Chromosomes'],
                 ] as const
               ).map(([id, label]) => (
@@ -234,7 +235,50 @@ export function PlannerTab({
               {n}
             </p>
           ))}
-          {view === 'flies' ? (
+          {view === 'cards' ? (
+            <div className="fly-cards-view">
+              <div className="fly-cross-line" aria-label="The cross">
+                <span>♀</span>
+                <GenotypeView genotype={mother} />
+                <span className="fly-times">×</span>
+                <GenotypeView genotype={father} />
+                <span>♂</span>
+              </div>
+              <ul className="fly-cards" aria-label="Progeny">
+                {result.progeny.map((p) => (
+                  <li
+                    key={`${p.sex} ${formatGenotype(p.genotype)}`}
+                    className={p.balanced ? 'fly-card' : 'fly-card fly-target'}
+                  >
+                    <div className="fly-card-top">
+                      <span className="fly-card-sex">{p.sex === 'female' ? '♀' : '♂'}</span>
+                      <span className="fly-card-share">{percent(p.share)}</span>
+                    </div>
+                    <GenotypeView genotype={p.genotype} />
+                    <span className="hint">{sortBy(p, result.progeny)}</span>
+                    {!p.balanced && <span className="fly-tag">No balancer</span>}
+                    <div className="fly-card-actions">
+                      <button type="button" className="quiet" onClick={() => void makeStock(p)}>
+                        Stock it
+                      </button>
+                      <button
+                        type="button"
+                        className="quiet"
+                        onClick={() => {
+                          nextCross(p);
+                        }}
+                      >
+                        Cross on
+                      </button>
+                      <button type="button" className="quiet" onClick={() => void track(p)}>
+                        Track
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : view === 'flies' ? (
             <div className="fly-scroll">
               <table className="fly-table" aria-label="Progeny">
                 <thead>

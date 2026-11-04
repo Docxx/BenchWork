@@ -73,3 +73,41 @@ test('imports stocks, plans a cross, and tracks it', async ({ page }) => {
     .poll(() => file(page, 'Fly room/Crosses/Myd88-KO-CyO × Myd88-KO-CyO.flycross.yaml'))
     .toContain('- flip');
 });
+
+test('tags filter stocks, status changes from the list, and the views change', async ({ page }) => {
+  const view = page.locator('.fly-view');
+  await view.getByLabel('CSV file of stocks').setInputFiles({
+    name: 'stocks.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(CSV),
+  });
+  await expect(view.getByRole('status')).toHaveText('3 stocks added.');
+
+  // Status straight from the list.
+  await view.getByLabel('Status of Myd88-KO-CyO').selectOption('Dead');
+  await expect
+    .poll(() => file(page, 'Fly room/Stocks/Myd88-KO-CyO.flystock.yaml'))
+    .toContain('status: Dead');
+
+  // A tag, then the list filtered by it.
+  await view.getByRole('button', { name: 'Myd88-KO-CyO' }).click();
+  const editor = view.getByRole('region', { name: 'Stock Myd88-KO-CyO' });
+  await editor.getByLabel('Tags').fill('Immunity, Toll');
+  await editor.getByLabel('Tags').press('Enter');
+  await expect(editor.getByText('Bloomington 12345 on FlyBase')).toBeVisible();
+  await expect(editor.getByRole('button', { name: 'Myd88[KO]' })).toBeVisible();
+  await view
+    .getByRole('group', { name: 'Show stocks tagged' })
+    .getByRole('button', { name: 'Immunity' })
+    .click();
+  await expect(view.locator('.fly-table tbody tr')).toHaveCount(1);
+
+  // Genotypes on one line, and progeny as cards.
+  await view.getByLabel('Genotypes', { exact: true }).selectOption('line');
+  await expect(view.locator('.genotype.line').first()).toBeVisible();
+  await view.getByRole('tab', { name: 'Cross planner' }).click();
+  await view.getByLabel('Virgin females stock').selectOption('Sco-CyO; TM3-TM6');
+  await view.getByLabel('Males stock', { exact: true }).selectOption('elav-Gal4; tub-Gal80ts');
+  await view.getByRole('tab', { name: 'Cards' }).click();
+  await expect(view.getByRole('list', { name: 'Progeny' }).getByRole('listitem')).toHaveCount(8);
+});

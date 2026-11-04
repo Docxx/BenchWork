@@ -3,6 +3,7 @@ import type { ModuleContext } from '@core/api';
 import { CHROMOSOMES, formatPair, parseGenotype } from './genetics';
 import { GenotypeView } from './GenotypeView';
 import { STOCK_STATUSES, stocksFromCsv, type Stock } from './records';
+import { describe, flybaseReport, flybaseSearch, parseTags, stockCentreLink } from './links';
 import { addDays } from './schedule';
 import { today, useFly, type FlyStore } from './store';
 
@@ -102,6 +103,11 @@ export function StockEditor({
     save('genotype', parts.join(' ; '));
   };
   const next = nextFlip(stock);
+  const { settings } = useFly(store);
+  const about = describe(pairs, settings.markers);
+  const centre = stockCentreLink(stock.source, stock.number);
+  const report = flybaseReport(stock.flybase);
+  const open = (url: string) => void ctx.web.open(url);
 
   return (
     <section className="fly-editor" aria-label={`Stock ${stock.name}`}>
@@ -155,6 +161,63 @@ export function StockEditor({
           />
         ))}
       </div>
+      <div className="fly-carries" aria-label="What it carries">
+        {about.carries
+          .filter((c) => c.alleles.length > 0 || c.balancers.length > 0)
+          .map((c) => (
+            <div key={c.chromosome} className="fly-carry">
+              <span className="label">{c.chromosome === 'X' ? 'X' : `Chr ${c.chromosome}`}</span>
+              {c.alleles.map((a) => (
+                <button
+                  key={a}
+                  type="button"
+                  className="fly-allele"
+                  title={`Search FlyBase for ${a}`}
+                  onClick={() => {
+                    open(flybaseSearch(a));
+                  }}
+                >
+                  {a}
+                </button>
+              ))}
+              {c.balancers.map((b) => (
+                <span key={b} className="fly-balancer" title="Balancer">
+                  {b}
+                </span>
+              ))}
+            </div>
+          ))}
+        <div className="fly-carry">
+          <span className="label">Markers</span>
+          <span>{about.markers.length > 0 ? about.markers.join(', ') : 'None'}</span>
+        </div>
+        {(report !== null || centre !== null) && (
+          <div className="fly-links">
+            {report !== null && (
+              <button
+                type="button"
+                className="quiet"
+                onClick={() => {
+                  open(report);
+                }}
+              >
+                FlyBase page
+              </button>
+            )}
+            {centre !== null && centre !== report && (
+              <button
+                type="button"
+                className="quiet"
+                onClick={() => {
+                  open(centre);
+                }}
+              >
+                Bloomington {stock.number} on FlyBase
+              </button>
+            )}
+          </div>
+        )}
+      </div>
       <div className="fly-fields">
         <Saved
           label="Source"
@@ -170,6 +233,23 @@ export function StockEditor({
           hint="5905"
           onSave={(v) => {
             save('number', v);
+          }}
+        />
+        <Saved
+          label="FlyBase ID"
+          value={stock.flybase}
+          hint="FBst0093769"
+          onSave={(v) => {
+            save('flybase', v);
+          }}
+        />
+        <Saved
+          label="Tags"
+          value={stock.tags.join(', ')}
+          hint="Immunity, GeneSwitch"
+          onSave={(v) => {
+            const tags = parseTags(v);
+            save('tags', tags.length === 0 ? '' : tags);
           }}
         />
         <Saved
@@ -317,13 +397,18 @@ export function StocksTab({
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('All');
   const [open, setOpen] = useState<string | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
   const q = query.trim().toLowerCase();
   const day = today();
+  const allTags = [...new Set(stocks.flatMap((s) => s.tags))].sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: 'base' }),
+  );
   const shown = stocks.filter(
     (s) =>
       (status === 'All' || s.status === status) &&
+      tags.every((t) => s.tags.includes(t)) &&
       (q === '' ||
-        `${s.name} ${s.genotype} ${s.source} ${s.number} ${s.location} ${s.notes}`
+        `${s.name} ${s.genotype} ${s.source} ${s.number} ${s.location} ${s.notes} ${s.tags.join(' ')}`
           .toLowerCase()
           .includes(q)),
   );
@@ -370,6 +455,23 @@ export function StocksTab({
         </button>
         <ImportButton store={store} />
       </div>
+      {allTags.length > 0 && (
+        <div className="fly-tags" role="group" aria-label="Show stocks tagged">
+          {allTags.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className="fly-tag-filter"
+              aria-pressed={tags.includes(t)}
+              onClick={() => {
+                setTags(tags.includes(t) ? tags.filter((x) => x !== t) : [...tags, t]);
+              }}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
       {current && <StockEditor ctx={ctx} store={store} stock={current} onPlan={onPlan} />}
       {shown.length === 0 ? (
         <p className="hint">
@@ -404,6 +506,9 @@ export function StocksTab({
                       >
                         {s.name}
                       </button>
+                      {s.tags.length > 0 && (
+                        <span className="fly-row-tags">{s.tags.join(', ')}</span>
+                      )}
                     </td>
                     <td>
                       <GenotypeView genotype={s.genotype} compact />
@@ -414,7 +519,16 @@ export function StocksTab({
                     </td>
                     <td>{s.location}</td>
                     <td>
-                      <span className={`fly-status ${s.status.toLowerCase()}`}>{s.status}</span>
+                      <select
+                        className={`fly-status ${s.status.toLowerCase()}`}
+                        aria-label={`Status of ${s.name}`}
+                        value={s.status}
+                        onChange={(e) => void store.update(s.path, { status: e.target.value })}
+                      >
+                        {STOCK_STATUSES.map((x) => (
+                          <option key={x}>{x}</option>
+                        ))}
+                      </select>
                     </td>
                     <td>
                       {next === null ? (
