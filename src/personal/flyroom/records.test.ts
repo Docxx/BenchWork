@@ -2,6 +2,7 @@ import {
   isoDate,
   linkName,
   mapColumns,
+  mendRow,
   parseCsv,
   readCross,
   readStock,
@@ -91,6 +92,23 @@ describe('importing stocks from a CSV', () => {
       { name: 'Myd88-CyO', data: { genotype: 'w ; Myd88 / CyO ; + ; +' } },
     ]);
     expect(stocksFromCsv('Genotype\nw ; CyO/Sp\n')[0]?.data['genotype']).toBe('w ; CyO/Sp');
+  });
+
+  it('reads balancer columns as second copies, and mends unquoted commas', () => {
+    const csv = [
+      'Name,Source,Bloomington #,Chr X/Y,Chr X/Y Balancer,Chr 2,Chr 2 Balancer,Chr 3,Chr 3 Balancer,Chr 4,Chr 4 Balancer,Status,Notes,Date Added',
+      'Sco/CyO; TM3/TM6,,,+,,Sco,CyO,TM3,TM6,+,,Healthy,Double balancer,03/08/2026',
+      'mdr65-Gal4, UAS-GFP,,,+,,+,,mdr65-Gal4, UAS-GFP,,+,,Healthy,Both on 3,04/08/2026',
+      'Rel[E20] e[s],Bloomington,9457,w,,+,,Rel e,,+,,Dead,Gone,20/04/2026',
+    ].join('\n');
+    const found = stocksFromCsv(csv);
+    expect(found.map((s) => [s.name, s.data['genotype'], s.data['status']])).toEqual([
+      ['Sco-CyO; TM3-TM6', '+ ; Sco/CyO ; TM3/TM6 ; +', 'Healthy'],
+      ['mdr65-Gal4, UAS-GFP', '+ ; + ; mdr65-Gal4, UAS-GFP ; +', 'Healthy'],
+      ['Rel-E20 e-s', 'w ; + ; Rel e ; +', 'Dead'],
+    ]);
+    expect(found[2]?.data).toMatchObject({ source: 'Bloomington', number: '9457' });
+    expect(mendRow(['a', ' b', 'c', ' d'], 3)).toEqual(['a, b', 'c', ' d']);
   });
 
   it('reads dates day first', () => {

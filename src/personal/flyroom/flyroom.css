@@ -84,7 +84,7 @@ button.fly-name:first-child {
   color: var(--section-orange, #b8650a);
 }
 
-.fly-status.lost {
+.fly-status.dead {
   color: var(--section-red, #b3261e);
 }
 

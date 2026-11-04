@@ -179,30 +179,27 @@ export class FlyStore {
   }
 
   /**
-   * Adds imported stocks, skipping any whose name or genotype is already a
-   * stock. Returns how many were added and skipped.
+   * Adds imported stocks. One already here with the same name and genotype
+   * is skipped, so importing a file again adds nothing; repeated rows in one
+   * file, such as two vials of a stock, each become a stock. Returns how
+   * many were added and skipped.
    */
   async importStocks(
     stocks: readonly ImportedStock[],
   ): Promise<{ added: number; skipped: number }> {
-    const names = new Set(this.snap.stocks.map((s) => s.name.toLowerCase()));
-    const genotypes = new Set(
-      this.snap.stocks.map((s) => s.genotype.replace(/\s+/g, '')).filter((g) => g !== ''),
-    );
+    const key = (name: string, genotype: unknown) =>
+      `${name.toLowerCase()}|${typeof genotype === 'string' ? genotype.replace(/\s+/g, '') : ''}`;
+    const here = new Set(this.snap.stocks.map((s) => key(s.name, s.genotype)));
     let added = 0;
     let skipped = 0;
     await this.ctx.vault.ensureDir(STOCK_FOLDER);
     for (const s of stocks) {
-      const genotype =
-        typeof s.data['genotype'] === 'string' ? s.data['genotype'].replace(/\s+/g, '') : '';
-      if (names.has(s.name.toLowerCase()) || (genotype !== '' && genotypes.has(genotype))) {
+      if (here.has(key(s.name, s.data['genotype']))) {
         skipped += 1;
         continue;
       }
       const path = await this.ctx.vault.createRecord(STOCK_FOLDER, s.name, STOCK_KIND, s.data);
       await this.read(path);
-      names.add(s.name.toLowerCase());
-      if (genotype !== '') genotypes.add(genotype);
       added += 1;
     }
     this.changed();

@@ -9,15 +9,18 @@ leave both out entirely. Switch it on in Settings > Modules.
 
 Each stock is a small file, such as `Fly room/Stocks/w1118.flystock.yaml`. Fly stocks made by
 the Inventory module are the same kind and show here too. A stock has its genotype, source and
-stock number, where it is kept, its status (Healthy, Quarantine, Weak or Lost), when it was
+stock number, where it is kept, its status (Healthy, Quarantine, Weak or Dead), when it was
 established, alleles that kill in two copies, and how often it is flipped.
 
 Genotypes are written chromosome by chromosome, `X ; 2 ; 3 ; 4`, with a slash between a
 chromosome's two copies: `w ; Sco/CyO ; TM3/TM6 ; +`. One entry means both copies are the same.
 
-Import CSV adds stocks from a spreadsheet, such as another stock list's export. It finds the
-columns by their headings (name, genotype or X/2/3/4 columns, source, serial, date added,
-status, notes) and skips stocks that are already here.
+Import CSV adds stocks from a spreadsheet, such as the Drosophila Lab Manager's Export CSV. It
+finds the columns by their headings (name, genotype or X/2/3/4 columns with their balancer
+columns as second copies, source, Bloomington number, date added, status, notes). Rows where a
+name or genotype with a comma was not quoted are mended. Every row becomes a stock, repeats
+included; a stock already here with the same name and genotype is skipped, so importing a file
+again adds nothing.
 
 ## Cross planner
 

@@ -11,7 +11,7 @@ export const CROSS_KIND = 'flycross';
 export const STOCK_FOLDER = 'Fly room/Stocks';
 export const CROSS_FOLDER = 'Fly room/Crosses';
 
-export const STOCK_STATUSES = ['Healthy', 'Quarantine', 'Weak', 'Lost'] as const;
+export const STOCK_STATUSES = ['Healthy', 'Quarantine', 'Weak', 'Dead'] as const;
 export type StockStatus = (typeof STOCK_STATUSES)[number];
 
 export const CROSS_STATUSES = ['Planned', 'Set up', 'Collecting', 'Done', 'Failed'] as const;
@@ -75,7 +75,7 @@ function list(value: unknown): string[] {
 }
 
 function oneOf<T extends string>(value: unknown, options: readonly T[], fallback: T): T {
-  const v = text(value).toLowerCase();
+  const v = text(value).toLowerCase() === 'lost' ? 'dead' : text(value).toLowerCase();
   return options.find((o) => o.toLowerCase() === v) ?? fallback;
 }
 
@@ -133,6 +133,7 @@ export function linkName(value: string): string {
 /** A name that is safe as a file name: no slashes or other awkward characters. */
 export function safeName(name: string): string {
   return name
+    .replace(/\[([^[\]]*)\]/g, '-$1')
     .replace(/[\\/:*?"<>|#^[\]]+/g, '-')
     .replace(/\s+/g, ' ')
     .replace(/^[.\s-]+|[.\s-]+$/g, '')
@@ -184,14 +185,22 @@ export function parseCsv(input: string): string[][] {
 
 /** Column names that mean each field, lower case, matched loosely. */
 const COLUMNS: Record<string, readonly string[]> = {
+  // A chromosome's second copy, often headed as its balancer. Matched first,
+  // as its heading also contains the chromosome's.
+  xOther: ['chr x/y balancer', 'chr x balancer', 'x balancer', 'x chromosome balancer'],
+  twoOther: ['chr 2 balancer', 'chromosome 2 balancer', '2 balancer', 'chr ii balancer'],
+  threeOther: ['chr 3 balancer', 'chromosome 3 balancer', '3 balancer', 'chr iii balancer'],
+  fourOther: ['chr 4 balancer', 'chromosome 4 balancer', '4 balancer', 'chr iv balancer'],
   name: ['name', 'stock name', 'title', 'line', 'label'],
   genotype: ['genotype', 'full genotype'],
-  x: ['x', 'x chromosome', 'chr x', 'chromosome x', 'chrx'],
+  x: ['x', 'x chromosome', 'chr x/y', 'chr x', 'chromosome x', 'chrx'],
   two: ['2', 'chromosome 2', 'chr 2', 'chr2', 'chromosome ii', 'ii'],
   three: ['3', 'chromosome 3', 'chr 3', 'chr3', 'chromosome iii', 'iii'],
   four: ['4', 'chromosome 4', 'chr 4', 'chr4', 'chromosome iv', 'iv'],
   source: ['source', 'received from', 'origin', 'supplier'],
   number: [
+    'bloomington #',
+    'bloomington',
     'stock number',
     'serial',
     'source serial',
@@ -260,22 +269,46 @@ export function isoDate(value: string): string {
 }
 
 /**
+ * A row with more fields than headings, from an export that left commas
+ * inside a field unquoted: `mdr65-Gal4, UAS-GFP` split in two. Such commas
+ * are followed by a space and column breaks are not, so fields starting
+ * with a space are joined back to the one before, as many as there are extra.
+ */
+export function mendRow(row: readonly string[], width: number): string[] {
+  const fields = [...row];
+  for (let i = 1; i < fields.length && fields.length > width;) {
+    const field = fields[i] ?? '';
+    if (field.startsWith(' ')) {
+      fields.splice(i - 1, 2, `${fields[i - 1] ?? ''},${field}`);
+    } else {
+      i += 1;
+    }
+  }
+  return fields;
+}
+
+/**
  * Stocks from a CSV: one per row with a name or a genotype. A genotype in
- * separate chromosome columns is joined as `X ; 2 ; 3 ; 4`; a genotype
- * column beside those, often a short summary, becomes the name if there is
- * no name column.
+ * separate chromosome columns is joined as `X ; 2 ; 3 ; 4`, with a second
+ * copy (or balancer) column after a slash; a genotype column beside those,
+ * often a short summary, becomes the name if there is no name column.
  */
 export function stocksFromCsv(input: string): ImportedStock[] {
   const [head, ...rows] = parseCsv(input);
   if (!head) return [];
   const columns = mapColumns(head);
   const stocks: ImportedStock[] = [];
-  for (const row of rows) {
+  for (const raw of rows) {
+    const row = mendRow(raw, head.length);
     const get = (field: string) => {
       const i = columns.indexOf(field);
       return i >= 0 ? (row[i] ?? '').trim() : '';
     };
-    const parts = ['x', 'two', 'three', 'four'].map(get);
+    const parts = ['x', 'two', 'three', 'four'].map((c) => {
+      const first = get(c);
+      const other = get(`${c}Other`);
+      return other === '' ? first : `${first || '+'}/${other}`;
+    });
     const split = parts.some((p) => p !== '');
     // Chromosome columns, where there are any, are the full genotype; a
     // genotype column beside them is then a short name for the stock.
