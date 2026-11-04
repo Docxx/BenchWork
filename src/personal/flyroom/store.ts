@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { ModuleContext } from '@core/api';
 import { DEFAULT_MARKERS, type Marker } from './genetics';
+import { DEFAULT_LOOK, parseLook, type Look } from './look';
 import {
   CROSS_FOLDER,
   CROSS_KIND,
@@ -26,10 +27,11 @@ export function today(): string {
 export interface FlySettings {
   markers: Marker[];
   timings: Record<Temperature, Timing>;
+  look: Look;
 }
 
 export function defaultSettings(): FlySettings {
-  return { markers: [...DEFAULT_MARKERS], timings: { ...DEFAULT_TIMINGS } };
+  return { markers: [...DEFAULT_MARKERS], timings: { ...DEFAULT_TIMINGS }, look: DEFAULT_LOOK };
 }
 
 /** Settings as saved, with anything missing or odd back to the default. */
@@ -50,6 +52,7 @@ export function parseSettings(raw: unknown): FlySettings {
       .filter((m) => m.name !== '');
     if (markers.length > 0) settings.markers = markers;
   }
+  settings.look = parseLook(r['look']);
   const timings = r['timings'];
   if (typeof timings === 'object' && timings !== null) {
     for (const t of TEMPERATURES) {

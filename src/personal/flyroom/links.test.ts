@@ -6,7 +6,9 @@ import {
   parseTags,
   stockCentreLink,
 } from './links';
+import { DEFAULT_LOOK } from './look';
 import { readStock } from './records';
+import { parseSettings } from './store';
 
 describe('links out', () => {
   it('links FlyBase IDs to their page, and nothing else', () => {
@@ -41,6 +43,17 @@ describe('what a stock carries', () => {
       ['4', [], []],
     ]);
     expect(d.markers).toEqual(['Pin', 'Cy']);
+  });
+});
+
+describe('how genotypes look', () => {
+  it('keeps the chosen look, and falls back for odd values', () => {
+    expect(parseSettings({ look: { genotypes: 'line', colour: true } }).look).toEqual({
+      genotypes: 'line',
+      colour: true,
+    });
+    expect(parseSettings({ look: { genotypes: 'sideways' } }).look).toEqual(DEFAULT_LOOK);
+    expect(parseSettings(null).look).toEqual(DEFAULT_LOOK);
   });
 });
 
