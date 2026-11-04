@@ -34,8 +34,8 @@ export default tseslint.config(
   {
     // Modules talk to the core only through the public API. Their tests
     // may set the app up from core internals.
-    files: ['src/modules/**'],
-    ignores: ['src/modules/**/*.test.{ts,tsx}'],
+    files: ['src/modules/**', 'src/personal/**'],
+    ignores: ['src/modules/**/*.test.{ts,tsx}', 'src/personal/**/*.test.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
         'error',

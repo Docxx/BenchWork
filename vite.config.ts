@@ -1,6 +1,7 @@
 import { fileURLToPath, URL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import react from '@vitejs/plugin-react';
+import { loadEnv } from 'vite';
 import { defineConfig } from 'vitest/config';
 
 // Tauri expects a fixed dev port and reads TAURI_ENV_* variables.
@@ -10,6 +11,9 @@ import { defineConfig } from 'vitest/config';
 const host = process.env['TAURI_DEV_HOST'];
 const LOOPBACK = '127.0.0.1';
 const labelOnly = process.env['BENCHWORK_LABEL_STUDIO'] === '1';
+// Personal modules (src/personal), and the label page that goes with them,
+// are built in only on a device whose .env.local sets VITE_PERSONAL=1.
+const personal = loadEnv('', process.cwd(), 'VITE_')['VITE_PERSONAL'] === '1';
 
 let buildId = 'development';
 try {
@@ -50,7 +54,9 @@ export default defineConfig({
         : {
             main: fileURLToPath(new URL('./index.html', import.meta.url)),
             audience: fileURLToPath(new URL('./audience.html', import.meta.url)),
-            labels: fileURLToPath(new URL('./labels.html', import.meta.url)),
+            ...(personal
+              ? { labels: fileURLToPath(new URL('./labels.html', import.meta.url)) }
+              : {}),
           },
     },
     target: 'es2022',

@@ -17,6 +17,6 @@ export default defineConfig({
     command: `pnpm dev --port ${String(PORT)}`,
     url: `http://127.0.0.1:${String(PORT)}`,
     reuseExistingServer: false,
-    env: { VITE_PLATFORM: 'memory' },
+    env: { VITE_PLATFORM: 'memory', VITE_PERSONAL: '1' },
   },
 });

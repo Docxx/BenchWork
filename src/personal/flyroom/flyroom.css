@@ -1,0 +1,343 @@
+.fly-view {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: calc(1rem * var(--space)) 2rem 4rem;
+}
+
+.fly-tabs {
+  margin-bottom: 1rem;
+  padding-left: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.fly-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.fly-bar input[type='search'] {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.fly-note {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.fly-scroll {
+  overflow-x: auto;
+}
+
+.fly-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.fly-table th,
+.fly-table td {
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.fly-table th {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.fly-table tr[aria-selected='true'] td {
+  background: var(--accent-soft);
+}
+
+button.fly-name,
+button.fly-name:first-child {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-weight: 600;
+  text-align: left;
+}
+
+.fly-status {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fly-status.healthy {
+  color: var(--section-green, var(--accent));
+}
+
+.fly-status.quarantine,
+.fly-status.weak {
+  color: var(--section-orange, #b8650a);
+}
+
+.fly-status.dead {
+  color: var(--section-red, #b3261e);
+}
+
+/* Genotypes drawn as on paper: each chromosome's two copies one over the other. */
+.genotype {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  align-items: center;
+  gap: 0.15rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.82rem;
+  line-height: 1.15;
+}
+
+.genotype.compact {
+  font-size: 0.74rem;
+}
+
+.genotype-part {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.genotype-sep {
+  color: var(--muted);
+  padding: 0 0.15rem;
+}
+
+.genotype-pair {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.genotype-pair > span:first-child {
+  padding: 0 0.2rem 0.1rem;
+  border-bottom: 1px solid currentColor;
+}
+
+.genotype-pair > span:last-child {
+  padding: 0.1rem 0.2rem 0;
+}
+
+.fly-editor {
+  margin: 0 0 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.fly-editor-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+}
+
+.fly-editor-head h3 {
+  margin: 0;
+  font-family: var(--font-heading);
+}
+
+.fly-spacer {
+  flex: 1;
+}
+
+.fly-chromosomes,
+.fly-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.6rem;
+  margin: 0.75rem 0;
+}
+
+.fly-field {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.fly-field input,
+.fly-field select,
+.fly-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.fly-chromosomes input {
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+.fly-parents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.fly-parent {
+  display: grid;
+  flex: 1;
+  gap: 0.4rem;
+  min-width: 16rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.fly-genotype-input {
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+button.fly-swap {
+  font-size: 1.2rem;
+}
+
+.fly-table tr.fly-target td {
+  background: var(--accent-soft);
+}
+
+.fly-tag {
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-contrast, #fff);
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fly-actions {
+  white-space: nowrap;
+}
+
+.fly-dead {
+  margin-top: 0.75rem;
+  color: var(--muted);
+}
+
+.fly-dead ul {
+  display: grid;
+  gap: 0.25rem;
+  padding-left: 1rem;
+}
+
+.fly-chromosome-view {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.fly-punnett {
+  border-collapse: collapse;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.8rem;
+}
+
+.fly-punnett caption {
+  padding-bottom: 0.25rem;
+  font-family: var(--font-body, inherit);
+  font-weight: 600;
+  text-align: left;
+}
+
+.fly-punnett th,
+.fly-punnett td {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.fly-cross-parents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 0.75rem 0;
+}
+
+.fly-cross-parents > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.fly-times {
+  font-size: 1.3rem;
+  color: var(--muted);
+}
+
+.fly-timeline {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.75rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fly-timeline li {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.4rem 0.6rem;
+  border-left: 3px solid var(--border);
+}
+
+.fly-timeline li.due {
+  border-left-color: var(--section-red, #b3261e);
+}
+
+.fly-timeline li.done {
+  border-left-color: var(--accent);
+  color: var(--muted);
+}
+
+.fly-timeline label {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.fly-step-date {
+  min-width: 7rem;
+  font-weight: 600;
+}
+
+.fly-family {
+  color: var(--muted);
+}
+
+.fly-today {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fly-today li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.fly-today li > span {
+  flex: 1;
+  color: var(--muted);
+}
+
+.fly-today-name {
+  font-weight: 600;
+}

@@ -53,12 +53,28 @@ export function collectModules(
   };
 }
 
-/** The modules built into the app, from src/modules/<id>/. */
+/**
+ * The modules built into the app, from src/modules/<id>/; and, only in
+ * builds made with VITE_PERSONAL=1 (set in a git-ignored .env.local),
+ * personal ones from src/personal/<id>/. Other builds leave them out
+ * entirely: the condition is fixed when building, so their code is dropped.
+ */
 export function findBuiltInModules(): FoundModules {
   const manifests = import.meta.glob<unknown>('../../modules/*/manifest.json', {
     eager: true,
     import: 'default',
   });
   const entries = import.meta.glob('../../modules/*/index.ts');
+  // Written with a dot so Vite fills it in when building, and drops the unused branch.
+  if (import.meta.env.VITE_PERSONAL === '1') {
+    Object.assign(
+      manifests,
+      import.meta.glob<unknown>('../../personal/*/manifest.json', {
+        eager: true,
+        import: 'default',
+      }),
+    );
+    Object.assign(entries, import.meta.glob('../../personal/*/index.ts'));
+  }
   return collectModules(manifests, entries);
 }
