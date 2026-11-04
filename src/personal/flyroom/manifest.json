@@ -1,0 +1,9 @@
+{
+  "id": "flyroom",
+  "name": "Fly room",
+  "version": "0.1.0",
+  "description": "Fly stocks, a cross planner with progeny, ratios and markers, and crosses tracked from set-up to collecting",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

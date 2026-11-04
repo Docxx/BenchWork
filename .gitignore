@@ -8,3 +8,7 @@ test-results/
 *.log
 .DS_Store
 Thumbs.db
+
+# This device's own build settings, such as VITE_PERSONAL=1 for personal modules.
+.env.local
+.env.*.local
