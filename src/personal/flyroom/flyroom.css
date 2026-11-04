@@ -341,3 +341,85 @@ button.fly-swap {
 .fly-today-name {
   font-weight: 600;
 }
+
+select.fly-status {
+  width: auto;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--border);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.fly-carries {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.75rem 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.fly-carry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.fly-carry > .label {
+  min-width: 4.5rem;
+}
+
+button.fly-allele,
+button.fly-allele:first-child {
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.78rem;
+}
+
+.fly-balancer {
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.78rem;
+}
+
+.fly-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.fly-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+button.fly-tag-filter,
+button.fly-tag-filter:first-child {
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.8rem;
+}
+
+button.fly-tag-filter[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast, #fff);
+}
+
+.fly-row-tags {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
