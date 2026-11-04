@@ -243,6 +243,17 @@ See [preview testing](docs/preview-testing.md).
 - [ ] Live co-editing with accounts
 - [ ] Choose the server host (self-hosted or a low-cost cloud host)
 
+### Personal modules: Fly room
+
+Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([guide](docs/flyroom.md)).
+
+- [x] Personal modules in src/personal, left out of other builds; Label Studio moved there
+- [x] Fly stocks with genotypes by chromosome, status, flips and CSV import
+- [x] Cross planner: progeny by sex with shares, sorting markers, balancers and lethals
+- [x] Crosses with a timetable by temperature, ticked off, on Home and the calendar, and crossed on
+- [ ] Stocks imported from the Drosophila Lab Manager export
+- [ ] Checked on the PC and the tablet
+
 ## Phase 8: Apple port
 
 - [ ] macOS build (needs a Mac or macOS CI runner)

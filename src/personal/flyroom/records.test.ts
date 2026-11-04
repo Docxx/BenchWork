@@ -85,6 +85,14 @@ describe('importing stocks from a CSV', () => {
     ]);
   });
 
+  it('prefers chromosome columns to a short genotype column, which becomes the name', () => {
+    const csv = 'Genotype,X,Chromosome 2\nMyd88/CyO,w,Myd88 / CyO\n';
+    expect(stocksFromCsv(csv)).toEqual([
+      { name: 'Myd88-CyO', data: { genotype: 'w ; Myd88 / CyO ; + ; +' } },
+    ]);
+    expect(stocksFromCsv('Genotype\nw ; CyO/Sp\n')[0]?.data['genotype']).toBe('w ; CyO/Sp');
+  });
+
   it('reads dates day first', () => {
     expect(isoDate('04/08/2026')).toBe('2026-08-04');
     expect(isoDate('2026-8-4')).toBe('2026-08-04');

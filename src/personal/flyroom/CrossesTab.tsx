@@ -77,6 +77,14 @@ function CrossEditor({
             Cross on from the progeny wanted
           </button>
         )}
+        <button
+          type="button"
+          className="quiet"
+          title="Opens Label Studio, where this record can fill a label"
+          onClick={() => void ctx.app.openView('labels.studio')}
+        >
+          Print a label
+        </button>
         <button type="button" className="quiet" onClick={() => void ctx.app.open(cross.path)}>
           Open file
         </button>

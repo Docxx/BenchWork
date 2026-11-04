@@ -65,7 +65,8 @@ export function findBuiltInModules(): FoundModules {
     import: 'default',
   });
   const entries = import.meta.glob('../../modules/*/index.ts');
-  if (import.meta.env['VITE_PERSONAL'] === '1') {
+  // Written with a dot so Vite fills it in when building, and drops the unused branch.
+  if (import.meta.env.VITE_PERSONAL === '1') {
     Object.assign(
       manifests,
       import.meta.glob<unknown>('../../personal/*/manifest.json', {

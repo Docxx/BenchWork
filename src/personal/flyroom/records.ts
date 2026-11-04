@@ -261,7 +261,9 @@ export function isoDate(value: string): string {
 
 /**
  * Stocks from a CSV: one per row with a name or a genotype. A genotype in
- * separate chromosome columns is joined as `X ; 2 ; 3 ; 4`.
+ * separate chromosome columns is joined as `X ; 2 ; 3 ; 4`; a genotype
+ * column beside those, often a short summary, becomes the name if there is
+ * no name column.
  */
 export function stocksFromCsv(input: string): ImportedStock[] {
   const [head, ...rows] = parseCsv(input);
@@ -274,10 +276,11 @@ export function stocksFromCsv(input: string): ImportedStock[] {
       return i >= 0 ? (row[i] ?? '').trim() : '';
     };
     const parts = ['x', 'two', 'three', 'four'].map(get);
-    const genotype =
-      get('genotype') ||
-      (parts.some((p) => p !== '') ? parts.map((p) => p || '+').join(' ; ') : '');
-    const name = safeName(get('name') || genotype);
+    const split = parts.some((p) => p !== '');
+    // Chromosome columns, where there are any, are the full genotype; a
+    // genotype column beside them is then a short name for the stock.
+    const genotype = split ? parts.map((p) => p || '+').join(' ; ') : get('genotype');
+    const name = safeName(get('name') || (split ? get('genotype') : '') || genotype);
     if (name === '') continue;
     const data: Record<string, unknown> = { genotype };
     for (const field of ['source', 'number', 'location', 'notes'] as const) {
