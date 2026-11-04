@@ -251,6 +251,8 @@ Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([gu
 - [x] Fly stocks with genotypes by chromosome, status, flips and CSV import
 - [x] Cross planner: progeny by sex with shares, sorting markers, balancers and lethals
 - [x] Crosses with a timetable by temperature, ticked off, on Home and the calendar, and crossed on
+- [x] FlyBase and Bloomington links, what each stock carries, status from the list, and tags
+- [x] Genotypes as fractions or one line, coloured by chromosome, and progeny as cards
 - [ ] Stocks imported from the Drosophila Lab Manager export
 - [ ] Checked on the PC and the tablet
 

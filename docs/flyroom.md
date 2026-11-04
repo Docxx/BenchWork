@@ -15,6 +15,16 @@ established, alleles that kill in two copies, and how often it is flipped.
 Genotypes are written chromosome by chromosome, `X ; 2 ; 3 ; 4`, with a slash between a
 chromosome's two copies: `w ; Sco/CyO ; TM3/TM6 ; +`. One entry means both copies are the same.
 
+An open stock shows what it carries on each chromosome, its balancers and the markers to see.
+Each allele or transgene opens a FlyBase search. A FlyBase ID (FBst, FBal, FBti and so on)
+opens its FlyBase page, and a Bloomington number opens that stock's FlyBase page (FlyBase names
+Bloomington stocks FBst plus the number in seven digits). The status can be changed straight
+from the list. Tags, such as projects, filter the list; a stock can have several.
+
+Above the tabs, genotypes can be drawn with the copies one over the other or on one line, and
+coloured by chromosome with balancers marked. The planner shows progeny as a table, as cards
+under the cross, or chromosome by chromosome.
+
 Import CSV adds stocks from a spreadsheet, such as the Drosophila Lab Manager's Export CSV. It
 finds the columns by their headings (name, genotype or X/2/3/4 columns with their balancer
 columns as second copies, source, Bloomington number, date added, status, notes). Rows where a
