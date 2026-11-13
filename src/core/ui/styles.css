@@ -4687,3 +4687,55 @@ button.guide-more {
 .pen-saved li span:nth-child(2) {
   flex: 1;
 }
+
+/* Programs on Home. */
+.programs-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.programs-list li {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.programs-list input {
+  flex: 1;
+  min-width: 0;
+}
+
+button.program-button,
+button.program-button:first-child {
+  display: flex;
+  flex: 1;
+  gap: 0.5rem;
+  align-items: center;
+  min-width: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  text-align: left;
+}
+
+button.program-button:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.program-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.programs-actions {
+  display: flex;
+  gap: 0.5rem;
+}

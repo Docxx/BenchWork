@@ -120,3 +120,21 @@ test('widgets are dragged between docks, and added from the + menu', async ({ pa
   const bottom = page.getByRole('region', { name: 'Right side, bottom' });
   await expect(bottom.getByRole('grid')).toBeVisible();
 });
+
+test('programs on this computer are added to Home and opened from it', async ({ page }) => {
+  const home = page.getByRole('article', { name: 'Home' });
+  await home.getByRole('button', { name: 'Edit home' }).click();
+  await home.getByRole('button', { name: 'Add a card' }).click();
+  await page.getByRole('menuitem', { name: 'Programs' }).click();
+  await home.getByRole('button', { name: 'Done' }).click();
+
+  const programs = home.getByRole('region', { name: 'Programs' });
+  await page.evaluate(() => {
+    window.__benchworkMemory?.queueFilePick(['C:\Apps\GraphPad Prism.exe']);
+  });
+  await programs.getByRole('button', { name: 'Add a program' }).click();
+  await programs.getByRole('button', { name: 'GraphPad Prism' }).click();
+  await expect
+    .poll(() => page.evaluate(() => window.__benchworkMemory?.launched ?? []))
+    .toEqual(['C:\Apps\GraphPad Prism.exe']);
+});

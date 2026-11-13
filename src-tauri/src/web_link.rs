@@ -102,6 +102,26 @@ pub fn open_folder(full: &std::path::Path) -> VaultResult<()> {
         .map_err(|e| VaultError::io("Cannot open the folder", &e))
 }
 
+/// Whether a full path is a program or a shortcut to one, by its ending.
+pub fn is_program(full: &std::path::Path) -> bool {
+    full.is_absolute()
+        && full
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| matches!(e.to_ascii_lowercase().as_str(), "exe" | "lnk" | "url"))
+}
+
+/// Starts a program, or a shortcut to one, that the user added to Home.
+pub fn launch_program(full: &std::path::Path) -> VaultResult<()> {
+    if !is_program(full) {
+        return Err(VaultError::new(
+            ErrorKind::InvalidPath,
+            "Choose a program (.exe) or a shortcut to one",
+        ));
+    }
+    open_file(full)
+}
+
 /// Opens a file in the program the system uses for it, such as Word for `.docx`.
 pub fn open_file(full: &std::path::Path) -> VaultResult<()> {
     if !full.is_file() {
@@ -131,6 +151,16 @@ pub fn open_file(full: &std::path::Path) -> VaultResult<()> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn only_programs_and_shortcuts_are_launched() {
+        use std::path::Path;
+        assert!(super::is_program(Path::new("C:\\Program Files\\Prism\\prism.exe")));
+        assert!(super::is_program(Path::new("C:\\Users\\Ray\\Desktop\\Fiji.LNK")));
+        assert!(!super::is_program(Path::new("prism.exe")));
+        assert!(!super::is_program(Path::new("C:\\notes\\run.bat")));
+        assert!(super::launch_program(Path::new("C:\\no\\such\\thing.exe")).is_err());
+    }
+
     use super::*;
     #[test]
     fn folder_open_rejects_files_and_missing_locations_before_launch() {

@@ -87,6 +87,32 @@ function parseBackupPlan(data: unknown): BackupPlan | null {
 /** What writing with a pen does: draws ink, or lets the system turn handwriting into text. */
 export type PenMode = 'draw' | 'text';
 
+/** A program on this computer, opened from Home. */
+export interface ProgramShortcut {
+  name: string;
+  /** Its full path: a program or a shortcut to one. */
+  path: string;
+}
+
+function parsePrograms(raw: unknown): ProgramShortcut[] {
+  if (!Array.isArray(raw)) return [];
+  const programs: ProgramShortcut[] = [];
+  for (const p of raw as unknown[]) {
+    if (typeof p !== 'object' || p === null) continue;
+    const { name, path } = p as Record<string, unknown>;
+    if (typeof name !== 'string' || typeof path !== 'string') continue;
+    if (name.trim() === '' || path.trim() === '') continue;
+    programs.push({ name: name.trim().slice(0, 60), path });
+  }
+  return programs.slice(0, 40);
+}
+
+/** A program's name from its path: `C:\\Apps\\GraphPad Prism.exe` is `GraphPad Prism`. */
+export function programName(path: string): string {
+  const base = path.split(/[\\/]/).at(-1) ?? path;
+  return base.replace(/\.(exe|lnk|url)$/i, '').trim() || base;
+}
+
 /** A favourite pen. */
 export interface SavedPen {
   tool: 'pen' | 'highlighter';
@@ -121,6 +147,8 @@ export interface AppSettings {
   /** Theme preset, colours, fonts and sizes. */
   appearance: Appearance;
   penMode: PenMode;
+  /** Programs on this computer with a shortcut on Home. */
+  programs: ProgramShortcut[];
   /** Favourite pens: a tool with its colour and width, kept on this device. */
   pens: SavedPen[];
   /** Module panels in the sidebar that are open; the rest stay folded. */
@@ -146,6 +174,7 @@ const KNOWN_KEYS = new Set([
   'appearance',
   'penMode',
   'pens',
+  'programs',
   'openPanels',
   'backups',
   'home',
@@ -162,6 +191,7 @@ export function defaultAppSettings(): AppSettings {
     appearance: defaultAppearance(),
     penMode: 'draw',
     pens: [],
+    programs: [],
     openPanels: [],
     backups: {},
     home: {},
@@ -193,6 +223,7 @@ export function parseAppSettings(data: unknown): AppSettings {
     settings.penMode = record['penMode'];
   }
   settings.pens = parsePens(record['pens']);
+  settings.programs = parsePrograms(record['programs']);
   const backups = record['backups'];
   if (typeof backups === 'object' && backups !== null && !Array.isArray(backups)) {
     for (const [root, plan] of Object.entries(backups)) {
