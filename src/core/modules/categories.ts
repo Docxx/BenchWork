@@ -23,6 +23,7 @@ export const MODULE_CATEGORIES: Record<string, string> = {
   'mind-maps': 'Ideas and connections',
   handwriting: 'Ideas and connections',
   whiteboard: 'Ideas and connections',
+  figures: 'Data and storage',
   analysis: 'Data and storage',
   'data-viewer': 'Data and storage',
   cloud: 'Data and storage',

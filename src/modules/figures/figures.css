@@ -1,0 +1,129 @@
+.fig {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 420px;
+}
+
+.fig-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.fig-toolbar .tool-group,
+.fig-side .tool-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  align-items: center;
+}
+
+.fig-field {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.fig-field input[type='number'] {
+  width: 4.2rem;
+}
+
+.fig-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.fig-stage {
+  flex: 1;
+  min-width: 0;
+  padding: 24px;
+  overflow: auto;
+  background: color-mix(in srgb, var(--surface) 70%, var(--bg));
+}
+
+.fig-page {
+  display: block;
+  margin: 0 auto;
+  box-shadow: 0 2px 14px rgb(0 0 0 / 0.2);
+  /* Fingers move and zoom a panel's image, not the page. */
+  touch-action: none;
+  outline: none;
+  font-family: var(--font-body, sans-serif);
+  cursor: grab;
+}
+
+.fig-side {
+  display: grid;
+  align-content: start;
+  gap: 0.6rem;
+  width: 15rem;
+  padding: 0.75rem;
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.fig-side h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.fig-file {
+  margin: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .fig-body {
+    flex-direction: column;
+  }
+
+  .fig-side {
+    width: auto;
+    border-top: 1px solid var(--border);
+    border-left: none;
+  }
+}
+
+.fig-list {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 1rem 2rem 3rem;
+}
+
+.fig-new {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.fig-new > input {
+  flex: 1;
+  min-width: 14rem;
+}
+
+.fig-list ul {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fig-list li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+}
