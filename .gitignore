@@ -12,3 +12,7 @@ Thumbs.db
 # This device's own build settings, such as VITE_PERSONAL=1 for personal modules.
 .env.local
 .env.*.local
+
+# Private relay provisioning/recovery details and Python caches.
+.relay-private/
+__pycache__/

@@ -55,6 +55,8 @@ async function call<T>(command: string, args?: () => Record<string, unknown>): P
 
 /** What MainActivity.kt gives the page on Android. */
 interface AndroidBridge {
+  prepareAppUpdate(): string;
+  installAppUpdate(path: string, hash: string): string;
   shareLabelTemplate?(name: string, json: string): string;
   labelBluetooth?(id: string, operation: string, payload: string): void;
   openFeedbackEmail(subject: string, body: string): string;
@@ -216,6 +218,49 @@ function desktopFrame(): WindowFrame {
 }
 
 export class TauriAdapter implements PlatformAdapter {
+  readonly updates: import('./types').AppUpdates = {
+    check: () => call<import('./types').AvailableUpdate | null>('updates_check'),
+    download: async (version, progress) => {
+      const stop = await listen<{ downloaded: number; total: number }>(
+        'update-download-progress',
+        ({ payload }) => {
+          progress(payload.downloaded, payload.total);
+        },
+      );
+      try {
+        await call('updates_download', () => ({ version }));
+      } finally {
+        stop();
+      }
+    },
+    prepareInstall: () => {
+      const bridge = window.BenchWorkAndroid;
+      if (!bridge) return Promise.resolve(true);
+      const result = JSON.parse(bridge.prepareAppUpdate()) as { allowed?: boolean; error?: string };
+      return result.error
+        ? Promise.reject(new Error(result.error))
+        : Promise.resolve(result.allowed === true);
+    },
+    install: async () => {
+      const bridge = window.BenchWorkAndroid;
+      if (!bridge) {
+        await call('updates_install');
+        return;
+      }
+      const installer = await call<{ path: string; hash: string }>('updates_installer');
+      const result = JSON.parse(bridge.installAppUpdate(installer.path, installer.hash)) as {
+        error?: string;
+      };
+      if (result.error) throw new Error(result.error);
+    },
+  };
+  readonly relay: import('./types').RelayAdapter = {
+    exportDetails: (text) => call<string>('relay_export_details', () => ({ text })),
+    request: (endpoint, certificate, body) =>
+      call<string>('relay_request', () => ({ input: { endpoint, certificate, body } })),
+    apply: (path, expected, bytes) =>
+      call<boolean>('relay_apply', () => ({ path: normaliseVaultPath(path), expected, bytes })),
+  };
   readonly labelBluetooth = nativeLabelBluetooth();
   async openFeedbackEmail(subject: string, body: string): Promise<void> {
     const bridge = window.BenchWorkAndroid;

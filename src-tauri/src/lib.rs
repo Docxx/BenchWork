@@ -12,7 +12,9 @@ mod native_sync;
 mod pandoc;
 mod path_guard;
 mod programs;
+mod relay;
 mod storage;
+mod updates;
 mod vault_fs;
 mod vault_root;
 mod watcher;
@@ -39,6 +41,63 @@ struct VaultState {
 
 fn unavailable() -> VaultError {
     VaultError::new(ErrorKind::Io, "Vault state is unavailable")
+}
+
+#[tauri::command]
+async fn updates_check(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+) -> Result<Option<updates::Available>, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    updates::check(
+        &app.package_info().version.to_string(),
+        cfg!(target_os = "android"),
+        app.config().identifier.ends_with(".labels"),
+    )
+    .await
+}
+#[tauri::command]
+async fn updates_download(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    state: State<'_, updates::Updates>,
+    version: String,
+) -> Result<(), String> {
+    main_window(&window).map_err(|e| e.message)?;
+    let root = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| e.to_string())?
+        .join("updates");
+    state
+        .download(
+            root,
+            app.package_info().version.to_string(),
+            cfg!(target_os = "android"),
+            app.config().identifier.ends_with(".labels"),
+            version,
+            window,
+        )
+        .await
+}
+#[tauri::command]
+fn updates_installer(
+    window: tauri::WebviewWindow,
+    state: State<'_, updates::Updates>,
+) -> Result<updates::Installer, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    state.installer()
+}
+#[tauri::command]
+fn updates_install(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    state: State<'_, updates::Updates>,
+) -> Result<(), String> {
+    main_window(&window).map_err(|e| e.message)?;
+    state.install()?;
+    app.exit(0);
+    Ok(())
 }
 
 fn main_window(window: &tauri::WebviewWindow) -> VaultResult<()> {
@@ -120,6 +179,67 @@ async fn native_sync_start(
         other_sync_stopped,
     )
     .await
+}
+
+#[tauri::command]
+async fn relay_request(
+    window: tauri::WebviewWindow,
+    input: relay::Request,
+) -> Result<String, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    relay::request(input).await
+}
+#[tauri::command]
+async fn relay_apply(
+    window: tauri::WebviewWindow,
+    state: State<'_, VaultState>,
+    path: String,
+    expected: Option<String>,
+    bytes: Option<String>,
+) -> Result<bool, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    let root = state.root().map_err(|e| e.message)?;
+    tauri::async_runtime::spawn_blocking(move || relay::apply(&root, &path, expected, bytes))
+        .await
+        .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+fn relay_export_details(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    text: String,
+) -> Result<String, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    if text.len() > 16000 {
+        return Err("Sync details are too large".into());
+    }
+    let value: serde_json::Value =
+        serde_json::from_str(&text).map_err(|_| "Invalid sync details")?;
+    let kind = if value.get("recovery") == Some(&serde_json::json!(1)) {
+        "recovery"
+    } else if value.get("protocol") == Some(&serde_json::json!(1))
+        && value.get("invitation").is_some()
+    {
+        "pairing"
+    } else {
+        return Err("Invalid sync details".into());
+    };
+    let dir = app.path().download_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join(format!(
+        "BenchWork-cloud-{kind}-{}.json",
+        rand::random::<u64>()
+    ));
+    use std::io::Write;
+    let mut file = std::fs::OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&path)
+        .map_err(|e| e.to_string())?;
+    file.write_all(text.as_bytes())
+        .and_then(|_| file.sync_all())
+        .map_err(|e| e.to_string())?;
+    Ok(path_guard::display_path(&path))
 }
 #[tauri::command]
 async fn native_sync_stop(
@@ -954,7 +1074,15 @@ pub fn run() {
         .manage(VaultState::default())
         .manage(audience::AudienceState::default())
         .manage(native_sync::NativeSync::default())
+        .manage(updates::Updates::default())
         .invoke_handler(tauri::generate_handler![
+            updates_check,
+            updates_download,
+            updates_installer,
+            updates_install,
+            relay_request,
+            relay_apply,
+            relay_export_details,
             native_sync_read_invitation,
             native_sync_export_invitation,
             native_sync_start,

@@ -76,6 +76,8 @@ export function createNativeSyncSlice(ctx: StoreContext): NativeSyncSlice {
     await pending;
   }
   function consent() {
+    if (get().relaySync.enabled)
+      throw new Error('Disconnect Cloud sync before enabling Desktop Sync.');
     if (get().desktopSync.needsConfirmation && !get().desktopSync.confirmed)
       throw new Error(
         'Pause Syncthing for this vault and confirm below before using Desktop Sync.',

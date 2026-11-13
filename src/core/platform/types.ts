@@ -19,6 +19,8 @@ export interface HttpResponse {
 }
 
 export interface PlatformAdapter {
+  readonly updates?: AppUpdates | null;
+  readonly relay?: RelayAdapter | null;
   readonly labelBluetooth?: import('./labelBluetooth').LabelBluetoothTransport | null;
   /** Opens a reviewed draft to the fixed BenchWork feedback address; never sends it. */
   openFeedbackEmail?: (subject: string, body: string) => Promise<void>;
@@ -161,6 +163,28 @@ export interface PlatformAdapter {
   pandocVersion(): Promise<string | null>;
   /** Converts Markdown to Word with Pandoc. Every path is a vault path. */
   pandocToWord(options: PandocWordOptions): Promise<void>;
+}
+
+export interface AvailableUpdate {
+  version: string;
+  notes: string;
+  size: number;
+}
+export interface AppUpdates {
+  check: () => Promise<AvailableUpdate | null>;
+  download: (
+    version: string,
+    progress: (downloaded: number, total: number) => void,
+  ) => Promise<void>;
+  prepareInstall: () => Promise<boolean>;
+  install: () => Promise<void>;
+}
+
+/** Pinned relay networking and conditional, recoverable file projection. */
+export interface RelayAdapter {
+  exportDetails?: (text: string) => Promise<string>;
+  request: (endpoint: string, certificate: string, body: string) => Promise<string>;
+  apply: (path: string, expected: string | null, bytes: string | null) => Promise<boolean>;
 }
 
 export interface SyncConnection {

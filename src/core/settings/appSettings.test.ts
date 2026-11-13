@@ -40,6 +40,7 @@ describe('app settings', () => {
       programs: [],
       guided: true,
       previewBarVisible: true,
+      checkUpdatesOnStart: false,
     });
   });
 

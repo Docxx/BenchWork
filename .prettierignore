@@ -5,4 +5,5 @@ src-tauri/target
 src-tauri/gen
 playwright-report
 test-results
+.relay-private
 src/core/editor/markdown/fixtures

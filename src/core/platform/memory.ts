@@ -109,6 +109,8 @@ export class MemoryAdapter implements PlatformAdapter {
       this.feedbackDrafts.push({ subject, body });
     });
   nativeSync: import('./types').NativeSyncAdapter | null = null;
+  relay: import('./types').RelayAdapter | null = null;
+  updates: import('./types').AppUpdates | null = null;
   readonly kind: DeviceKind;
   folderBrowser: FolderBrowser | null = null;
   /** Runs programs as `usePrograms` says; none until then. */

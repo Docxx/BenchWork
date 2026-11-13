@@ -44,6 +44,24 @@ afterEach(() => {
 });
 
 describe('opening pages', () => {
+  it('imports synced changes into the same open document without marking a new local edit', async () => {
+    const { platform, store, state } = await openVault();
+    await state().openPage('Lab/Plan.md');
+    const doc = state().page?.ydoc;
+    store.setState({ relaySync: { ...state().relaySync, enabled: true } });
+    await platform.writeTextAtomic(
+      'Lab/Plan.md',
+      PAGE.replace('First line.', 'Remote first line.'),
+    );
+    await vi.waitFor(() => {
+      expect(JSON.stringify(yDocToPage(doc as import('yjs').Doc))).toContain('Remote first line.');
+    });
+    expect(state().page?.ydoc).toBe(doc);
+    expect(state().page?.version).toBe(0);
+    expect(state().saveState).toBe('saved');
+    expect(state().pageConflict).toBeNull();
+    await state().closeVault();
+  });
   it('opens a page with its title and content', async () => {
     const { state } = await openVault();
     await state().openPage('Lab/Plan.md');

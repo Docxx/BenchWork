@@ -12,6 +12,8 @@ import { createInkSlice, type InkSlice } from './inkSlice';
 import { createScreenSlice, type ScreenSlice } from './screenSlice';
 import { createSyncSlice, type SyncSlice } from './syncSlice';
 import { createNativeSyncSlice, type NativeSyncSlice } from './nativeSyncSlice';
+import { createRelaySyncSlice, type RelaySyncSlice } from './relaySyncSlice';
+import { createUpdatesSlice, type UpdatesSlice } from './updatesSlice';
 import { createBackupSlice, type BackupSlice } from './backupSlice';
 import { createHomeSlice, type HomeSlice } from './homeSlice';
 import { createLinksSlice, type LinksSlice } from './linksSlice';
@@ -51,6 +53,8 @@ export type AppState = KnowledgeSlice &
   ScreenSlice &
   SyncSlice &
   NativeSyncSlice &
+  RelaySyncSlice &
+  UpdatesSlice &
   BackupSlice &
   HomeSlice &
   GuideSlice;
@@ -93,6 +97,8 @@ export function createAppStore(
       ...createHomeSlice(ctx),
       ...createGuideSlice(ctx),
       ...createNativeSyncSlice(ctx),
+      ...createRelaySyncSlice(ctx),
+      ...createUpdatesSlice(ctx),
     };
   });
 

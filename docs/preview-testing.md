@@ -34,11 +34,34 @@ The feedback inbox address is intentionally included in the distributed app.
 
 ## Updates
 
-**Latest installer** in the preview footer, and **Get latest installer** in
-Settings > General, open
-[BenchWork Releases](https://github.com/Docxx/BenchWork/releases). This is a
-manual download link, not an automatic update check or installer. BenchWork
-does not claim a newer version exists or contact a release service at launch.
+In **Settings > General > About and updates**, choose **Check for updates**.
+When a newer version is available, choose **Download update**, then **Install
+update**. Downloads show progress and are checked against their published SHA-256
+and size. BenchWork saves and closes the vault before opening the system installer;
+save failures keep your work open and prevent installation.
+
+**Check for updates when BenchWork starts** is an optional per-device preference,
+off by default. It checks once at startup without blocking the local workspace.
+An available update appears in a small notification that can be dismissed until
+the next check. Download and installation always need an explicit action.
+
+Updates are hosted on Ray's server at `178.62.50.124`, separately from encrypted
+vault data. Native clients pin the public certificate in `src-tauri/update-server.pem`,
+refuse redirects, bound download sizes and recheck the installer before launch.
+The catalogue and checksums are authenticated by that pinned TLS connection; this
+is not Tauri's separately signed updater-artifact protocol. Protect the server and
+its TLS key as the source of trusted installers. Renewing the pinned certificate
+requires distributing a build that trusts the replacement before switching it.
+
+Windows opens the NSIS installer and exits after saving. Android opens its system
+installer; it may first ask you to allow updates from BenchWork. APK package name,
+newer version and signing key must match the installed app. Android's installer
+still asks before replacing the app. Cancelling leaves the saved workspace usable.
+
+**Latest installer** in the preview footer and **Get latest installer** in Settings
+remain manual links to [BenchWork Releases](https://github.com/Docxx/BenchWork/releases).
+The GitHub API is not used by the in-app updater because the release feed is not
+publicly accessible to unauthenticated devices.
 
 The first public preview is [0.15.0](https://github.com/Docxx/BenchWork/releases/tag/v0.15.0),
 with the Windows x64 installer and SHA-256 checksums. The maintainer must publish
@@ -53,10 +76,24 @@ from the executable and is not replaced by the installer. Keep a backup while
 testing development builds. Android testers install a newer APK with the same
 package identity and signing key.
 
-Automatic updates can be added later using Tauri's signed updater artifacts and
-a published update feed. Updater signatures and Windows code-signing certificates
-serve different purposes. This preview adds neither an updater service nor a
-new signing key. See [Tauri's updater documentation](https://v2.tauri.app/plugin/updater/).
+To publish a verified build to the private server's update service:
+
+```powershell
+./scripts/publish-update.ps1 -Version 0.19.0 `
+  -WindowsInstaller ./src-tauri/target/debug/bundle/nsis/BenchWork_0.19.0_x64-setup.exe `
+  -AndroidApk ./src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk `
+  -SshKey C:/Users/Ray/.ssh/benchwork_relay `
+  -Notes 'In-app update checks and installation'
+```
+
+The script uploads both installers to `/var/lib/benchwork-relay/updates`, checks
+their hashes remotely and replaces `latest.json` only after both are ready. Assets
+are named `BenchWork_<version>_x64-setup.exe` and `BenchWork_<version>_arm64.apk`.
+Never replace an existing version with different bytes; increment the version.
+Use the same Android signing key across releases. The update routes serve only
+the catalogue and versioned installers, excluding partial uploads and other files.
+They do not require sync credentials or expose vault content. Published installer
+downloads are accessible to anyone who knows the URL and trusts the certificate.
 
 ## Removing the temporary controls
 
