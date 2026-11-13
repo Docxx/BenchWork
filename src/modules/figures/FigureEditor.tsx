@@ -1,5 +1,7 @@
 import {
   Columns3,
+  Download,
+  FileText,
   FlipHorizontal2,
   ImagePlus,
   Merge,
@@ -18,6 +20,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ModuleContext } from '@core/api';
 import {
   DEFAULT_CROP,
+  FIGURE_ENDING,
   fillWith,
   insertLine,
   layout,
@@ -42,7 +45,10 @@ import { DisplayControls, ScaleControls } from './DisplayControls';
 import { MarkControls } from './MarkControls';
 import { boxToImage, imageToBox } from './marks';
 import { loadPlanes, picture, showsFor } from './images';
-import { drawFigure, FIGURE_FONT, type Source } from './render';
+import { toPdf, toPng, toSvg, toTiff, type ExportFormat } from './exportFigure';
+import { methodsNote } from './methods';
+import { drawFigure, type Source } from './render';
+import { buildScene } from './scene';
 import type { Planes } from './tiff';
 import './figures.css';
 
@@ -220,6 +226,72 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     [ctx, path],
   );
 
+  /** Each panel's picture, shown as its group says; made once and kept. */
+  const sourcesFor = useCallback((f: Figure) => {
+    const sources = new Map<string, Source>();
+    for (const panel of f.panels) {
+      const read = panel.image ? planes.current.get(panel.image.path) : undefined;
+      if (!panel.image || !read) continue;
+      const shows = showsFor(f, panel, read, planes.current);
+      const key = `${panel.image.path}|${JSON.stringify(shows)}`;
+      let made = pictures.current.get(key);
+      if (!made) {
+        made = picture(read, shows);
+        pictures.current.set(key, made);
+        if (pictures.current.size > 80) {
+          const oldest = pictures.current.keys().next().value;
+          if (oldest !== undefined) pictures.current.delete(oldest);
+        }
+      }
+      sources.set(panel.id, { image: made, w: read.width, h: read.height });
+    }
+    return sources;
+  }, []);
+
+  // ---- Exporting ----
+  const [format, setFormat] = useState<ExportFormat>('png');
+  const [dpi, setDpi] = useState(300);
+  const [busy, setBusy] = useState(false);
+  const [exported, setExported] = useState<string | null>(null);
+  const [methods, setMethods] = useState<string | null>(null);
+  const baseName = (path.split('/').at(-1) ?? 'Figure').slice(0, -FIGURE_ENDING.length);
+  const folder = dirOf(path);
+
+  const exportFigure = async () => {
+    const f = current.current;
+    if (!f) return;
+    const waiting = f.panels.some((p) => p.image && !planes.current.has(p.image.path));
+    if (waiting) {
+      setNotice('Some images are still being read. Try again in a moment.');
+      return;
+    }
+    setBusy(true);
+    setExported(null);
+    try {
+      const scene = buildScene(f, { sources: sourcesFor(f), editing: false });
+      const ext = { png: '.png', tiff: '.tif', svg: '.svg', pdf: '.pdf' }[format];
+      const name = await ctx.vault.freeName(folder, baseName, ext);
+      const target = folder === '' ? name : `${folder}/${name}`;
+      if (format === 'svg') await ctx.vault.writeText(target, await toSvg(scene, dpi));
+      else {
+        const bytes =
+          format === 'png'
+            ? await toPng(scene, dpi)
+            : format === 'tiff'
+              ? toTiff(scene, dpi)
+              : await toPdf(scene, dpi);
+        await ctx.vault.writeBytes(target, bytes);
+      }
+      setExported(target);
+    } catch (err) {
+      setNotice(
+        `The figure could not be exported. ${err instanceof Error ? err.message : String(err)}`,
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   // ---- Fitting the page to the room ----
   useEffect(() => {
     const el = stage.current;
@@ -250,34 +322,16 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     c.style.width = `${String(l.width * fit.scale)}px`;
     c.style.height = `${String(l.height * fit.scale)}px`;
     g.setTransform(ratio, 0, 0, ratio, 0, 0);
-    // Each panel's picture, shown as its group says; made once and kept.
-    const sources = new Map<string, Source>();
-    for (const panel of figure.panels) {
-      const read = panel.image ? planes.current.get(panel.image.path) : undefined;
-      if (!panel.image || !read) continue;
-      const shows = showsFor(figure, panel, read, planes.current);
-      const key = `${panel.image.path}|${JSON.stringify(shows)}`;
-      let made = pictures.current.get(key);
-      if (!made) {
-        made = picture(read, shows);
-        pictures.current.set(key, made);
-        if (pictures.current.size > 80) {
-          const oldest = pictures.current.keys().next().value;
-          if (oldest !== undefined) pictures.current.delete(oldest);
-        }
-      }
-      sources.set(panel.id, { image: made, w: read.width, h: read.height });
-    }
+    const sources = sourcesFor(figure);
     drawFigure(g, figure, {
       scale: fit.scale,
       sources,
       editing: true,
       selected: selected.at(-1) ?? null,
       selectedMark,
-      font: FIGURE_FONT,
       accent: getComputedStyle(c).getPropertyValue('--accent').trim() || '#2f5fb3',
     });
-  }, [figure, fit, selected, selectedMark, loaded]);
+  }, [figure, fit, selected, selectedMark, loaded, sourcesFor]);
 
   // ---- Adding images ----
   const addFiles = useCallback(
@@ -750,6 +804,47 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
         <button type="button" className="quiet" onClick={() => fileInput.current?.click()}>
           <ImagePlus {...ICON} /> Add images
         </button>
+        <div className="tool-group fig-export" role="group" aria-label="Export">
+          <select
+            aria-label="Export as"
+            value={format}
+            onChange={(e) => {
+              const next = (['png', 'tiff', 'svg', 'pdf'] as const).find(
+                (x) => x === e.target.value,
+              );
+              if (next) setFormat(next);
+            }}
+          >
+            <option value="png">PNG</option>
+            <option value="tiff">TIFF</option>
+            <option value="svg">SVG, editable</option>
+            <option value="pdf">PDF</option>
+          </select>
+          <select
+            aria-label="Resolution"
+            value={dpi}
+            onChange={(e) => {
+              setDpi(Number(e.target.value));
+            }}
+          >
+            <option value={300}>300 dpi</option>
+            <option value={600}>600 dpi</option>
+          </select>
+          <button type="button" disabled={busy} onClick={() => void exportFigure()}>
+            <Download {...ICON} /> {busy ? 'Exporting…' : 'Export'}
+          </button>
+          <button
+            type="button"
+            className="quiet"
+            title="How each panel was made: files, crops, scale and display"
+            onClick={() => {
+              const f = current.current;
+              if (f) setMethods(methodsNote(f, planes.current, baseName));
+            }}
+          >
+            <FileText {...ICON} /> Methods note
+          </button>
+        </div>
         <input
           ref={fileInput}
           type="file"
@@ -764,6 +859,63 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
           }}
         />
       </div>
+      {exported !== null && (
+        <p className="hint fig-exported" role="status">
+          Saved {exported.split('/').at(-1)} beside the figure.{' '}
+          <button
+            type="button"
+            className="quiet"
+            onClick={() => {
+              ctx.app.open(exported).catch(() => undefined);
+            }}
+          >
+            Open it
+          </button>
+        </p>
+      )}
+      {methods !== null && (
+        <section className="fig-methods" aria-label="Methods note">
+          <textarea aria-label="Methods note text" readOnly value={methods} rows={10} />
+          <div className="fig-row">
+            <button
+              type="button"
+              className="quiet"
+              onClick={() => {
+                void navigator.clipboard.writeText(methods).catch(() => undefined);
+              }}
+            >
+              Copy
+            </button>
+            <button
+              type="button"
+              className="quiet"
+              onClick={() => {
+                void (async () => {
+                  const name = await ctx.vault.freeName(folder, `${baseName} methods`, '.md');
+                  const target = folder === '' ? name : `${folder}/${name}`;
+                  await ctx.vault.writeText(target, methods);
+                  await ctx.app.open(target);
+                })().catch((err: unknown) => {
+                  setNotice(
+                    `The note could not be saved. ${err instanceof Error ? err.message : String(err)}`,
+                  );
+                });
+              }}
+            >
+              Save as a page
+            </button>
+            <button
+              type="button"
+              className="quiet"
+              onClick={() => {
+                setMethods(null);
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </section>
+      )}
       {notice !== null && (
         <p className="notice" role="alert">
           {notice}{' '}

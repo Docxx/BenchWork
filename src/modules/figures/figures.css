@@ -256,3 +256,26 @@
   display: grid;
   gap: 0.35rem;
 }
+
+.fig-export select {
+  width: auto;
+}
+
+.fig-exported {
+  margin: 0;
+  padding: 0.35rem 0.75rem;
+}
+
+.fig-methods {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.fig-methods textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.8rem;
+}
