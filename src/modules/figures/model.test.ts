@@ -1,6 +1,7 @@
 // @vitest-environment node
 import {
   fillWith,
+  inReadingOrder,
   insertLine,
   layout,
   letter,
@@ -94,7 +95,19 @@ describe('changing the grid', () => {
     let f = fillWith(newFigure(2, 2), ['a.png']);
     const second = f.panels[1]?.id;
     f = fillWith(f, ['b.png', 'c.png', 'd.png', 'e.png'], second);
-    expect(f.panels.map((p) => p.image?.path)).toEqual(['a.png', 'b.png', 'c.png', 'd.png']);
+    expect(f.panels.slice(0, 4).map((p) => p.image?.path)).toEqual([
+      'a.png',
+      'b.png',
+      'c.png',
+      'd.png',
+    ]);
+    // The fifth has no room, so a new row is added for it.
+    expect(f.rows).toHaveLength(3);
+    expect(
+      inReadingOrder(f.panels)
+        .slice(4)
+        .map((p) => p.image?.path ?? null),
+    ).toEqual(['e.png', null]);
   });
 });
 

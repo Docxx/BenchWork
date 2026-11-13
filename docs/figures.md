@@ -22,7 +22,8 @@ Open the Figures tool, give the figure a name, choose how many rows and columns,
 ## Images
 
 Drop images onto the page, paste them, or use **Add images**. Several at once fill the empty
-panels in reading order. TIFF (8, 16 or 32-bit, with channels, as FIJI saves them), PNG and
+panels in reading order; any more go in new rows at the bottom. On a tablet, Add images opens
+the file manager (with Drive and OneDrive), so files keep their names. TIFF (8, 16 or 32-bit, with channels, as FIJI saves them), PNG and
 JPEG all work.
 
 Press a panel to choose it, then:

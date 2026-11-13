@@ -850,7 +850,12 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
           type="file"
           hidden
           multiple
-          accept="image/*,.tif,.tiff"
+          // On a tablet an images-only chooser opens the photo picker, which
+          // renames files (and so loses names from FIJI). Asking for any file
+          // as well opens the file manager, which keeps them.
+          accept={
+            ctx.platform === 'tablet' ? 'application/octet-stream,image/*' : 'image/*,.tif,.tiff'
+          }
           aria-label="Images to add"
           onChange={(e) => {
             const files = [...(e.target.files ?? [])];
@@ -944,8 +949,9 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
           {chosen.length === 0 ? (
             <>
               <p className="hint">
-                Choose a panel to crop, turn or name its channels. Drop several images to fill the
-                empty panels in order. Shift-click to choose more than one.
+                {ctx.platform === 'tablet'
+                  ? 'Press a panel to crop, turn or name its channels. Add several images to fill the empty panels in order; extra ones go in new rows.'
+                  : 'Choose a panel to crop, turn or name its channels. Drop several images to fill the empty panels in order; extra ones go in new rows. Shift-click to choose more than one.'}
               </p>
               <FigureLabels figure={figure} onChange={commit} />
             </>

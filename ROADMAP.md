@@ -291,7 +291,7 @@ Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([gu
 - [x] TIFFs from FIJI (16-bit, channels, pixel size), scale bars, and brightness set evenly
 - [x] Arrows, arrowheads, asterisks and text pinned to the image, and zoomed insets
 - [x] Export to PNG and TIFF at 300 or 600 dpi, SVG and PDF, and a methods note ([guide](docs/figures.md))
-- [ ] Checked on the PC and the tablet
+- [x] Checked on the PC and the tablet
 
 ## Phase 8: Apple port
 
