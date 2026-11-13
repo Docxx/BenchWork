@@ -7,13 +7,15 @@ if [[ ! "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo 'Expected an IPv4 address' >&2
   exit 1
 fi
-python3 -m unittest discover -s . -p test_server.py -v
+python3 -m unittest discover -s . -p 'test_*.py' -v
 id benchwork-relay >/dev/null 2>&1 || useradd --system --home /var/lib/benchwork-relay --shell /usr/sbin/nologin benchwork-relay
 install -d -o root -g root -m 0755 /opt/benchwork-relay
 install -d -o root -g benchwork-relay -m 0750 /etc/benchwork-relay
 install -d -o benchwork-relay -g benchwork-relay -m 0700 /var/lib/benchwork-relay
 install -o root -g root -m 0644 server.py /opt/benchwork-relay/server.py
 install -o root -g root -m 0644 admin.py /opt/benchwork-relay/admin.py
+install -o root -g root -m 0644 backup.py /opt/benchwork-relay/backup.py
+install -d -o benchwork-relay -g benchwork-relay -m 0700 /var/backups/benchwork-relay
 if [[ ! -e /etc/benchwork-relay/server.key ]]; then
   umask 077
   openssl req -x509 -newkey rsa:3072 -sha256 -nodes -days 825 \
@@ -61,8 +63,43 @@ LimitNOFILE=1024
 [Install]
 WantedBy=multi-user.target
 EOF
+# A nightly backup of the database and the files a restore needs.
+cat > /etc/systemd/system/benchwork-relay-backup.service <<'UNIT'
+[Unit]
+Description=Back up the BenchWork relay
+After=benchwork-relay.service
+
+[Service]
+Type=oneshot
+User=benchwork-relay
+Group=benchwork-relay
+ExecStart=/usr/bin/python3 -B /opt/benchwork-relay/backup.py
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# A reader of a WAL database still writes its shared-memory file beside it.
+ReadOnlyPaths=/etc/benchwork-relay
+ReadWritePaths=/var/lib/benchwork-relay /var/backups/benchwork-relay
+Nice=10
+IOSchedulingClass=idle
+UNIT
+cat > /etc/systemd/system/benchwork-relay-backup.timer <<'UNIT'
+[Unit]
+Description=Back up the BenchWork relay every night
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=20m
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
 systemctl daemon-reload
 systemctl enable --now benchwork-relay.service
+systemctl enable --now benchwork-relay-backup.timer
 # Existing active firewalls keep their policy; add only the relay's TLS port.
 if command -v ufw >/dev/null && ufw status | grep -q 'Status: active'; then ufw allow 443/tcp; fi
 systemctl --no-pager --full status benchwork-relay.service
