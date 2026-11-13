@@ -8,7 +8,6 @@ import {
   RotateCw,
   Settings,
   SlidersHorizontal,
-  SquareTerminal,
   Star,
   FileText,
   Folder,
@@ -45,15 +44,7 @@ export function initials(name: string): string {
 
 const ICON = { size: 17, strokeWidth: 1.75, 'aria-hidden': true } as const;
 
-export function Sidebar({
-  vault,
-  onCollapse,
-  onCommands,
-}: {
-  vault: OpenVault;
-  onCollapse: () => void;
-  onCommands: () => void;
-}) {
+export function Sidebar({ vault, onCollapse }: { vault: OpenVault; onCollapse: () => void }) {
   const refreshTree = useApp((s) => s.refreshTree);
   const closeVault = useApp((s) => s.closeVault);
   const view = useApp((s) => s.view);
@@ -134,13 +125,6 @@ export function Sidebar({
           >
             <CalendarDays {...ICON} />
             Today
-          </button>
-        </li>
-        <li>
-          <button type="button" className="nav-item" title="Commands (Ctrl+K)" onClick={onCommands}>
-            <SquareTerminal {...ICON} />
-            Commands
-            <kbd>Ctrl K</kbd>
           </button>
         </li>
         <SidebarTools />
