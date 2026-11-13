@@ -197,41 +197,99 @@ export function NotebookTree() {
       ];
     }
     const favourite = favourites.includes(node.path);
-    const common: MenuItem[] = [
-      {
-        label: favourite ? 'Remove from Favourites' : 'Add to Favourites',
-        onSelect: () => void setFavourite(node.path, !favourite),
+    const favouriteItem: MenuItem = {
+      label: favourite ? 'Remove from Favourites' : 'Add to Favourites',
+      group: 'Organise',
+      onSelect: () => void setFavourite(node.path, !favourite),
+    };
+    const rename: MenuItem = {
+      label: 'Rename',
+      group: 'Organise',
+      onSelect: () => {
+        setRenaming(node.path);
       },
-      {
-        label: 'Rename',
-        onSelect: () => {
-          setRenaming(node.path);
-        },
+    };
+    const remove: MenuItem = {
+      label: 'Move to Recycle Bin',
+      danger: true,
+      onSelect: () => {
+        setConfirming(node);
       },
-      {
-        label: 'Move to Recycle Bin',
-        danger: true,
-        onSelect: () => {
-          setConfirming(node);
-        },
-      },
-    ];
+    };
     if (!node.isDir) {
-      if (node.kind !== 'page') return common;
       return [
-        ...common.slice(0, -1),
-        { label: 'Save as template', onSelect: () => void saveAsTemplate(node.path) },
-        ...common.slice(-1),
+        rename,
+        favouriteItem,
+        ...(node.kind === 'page'
+          ? [
+              {
+                label: 'Save as template',
+                group: 'Organise',
+                onSelect: () => void saveAsTemplate(node.path),
+              },
+            ]
+          : []),
+        remove,
       ];
     }
+    // Other things to make here: from a template, of a module's kind, or by a module.
+    const more: MenuItem[] = [
+      {
+        label: 'New page from template…',
+        onSelect: () => {
+          setTemplateFolder(node.path);
+        },
+      },
+      ...pageTypes.map((t) => ({
+        label: `New ${t.name.toLowerCase()}`,
+        onSelect: () => void createThenRename(createTypedPage(node.path, t.type)),
+      })),
+      ...commandItems('folder', node.path),
+    ];
+    const sort = sortOf(node.path);
     return [
-      { label: 'New page', onSelect: () => void createThenRename(createPage(node.path)) },
-      { label: 'Add files…', onSelect: () => void pickFilesIntoFolder(node.path) },
+      {
+        label: 'New page',
+        group: 'New',
+        onSelect: () => void createThenRename(createPage(node.path)),
+      },
+      {
+        label: 'New section',
+        group: 'New',
+        onSelect: () => void createThenRename(createSection(node.path)),
+      },
+      { label: 'More to add', group: 'New', children: more },
+      rename,
+      favouriteItem,
+      {
+        label: 'Icon…',
+        group: 'Organise',
+        onSelect: () => {
+          setChoosingIcon({ node, x: menu?.x ?? 0, y: menu?.y ?? 0 });
+        },
+      },
+      {
+        label: 'Sort',
+        group: 'Organise',
+        children: SORTS.map(([by, label]) => ({
+          label: `Sort: ${label}`,
+          checked: sort === by,
+          onSelect: () => void setFolderSort(node.path, by),
+        })),
+      },
+      { label: 'Add files…', group: 'Files', onSelect: () => void pickFilesIntoFolder(node.path) },
       ...(folderActionsAvailable
-        ? [{ label: 'Open in Windows Explorer', onSelect: () => void openFolder(node.path) }]
+        ? [
+            {
+              label: 'Open in Windows Explorer',
+              group: 'Files',
+              onSelect: () => void openFolder(node.path),
+            },
+          ]
         : []),
       {
         label: 'Copy folder path',
+        group: 'Files',
         onSelect: () => {
           if (status.kind !== 'open') return;
           const path = `${status.vault.root.replace(/[\\/]$/, '')}/${node.path}`;
@@ -243,29 +301,7 @@ export function NotebookTree() {
             });
         },
       },
-      {
-        label: 'New page from template…',
-        onSelect: () => {
-          setTemplateFolder(node.path);
-        },
-      },
-      ...pageTypes.map((t) => ({
-        label: `New ${t.name.toLowerCase()}`,
-        onSelect: () => void createThenRename(createTypedPage(node.path, t.type)),
-      })),
-      { label: 'New section', onSelect: () => void createThenRename(createSection(node.path)) },
-      ...commandItems('folder', node.path),
-      {
-        label: 'Icon…',
-        onSelect: () => {
-          setChoosingIcon({ node, x: menu?.x ?? 0, y: menu?.y ?? 0 });
-        },
-      },
-      ...SORTS.map(([sort, label]) => ({
-        label: `${sortOf(node.path) === sort ? '✓ ' : ''}Sort: ${label}`,
-        onSelect: () => void setFolderSort(node.path, sort),
-      })),
-      ...common,
+      remove,
     ];
   }
 

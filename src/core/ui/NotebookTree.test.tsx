@@ -114,12 +114,17 @@ describe('NotebookTree', () => {
     ).toEqual(
       expect.arrayContaining([
         'New page',
-        'New page from template…',
         'New section',
+        'More to add',
         'Rename',
+        'Sort',
+        'Add files…',
         'Move to Recycle Bin',
       ]),
     );
+    // More to add folds out in place.
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'More to add' }));
+    expect(within(menu).getByRole('menuitem', { name: 'New page from template…' })).toBeDefined();
     expect(within(menu).getByRole('menuitem', { name: 'Colour teal' })).toBeDefined();
     fireEvent.keyDown(menu, { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();
@@ -129,7 +134,7 @@ describe('NotebookTree', () => {
       within(screen.getByRole('menu'))
         .getAllByRole('menuitem')
         .map((b) => b.textContent),
-    ).toEqual(['Add to Favourites', 'Rename', 'Save as template', 'Move to Recycle Bin']);
+    ).toEqual(['Rename', 'Add to Favourites', 'Save as template', 'Move to Recycle Bin']);
   });
 
   it('adds a page from the menu and starts renaming it', async () => {

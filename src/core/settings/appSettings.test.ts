@@ -36,6 +36,7 @@ describe('app settings', () => {
       appearance: defaultAppearance(),
       backups: {},
       home: {},
+      pens: [],
       guided: true,
       previewBarVisible: true,
     });

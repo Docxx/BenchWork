@@ -78,6 +78,8 @@ export interface Appearance {
   /** How tall rows in the notebooks list are. */
   treeDensity: Density;
   toolsCollapsed: boolean;
+  /** Tools kept at the top of the sidebar's Tools list, by view id. */
+  pinnedTools: string[];
   notebookHeight: number;
   /** Lines down the notebooks list, showing what is inside what. */
   treeLines: boolean;
@@ -1024,6 +1026,7 @@ export function defaultAppearance(preset: ThemePreset = 'forest'): Appearance {
     timerVolume: 35,
     treeDensity: 'roomy',
     toolsCollapsed: false,
+    pinnedTools: [],
     notebookHeight: 360,
     treeLines: false,
     hideDaily: false,
@@ -1112,6 +1115,8 @@ export function parseAppearance(data: unknown): Appearance {
     result.treeDensity = record['treeDensity'];
   if (typeof record['notebookHeight'] === 'number' && Number.isFinite(record['notebookHeight']))
     result.notebookHeight = clampWidth(record['notebookHeight'], { min: 140, max: 900 });
+  if (Array.isArray(record['pinnedTools']))
+    result.pinnedTools = record['pinnedTools'].filter((p): p is string => typeof p === 'string');
   for (const key of ['treeLines', 'hideDaily', 'pagesOnly', 'toolsCollapsed'] as const) {
     const value = record[key];
     if (typeof value === 'boolean') result[key] = value;

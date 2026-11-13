@@ -78,6 +78,7 @@ test('new daily pages start from the Daily template', async ({ page }) => {
 test('a new page from a template, with its name filled in', async ({ page }) => {
   await open(page);
   await tree(page).getByRole('treeitem', { name: 'Lab' }).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'More to add' }).click();
   await page.getByRole('menuitem', { name: 'New page from template…' }).click();
   const picker = page.getByRole('dialog', { name: 'Choose a template' });
   await picker.getByRole('textbox', { name: 'Page name' }).fill('Western blot');

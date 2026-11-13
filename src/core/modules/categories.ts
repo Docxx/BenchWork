@@ -10,6 +10,7 @@ export const MODULE_CATEGORIES: Record<string, string> = {
   inventory: 'Lab and experiments',
   'lab-tools': 'Lab and experiments',
   labels: 'Lab and experiments',
+  flyroom: 'Lab and experiments',
   references: 'Reading and writing',
   papers: 'Reading and writing',
   manuscript: 'Reading and writing',

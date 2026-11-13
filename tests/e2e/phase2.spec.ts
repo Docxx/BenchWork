@@ -71,6 +71,7 @@ test('an experiment links to its data, and both appear in search', async ({ page
 
   // A dataset record for the day 7 video, which stays on lab storage.
   await row(page, 'Data').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'More to add' }).click();
   await page.getByRole('menuitem', { name: 'New dataset' }).click();
   await page.getByRole('textbox', { name: 'Dataset name' }).fill('climbing-day7');
   await page.getByRole('button', { name: 'OK', exact: true }).click();
@@ -90,6 +91,7 @@ test('an experiment links to its data, and both appear in search', async ({ page
 
   // An experiment in the project, linked to the dataset.
   await row(page, 'Experiments').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'More to add' }).click();
   await page.getByRole('menuitem', { name: 'New experiment' }).click();
   await page.getByRole('textbox', { name: 'Name' }).fill('LPS dose');
   await page.keyboard.press('Enter');

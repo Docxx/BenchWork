@@ -87,6 +87,30 @@ function parseBackupPlan(data: unknown): BackupPlan | null {
 /** What writing with a pen does: draws ink, or lets the system turn handwriting into text. */
 export type PenMode = 'draw' | 'text';
 
+/** A favourite pen. */
+export interface SavedPen {
+  tool: 'pen' | 'highlighter';
+  colour: string;
+  width: number;
+}
+
+/** The most favourite pens kept. */
+export const MAX_PENS = 8;
+
+function parsePens(raw: unknown): SavedPen[] {
+  if (!Array.isArray(raw)) return [];
+  const pens: SavedPen[] = [];
+  for (const p of raw as unknown[]) {
+    if (typeof p !== 'object' || p === null) continue;
+    const { tool, colour, width } = p as Record<string, unknown>;
+    if (tool !== 'pen' && tool !== 'highlighter') continue;
+    if (typeof colour !== 'string' || !/^#[0-9a-f]{6}$/i.test(colour)) continue;
+    if (typeof width !== 'number' || !(width >= 0.5 && width <= 24)) continue;
+    pens.push({ tool, colour, width });
+  }
+  return pens.slice(0, MAX_PENS);
+}
+
 export interface AppSettings {
   version: 1;
   /** Full path of the last vault opened on this device. */
@@ -97,6 +121,8 @@ export interface AppSettings {
   /** Theme preset, colours, fonts and sizes. */
   appearance: Appearance;
   penMode: PenMode;
+  /** Favourite pens: a tool with its colour and width, kept on this device. */
+  pens: SavedPen[];
   /** Module panels in the sidebar that are open; the rest stay folded. */
   openPanels: string[];
   /** Backups from this device, by the vault's full path. */
@@ -119,6 +145,7 @@ const KNOWN_KEYS = new Set([
   'showAllFiles',
   'appearance',
   'penMode',
+  'pens',
   'openPanels',
   'backups',
   'home',
@@ -134,6 +161,7 @@ export function defaultAppSettings(): AppSettings {
     showAllFiles: false,
     appearance: defaultAppearance(),
     penMode: 'draw',
+    pens: [],
     openPanels: [],
     backups: {},
     home: {},
@@ -164,6 +192,7 @@ export function parseAppSettings(data: unknown): AppSettings {
   if (record['penMode'] === 'draw' || record['penMode'] === 'text') {
     settings.penMode = record['penMode'];
   }
+  settings.pens = parsePens(record['pens']);
   const backups = record['backups'];
   if (typeof backups === 'object' && backups !== null && !Array.isArray(backups)) {
     for (const [root, plan] of Object.entries(backups)) {

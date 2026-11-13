@@ -1,6 +1,6 @@
 import { emptyInk, newInkName, parseInk, serialiseInk, type Ink } from '../ink/inkFile';
 import type { PenSettings } from '../ink/surface';
-import { saveAppSettings, type PenMode } from '../settings/appSettings';
+import { MAX_PENS, saveAppSettings, type PenMode, type SavedPen } from '../settings/appSettings';
 import { ATTACHMENTS_DIR, embedPath } from '../pages/attachments';
 import { describeError, type StoreContext } from './context';
 
@@ -33,6 +33,9 @@ export interface InkSlice {
   /** Whether a pen has been seen since the app opened: the pen tools show from then on. */
   penSeen: boolean;
   setPen: (changes: Partial<PenSettings>) => void;
+  /** Keeps the pen in use as a favourite, or removes one; saved on this device. */
+  savePen: () => Promise<void>;
+  removePen: (index: number) => Promise<void>;
   /** Draw with the pen, or let the system turn handwriting into text; saved on this device. */
   setPenMode: (mode: PenMode) => Promise<void>;
   /** Tells the system whether to turn pen writing into text, as the saved mode says. */
@@ -50,25 +53,58 @@ export interface InkSlice {
   saveInk: (target: string, ink: Ink) => Promise<void>;
 }
 
+/** The tool if it writes ink with a colour and width, or null. */
+function inkTool(tool: string): 'pen' | 'highlighter' | null {
+  return tool === 'pen' || tool === 'highlighter' ? tool : null;
+}
+
 export function createInkSlice(ctx: StoreContext): InkSlice {
   const { platform, set, get } = ctx;
   /** Drawings whose files could not be read, so they are never written over. */
   const unreadable = new Set<string>();
+  const remembered: Record<'pen' | 'highlighter', { colour: string; width: number }> = {
+    pen: { colour: PEN_COLOURS[0].value, width: PEN_WIDTHS[1].value },
+    highlighter: { colour: HIGHLIGHTER_COLOURS[0].value, width: PEN_WIDTHS[1].value },
+  };
+  const savePens = async (pens: SavedPen[]) => {
+    const settings = { ...get().settings, pens };
+    set({ settings });
+    try {
+      await saveAppSettings(platform, settings);
+    } catch (err) {
+      set({ settingsError: `Your pens could not be saved. ${describeError(err)}` });
+    }
+  };
   return {
     pen: { tool: 'pen', colour: PEN_COLOURS[0].value, width: PEN_WIDTHS[1].value },
     penSeen: false,
 
     setPen: (changes) => {
-      const pen = { ...get().pen, ...changes };
-      // Each tool keeps to its own colours.
-      if (
-        changes.tool === 'highlighter' &&
-        !HIGHLIGHTER_COLOURS.some((c) => c.value === pen.colour)
-      )
-        pen.colour = HIGHLIGHTER_COLOURS[0].value;
-      if (changes.tool === 'pen' && !PEN_COLOURS.some((c) => c.value === pen.colour))
-        pen.colour = PEN_COLOURS[0].value;
+      const before = get().pen;
+      const pen = { ...before, ...changes };
+      // Each tool remembers the colour and width it last had.
+      const was = inkTool(before.tool);
+      if (was !== null) remembered[was] = { colour: before.colour, width: before.width };
+      const now = changes.tool === undefined ? null : inkTool(changes.tool);
+      if (now !== null && changes.tool !== before.tool) {
+        pen.colour = changes.colour ?? remembered[now].colour;
+        pen.width = changes.width ?? remembered[now].width;
+      }
       set({ pen });
+    },
+
+    savePen: async () => {
+      const { colour, width } = get().pen;
+      const tool = inkTool(get().pen.tool);
+      if (tool === null) return;
+      const same = (p: SavedPen) => p.tool === tool && p.colour === colour && p.width === width;
+      const pens = get().settings.pens;
+      if (pens.some(same)) return;
+      await savePens([...pens, { tool, colour, width }].slice(-MAX_PENS));
+    },
+
+    removePen: async (index) => {
+      await savePens(get().settings.pens.filter((_p, i) => i !== index));
     },
 
     setPenMode: async (penMode) => {
