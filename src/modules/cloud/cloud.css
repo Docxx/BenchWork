@@ -100,3 +100,13 @@
   background: var(--accent-soft);
   border-radius: 10px;
 }
+
+.cloud-status {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.cloud-status.missing {
+  color: var(--section-red);
+  font-weight: 600;
+}

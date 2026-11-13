@@ -37,7 +37,7 @@ test('tools stay compact, notebook sizing is adjustable, and folders accept file
     await tools.locator('.tools-scroll').evaluate((el) => el.clientHeight),
   ).toBeLessThanOrEqual(156);
   await tools.getByRole('searchbox', { name: 'Find a tool' }).fill('cloud');
-  await expect(tools.locator('.tools-scroll button')).toHaveCount(1);
+  await expect(tools.locator('.tools-scroll .nav-item')).toHaveCount(1);
   await tools.getByRole('searchbox', { name: 'Find a tool' }).fill('');
   const toggle = tools.getByRole('button', { name: /^Tools/ });
   await toggle.click();

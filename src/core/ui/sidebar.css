@@ -118,9 +118,6 @@
 }
 
 /* The Tools list: pinned tools, kinds, and a pin on each row. */
-.sidebar .tools-scroll {
-  max-height: 232px;
-}
 .tools-scroll ul {
   margin: 0;
   padding: 0;

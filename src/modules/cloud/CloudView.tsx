@@ -3,11 +3,15 @@ import type { ModuleContext, VaultItem, VerifiedCopy } from '@core/api';
 import {
   CloudSession,
   copyFile,
-  parseConnections,
   PROVIDERS,
   sizeLabel,
   type Connection,
   type Provider,
+  loadConnections,
+  saveConnections,
+  setOwnFolder,
+  reachable,
+  locate,
 } from './storage';
 import './cloud.css';
 
@@ -24,13 +28,14 @@ export function CloudView({ ctx, session }: { ctx: ModuleContext; session: Cloud
   const [busy, setBusy] = useState(session.current() !== null);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const [unreachable, setUnreachable] = useState<string[]>([]);
   useEffect(() => {
-    void ctx.deviceStorage
-      .read('connections')
-      .then((saved) => {
-        const all = parseConnections(saved);
+    void loadConnections(ctx)
+      .then(async (all) => {
         setConnections(all);
         setConnection(all[0]?.id ?? '');
+        const seen = await Promise.all(all.map((c) => reachable(ctx, c)));
+        setUnreachable(all.filter((_c, i) => seen[i] === false).map((c) => c.id));
       })
       .catch((err: unknown) => {
         setError(String(err));
@@ -93,9 +98,15 @@ export function CloudView({ ctx, session }: { ctx: ModuleContext; session: Cloud
         throw new Error('Choose a provider folder outside this vault.');
       const next = [
         ...connections,
-        { id: crypto.randomUUID(), provider, name: name.trim() || provider, folder },
+        {
+          id: crypto.randomUUID(),
+          provider,
+          name: name.trim() || provider,
+          folder,
+          shared: folder,
+        },
       ];
-      await ctx.deviceStorage.write('connections', next);
+      await saveConnections(ctx, next);
       setConnections(next);
       setConnection(next.at(-1)?.id ?? '');
       setName('');
@@ -182,6 +193,37 @@ export function CloudView({ ctx, session }: { ctx: ModuleContext; session: Cloud
               <div key={c.id} className="cloud-connection">
                 <strong>{c.name}</strong>
                 <span>{c.folder}</span>
+                {unreachable.includes(c.id) ? (
+                  <span className="cloud-status missing" role="status">
+                    Not reachable on this device
+                  </span>
+                ) : (
+                  <span className="cloud-status">
+                    {c.own === true
+                      ? 'This device uses its own folder'
+                      : 'Shared with your devices'}
+                  </span>
+                )}
+                {ctx.fileTransfers && (
+                  <button
+                    type="button"
+                    className="quiet"
+                    disabled={busy}
+                    onClick={() =>
+                      void action(async () => {
+                        const folder = await ctx.fileTransfers?.pickFolder();
+                        if (!folder) return;
+                        await setOwnFolder(ctx, c.id, folder);
+                        setConnections(
+                          connections.map((x) => (x.id === c.id ? { ...x, folder, own: true } : x)),
+                        );
+                        setUnreachable(unreachable.filter((id) => id !== c.id));
+                      })
+                    }
+                  >
+                    Use another folder on this device
+                  </button>
+                )}
                 <button
                   type="button"
                   className="quiet"
@@ -189,7 +231,8 @@ export function CloudView({ ctx, session }: { ctx: ModuleContext; session: Cloud
                   onClick={() =>
                     void action(async () => {
                       const next = connections.filter((x) => x.id !== c.id);
-                      await ctx.deviceStorage.write('connections', next);
+                      await saveConnections(ctx, next);
+                      await setOwnFolder(ctx, c.id, null);
                       setConnections(next);
                       if (connection === c.id) setConnection(next[0]?.id ?? '');
                     })
@@ -372,12 +415,13 @@ function StorageDetails({
     void ctx.deviceStorage
       .read<Record<string, VerifiedCopy>>('receipts')
       .then((all) => {
-        setCopy(all?.[path] ?? null);
+        // A device that did not make the copy finds it through the shared connection.
+        setCopy(all?.[path] ?? locate(data, connections));
       })
       .catch(() => {
         setNotice('This device could not read the file location.');
       });
-  }, [ctx, path]);
+  }, [ctx, path, data, connections]);
   const sourceInCloud =
     copy !== null &&
     connections.some((c) =>
@@ -432,20 +476,23 @@ function StorageDetails({
           >
             Verify stored copy
           </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              setManage(!manage);
-            }}
-          >
-            Manage local space
-          </button>
+          {copy.source !== '' && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setManage(!manage);
+              }}
+            >
+              Manage local space
+            </button>
+          )}
         </div>
       )}
       {!copy && (
         <p className="hint">
-          Copy-location controls are available on the computer that made this transfer.
+          This device cannot reach the storage this file is in. Set its folder under Storage
+          connections.
         </p>
       )}
       {manage && copy && (
