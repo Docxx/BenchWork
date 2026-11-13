@@ -1,4 +1,5 @@
 import { inReadingOrder, layout, letter, sourceRect, type Figure, type Layout } from './model';
+import { drawRich, parseRich } from './richText';
 
 /** An image ready to draw, with its own size in pixels. */
 export interface Source {
@@ -87,15 +88,91 @@ export function drawFigure(c: CanvasRenderingContext2D, figure: Figure, o: Rende
         bottom ? box.y + box.h - pad : box.y + pad,
       );
     }
+    // Channel or antibody names, in their colours, stacked in a corner.
+    if (image && p.panel.labels.length > 0) {
+      const size = figure.channelSize * POINT * s;
+      const pad = size * 0.45;
+      const right = figure.channelCorner.endsWith('right');
+      const bottom = figure.channelCorner.startsWith('bottom');
+      const lines = p.panel.labels.filter((l) => l.text.trim() !== '');
+      lines.forEach((label, i) => {
+        const runs = parseRich(label.text);
+        c.fillStyle = label.colour;
+        c.font = `bold ${String(size)}px ${o.font}`;
+        const width = c.measureText(label.text).width;
+        const row = bottom ? lines.length - 1 - i : i;
+        const y = bottom
+          ? box.y + box.h - pad - size * 0.5 - row * size * 1.2
+          : box.y + pad + size * 0.5 + row * size * 1.2;
+        const x = right ? box.x + box.w - pad - width / 2 : box.x + pad + width / 2;
+        drawRich(
+          c,
+          runs.map((r) => ({ ...r, bold: true })),
+          x,
+          y,
+          size,
+          o.font,
+          box.w - pad * 2,
+        );
+      });
+    }
     if (o.editing && o.selected === p.panel.id) {
       c.strokeStyle = o.accent ?? '#2f5fb3';
       c.lineWidth = 2;
       c.strokeRect(box.x + 1, box.y + 1, box.w - 2, box.h - 2);
     }
   }
+  // Labels round the grid, in black on the white page.
+  const size = figure.labelSize * POINT * s;
+  c.fillStyle = '#000000';
+  c.strokeStyle = '#000000';
+  for (const r of l.rowLabels) {
+    const text = figure.rowLabels[r.row] ?? '';
+    if (text.trim() === '' || r.w === 0) continue;
+    c.save();
+    c.translate((r.x + r.w / 2) * s, (r.y + r.h / 2) * s);
+    c.rotate(-Math.PI / 2);
+    drawRich(c, parseRich(text), 0, 0, size, o.font, r.h * s);
+    c.restore();
+  }
+  for (const col of l.colLabels) {
+    const text = figure.colLabels[col.col] ?? '';
+    if (text.trim() === '' || col.h === 0) continue;
+    drawRich(
+      c,
+      parseRich(text),
+      (col.x + col.w / 2) * s,
+      (col.y + col.h * 0.55) * s,
+      size,
+      o.font,
+      col.w * s,
+    );
+  }
+  for (const h of l.headers) {
+    if (h.header.text.trim() === '') continue;
+    drawRich(
+      c,
+      parseRich(h.header.text),
+      (h.x + h.w / 2) * s,
+      (h.y + h.h * 0.42) * s,
+      size,
+      o.font,
+      h.w * s,
+    );
+    // A line under the header, over the columns it spans.
+    c.lineWidth = Math.max(1, 0.25 * s);
+    c.beginPath();
+    const y = (h.y + h.h * 0.85) * s;
+    c.moveTo((h.x + 0.5) * s, y);
+    c.lineTo((h.x + h.w - 0.5) * s, y);
+    c.stroke();
+  }
   c.restore();
   return l;
 }
+
+/** The figure's typeface: what journals ask for, and the same in every export. */
+export const FIGURE_FONT = 'Arial, Helvetica, "Liberation Sans", sans-serif';
 
 /** Pixels per mm for a resolution in dots per inch. */
 export const perMm = (dpi: number) => dpi / 25.4;

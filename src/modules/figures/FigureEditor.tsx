@@ -34,7 +34,8 @@ import {
   type Figure,
   type Panel,
 } from './model';
-import { drawFigure, type Source } from './render';
+import { FigureLabels, PanelLabels } from './LabelControls';
+import { drawFigure, FIGURE_FONT, type Source } from './render';
 import './figures.css';
 
 const ICON = { size: 17, strokeWidth: 1.8, 'aria-hidden': true } as const;
@@ -216,7 +217,7 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
       sources: sources.current,
       editing: true,
       selected: selected.at(-1) ?? null,
-      font: getComputedStyle(c).fontFamily || 'sans-serif',
+      font: FIGURE_FONT,
       accent: getComputedStyle(c).getPropertyValue('--accent').trim() || '#2f5fb3',
     });
   }, [figure, fit, selected, loaded]);
@@ -622,10 +623,13 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
         </div>
         <aside className="fig-side" aria-label="Panel">
           {chosen.length === 0 ? (
-            <p className="hint">
-              Choose a panel to crop, turn or remove its image. Drop several images to fill the
-              empty panels in order. Shift-click to choose more than one.
-            </p>
+            <>
+              <p className="hint">
+                Choose a panel to crop, turn or name its channels. Drop several images to fill the
+                empty panels in order. Shift-click to choose more than one.
+              </p>
+              <FigureLabels figure={figure} onChange={commit} />
+            </>
           ) : (
             <>
               <h3>{chosen.length === 1 ? 'Panel' : `${String(chosen.length)} panels`}</h3>
@@ -689,6 +693,12 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
                   Reset
                 </button>
               </div>
+              <PanelLabels
+                panels={chosen}
+                onChange={(labels) => {
+                  editPanels((p) => ({ ...p, labels }));
+                }}
+              />
               {chosen.length > 1 && (
                 <button
                   type="button"

@@ -31,6 +31,12 @@ export interface PanelImage {
   crop: Crop;
 }
 
+/** A word in a panel's corner, such as a channel or antibody, in its colour. */
+export interface PanelLabel {
+  text: string;
+  colour: string;
+}
+
 export interface Panel {
   id: string;
   row: number;
@@ -38,7 +44,21 @@ export interface Panel {
   rowSpan: number;
   colSpan: number;
   image: PanelImage | null;
+  labels: PanelLabel[];
 }
+
+export type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+/** Colours for channel labels, as microscopy usually shows them. */
+export const CHANNEL_COLOURS = [
+  { name: 'White', value: '#ffffff' },
+  { name: 'Green', value: '#3ddc5a' },
+  { name: 'Magenta', value: '#ff40ff' },
+  { name: 'Red', value: '#ff4040' },
+  { name: 'Blue', value: '#4a8cff' },
+  { name: 'Cyan', value: '#30e0f0' },
+  { name: 'Yellow', value: '#ffe040' },
+] as const;
 
 /** A label over several columns, above the column labels, such as "Control". */
 export interface Header {
@@ -51,7 +71,7 @@ export interface Header {
 export interface LetterStyle {
   /** `A`, `a` or `(a)`. */
   form: 'upper' | 'lower' | 'brackets';
-  corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  corner: Corner;
   /** Size in points. */
   size: number;
   /** White on dark images, black on light. */
@@ -78,6 +98,9 @@ export interface Figure {
   letters: LetterStyle;
   /** Label text size, points. */
   labelSize: number;
+  /** Where panels' channel labels go, and their size in points. */
+  channelCorner: Corner;
+  channelSize: number;
 }
 
 export interface Box {
@@ -120,6 +143,8 @@ export function newFigure(rows = 2, cols = 3, width = 174): Figure {
     headers: [],
     letters: { form: 'upper', corner: 'top-left', size: 10, colour: '#ffffff', show: true },
     labelSize: 8,
+    channelCorner: 'top-right',
+    channelSize: 7,
   };
   return fillCells(figure);
 }
@@ -143,7 +168,15 @@ export function fillCells(figure: Figure): Figure {
   for (let r = 0; r < figure.rows.length; r += 1) {
     for (let c = 0; c < figure.cols.length; c += 1) {
       if (!taken.has(`${String(r)},${String(c)}`)) {
-        added.push({ id: newId(), row: r, col: c, rowSpan: 1, colSpan: 1, image: null });
+        added.push({
+          id: newId(),
+          row: r,
+          col: c,
+          rowSpan: 1,
+          colSpan: 1,
+          image: null,
+          labels: [],
+        });
       }
     }
   }
@@ -286,6 +319,11 @@ export function letter(index: number, form: LetterStyle['form']): string {
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
+const colourOr = (v: unknown, fallback: string) =>
+  typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : fallback;
+const CORNERS: readonly Corner[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+const corner = (v: unknown, fallback: Corner): Corner => CORNERS.find((c) => c === v) ?? fallback;
+
 function parseCrop(raw: unknown): Crop {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const turns = num(r['turns']) ? ((((Math.round(r['turns']) % 4) + 4) % 4) as Crop['turns']) : 0;
@@ -338,6 +376,11 @@ export function parseFigure(text: string): Figure | null {
           image && typeof image === 'object' && typeof image['path'] === 'string'
             ? { path: image['path'], crop: parseCrop(image['crop']) }
             : null,
+        labels: (Array.isArray(p['labels']) ? (p['labels'] as unknown[]) : [])
+          .filter((x): x is Record<string, unknown> => !!x && typeof x === 'object')
+          .filter((x) => typeof x['text'] === 'string')
+          .map((x) => ({ text: x['text'] as string, colour: colourOr(x['colour'], '#ffffff') }))
+          .slice(0, 8),
       };
     });
   const l = (r['letters'] ?? {}) as Record<string, unknown>;
@@ -361,20 +404,14 @@ export function parseFigure(text: string): Figure | null {
       })),
     letters: {
       form: l['form'] === 'lower' || l['form'] === 'brackets' ? l['form'] : 'upper',
-      corner:
-        l['corner'] === 'top-right' ||
-        l['corner'] === 'bottom-left' ||
-        l['corner'] === 'bottom-right'
-          ? l['corner']
-          : 'top-left',
+      corner: corner(l['corner'], 'top-left'),
       size: num(l['size']) ? clamp(l['size'], 4, 36) : 10,
-      colour:
-        typeof l['colour'] === 'string' && /^#[0-9a-f]{6}$/i.test(l['colour'])
-          ? l['colour']
-          : '#ffffff',
+      colour: colourOr(l['colour'], '#ffffff'),
       show: l['show'] !== false,
     },
     labelSize: num(r['labelSize']) ? clamp(r['labelSize'], 4, 24) : base.labelSize,
+    channelCorner: corner(r['channelCorner'], 'top-right'),
+    channelSize: num(r['channelSize']) ? clamp(r['channelSize'], 4, 24) : base.channelSize,
   };
   return fillCells(figure);
 }
@@ -484,7 +521,12 @@ export function merge(
   const touched = figure.panels.filter(overlaps);
   if (touched.some((p) => !inside(p))) return null;
   const first = inReadingOrder(touched).find((p) => p.image !== null) ?? touched[0];
-  const joined: Panel = { id: first?.id ?? newId(), ...block, image: first?.image ?? null };
+  const joined: Panel = {
+    id: first?.id ?? newId(),
+    ...block,
+    image: first?.image ?? null,
+    labels: first?.labels ?? [],
+  };
   return fillCells({ ...figure, panels: [...figure.panels.filter((p) => !overlaps(p)), joined] });
 }
 
