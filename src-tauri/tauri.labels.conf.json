@@ -1,6 +1,6 @@
 {
   "productName": "BenchWork Labels",
-  "version": "0.16.1",
+  "version": "0.17.0",
   "identifier": "app.benchwork.labels",
   "build": {
     "frontendDist": "../dist-labels"

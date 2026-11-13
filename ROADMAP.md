@@ -256,7 +256,7 @@ Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([gu
 - [ ] Stocks imported from the Drosophila Lab Manager export
 - [ ] Checked on the PC and the tablet
 
-### Tweaks, 13 Nov 2026
+### Tweaks, 13 Nov 2026 (0.17.0)
 
 - [x] Scratching out is the pen's own, with no module needed (it had stopped on the tablet)
 - [x] Commands off the sidebar; Ctrl+K still lists them
