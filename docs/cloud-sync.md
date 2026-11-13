@@ -112,10 +112,47 @@ sudo python3 /opt/benchwork-relay/admin.py PUBLIC_IPV4
 sudo systemctl restart benchwork-relay
 ```
 
-Back up `/var/lib/benchwork-relay/relay.sqlite` with SQLite's backup API, together
-with `/etc/benchwork-relay/` protected as secrets. File-level copying of a running
-SQLite database without its WAL is not a safe backup. Encrypted event history and
-unused blobs currently have no automatic expiry or compaction; monitor disk use.
+Encrypted event history and unused blobs currently have no automatic expiry or
+compaction; monitor disk use.
+
+### Backups
+
+`benchwork-relay-backup.timer` runs `relay/backup.py` every night at about 03:30
+UTC, as the relay's own user. It copies the live database with SQLite's online
+backup API (a plain file copy of a running WAL database is not safe), checks the
+copy with `PRAGMA integrity_check`, and saves one archive in
+`/var/backups/benchwork-relay/` with the database and the relay's `config.json`,
+certificate and key. The newest 14 are kept. Update installers are left out; they
+can be published again. Run one at any time:
+
+```sh
+sudo systemctl start benchwork-relay-backup.service
+sudo journalctl -u benchwork-relay-backup.service -n 5
+```
+
+A backup on the server does not survive losing the server, so copy them off it.
+`scripts/pull-relay-backup.ps1` copies the newest archive to
+`%USERPROFILE%\BenchWork relay backups` on the PC, checks it against the server's
+SHA-256, and keeps the newest 30. On Ray's PC, the scheduled task "BenchWork relay
+backup" runs it daily at 09:00, or as soon as the PC is next on. The archives hold the relay's TLS key: keep that
+folder private, and outside any vault or synced folder.
+
+To restore onto a fresh server, after `relay/install.sh` (which makes the user,
+folders and service):
+
+```sh
+sudo systemctl stop benchwork-relay
+sudo mkdir -p /tmp/restore && sudo tar -xzf benchwork-relay-YYYYMMDD-HHMMSS.tar.gz -C /tmp/restore
+sudo install -o benchwork-relay -g benchwork-relay -m 0600 /tmp/restore/relay.sqlite /var/lib/benchwork-relay/relay.sqlite
+sudo rm -f /var/lib/benchwork-relay/relay.sqlite-wal /var/lib/benchwork-relay/relay.sqlite-shm
+sudo install -o root -g benchwork-relay -m 0640 /tmp/restore/etc/* /etc/benchwork-relay/
+sudo systemctl start benchwork-relay
+```
+
+Devices trust the relay by its certificate and its address. With the old
+certificate and the same address (a reserved IP), paired devices carry on. At a
+new address, generate new connection details and pair the devices again.
+
 The pinned certificate expires after 825 days; replace it and re-enrol devices
 before that date. No domain name or public certificate authority is required.
 
