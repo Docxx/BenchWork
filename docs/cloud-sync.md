@@ -133,7 +133,8 @@ sudo journalctl -u benchwork-relay-backup.service -n 5
 A backup on the server does not survive losing the server, so copy them off it.
 `scripts/pull-relay-backup.ps1` copies the newest archive to
 `%USERPROFILE%\BenchWork relay backups` on the PC, checks it against the server's
-SHA-256, and keeps the newest 30. The archives hold the relay's TLS key: keep that
+SHA-256, and keeps the newest 30. On Ray's PC, the scheduled task "BenchWork relay
+backup" runs it daily at 09:00, or as soon as the PC is next on. The archives hold the relay's TLS key: keep that
 folder private, and outside any vault or synced folder.
 
 To restore onto a fresh server, after `relay/install.sh` (which makes the user,
