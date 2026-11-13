@@ -22,6 +22,7 @@ export const MODULE_CATEGORIES: Record<string, string> = {
   'research-questions': 'Ideas and connections',
   'mind-maps': 'Ideas and connections',
   handwriting: 'Ideas and connections',
+  whiteboard: 'Ideas and connections',
   analysis: 'Data and storage',
   'data-viewer': 'Data and storage',
   cloud: 'Data and storage',

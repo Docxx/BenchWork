@@ -202,13 +202,17 @@ export function parseBoard(text: string): Board | null {
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
-/** A board as text, with numbers kept short so the file stays small. */
+/**
+ * A board as text: numbers kept short so the file stays small, and one
+ * item to a line, so two devices' changes to different items merge cleanly.
+ */
 export function serialiseBoard(board: Board): string {
-  return `${JSON.stringify(
-    board,
-    (_key, value: unknown) => (typeof value === 'number' ? round(value) : value),
-    1,
-  )}\n`;
+  const short = (_key: string, value: unknown) =>
+    typeof value === 'number' ? round(value) : value;
+  const lines = board.items.map((item) => `  ${JSON.stringify(item, short)}`);
+  const NL = String.fromCharCode(10);
+  const body = lines.length > 0 ? `${NL}${lines.join(`,${NL}`)}${NL} ` : '';
+  return `{${NL} "version": 1,${NL} "items": [${body}]${NL}}${NL}`;
 }
 
 /** The space an item takes up. Text grows downwards with its lines. */
