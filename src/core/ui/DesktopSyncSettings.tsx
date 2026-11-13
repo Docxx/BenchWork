@@ -264,8 +264,8 @@ export function DesktopSyncSettings() {
       <p className="hint">
         Encrypted device connection. Saved vault files up to 32 MB sync; large datasets, sign-ins,
         device settings and hidden folders stay local. Concurrent edits are preserved as separate
-        versions. Empty folders are created when their first file arrives. Cloud hosting and live
-        co-editing come later.
+        versions. Empty folders are created when their first file arrives. Use Cloud sync above when
+        you want to connect through your private relay. Live co-editing is not enabled.
       </p>
     </div>
   );

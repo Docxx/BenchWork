@@ -8,6 +8,7 @@ import { Splash } from './Splash';
 import { WindowControls } from './WindowControls';
 import { StudioAmbience } from './StudioAmbience';
 import { FeedbackTools } from './FeedbackTools';
+import { AppUpdates } from './AppUpdates';
 import { applyAppearance } from './theme';
 import {
   ChooseFolder,
@@ -77,6 +78,7 @@ function useSystemDark(): boolean {
 }
 
 export function App() {
+  const workspaceView = useApp((s) => s.view);
   const status = useApp((s) => s.status);
   const theme = useApp((s) => s.settings.theme);
   const appearance = useApp((s) => s.settings.appearance);
@@ -142,6 +144,7 @@ export function App() {
       <Screen />
       <StudioAmbience />
       <FeedbackTools />
+      {workspaceView !== 'settings' && <AppUpdates compact />}
       {status.kind !== 'open' && (
         // Before a vault opens there is no sidebar to drag the window by.
         <>

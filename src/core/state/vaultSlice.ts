@@ -152,6 +152,7 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
       guarded(async () => {
         const settings = await loadAppSettings(platform);
         set({ settings, guide: settings.guided ? null : 'welcome' });
+        get().initAppUpdates();
         const last = settings.lastVault;
         if (last === null) {
           set({ status: { kind: 'no-vault' } });

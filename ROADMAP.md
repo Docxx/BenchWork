@@ -236,10 +236,27 @@ See [preview testing](docs/preview-testing.md).
 - [x] Preserve concurrent file versions and deletion/edit conflicts, with local recovery snapshots
 - [ ] Native desktop-to-tablet local-network acceptance check
 
+### Private encrypted cloud relay (0.18.0)
+
+- [x] Persistent Yjs Markdown history, encrypted outbox, crash recovery and file projection
+- [x] Private HTTPS relay, device enrolment, encrypted attachments and automatic reconnect
+- [x] Settings setup, pairing, recovery and full-group revocation/key rotation workflow
+- [ ] Full research-vault acceptance, including ink erasure, rename/delete and backup restoration
+- [x] Native PC/tablet smoke test: paired through the relay, bidirectional note edits and offline tablet restart
+
+See [Cloud sync setup, protocol and operational limits](docs/cloud-sync.md).
+
+### In-app updates (0.19.0)
+
+- [x] Manual update checks and optional per-device startup checks
+- [x] Pinned server feed, verified downloads, progress and explicit install action
+- [x] Save before Windows installer or Android package-installer handoff
+- [x] Update publishing script with remote checksums and atomic catalogue activation
+
 - [x] Theme atmosphere: stronger fun themes, decorative scenes, optional motion and themed timer cues with volume, preview and silent mode ([guide](docs/themes.md))
 - [x] Save-failure recovery: keep edits open when navigation or shutdown cannot save them, with a retry action and regression tests
 - [x] Draft sync design review ([proposal](docs/phase7-sync-design.md)); protocol decisions still need review
-- [ ] Native CRDT sync (Yjs) with end-to-end encryption, without Syncthing
+- [x] Native CRDT sync (Yjs) with end-to-end encryption, without Syncthing: Markdown merging and preserved competing versions for other files
 - [ ] Live co-editing with accounts
 - [ ] Choose the server host (self-hosted or a low-cost cloud host)
 

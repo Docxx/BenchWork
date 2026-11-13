@@ -11,6 +11,7 @@ export default tseslint.config(
       'src-tauri/gen',
       'playwright-report',
       'test-results',
+      '.relay-private',
     ],
   },
   tseslint.configs.eslintRecommended,

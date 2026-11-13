@@ -161,6 +161,8 @@ export interface AppSettings {
   guided: boolean;
   /** Temporary testing toolbar, saved on this device. */
   previewBarVisible: boolean;
+  /** Ask the update server about newer releases at startup. Installation stays explicit. */
+  checkUpdatesOnStart: boolean;
   /** Keys this version does not know about, kept on save. */
   extra: Record<string, unknown>;
 }
@@ -180,6 +182,7 @@ const KNOWN_KEYS = new Set([
   'home',
   'guided',
   'previewBarVisible',
+  'checkUpdatesOnStart',
 ]);
 
 export function defaultAppSettings(): AppSettings {
@@ -197,6 +200,7 @@ export function defaultAppSettings(): AppSettings {
     home: {},
     guided: false,
     previewBarVisible: true,
+    checkUpdatesOnStart: false,
     extra: {},
   };
 }
@@ -206,6 +210,8 @@ export function parseAppSettings(data: unknown): AppSettings {
   const settings = defaultAppSettings();
   if (typeof data !== 'object' || data === null || Array.isArray(data)) return settings;
   const record = data as Record<string, unknown>;
+  if (typeof record['checkUpdatesOnStart'] === 'boolean')
+    settings.checkUpdatesOnStart = record['checkUpdatesOnStart'];
   if (typeof record['previewBarVisible'] === 'boolean')
     settings.previewBarVisible = record['previewBarVisible'];
 

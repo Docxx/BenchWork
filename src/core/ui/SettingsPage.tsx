@@ -7,6 +7,8 @@ import { BackupSettings } from './BackupSettings';
 import { useApp } from './AppStoreContext';
 import { ModulesPanel } from './ModulesPanel';
 import { DesktopSyncSettings } from './DesktopSyncSettings';
+import { RelaySyncSettings } from './RelaySyncSettings';
+import { AppUpdates } from './AppUpdates';
 import { APP_VERSION, BUILD_ID, PREVIEW_BUILD } from '../feedback/report';
 
 const TABS = [
@@ -88,7 +90,15 @@ export function SettingsPage({ vault }: { vault: OpenVault }) {
         {tab === 'general' && <SidebarSettings />}
         {tab === 'appearance' && <AppearanceSettings />}
         {tab === 'vault' && <VaultSettings vault={vault} />}
-        {tab === 'sync' && <DesktopSyncSettings />}
+        {tab === 'sync' && (
+          <>
+            <RelaySyncSettings />
+            <details open>
+              <summary>Local network Desktop Sync</summary>
+              <DesktopSyncSettings />
+            </details>
+          </>
+        )}
         {tab === 'modules' && <ModulesPanel />}
       </div>
     </section>
@@ -114,6 +124,7 @@ function SidebarSettings() {
           {PREVIEW_BUILD ? ' · Development preview' : ''}
         </p>
         <p className="hint">Build {BUILD_ID}</p>
+        <AppUpdates />
         <button
           onClick={() => {
             void updates().catch((e: unknown) => {
@@ -123,10 +134,7 @@ function SidebarSettings() {
         >
           Get latest installer
         </button>
-        <p className="hint">
-          Opens the public releases page. Download and run a newer installer to update this device.
-          Automatic updates are not enabled.
-        </p>
+        <p className="hint">Opens the releases page for manual downloads and other devices.</p>
         {updateError && <p role="alert">{updateError}</p>}
       </fieldset>
       {PREVIEW_BUILD && (

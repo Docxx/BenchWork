@@ -2,7 +2,7 @@ import type { Editor } from '@tiptap/core';
 import type * as Y from 'yjs';
 import { loadPage, savePage } from '../editor/markdown/markdown';
 import type { BodySource } from '../editor/markdown/model';
-import { createPageYDoc, yDocToPage } from '../editor/yjsDoc';
+import { createPageYDoc, setYDocContent, yDocToPage } from '../editor/yjsDoc';
 import { pageTitle } from '../notebooks/notebookTree';
 import { embedPath, imagePath } from '../pages/attachments';
 import {
@@ -115,6 +115,7 @@ interface Session {
   revision: number;
   timer: ReturnType<typeof setTimeout> | null;
   stopObserving: () => void;
+  applyingRemote: boolean;
 }
 
 export function createPageSlice(ctx: StoreContext): PageSlice {
@@ -167,9 +168,10 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
       revision: 0,
       timer: null,
       stopObserving: () => undefined,
+      applyingRemote: false,
     };
     const onUpdate = () => {
-      if (session === s) markEdited(s);
+      if (session === s && !s.applyingRemote) markEdited(s);
     };
     ydoc.on('update', onUpdate);
     s.stopObserving = () => {
@@ -311,6 +313,42 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
 
   /** Reloads the open page from text on disk, starting a fresh document. */
   function reload(s: Session, text: string): void {
+    if (get().relaySync.enabled) {
+      const loaded = loadPage(text);
+      const editor = get().pageEditor?.editor;
+      s.applyingRemote = true;
+      try {
+        // Apply a small ProseMirror change so the current selection maps through
+        // remote edits, without destroying and rebuilding the active editor.
+        if (editor && !editor.isDestroyed) {
+          const next = editor.schema.nodeFromJSON(loaded.doc);
+          const start = editor.state.doc.content.findDiffStart(next.content);
+          if (start !== null) {
+            const end = editor.state.doc.content.findDiffEnd(next.content) ?? {
+              a: start,
+              b: start,
+            };
+            const overlap = start - Math.min(end.a, end.b);
+            if (overlap > 0) {
+              end.a += overlap;
+              end.b += overlap;
+            }
+            editor.view.dispatch(
+              editor.state.tr
+                .replace(start, end.a, next.slice(start, end.b))
+                .setMeta('addToHistory', false),
+            );
+          }
+        } else setYDocContent(s.ydoc, loaded.doc);
+        s.page = loaded.page;
+        s.source = loaded.source;
+        s.lastText = text;
+        set({ ...propertiesState(s.page), saveState: 'saved', pageConflict: null });
+      } finally {
+        s.applyingRemote = false;
+      }
+      return;
+    }
     s.stopObserving();
     s.ydoc.destroy();
     const version = (get().page?.version ?? 0) + 1;

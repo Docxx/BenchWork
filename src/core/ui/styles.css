@@ -46,6 +46,27 @@
   accent-color: var(--accent);
 }
 
+.app-update-banner {
+  position: fixed;
+  right: 20px;
+  bottom: 70px;
+  z-index: 90;
+  width: min(420px, calc(100vw - 40px));
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 6px 28px #0003;
+}
+.app-update-banner button,
+.app-update-controls button {
+  margin: 6px 8px 6px 0;
+}
+.app-update-controls {
+  margin: 12px 0;
+}
+
 body {
   margin: 0;
   background: var(--bg);

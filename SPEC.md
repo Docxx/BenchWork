@@ -40,6 +40,16 @@ Single user first, with live co-editing designed in from the start and built lat
 
 ## Core app scope
 
+### Native cloud replication history
+
+Readable vault files remain the portable content and external-edit interface.
+When Cloud sync is enabled, `.benchwork/relay/` additionally holds durable Yjs
+replication history and recoverable export/import baselines. Unlike the search
+index, that history cannot be reconstructed identically from Markdown. Missing
+history blocks automatic reconnect; recovery is explicit. Backups retain history,
+while device credentials and encryption keys remain outside the vault. The current
+implementation and limits are described in [Cloud sync](docs/cloud-sync.md).
+
 The core is a generic notebook app that works on first launch with no setup. Research features arrive as modules.
 
 | Capability             | What it includes                                                                                                                                                                                                                                                        |

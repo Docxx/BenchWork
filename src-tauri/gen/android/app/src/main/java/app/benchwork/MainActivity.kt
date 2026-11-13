@@ -226,6 +226,44 @@ class MainActivity : TauriActivity() {
 
     /** Opens a user-reviewed email draft. The recipient is fixed and nothing is sent. */
     @JavascriptInterface
+    fun prepareAppUpdate(): String {
+      return try {
+        val allowed = Build.VERSION.SDK_INT < 26 || packageManager.canRequestPackageInstalls()
+        if (!allowed) runOnUiThread {
+          startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+        }
+        JSONObject().put("allowed", allowed).toString()
+      } catch (_: Exception) { JSONObject().put("error", "Android could not open update permissions.").toString() }
+    }
+
+    /** Only a verified, newer APK for this package from the app's private cache. */
+    @JavascriptInterface
+    fun installAppUpdate(path: String, hash: String): String {
+      return try {
+        val file = java.io.File(path).canonicalFile
+        val roots = listOfNotNull(cacheDir, externalCacheDir).map { it.canonicalPath + java.io.File.separator }
+        require(roots.any { file.path.startsWith(it) } && file.name.matches(Regex("BenchWork-update-[0-9]+\\.apk")) && file.isFile) { "Download the update in BenchWork first." }
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input -> val buffer=ByteArray(65536); while(true) { val n=input.read(buffer); if(n<0) break; digest.update(buffer,0,n) } }
+        val actual=digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) }
+        require(actual == hash && hash.matches(Regex("[0-9a-f]{64}"))) { "The update checksum changed. Download it again." }
+        val flags = if (Build.VERSION.SDK_INT >= 28) android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES else android.content.pm.PackageManager.GET_SIGNATURES
+        val next = requireNotNull(packageManager.getPackageArchiveInfo(file.path, flags)) { "This APK could not be read." }
+        val current = packageManager.getPackageInfo(packageName, flags)
+        val nextVersion = if(Build.VERSION.SDK_INT>=28) next.longVersionCode else next.versionCode.toLong()
+        val currentVersion = if(Build.VERSION.SDK_INT>=28) current.longVersionCode else current.versionCode.toLong()
+        require(next.packageName == packageName && nextVersion > currentVersion) { "Choose a newer update for this app." }
+        fun signatures(info: android.content.pm.PackageInfo): Set<String> =
+          (if(Build.VERSION.SDK_INT>=28) info.signingInfo?.apkContentsSigners else info.signatures)?.map { it.toCharsString() }?.toSet() ?: emptySet()
+        require(signatures(current).isNotEmpty() && signatures(current) == signatures(next)) { "The update uses a different signing key. The installed app was kept." }
+        val uri = androidx.core.content.FileProvider.getUriForFile(this@MainActivity, "$packageName.fileprovider", file)
+        runOnUiThread { startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)) }
+        "{}"
+      } catch (e: Exception) { JSONObject().put("error", e.message ?: "Android could not open the update.").toString() }
+    }
+
+    /** Opens a user-reviewed email draft. The recipient is fixed and nothing is sent. */
+    @JavascriptInterface
     fun openFeedbackEmail(subject: String, body: String): String {
       return try {
         require(subject.length <= 200 && !subject.any { it.isISOControl() } && body.length <= 16000) { "Copy the report into your email app instead." }
