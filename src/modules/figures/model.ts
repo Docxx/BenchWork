@@ -714,7 +714,7 @@ export function split(figure: Figure, id: string): Figure {
   return fillCells({ ...figure, panels: [...rest, { ...panel, rowSpan: 1, colSpan: 1 }] });
 }
 
-/** Puts images into empty panels in reading order, from a starting panel. */
+/** Puts images into empty panels in reading order, from a starting panel; extra ones get new rows. */
 export function fillWith(figure: Figure, paths: readonly string[], fromId?: string): Figure {
   const order = inReadingOrder(figure.panels);
   const start =
@@ -734,7 +734,7 @@ export function fillWith(figure: Figure, paths: readonly string[], fromId?: stri
     if (placed.has(p.id) || p.image !== null) continue;
     placed.set(p.id, queue.shift() ?? '');
   }
-  return {
+  const filled = {
     ...figure,
     panels: figure.panels.map((p) => {
       const path = placed.get(p.id);
@@ -743,4 +743,7 @@ export function fillWith(figure: Figure, paths: readonly string[], fromId?: stri
         : { ...p, image: { path, crop: { ...DEFAULT_CROP }, umPerPx: null } };
     }),
   };
+  // More images than empty panels: a new row at the bottom for the rest.
+  if (queue.length === 0) return filled;
+  return fillWith(insertLine(filled, 'row', filled.rows.length - 1), queue);
 }

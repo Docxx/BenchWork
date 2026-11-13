@@ -54,7 +54,10 @@ export function FigureList({ ctx }: { ctx: ModuleContext }) {
     void Promise.all([findFigures(ctx), ctx.vault.listDir('')]).then(([found, top]) => {
       if (!live) return;
       setFigures(found);
-      const folders = top.filter((e) => e.isDir && !e.name.startsWith('.')).map((e) => e.path);
+      // Notebooks only: not hidden folders, nor the images a figure at the top keeps.
+      const folders = top
+        .filter((e) => e.isDir && !e.name.startsWith('.') && e.name !== 'attachments')
+        .map((e) => e.path);
       setNotebooks(folders);
       setFolder((f) => (f === '' || !folders.includes(f) ? (folders[0] ?? '') : f));
     });
