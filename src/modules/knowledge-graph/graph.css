@@ -236,3 +236,35 @@
   gap: 6px;
   margin-bottom: 14px;
 }
+
+.graph-settings h3 {
+  margin: 0.9rem 0 0.3rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.graph-saved {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.graph-saved li {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.graph-saved li button:first-child {
+  flex: 1;
+  text-align: left;
+}
+
+.graph-kept {
+  min-height: 1.2em;
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
