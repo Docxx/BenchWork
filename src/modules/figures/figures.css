@@ -226,3 +226,33 @@
 .fig-scale input[type='number'] {
   width: 5rem;
 }
+
+.fig-marks,
+.fig-inset {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.fig-mark-list {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fig-mark-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fig-mark-list button[aria-pressed='true'] {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.fig-mark-edit {
+  display: grid;
+  gap: 0.35rem;
+}

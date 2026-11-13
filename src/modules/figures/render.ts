@@ -1,4 +1,5 @@
 import { inReadingOrder, layout, letter, sourceRect, type Figure, type Layout } from './model';
+import { imageToBox } from './marks';
 import { drawRich, parseRich } from './richText';
 
 /** An image ready to draw, with its own size in pixels. */
@@ -17,6 +18,8 @@ export interface RenderOptions {
   editing: boolean;
   /** The panel to outline as chosen, on screen. */
   selected?: string | null;
+  /** The mark to outline as chosen, on screen. */
+  selectedMark?: string | null;
   font: string;
   accent?: string;
 }
@@ -70,6 +73,70 @@ export function drawFigure(c: CanvasRenderingContext2D, figure: Figure, o: Rende
       c.textAlign = 'center';
       c.textBaseline = 'middle';
       c.fillText(image ? 'Opening…' : 'Drop an image', box.x + box.w / 2, box.y + box.h / 2);
+    }
+    if (image && source) {
+      const natural = { w: source.w, h: source.h };
+      // A zoomed inset: its region outlined, and drawn larger in a corner.
+      const inset = p.panel.inset;
+      if (inset) {
+        const a = imageToBox(inset.u0, inset.v0, natural, box, image.crop);
+        const b = imageToBox(inset.u1, inset.v1, natural, box, image.crop);
+        if (a && b) {
+          const region = {
+            x: Math.min(a.x, b.x),
+            y: Math.min(a.y, b.y),
+            w: Math.abs(b.x - a.x),
+            h: Math.abs(b.y - a.y),
+          };
+          const line = Math.max(1, 0.25 * s);
+          c.strokeStyle = inset.colour;
+          c.lineWidth = line;
+          c.strokeRect(region.x, region.y, region.w, region.h);
+          const w = box.w * inset.size;
+          const h = (w * region.h) / Math.max(1, region.w);
+          const right = inset.corner.endsWith('right');
+          const bottom = inset.corner.startsWith('bottom');
+          const shown = {
+            x: right ? box.x + box.w - w : box.x,
+            y: bottom ? box.y + box.h - h : box.y,
+            w,
+            h,
+          };
+          // Its crop: centred on the region, zoomed so the region fills it.
+          const turned = image.crop.turns % 2 === 1;
+          const regionImageW = (inset.u1 - inset.u0) * natural.w;
+          const regionImageH = (inset.v1 - inset.v0) * natural.h;
+          const bw = turned ? shown.h : shown.w;
+          const bh = turned ? shown.w : shown.h;
+          const zoom =
+            Math.max(bw / regionImageW, bh / regionImageH) /
+            Math.max(bw / natural.w, bh / natural.h);
+          drawImage(c, source, shown, {
+            ...image,
+            crop: {
+              ...image.crop,
+              zoom: Math.max(1, zoom),
+              cx: (inset.u0 + inset.u1) / 2,
+              cy: (inset.v0 + inset.v1) / 2,
+            },
+          });
+          c.strokeStyle = inset.colour;
+          c.lineWidth = line;
+          c.strokeRect(shown.x + line / 2, shown.y + line / 2, shown.w - line, shown.h - line);
+        }
+      }
+      for (const mark of p.panel.marks) {
+        const at = imageToBox(mark.u, mark.v, natural, box, image.crop);
+        if (!at) continue;
+        drawMark(c, mark, at.x, at.y, mark.size * POINT * s, o.font);
+        if (o.editing && o.selectedMark === mark.id) {
+          c.strokeStyle = o.accent ?? '#2f5fb3';
+          c.lineWidth = 1.5;
+          c.setLineDash([3, 3]);
+          c.strokeRect(at.x - 8, at.y - 8, 16, 16);
+          c.setLineDash([]);
+        }
+      }
     }
     if (figure.letters.show && image) {
       const index = order.indexOf(p.panel.id);
@@ -201,6 +268,53 @@ export function drawFigure(c: CanvasRenderingContext2D, figure: Figure, o: Rende
 
 /** The figure's typeface: what journals ask for, and the same in every export. */
 export const FIGURE_FONT = 'Arial, Helvetica, "Liberation Sans", sans-serif';
+
+/**
+ * Draws a mark with its point at (x, y). An arrow's head is at the point
+ * and its tail behind, the way it points; an arrowhead is the head alone.
+ */
+export function drawMark(
+  c: CanvasRenderingContext2D,
+  mark: Figure['panels'][number]['marks'][number],
+  x: number,
+  y: number,
+  size: number,
+  font: string,
+): void {
+  c.save();
+  c.fillStyle = mark.colour;
+  c.strokeStyle = mark.colour;
+  const angle = (mark.angle * Math.PI) / 180;
+  if (mark.kind === 'arrow' || mark.kind === 'arrowhead') {
+    c.translate(x, y);
+    c.rotate(angle);
+    const head = size * 0.9;
+    // Pointing along +x, so the tail is towards -x.
+    c.beginPath();
+    c.moveTo(0, 0);
+    c.lineTo(-head, -head * 0.45);
+    c.lineTo(-head * 0.78, 0);
+    c.lineTo(-head, head * 0.45);
+    c.closePath();
+    c.fill();
+    if (mark.kind === 'arrow') {
+      c.lineWidth = Math.max(1, size * 0.14);
+      c.lineCap = 'round';
+      c.beginPath();
+      c.moveTo(-head * 0.8, 0);
+      c.lineTo(-size * 2.6, 0);
+      c.stroke();
+    }
+  } else if (mark.kind === 'star') {
+    c.font = `bold ${String(size * 1.6)}px ${font}`;
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText('*', x, y + size * 0.3);
+  } else if (mark.text.trim() !== '') {
+    drawRich(c, parseRich(mark.text), x, y, size, font);
+  }
+  c.restore();
+}
 
 /** Pixels per mm for a resolution in dots per inch. */
 export const perMm = (dpi: number) => dpi / 25.4;

@@ -30,12 +30,17 @@ import {
   serialiseFigure,
   sourceRect,
   split,
+  newId,
   type Crop,
   type Figure,
+  type Mark,
+  type MarkKind,
   type Panel,
 } from './model';
 import { FigureLabels, PanelLabels } from './LabelControls';
 import { DisplayControls, ScaleControls } from './DisplayControls';
+import { MarkControls } from './MarkControls';
+import { boxToImage, imageToBox } from './marks';
 import { loadPlanes, picture, showsFor } from './images';
 import { drawFigure, FIGURE_FONT, type Source } from './render';
 import type { Planes } from './tiff';
@@ -61,6 +66,13 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
   const [figure, setFigure] = useState<Figure | null>(null);
   const [status, setStatus] = useState<'reading' | 'ready' | 'unreadable'>('reading');
   const [selected, setSelected] = useState<string[]>([]);
+  /** What pressing a panel does: move its image, place a mark, or draw an inset's region. */
+  const [tool, setTool] = useState<'move' | MarkKind | 'inset'>('move');
+  const toolRef = useRef(tool);
+  useEffect(() => {
+    toolRef.current = tool;
+  }, [tool]);
+  const [selectedMark, setSelectedMark] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [history, setHistory] = useState({ undo: 0, redo: 0 });
   const [loaded, setLoaded] = useState(0);
@@ -261,10 +273,11 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
       sources,
       editing: true,
       selected: selected.at(-1) ?? null,
+      selectedMark,
       font: FIGURE_FONT,
       accent: getComputedStyle(c).getPropertyValue('--accent').trim() || '#2f5fb3',
     });
-  }, [figure, fit, selected, loaded]);
+  }, [figure, fit, selected, selectedMark, loaded]);
 
   // ---- Adding images ----
   const addFiles = useCallback(
@@ -301,7 +314,28 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     const c = canvas.current;
     if (!c) return;
     const pointers = new Map<number, { x: number; y: number }>();
-    let drag: { id: string; x: number; y: number; before: Figure; moved: boolean } | null = null;
+    let drag:
+      | { mode: 'crop'; id: string; x: number; y: number; before: Figure; moved: boolean }
+      | {
+          mode: 'mark';
+          id: string;
+          mark: string;
+          x: number;
+          y: number;
+          before: Figure;
+          moved: boolean;
+        }
+      | {
+          mode: 'inset';
+          id: string;
+          u: number;
+          v: number;
+          x: number;
+          y: number;
+          before: Figure;
+          moved: boolean;
+        }
+      | null = null;
     let pinch = 0;
     const mm = (e: { clientX: number; clientY: number }) => {
       const r = c.getBoundingClientRect();
@@ -336,6 +370,20 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
       };
     };
 
+    /** Where a pointer is in a panel's image, with that panel's box and the image's size. */
+    const inImage = (e: { clientX: number; clientY: number }, id: string, base: Figure) => {
+      const box = layout(base).panels.find((p) => p.panel.id === id);
+      const read = box?.panel.image ? planes.current.get(box.panel.image.path) : undefined;
+      if (!box?.panel.image || !read) return null;
+      const natural = { w: read.width, h: read.height };
+      const at = mm(e);
+      return { ...boxToImage(at.x, at.y, natural, box, box.panel.image.crop), box, natural };
+    };
+    const editPanel = (base: Figure, id: string, change: (p: Panel) => Panel): Figure => ({
+      ...base,
+      panels: base.panels.map((p) => (p.id === id ? change(p) : p)),
+    });
+
     function down(e: PointerEvent) {
       c?.focus();
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -344,6 +392,7 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
       const f = current.current;
       if (!target || !f) {
         setSelected([]);
+        setSelectedMark(null);
         return;
       }
       if (e.shiftKey || e.ctrlKey || e.metaKey) {
@@ -355,8 +404,52 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
         return;
       }
       setSelected([target.panel.id]);
-      drag = { id: target.panel.id, x: e.clientX, y: e.clientY, before: f, moved: false };
       pinch = 0;
+      const id = target.panel.id;
+      const point = inImage(e, id, f);
+      const tool = toolRef.current;
+      if (point && tool !== 'move' && tool !== 'inset') {
+        // A new mark where the panel was pressed; the tool goes back to moving.
+        const mark: Mark = {
+          id: newId(),
+          kind: tool,
+          u: point.u,
+          v: point.v,
+          angle: 135,
+          size: tool === 'text' ? 8 : 10,
+          colour: '#ffffff',
+          text: tool === 'text' ? 'Text' : '',
+        };
+        commit(editPanel(f, id, (p) => ({ ...p, marks: [...p.marks, mark] })));
+        setSelectedMark(mark.id);
+        setTool('move');
+        return;
+      }
+      if (point && tool === 'inset') {
+        drag = { mode: 'inset', id, u: point.u, v: point.v, before: f, moved: false, x: 0, y: 0 };
+        return;
+      }
+      // A mark under the pointer is picked up and moved.
+      if (point) {
+        const near = target.panel.marks.find((m) => {
+          const at = imageToBox(
+            m.u,
+            m.v,
+            point.natural,
+            point.box,
+            target.panel.image?.crop ?? DEFAULT_CROP,
+          );
+          const here = mm(e);
+          return at !== null && Math.hypot(at.x - here.x, at.y - here.y) < 3;
+        });
+        if (near) {
+          setSelectedMark(near.id);
+          drag = { mode: 'mark', id, mark: near.id, before: f, moved: false, x: 0, y: 0 };
+          return;
+        }
+      }
+      setSelectedMark(null);
+      drag = { mode: 'crop', id, x: e.clientX, y: e.clientY, before: f, moved: false };
     }
 
     function move(e: PointerEvent) {
@@ -364,6 +457,35 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       const f = current.current;
       if (!f) return;
+      if (drag.mode === 'mark' || drag.mode === 'inset') {
+        const point = inImage(e, drag.id, f);
+        if (!point) return;
+        const u = Math.min(1, Math.max(0, point.u));
+        const v = Math.min(1, Math.max(0, point.v));
+        drag.moved = true;
+        const d = drag;
+        const next =
+          d.mode === 'mark'
+            ? editPanel(f, d.id, (p) => ({
+                ...p,
+                marks: p.marks.map((m) => (m.id === d.mark ? { ...m, u, v } : m)),
+              }))
+            : editPanel(f, d.id, (p) => ({
+                ...p,
+                inset: {
+                  u0: Math.min(d.u, u),
+                  v0: Math.min(d.v, v),
+                  u1: Math.max(d.u, u),
+                  v1: Math.max(d.v, v),
+                  corner: p.inset?.corner ?? 'bottom-left',
+                  size: p.inset?.size ?? 0.4,
+                  colour: p.inset?.colour ?? '#ffffff',
+                },
+              }));
+        current.current = next;
+        setFigure(next);
+        return;
+      }
       if (pointers.size >= 2) {
         const [a, b] = [...pointers.values()];
         if (!a || !b) return;
@@ -411,6 +533,7 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
       const d = drag;
       drag = null;
       pinch = 0;
+      if (d?.mode === 'inset') setTool('move');
       if (d?.moved && current.current) {
         const after = current.current;
         current.current = d.before;
@@ -744,6 +867,21 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
                 onChange={commit}
               />
               <ScaleControls figure={figure} panels={chosen} onChange={commit} />
+              {one?.image && (
+                <MarkControls
+                  panel={one}
+                  tool={tool}
+                  selectedMark={selectedMark}
+                  onTool={setTool}
+                  onSelectMark={setSelectedMark}
+                  onChange={(panel) => {
+                    commit({
+                      ...figure,
+                      panels: figure.panels.map((p) => (p.id === panel.id ? panel : p)),
+                    });
+                  }}
+                />
+              )}
               <PanelLabels
                 panels={chosen}
                 onChange={(labels) => {

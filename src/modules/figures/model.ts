@@ -92,6 +92,41 @@ export interface Panel {
   labels: PanelLabel[];
   /** A scale bar in this panel. */
   scaleBar: boolean;
+  /** Arrows, asterisks and words pointing things out. */
+  marks: Mark[];
+  /** A part of the image shown larger in a corner, or null. */
+  inset: Inset | null;
+}
+
+export const MARK_KINDS = ['arrow', 'arrowhead', 'star', 'text'] as const;
+export type MarkKind = (typeof MARK_KINDS)[number];
+
+/** A mark pinned to a point in the image, so it stays on its cell however the image is cropped. */
+export interface Mark {
+  id: string;
+  kind: MarkKind;
+  /** The point it marks, as shares of the image. */
+  u: number;
+  v: number;
+  /** The way an arrow points, in degrees: 0 points right, 90 down. */
+  angle: number;
+  /** Size, points. */
+  size: number;
+  colour: string;
+  /** For a text mark. */
+  text: string;
+}
+
+/** A region of the image, as shares, shown larger in a corner of the panel. */
+export interface Inset {
+  u0: number;
+  v0: number;
+  u1: number;
+  v1: number;
+  corner: Corner;
+  /** Its width, as a share of the panel's. */
+  size: number;
+  colour: string;
 }
 
 export type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -228,6 +263,8 @@ export function fillCells(figure: Figure): Figure {
           image: null,
           labels: [],
           scaleBar: false,
+          marks: [],
+          inset: null,
         });
       }
     }
@@ -376,6 +413,43 @@ const colourOr = (v: unknown, fallback: string) =>
 const CORNERS: readonly Corner[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
 const corner = (v: unknown, fallback: Corner): Corner => CORNERS.find((c) => c === v) ?? fallback;
 
+function parseMark(raw: unknown): Mark | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const m = raw as Record<string, unknown>;
+  const kind = MARK_KINDS.find((k) => k === m['kind']);
+  if (!kind || !num(m['u']) || !num(m['v'])) return null;
+  return {
+    id: typeof m['id'] === 'string' ? m['id'] : newId(),
+    kind,
+    u: clamp(m['u'], 0, 1),
+    v: clamp(m['v'], 0, 1),
+    angle: num(m['angle']) ? ((m['angle'] % 360) + 360) % 360 : 135,
+    size: num(m['size']) ? clamp(m['size'], 3, 48) : 10,
+    colour: colourOr(m['colour'], '#ffffff'),
+    text: typeof m['text'] === 'string' ? m['text'] : '',
+  };
+}
+
+function parseInset(raw: unknown): Inset | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (!num(r['u0']) || !num(r['v0']) || !num(r['u1']) || !num(r['v1'])) return null;
+  const u0 = clamp(Math.min(r['u0'], r['u1']), 0, 1);
+  const u1 = clamp(Math.max(r['u0'], r['u1']), 0, 1);
+  const v0 = clamp(Math.min(r['v0'], r['v1']), 0, 1);
+  const v1 = clamp(Math.max(r['v0'], r['v1']), 0, 1);
+  if (u1 - u0 < 0.002 || v1 - v0 < 0.002) return null;
+  return {
+    u0,
+    v0,
+    u1,
+    v1,
+    corner: corner(r['corner'], 'bottom-left'),
+    size: num(r['size']) ? clamp(r['size'], 0.15, 0.7) : 0.4,
+    colour: colourOr(r['colour'], '#ffffff'),
+  };
+}
+
 function parseDisplay(raw: unknown): Display {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const scope = r['scope'] === 'row' || r['scope'] === 'col' ? r['scope'] : 'figure';
@@ -473,6 +547,11 @@ export function parseFigure(text: string): Figure | null {
           .map((x) => ({ text: x['text'] as string, colour: colourOr(x['colour'], '#ffffff') }))
           .slice(0, 8),
         scaleBar: p['scaleBar'] === true,
+        marks: (Array.isArray(p['marks']) ? (p['marks'] as unknown[]) : [])
+          .map(parseMark)
+          .filter((m): m is Mark => m !== null)
+          .slice(0, 50),
+        inset: parseInset(p['inset']),
       };
     });
   const l = (r['letters'] ?? {}) as Record<string, unknown>;
@@ -621,6 +700,8 @@ export function merge(
     image: first?.image ?? null,
     labels: first?.labels ?? [],
     scaleBar: first?.scaleBar ?? false,
+    marks: first?.marks ?? [],
+    inset: first?.inset ?? null,
   };
   return fillCells({ ...figure, panels: [...figure.panels.filter((p) => !overlaps(p)), joined] });
 }
