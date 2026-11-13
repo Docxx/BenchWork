@@ -1,0 +1,9 @@
+{
+  "id": "figures",
+  "name": "Figures",
+  "version": "0.1.0",
+  "description": "Lay microscopy and other images out in panels on a page of real size, with genotype, treatment and antibody labels, scale bars and letters, and export them for papers",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

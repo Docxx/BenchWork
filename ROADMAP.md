@@ -284,6 +284,15 @@ Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([gu
 - [x] Whiteboards: endless boards with pens, shapes, text, sticky notes, images and PDF pages ([guide](docs/whiteboard.md))
 - [ ] Checked on the PC and the tablet
 
+### Figures
+
+- [x] A page of real size with a panel grid; images dropped in, cropped, turned and zoomed
+- [x] Labels for rows, columns and headers, panel letters and channel names, in Arial
+- [x] TIFFs from FIJI (16-bit, channels, pixel size), scale bars, and brightness set evenly
+- [x] Arrows, arrowheads, asterisks and text pinned to the image, and zoomed insets
+- [x] Export to PNG and TIFF at 300 or 600 dpi, SVG and PDF, and a methods note ([guide](docs/figures.md))
+- [ ] Checked on the PC and the tablet
+
 ## Phase 8: Apple port
 
 - [ ] macOS build (needs a Mac or macOS CI runner)
