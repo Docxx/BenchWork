@@ -11,7 +11,7 @@ export interface Source {
 export interface RenderOptions {
   /** Pixels per millimetre. */
   scale: number;
-  /** Images that have loaded, by vault path. */
+  /** Each panel's image as it is to be shown, by panel id. */
   sources: ReadonlyMap<string, Source>;
   /** Draw the empty panels' outlines and hints: on screen, not in an export. */
   editing: boolean;
@@ -59,7 +59,7 @@ export function drawFigure(c: CanvasRenderingContext2D, figure: Figure, o: Rende
   for (const p of l.panels) {
     const box = { x: p.x * s, y: p.y * s, w: p.w * s, h: p.h * s };
     const image = p.panel.image;
-    const source = image ? o.sources.get(image.path) : undefined;
+    const source = image ? o.sources.get(p.panel.id) : undefined;
     if (image && source) {
       drawImage(c, source, box, image);
     } else if (o.editing) {
@@ -87,6 +87,34 @@ export function drawFigure(c: CanvasRenderingContext2D, figure: Figure, o: Rende
         right ? box.x + box.w - pad : box.x + pad,
         bottom ? box.y + box.h - pad : box.y + pad,
       );
+    }
+    // A scale bar, its length worked out from the pixel size and how far the image is zoomed.
+    if (image && source && p.panel.scaleBar && image.umPerPx !== null) {
+      const view = sourceRect({ w: source.w, h: source.h }, box, image.crop);
+      const across = image.crop.turns % 2 === 1 ? view.h : view.w;
+      const pxPerImagePx = box.w / across;
+      const bar = (figure.scaleBar.um / image.umPerPx) * pxPerImagePx;
+      if (bar > 2 && bar < box.w * 0.9) {
+        const thick = Math.max(1, figure.scaleBar.thickness * s);
+        const pad = Math.max(3, 1.5 * s);
+        const right = figure.scaleBar.corner.endsWith('right');
+        const bottom = figure.scaleBar.corner.startsWith('bottom');
+        const x = right ? box.x + box.w - pad - bar : box.x + pad;
+        const y = bottom ? box.y + box.h - pad - thick : box.y + pad;
+        c.fillStyle = figure.scaleBar.colour;
+        c.fillRect(x, y, bar, thick);
+        if (figure.scaleBar.text) {
+          const size = figure.channelSize * POINT * s;
+          c.font = `bold ${String(size)}px ${o.font}`;
+          c.textAlign = 'center';
+          c.textBaseline = bottom ? 'bottom' : 'top';
+          c.fillText(
+            `${String(figure.scaleBar.um)} µm`,
+            x + bar / 2,
+            bottom ? y - size * 0.2 : y + thick + size * 0.2,
+          );
+        }
+      }
     }
     // Channel or antibody names, in their colours, stacked in a corner.
     if (image && p.panel.labels.length > 0) {

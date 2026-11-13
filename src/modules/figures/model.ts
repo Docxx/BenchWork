@@ -29,7 +29,52 @@ export interface PanelImage {
   /** The image file, as a vault path. */
   path: string;
   crop: Crop;
+  /** Micrometres per pixel, from the file or typed in; null if not known. */
+  umPerPx: number | null;
 }
+
+/** How one channel is shown: values from `min` (black) to `max` (full), its colour, and whether it shows. */
+export interface ChannelShow {
+  min: number;
+  max: number;
+  colour: string;
+  on: boolean;
+}
+
+/**
+ * How images are shown, set for a whole group of panels at once so the
+ * panels compared are treated alike: the whole figure, each row, or each
+ * column. A group not set yet shows each channel from zero to the highest
+ * value in the figure.
+ */
+export interface Display {
+  scope: 'figure' | 'row' | 'col';
+  /** By group: `all`, `r0`, `c2` and so on; then by channel. */
+  groups: Record<string, ChannelShow[]>;
+}
+
+export interface ScaleBar {
+  /** Length, µm. */
+  um: number;
+  corner: Corner;
+  /** Thickness, mm. */
+  thickness: number;
+  colour: string;
+  /** Write the length beside the bar. */
+  text: boolean;
+}
+
+/** The group a panel's display settings come from. */
+export function displayGroup(display: Display, panel: { row: number; col: number }): string {
+  return display.scope === 'figure'
+    ? 'all'
+    : display.scope === 'row'
+      ? `r${String(panel.row)}`
+      : `c${String(panel.col)}`;
+}
+
+/** Colours channels start with, as fluorescence is usually shown. */
+export const START_COLOURS = ['#3ddc5a', '#ff40ff', '#4a8cff', '#ff4040', '#30e0f0', '#ffe040'];
 
 /** A word in a panel's corner, such as a channel or antibody, in its colour. */
 export interface PanelLabel {
@@ -45,6 +90,8 @@ export interface Panel {
   colSpan: number;
   image: PanelImage | null;
   labels: PanelLabel[];
+  /** A scale bar in this panel. */
+  scaleBar: boolean;
 }
 
 export type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -101,6 +148,8 @@ export interface Figure {
   /** Where panels' channel labels go, and their size in points. */
   channelCorner: Corner;
   channelSize: number;
+  display: Display;
+  scaleBar: ScaleBar;
 }
 
 export interface Box {
@@ -145,6 +194,8 @@ export function newFigure(rows = 2, cols = 3, width = 174): Figure {
     labelSize: 8,
     channelCorner: 'top-right',
     channelSize: 7,
+    display: { scope: 'figure', groups: {} },
+    scaleBar: { um: 20, corner: 'bottom-right', thickness: 0.6, colour: '#ffffff', text: false },
   };
   return fillCells(figure);
 }
@@ -176,6 +227,7 @@ export function fillCells(figure: Figure): Figure {
           colSpan: 1,
           image: null,
           labels: [],
+          scaleBar: false,
         });
       }
     }
@@ -324,6 +376,41 @@ const colourOr = (v: unknown, fallback: string) =>
 const CORNERS: readonly Corner[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
 const corner = (v: unknown, fallback: Corner): Corner => CORNERS.find((c) => c === v) ?? fallback;
 
+function parseDisplay(raw: unknown): Display {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const scope = r['scope'] === 'row' || r['scope'] === 'col' ? r['scope'] : 'figure';
+  const groups: Display['groups'] = {};
+  const given = r['groups'];
+  if (given && typeof given === 'object') {
+    for (const [key, list] of Object.entries(given as Record<string, unknown>)) {
+      if (!/^(all|[rc]\d+)$/.test(key) || !Array.isArray(list)) continue;
+      groups[key] = (list as unknown[]).slice(0, 8).map((x, i) => {
+        const c = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>;
+        const min = num(c['min']) ? Math.max(0, c['min']) : 0;
+        const max = num(c['max']) ? Math.max(min + 1e-6, c['max']) : 255;
+        return {
+          min,
+          max,
+          colour: colourOr(c['colour'], START_COLOURS[i] ?? '#ffffff'),
+          on: c['on'] !== false,
+        };
+      });
+    }
+  }
+  return { scope, groups };
+}
+
+function parseScaleBar(raw: unknown, base: ScaleBar): ScaleBar {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  return {
+    um: num(r['um']) ? clamp(r['um'], 0.01, 100000) : base.um,
+    corner: corner(r['corner'], base.corner),
+    thickness: num(r['thickness']) ? clamp(r['thickness'], 0.1, 5) : base.thickness,
+    colour: colourOr(r['colour'], base.colour),
+    text: r['text'] === true,
+  };
+}
+
 function parseCrop(raw: unknown): Crop {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const turns = num(r['turns']) ? ((((Math.round(r['turns']) % 4) + 4) % 4) as Crop['turns']) : 0;
@@ -374,13 +461,18 @@ export function parseFigure(text: string): Figure | null {
         colSpan: num(p['colSpan']) ? Math.max(1, Math.floor(p['colSpan'])) : 1,
         image:
           image && typeof image === 'object' && typeof image['path'] === 'string'
-            ? { path: image['path'], crop: parseCrop(image['crop']) }
+            ? {
+                path: image['path'],
+                crop: parseCrop(image['crop']),
+                umPerPx: num(image['umPerPx']) && image['umPerPx'] > 0 ? image['umPerPx'] : null,
+              }
             : null,
         labels: (Array.isArray(p['labels']) ? (p['labels'] as unknown[]) : [])
           .filter((x): x is Record<string, unknown> => !!x && typeof x === 'object')
           .filter((x) => typeof x['text'] === 'string')
           .map((x) => ({ text: x['text'] as string, colour: colourOr(x['colour'], '#ffffff') }))
           .slice(0, 8),
+        scaleBar: p['scaleBar'] === true,
       };
     });
   const l = (r['letters'] ?? {}) as Record<string, unknown>;
@@ -412,6 +504,8 @@ export function parseFigure(text: string): Figure | null {
     labelSize: num(r['labelSize']) ? clamp(r['labelSize'], 4, 24) : base.labelSize,
     channelCorner: corner(r['channelCorner'], 'top-right'),
     channelSize: num(r['channelSize']) ? clamp(r['channelSize'], 4, 24) : base.channelSize,
+    display: parseDisplay(r['display']),
+    scaleBar: parseScaleBar(r['scaleBar'], base.scaleBar),
   };
   return fillCells(figure);
 }
@@ -526,6 +620,7 @@ export function merge(
     ...block,
     image: first?.image ?? null,
     labels: first?.labels ?? [],
+    scaleBar: first?.scaleBar ?? false,
   };
   return fillCells({ ...figure, panels: [...figure.panels.filter((p) => !overlaps(p)), joined] });
 }
@@ -562,7 +657,9 @@ export function fillWith(figure: Figure, paths: readonly string[], fromId?: stri
     ...figure,
     panels: figure.panels.map((p) => {
       const path = placed.get(p.id);
-      return path === undefined ? p : { ...p, image: { path, crop: { ...DEFAULT_CROP } } };
+      return path === undefined
+        ? p
+        : { ...p, image: { path, crop: { ...DEFAULT_CROP }, umPerPx: null } };
     }),
   };
 }

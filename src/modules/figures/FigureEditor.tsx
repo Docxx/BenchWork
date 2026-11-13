@@ -35,13 +35,16 @@ import {
   type Panel,
 } from './model';
 import { FigureLabels, PanelLabels } from './LabelControls';
+import { DisplayControls, ScaleControls } from './DisplayControls';
+import { loadPlanes, picture, showsFor } from './images';
 import { drawFigure, FIGURE_FONT, type Source } from './render';
+import type { Planes } from './tiff';
 import './figures.css';
 
 const ICON = { size: 17, strokeWidth: 1.8, 'aria-hidden': true } as const;
 const SAVE_MS = 500;
 const MAX_UNDO = 60;
-const IMAGE_TYPES = /\.(png|jpe?g|gif|webp|bmp)$/i;
+const IMAGE_TYPES = /\.(png|jpe?g|gif|webp|bmp|tiff?)$/i;
 
 const dirOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
 
@@ -61,6 +64,8 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
   const [notice, setNotice] = useState<string | null>(null);
   const [history, setHistory] = useState({ undo: 0, redo: 0 });
   const [loaded, setLoaded] = useState(0);
+  /** The images read so far, for the controls beside the page. */
+  const [readImages, setReadImages] = useState<ReadonlyMap<string, Planes>>(new Map());
   const [fit, setFit] = useState({ scale: 3, width: 600 });
 
   const current = useRef<Figure | null>(null);
@@ -68,8 +73,11 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
   const redo = useRef<Figure[]>([]);
   const lastText = useRef<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sources = useRef(new Map<string, Source>());
+  /** Each image file's values, once read. */
+  const planes = useRef(new Map<string, Planes>());
   const loading = useRef(new Set<string>());
+  /** Pictures already made, by file and how it is shown. */
+  const pictures = useRef(new Map<string, HTMLCanvasElement>());
 
   // ---- Saving ----
   const save = useCallback(
@@ -122,21 +130,39 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
   // ---- Images ----
   const loadImage = useCallback(
     (file: string) => {
-      if (sources.current.has(file) || loading.current.has(file)) return;
+      if (planes.current.has(file) || loading.current.has(file)) return;
       loading.current.add(file);
-      const url = ctx.vault.fileUrl(file);
-      if (url === null) return;
-      const image = new Image();
-      image.onload = () => {
-        sources.current.set(file, { image, w: image.naturalWidth, h: image.naturalHeight });
-        setLoaded((n) => n + 1);
-      };
-      image.onerror = () => {
-        loading.current.delete(file);
-      };
-      image.src = url;
+      void ctx.vault
+        .readBytes(file)
+        .then((bytes) => loadPlanes(bytes, file))
+        .then((read) => {
+          planes.current.set(file, read);
+          setLoaded((n) => n + 1);
+          setReadImages(new Map(planes.current));
+          // A pixel size the file gives fills in panels that have none yet.
+          const f = current.current;
+          if (read.umPerPx === null || !f) return;
+          const missing = f.panels.some((p) => p.image?.path === file && p.image.umPerPx === null);
+          if (!missing) return;
+          const next = {
+            ...f,
+            panels: f.panels.map((p) =>
+              p.image?.path === file && p.image.umPerPx === null
+                ? { ...p, image: { ...p.image, umPerPx: read.umPerPx } }
+                : p,
+            ),
+          };
+          current.current = next;
+          setFigure(next);
+          save(next);
+        })
+        .catch((err: unknown) => {
+          setNotice(
+            `${file.split('/').at(-1) ?? file} could not be read. ${err instanceof Error ? err.message : String(err)}`,
+          );
+        });
     },
-    [ctx],
+    [ctx, save],
   );
 
   useEffect(() => {
@@ -212,9 +238,27 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     c.style.width = `${String(l.width * fit.scale)}px`;
     c.style.height = `${String(l.height * fit.scale)}px`;
     g.setTransform(ratio, 0, 0, ratio, 0, 0);
+    // Each panel's picture, shown as its group says; made once and kept.
+    const sources = new Map<string, Source>();
+    for (const panel of figure.panels) {
+      const read = panel.image ? planes.current.get(panel.image.path) : undefined;
+      if (!panel.image || !read) continue;
+      const shows = showsFor(figure, panel, read, planes.current);
+      const key = `${panel.image.path}|${JSON.stringify(shows)}`;
+      let made = pictures.current.get(key);
+      if (!made) {
+        made = picture(read, shows);
+        pictures.current.set(key, made);
+        if (pictures.current.size > 80) {
+          const oldest = pictures.current.keys().next().value;
+          if (oldest !== undefined) pictures.current.delete(oldest);
+        }
+      }
+      sources.set(panel.id, { image: made, w: read.width, h: read.height });
+    }
     drawFigure(g, figure, {
       scale: fit.scale,
-      sources: sources.current,
+      sources,
       editing: true,
       selected: selected.at(-1) ?? null,
       font: FIGURE_FONT,
@@ -281,9 +325,9 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     ) => {
       const box = layout(base).panels.find((p) => p.panel.id === id);
       const panel = box?.panel;
-      const source = panel?.image ? sources.current.get(panel.image.path) : undefined;
-      if (!box || !panel?.image || !source) return null;
-      const crop = change(panel.image.crop, box, { w: source.w, h: source.h });
+      const read = panel?.image ? planes.current.get(panel.image.path) : undefined;
+      if (!box || !panel?.image || !read) return null;
+      const crop = change(panel.image.crop, box, { w: read.width, h: read.height });
       return {
         ...base,
         panels: base.panels.map((p) =>
@@ -588,7 +632,7 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
           type="file"
           hidden
           multiple
-          accept="image/*"
+          accept="image/*,.tif,.tiff"
           aria-label="Images to add"
           onChange={(e) => {
             const files = [...(e.target.files ?? [])];
@@ -693,6 +737,13 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
                   Reset
                 </button>
               </div>
+              <DisplayControls
+                figure={figure}
+                panels={chosen}
+                planes={readImages}
+                onChange={commit}
+              />
+              <ScaleControls figure={figure} panels={chosen} onChange={commit} />
               <PanelLabels
                 panels={chosen}
                 onChange={(labels) => {
