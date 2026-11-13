@@ -8,7 +8,6 @@ import {
   RotateCw,
   Settings,
   SlidersHorizontal,
-  SquareTerminal,
   Star,
   FileText,
   Folder,
@@ -45,15 +44,7 @@ export function initials(name: string): string {
 
 const ICON = { size: 17, strokeWidth: 1.75, 'aria-hidden': true } as const;
 
-export function Sidebar({
-  vault,
-  onCollapse,
-  onCommands,
-}: {
-  vault: OpenVault;
-  onCollapse: () => void;
-  onCommands: () => void;
-}) {
+export function Sidebar({ vault, onCollapse }: { vault: OpenVault; onCollapse: () => void }) {
   const refreshTree = useApp((s) => s.refreshTree);
   const closeVault = useApp((s) => s.closeVault);
   const view = useApp((s) => s.view);
@@ -136,13 +127,6 @@ export function Sidebar({
             Today
           </button>
         </li>
-        <li>
-          <button type="button" className="nav-item" title="Commands (Ctrl+K)" onClick={onCommands}>
-            <SquareTerminal {...ICON} />
-            Commands
-            <kbd>Ctrl K</kbd>
-          </button>
-        </li>
         <SidebarTools />
         {conflicts > 0 && (
           <li>
@@ -215,19 +199,23 @@ export function Sidebar({
           y={lookMenu.y}
           items={[
             ...(['compact', 'comfortable', 'roomy'] as const).map((d) => ({
-              label: `${look.treeDensity === d ? '✓ ' : ''}${d.charAt(0).toUpperCase()}${d.slice(1)} rows`,
+              label: `${d.charAt(0).toUpperCase()}${d.slice(1)} rows`,
+              checked: look.treeDensity === d,
               onSelect: () => void setAppearance({ treeDensity: d }),
             })),
             {
-              label: `${look.treeLines ? '✓ ' : ''}Lines showing what is inside what`,
+              label: 'Lines showing what is inside what',
+              checked: look.treeLines,
               onSelect: () => void setAppearance({ treeLines: !look.treeLines }),
             },
             {
-              label: `${look.hideDaily ? '✓ ' : ''}Hide the Daily notebook`,
+              label: 'Hide the Daily notebook',
+              checked: look.hideDaily,
               onSelect: () => void setAppearance({ hideDaily: !look.hideDaily }),
             },
             {
-              label: `${look.pagesOnly ? '✓ ' : ''}Pages only, no other files`,
+              label: 'Pages only, no other files',
+              checked: look.pagesOnly,
               onSelect: () => void setAppearance({ pagesOnly: !look.pagesOnly }),
             },
           ]}

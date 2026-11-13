@@ -357,6 +357,11 @@ export class TauriAdapter implements PlatformAdapter {
     return fetchWebText(url);
   }
 
+  readonly launchProgram =
+    detectKind() !== 'desktop'
+      ? null
+      : (path: string) => call<undefined>('launch_program', () => ({ path }));
+
   async openWebLink(url: string): Promise<void> {
     const bridge = window.BenchWorkAndroid;
     if (bridge) bridge.openLink(url);

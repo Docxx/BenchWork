@@ -1,0 +1,199 @@
+.wb {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 420px;
+  --wb-dot: color-mix(in srgb, var(--text) 22%, transparent);
+}
+
+.wb-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.75rem;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.wb-toolbar .tool-group {
+  display: flex;
+  gap: 0.15rem;
+  align-items: center;
+}
+
+.wb-style .pen-slider {
+  width: 6rem;
+  flex: none;
+}
+
+.wb-favourite {
+  position: relative;
+  display: inline-flex;
+}
+
+button.wb-unfavourite,
+button.wb-unfavourite:first-child {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: none;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--text);
+  color: var(--bg);
+  line-height: 0;
+}
+
+.wb-favourite:hover .wb-unfavourite,
+.wb-unfavourite:focus-visible {
+  display: grid;
+  place-items: center;
+}
+
+.wb-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg);
+  /* The board takes the pen and fingers itself, to draw, move and zoom. */
+  touch-action: none;
+  user-select: none;
+}
+
+.wb-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-body, sans-serif);
+}
+
+.wb-top {
+  cursor: crosshair;
+  outline: none;
+}
+
+.tool-select .wb-top {
+  cursor: default;
+}
+
+.tool-hand .wb-top {
+  cursor: grab;
+}
+
+.tool-text .wb-top {
+  cursor: text;
+}
+
+.wb-reading {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+}
+
+.wb-edit {
+  position: absolute;
+  min-height: 1.6em;
+  padding: 0;
+  border: 1px dashed var(--accent);
+  border-radius: 2px;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-body, sans-serif);
+  line-height: 1.3;
+  resize: none;
+  overflow: hidden;
+  field-sizing: content;
+}
+
+.wb-edit.note {
+  border-color: transparent;
+}
+
+.wb-actions {
+  position: absolute;
+  display: flex;
+  gap: 0.2rem;
+  align-items: center;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.2);
+}
+
+.wb-map {
+  position: absolute;
+  right: 12px;
+  bottom: 56px;
+  width: 160px;
+  height: 110px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  cursor: pointer;
+}
+
+.wb-zoom {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  gap: 0.15rem;
+  align-items: center;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.wb-zoom span {
+  min-width: 3rem;
+  text-align: center;
+}
+
+@media (max-width: 700px) {
+  .wb-map {
+    display: none;
+  }
+}
+
+.wb-list {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 1rem 2rem 3rem;
+}
+
+.wb-new {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.wb-new input {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.wb-list ul {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wb-list li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+}

@@ -4573,3 +4573,169 @@ button.guide-more {
 .shell:has(> .sidebar-reveal) .file-header {
   padding-left: 2.5rem;
 }
+
+/* Menus with headings, ticks and items that fold out. */
+.menu .menu-item,
+.menu .menu-item:first-child {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.menu .menu-label {
+  flex: 1;
+}
+
+.menu .menu-item.nested,
+.menu .menu-item.nested:first-child {
+  padding-left: 1.4rem;
+  font-size: 0.92em;
+}
+
+.menu-heading {
+  margin-top: 0.3rem;
+  padding: 0.45rem 0.6rem 0.15rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.menu-heading.first {
+  margin-top: 0;
+  border-top: none;
+}
+
+.menu-divider {
+  margin: 0.3rem 0;
+  border-top: 1px solid var(--border);
+}
+
+/* The pen in use, its pop-out of colours and thickness, and favourite pens. */
+.pen-dot {
+  display: inline-block;
+  flex: none;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(127 127 127 / 0.35);
+}
+
+.pen-style {
+  position: relative;
+}
+
+.pen-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 12;
+  display: grid;
+  gap: 0.6rem;
+  width: 17rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.2);
+}
+
+.pen-panel-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.pen-custom input {
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: none;
+}
+
+.pen-slider {
+  flex: 1;
+  min-width: 5rem;
+}
+
+.pen-size {
+  min-width: 1.6rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.pen-saved {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0.4rem 0 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+}
+
+.pen-saved li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.pen-saved li span:nth-child(2) {
+  flex: 1;
+}
+
+/* Programs on Home. */
+.programs-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.programs-list li {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.programs-list input {
+  flex: 1;
+  min-width: 0;
+}
+
+button.program-button,
+button.program-button:first-child {
+  display: flex;
+  flex: 1;
+  gap: 0.5rem;
+  align-items: center;
+  min-width: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  text-align: left;
+}
+
+button.program-button:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.program-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.programs-actions {
+  display: flex;
+  gap: 0.5rem;
+}

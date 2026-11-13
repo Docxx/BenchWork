@@ -1,19 +1,70 @@
-import { ChevronDown, Search } from 'lucide-react';
 import { useState } from 'react';
+import { ChevronDown, Pin, PinOff, Search } from 'lucide-react';
+import { moduleCategory } from '../modules/categories';
 import { useApp } from './AppStoreContext';
 
-/** A bounded launcher leaves the notebook list usable with many enabled modules. */
+/**
+ * The sidebar's Tools list: what the modules add, such as the planner.
+ * Pinned tools stay at the top; the rest sit under the kind of work they
+ * are for, and the search finds any of them by name or by what they do.
+ */
 export function SidebarTools() {
   const tools = useApp((s) => s.pageViews).filter((v) => v.tool !== undefined);
   const current = useApp((s) => s.moduleView);
   const open = useApp((s) => s.openModuleView);
   const collapsed = useApp((s) => s.settings.appearance.toolsCollapsed);
+  const pinned = useApp((s) => s.settings.appearance.pinnedTools);
   const appearance = useApp((s) => s.setAppearance);
   const [search, setSearch] = useState('');
   if (tools.length === 0) return null;
+  const q = search.trim().toLowerCase();
   const found = tools.filter((v) =>
-    `${v.title} ${v.tool?.hint ?? ''}`.toLowerCase().includes(search.toLowerCase()),
+    `${v.title} ${v.tool?.hint ?? ''} ${moduleCategory(v.moduleId)}`.toLowerCase().includes(q),
   );
+  const top = found.filter((v) => pinned.includes(v.id));
+  const rest = found.filter((v) => !pinned.includes(v.id));
+  // Headings only help once there is enough to group.
+  const grouped = rest.length > 5;
+  const kinds = grouped ? [...new Set(rest.map((v) => moduleCategory(v.moduleId)))].sort() : [''];
+
+  const row = (v: (typeof tools)[number]) => {
+    const isPinned = pinned.includes(v.id);
+    return (
+      <li key={v.id} className="tool-row">
+        <button
+          type="button"
+          id={`tool-${v.id}`}
+          className="nav-item"
+          title={v.tool?.hint}
+          aria-pressed={current?.id === v.id}
+          onClick={() => void open(v.id)}
+        >
+          {v.tool?.icon}
+          {v.title}
+        </button>
+        <button
+          type="button"
+          className="icon-button tool-pin"
+          aria-pressed={isPinned}
+          aria-label={isPinned ? 'Unpin' : 'Pin to the top'}
+          aria-describedby={`tool-${v.id}`}
+          title={isPinned ? 'Unpin' : 'Pin to the top'}
+          onClick={() =>
+            void appearance({
+              pinnedTools: isPinned ? pinned.filter((p) => p !== v.id) : [...pinned, v.id],
+            })
+          }
+        >
+          {isPinned ? (
+            <PinOff size={13} strokeWidth={1.75} aria-hidden />
+          ) : (
+            <Pin size={13} strokeWidth={1.75} aria-hidden />
+          )}
+        </button>
+      </li>
+    );
+  };
+
   return (
     <li className="nav-group sidebar-tools" aria-label="Tools">
       <button
@@ -42,22 +93,23 @@ export function SidebarTools() {
               />
             </label>
           )}
-          <ul className="tools-scroll">
-            {found.map((v) => (
-              <li key={v.id}>
-                <button
-                  type="button"
-                  className="nav-item"
-                  title={v.tool?.hint}
-                  aria-pressed={current?.id === v.id}
-                  onClick={() => void open(v.id)}
-                >
-                  {v.tool?.icon}
-                  {v.title}
-                </button>
-              </li>
+          <div className="tools-scroll">
+            {top.length > 0 && (
+              <ul aria-label="Pinned tools" className="tools-pinned">
+                {top.map(row)}
+              </ul>
+            )}
+            {kinds.map((kind) => (
+              <ul key={kind} aria-label={kind === '' ? 'Tools' : kind}>
+                {kind !== '' && (
+                  <li className="tools-kind" role="presentation">
+                    {kind}
+                  </li>
+                )}
+                {rest.filter((v) => !grouped || moduleCategory(v.moduleId) === kind).map(row)}
+              </ul>
             ))}
-          </ul>
+          </div>
           {found.length === 0 && <p className="hint">No matching tools.</p>}
         </div>
       )}

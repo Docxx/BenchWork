@@ -614,6 +614,13 @@ async fn open_storage_file(
     storage::open_file(&copy)
 }
 
+/// Starts a program the user added to Home. Desktop only, from the main window.
+#[tauri::command]
+async fn launch_program(window: tauri::WebviewWindow, path: String) -> VaultResult<()> {
+    main_window(&window)?;
+    web_link::launch_program(std::path::Path::new(&path))
+}
+
 /// Opens a web address in the system's browser.
 #[tauri::command]
 async fn open_web_link(url: String) -> VaultResult<()> {
@@ -990,6 +997,7 @@ pub fn run() {
             snapshot_program_file,
             stop_program,
             open_web_link,
+            launch_program,
             open_feedback_email,
             open_vault_file,
             list_backups,

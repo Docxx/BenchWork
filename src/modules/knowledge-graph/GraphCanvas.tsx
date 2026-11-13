@@ -7,6 +7,19 @@ const PALETTES = {
   violet: ['#b8a0ff', '#73e4c0', '#f0a0d0', '#8ebcff', '#edd18f', '#eab0a0'],
 };
 
+/** How long the graph takes to grow in, and the view to glide, at the usual speed. */
+const ENTRANCE_MS = 900;
+const GLIDE_MS = 500;
+
+const ease = (t: number) => 1 - (1 - Math.min(1, Math.max(0, t))) ** 3;
+
+/**
+ * The graph, drawn on a canvas. The layout is worked out once for a model;
+ * how it looks is read as each frame is drawn, so changing an option never
+ * rebuilds it. Four kinds of motion, each its own option: a live layout,
+ * signals along the links, smooth focus on a note's neighbours, and an
+ * entrance with a view that glides. None run where motion is reduced.
+ */
 export function GraphCanvas({
   model,
   style,
@@ -24,11 +37,12 @@ export function GraphCanvas({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const invalidateRef = useRef<(() => void) | null>(null);
-  const callbacks = useRef({ onSelect, onOpen, selected });
+  const live = useRef({ onSelect, onOpen, selected, style });
   useEffect(() => {
-    callbacks.current = { onSelect, onOpen, selected };
+    live.current = { onSelect, onOpen, selected, style };
     invalidateRef.current?.();
-  }, [onSelect, onOpen, selected]);
+  }, [onSelect, onOpen, selected, style]);
+
   useEffect(() => {
     const element = canvasRef.current;
     if (!element) return;
@@ -38,51 +52,82 @@ export function GraphCanvas({
     const colours = getComputedStyle(canvas);
     const line = colours.getPropertyValue('--graph-line').trim();
     const text = colours.getPropertyValue('--graph-fg').trim();
-    const palette = style.palette === 'theme' ? [line] : PALETTES[style.palette];
+    const background = colours.getPropertyValue('--graph-bg').trim();
     const phases = new Map(model.nodes.map((n, i) => [n.id, i * 0.037]));
     const groups = [...new Set(model.nodes.map((n) => n.group))].sort();
-    const colour = (n: GraphPoint) => palette[groups.indexOf(n.group) % palette.length] ?? line;
+    const look = () => live.current.style;
+    const colour = (n: GraphPoint) => {
+      const s = look();
+      const palette = s.palette === 'theme' ? [line] : PALETTES[s.palette];
+      return palette[groups.indexOf(n.group) % palette.length] ?? line;
+    };
     let width = 1,
       height = 1,
       frame = 0;
     let hover: GraphPoint | null = null;
     let camera = { x: 0, y: 0, zoom: 1 };
+    /** Where the view is gliding from and to, and when it set off. */
+    let glide: { from: typeof camera; to: typeof camera; start: number } | null = null;
     const pointers = new Map<number, { x: number; y: number }>();
     let gesture: { x: number; y: number; moved: boolean; node: GraphPoint | null } | null = null;
     let previousPinch = 0;
     let dirty = true;
+    /** When the graph first drew, for growing in; null until then. */
+    let born: number | null = null;
+    /** How lit each node is, easing towards whether it is in focus. */
+    const lit = new Map<string, number>();
+    /** How far the focus effect has come in, from 0 to 1. */
+    let focusMix = 0;
+    let focused = new Set<string>();
+    let focusId: string | null = null;
+    /** Movement left in the live layout; it rests when this runs out. */
+    let energy = 1;
+    let lastSelection: string | null = null;
+    let lastTime = 0;
+
     function invalidate() {
       dirty = true;
       if (!frame) frame = requestAnimationFrame(draw);
     }
     invalidateRef.current = invalidate;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const radius = (n: GraphPoint) => style.size + Math.min(10, Math.sqrt(n.degree) * 1.7);
+    const moving = () =>
+      document.documentElement.dataset['motion'] !== 'off' && !reduced.matches && !document.hidden;
+    const radius = (n: GraphPoint) => look().size + Math.min(10, Math.sqrt(n.degree) * 1.7);
+    /** How far the graph has grown in, from 0 to 1. */
+    let grown = 1;
     const project = (n: GraphPoint) => ({
-      x: width / 2 + (n.x + camera.x) * camera.zoom,
-      y: height / 2 + (n.y + camera.y) * camera.zoom,
+      x: width / 2 + (n.x * grown + camera.x) * camera.zoom,
+      y: height / 2 + (n.y * grown + camera.y) * camera.zoom,
     });
     const hit = (x: number, y: number) =>
       model.nodes.find((n) => {
         const p = project(n);
         return Math.hypot(p.x - x, p.y - y) < Math.max(10, radius(n) * Math.sqrt(camera.zoom) + 4);
       }) ?? null;
-    function fitGraph() {
-      const xs = model.nodes.map((n) => n.x),
-        ys = model.nodes.map((n) => n.y);
+
+    /** Moves the view, gliding if that is on. */
+    function moveCamera(to: typeof camera) {
+      if (look().entrance && moving() && born !== null) {
+        glide = { from: { ...camera }, to, start: performance.now() };
+      } else {
+        camera = to;
+        glide = null;
+      }
+      invalidate();
+    }
+    function fitted(): typeof camera {
       let minX = 0,
         maxX = 0,
         minY = 0,
         maxY = 0;
-      for (const x of xs) {
-        minX = Math.min(minX, x);
-        maxX = Math.max(maxX, x);
+      for (const n of model.nodes) {
+        minX = Math.min(minX, n.x);
+        maxX = Math.max(maxX, n.x);
+        minY = Math.min(minY, n.y);
+        maxY = Math.max(maxY, n.y);
       }
-      for (const y of ys) {
-        minY = Math.min(minY, y);
-        maxY = Math.max(maxY, y);
-      }
-      camera = {
+      return {
         x: -(minX + maxX) / 2,
         y: -(minY + maxY) / 2,
         zoom: Math.max(
@@ -90,15 +135,17 @@ export function GraphCanvas({
           Math.min(2, (width - 100) / (maxX - minX + 100), (height - 110) / (maxY - minY + 100)),
         ),
       };
-      invalidate();
     }
-    // Settle before showing it, so reduced-motion users also get a readable layout.
-    for (
-      let i = 0;
-      i < Math.min(300, Math.max(60, Math.floor(24000 / Math.max(1, model.nodes.length))));
-      i++
-    )
-      step(model, style.spacing);
+    function settle() {
+      // Settle before showing it, so it is readable with no motion at all.
+      const rounds = Math.min(
+        300,
+        Math.max(60, Math.floor(24000 / Math.max(1, model.nodes.length))),
+      );
+      for (let i = 0; i < rounds; i++) step(model, look().spacing);
+      energy = 0.4;
+    }
+    settle();
     function resize() {
       const box = canvas.getBoundingClientRect();
       width = box.width;
@@ -107,66 +154,173 @@ export function GraphCanvas({
       canvas.width = Math.round(width * ratio);
       canvas.height = Math.round(height * ratio);
       context?.setTransform(ratio, 0, 0, ratio, 0, 0);
-      fitGraph();
+      camera = fitted();
+      glide = null;
+      invalidate();
     }
+
     function draw(now: number) {
       frame = 0;
-      if (document.hidden) return;
-      if (!context) return;
-      const animate =
-        style.motion &&
-        document.documentElement.dataset['motion'] !== 'off' &&
-        !reduced.matches &&
-        !document.hidden;
-      const selectedId = callbacks.current.selected;
-      if (animate || dirty || selectedId !== lastSelection) {
+      if (document.hidden || !context) return;
+      const s = look();
+      const can = moving();
+      const speed = s.speed;
+      const dt = Math.min(64, lastTime === 0 ? 16 : now - lastTime);
+      lastTime = now;
+      let busy = false;
+
+      // Growing in.
+      if (born === null) born = now;
+      if (s.entrance && can) {
+        const t = ((now - born) * speed) / ENTRANCE_MS;
+        grown = ease(t);
+        if (t < 1) busy = true;
+      } else {
+        grown = 1;
+      }
+
+      // The view gliding to where it was sent.
+      if (glide !== null) {
+        const t = ((now - glide.start) * speed) / GLIDE_MS;
+        const k = ease(t);
+        camera = {
+          x: glide.from.x + (glide.to.x - glide.from.x) * k,
+          y: glide.from.y + (glide.to.y - glide.from.y) * k,
+          zoom: glide.from.zoom + (glide.to.zoom - glide.from.zoom) * k,
+        };
+        if (t >= 1) glide = null;
+        else busy = true;
+      }
+
+      // The live layout: it keeps working while there is movement in it.
+      const held = gesture?.moved === true ? gesture.node : null;
+      if (s.live && can && (energy > 0.02 || held !== null)) {
+        const hx = held?.x ?? 0;
+        const hy = held?.y ?? 0;
+        step(model, s.spacing);
+        if (held !== null) {
+          // The node being dragged stays under the finger; the rest answer it.
+          held.x = hx;
+          held.y = hy;
+          held.vx = 0;
+          held.vy = 0;
+          energy = 1;
+        } else {
+          energy *= 0.985 ** (dt / 16);
+        }
+        busy = true;
+      }
+
+      // Focus: a note's neighbours light up, the rest dim, smoothly.
+      const selectedId = live.current.selected;
+      const active = hover?.id ?? selectedId;
+      if (active !== focusId) {
+        focusId = active;
+        if (active !== null) {
+          focused = new Set([active]);
+          for (const e of model.edges)
+            if (e.source.id === active || e.target.id === active) {
+              focused.add(e.source.id);
+              focused.add(e.target.id);
+            }
+        }
+      }
+      const smooth = s.focus && can;
+      const rate = smooth ? Math.min(1, (dt / 140) * speed) : 1;
+      const mixTarget = active !== null ? 1 : 0;
+      if (Math.abs(focusMix - mixTarget) > 0.01) {
+        focusMix += (mixTarget - focusMix) * rate;
+        busy = true;
+      } else {
+        focusMix = mixTarget;
+        if (active === null) focused = new Set();
+      }
+      for (const n of model.nodes) {
+        const target = focused.size === 0 || focused.has(n.id) ? 1 : 0;
+        const value = lit.get(n.id) ?? 1;
+        if (Math.abs(value - target) > 0.01) {
+          lit.set(n.id, value + (target - value) * rate);
+          busy = true;
+        } else {
+          lit.set(n.id, target);
+        }
+      }
+      const shine = (n: GraphPoint) => {
+        const l = lit.get(n.id) ?? 1;
+        // Lit nodes are full; unlit ones dim as the focus comes in.
+        return 1 - (1 - l) * 0.8 * focusMix;
+      };
+
+      const flow = s.motion && can;
+      if (flow) busy = true;
+      // A slow drift, so a resting graph still feels alive.
+      const drift = s.live && can;
+      if (drift) busy = true;
+      const sway = (n: GraphPoint) => {
+        if (!drift || n === held) return { x: 0, y: 0 };
+        const ph = (phases.get(n.id) ?? 0) * 40;
+        const t = (now * speed) / 2600;
+        return { x: Math.sin(t + ph) * 2.2, y: Math.cos(t * 0.8 + ph * 1.3) * 2.2 };
+      };
+      const at = (n: GraphPoint) => {
+        const p = project(n);
+        const w = sway(n);
+        return { x: p.x + w.x, y: p.y + w.y };
+      };
+
+      if (busy || dirty || selectedId !== lastSelection) {
         dirty = false;
         lastSelection = selectedId;
         context.clearRect(0, 0, width, height);
-        const active = hover?.id ?? selectedId;
-        const neighbours = new Set<string>(active ? [active] : []);
-        for (const e of model.edges)
-          if (e.source.id === active || e.target.id === active) {
-            neighbours.add(e.source.id);
-            neighbours.add(e.target.id);
-          }
+        const appear = grown;
         for (const e of model.edges) {
-          const a = project(e.source),
-            b = project(e.target);
-          const highlighted = e.source.id === active || e.target.id === active;
-          context.globalAlpha = active ? (highlighted ? 0.9 : 0.06) : style.opacity;
+          const a = at(e.source),
+            b = at(e.target);
+          const highlighted = active !== null && (e.source.id === active || e.target.id === active);
+          // In focus, a note's own links brighten and the others fade back.
+          const target = highlighted ? 0.9 : 0.06;
+          context.globalAlpha = appear * (s.opacity + (target - s.opacity) * focusMix);
           context.strokeStyle = highlighted ? colour(e.source) : line;
           context.lineWidth = highlighted ? 1.5 : 0.7;
           context.beginPath();
           context.moveTo(a.x, a.y);
           context.lineTo(b.x, b.y);
           context.stroke();
-          if (animate && (highlighted || (!active && e.source.degree > 2))) {
-            const progress = (now / 5500 + (phases.get(e.source.id) ?? 0)) % 1;
-            context.globalAlpha = 0.7;
-            context.fillStyle = colour(e.source);
-            context.beginPath();
-            context.arc(
-              a.x + (b.x - a.x) * progress,
-              a.y + (b.y - a.y) * progress,
-              1.5,
-              0,
-              Math.PI * 2,
-            );
-            context.fill();
+          if (flow && (highlighted || (active === null && e.source.degree > 1))) {
+            const progress = ((now * speed) / 4200 + (phases.get(e.source.id) ?? 0) * 9) % 1;
+            // A signal with a short tail, fading in and out at the ends.
+            for (let k = 0; k < 3; k++) {
+              const t = progress - k * 0.035;
+              if (t < 0) continue;
+              context.globalAlpha = appear * Math.sin(Math.PI * t) * (0.8 - k * 0.25);
+              context.fillStyle = colour(e.source);
+              context.beginPath();
+              context.arc(
+                a.x + (b.x - a.x) * t,
+                a.y + (b.y - a.y) * t,
+                1.8 - k * 0.4,
+                0,
+                Math.PI * 2,
+              );
+              context.fill();
+            }
           }
         }
         const labelBoxes: { x: number; y: number; w: number; h: number }[] = [];
         for (const n of model.nodes) {
-          const p = project(n),
-            r = Math.max(2, radius(n) * Math.sqrt(camera.zoom));
+          const p = at(n),
+            r = Math.max(2, radius(n) * Math.sqrt(camera.zoom)) * (0.4 + 0.6 * appear);
           if (p.x < -100 || p.y < -100 || p.x > width + 100 || p.y > height + 100) continue;
-          const bright = !active || neighbours.has(n.id);
-          context.globalAlpha = bright ? 1 : 0.2;
+          const level = shine(n);
+          const bright = level > 0.6;
+          context.globalAlpha = appear * level;
           context.fillStyle = colour(n);
-          if (style.glow && bright) {
+          if (s.glow && bright) {
             context.shadowColor = colour(n);
-            context.shadowBlur = active === n.id ? 25 : 12;
+            const pulse = flow
+              ? 2 * Math.sin((now * speed) / 900 + (phases.get(n.id) ?? 0) * 30)
+              : 0;
+            context.shadowBlur = (active === n.id ? 25 : 12) + pulse;
           }
           context.beginPath();
           if (n.kind === 'document') {
@@ -194,7 +348,8 @@ export function GraphCanvas({
           }
           if (
             bright &&
-            ((style.labels && (model.nodes.length < 70 || n.degree > 2 || camera.zoom > 1.2)) ||
+            appear > 0.7 &&
+            ((s.labels && (model.nodes.length < 70 || n.degree > 2 || camera.zoom > 1.2)) ||
               active === n.id)
           ) {
             context.font = `${active === n.id ? '600 ' : ''}11px Inter, sans-serif`;
@@ -211,7 +366,7 @@ export function GraphCanvas({
             );
             if (!overlaps || active === n.id) {
               labelBoxes.push(box);
-              context.fillStyle = colours.getPropertyValue('--graph-bg').trim();
+              context.fillStyle = background;
               context.fillRect(box.x, box.y, box.w, box.h);
               context.fillStyle = text;
               context.fillText(label, p.x, p.y + r + 17);
@@ -220,9 +375,9 @@ export function GraphCanvas({
         }
         context.globalAlpha = 1;
       }
-      if (animate) frame = requestAnimationFrame(draw);
+      if (busy) frame = requestAnimationFrame(draw);
     }
-    let lastSelection: string | null = null;
+
     function point(e: PointerEvent) {
       const box = canvas.getBoundingClientRect();
       return { x: e.clientX - box.left, y: e.clientY - box.top };
@@ -233,10 +388,12 @@ export function GraphCanvas({
       canvas.setPointerCapture(e.pointerId);
       gesture = { ...p, moved: false, node: hit(p.x, p.y) };
       previousPinch = 0;
+      glide = null;
     }
     function zoom(factor: number, x: number, y: number) {
       const old = camera.zoom,
         next = Math.max(0.03, Math.min(5, old * factor));
+      glide = null;
       camera.x += (x - width / 2) * (1 / next - 1 / old);
       camera.y += (y - height / 2) * (1 / next - 1 / old);
       camera.zoom = next;
@@ -245,8 +402,11 @@ export function GraphCanvas({
     function move(e: PointerEvent) {
       const p = point(e);
       if (!pointers.has(e.pointerId) || !gesture) {
-        hover = hit(p.x, p.y);
-        invalidate();
+        const over = hit(p.x, p.y);
+        if (over !== hover) {
+          hover = over;
+          invalidate();
+        }
         return;
       }
       const previous = pointers.get(e.pointerId);
@@ -270,6 +430,7 @@ export function GraphCanvas({
         if (gesture.node) {
           gesture.node.x += dx;
           gesture.node.y += dy;
+          energy = 1;
         } else {
           camera.x += dx;
           camera.y += dy;
@@ -278,7 +439,14 @@ export function GraphCanvas({
       }
     }
     function up(e: PointerEvent) {
-      if (gesture && !gesture.moved) callbacks.current.onSelect(gesture.node?.id ?? null);
+      if (gesture && !gesture.moved) {
+        const node = gesture.node;
+        live.current.onSelect(node?.id ?? null);
+        // The view glides to a chosen note, keeping a close look close.
+        if (node !== null && look().entrance && moving()) {
+          moveCamera({ x: -node.x, y: -node.y, zoom: Math.max(camera.zoom, 0.9) });
+        }
+      }
       pointers.delete(e.pointerId);
       gesture = null;
       previousPinch = 0;
@@ -297,13 +465,13 @@ export function GraphCanvas({
     function double(e: MouseEvent) {
       const box = canvas.getBoundingClientRect();
       const n = hit(e.clientX - box.left, e.clientY - box.top);
-      if (n?.path) callbacks.current.onOpen(n.path);
+      if (n?.path) live.current.onOpen(n.path);
     }
     function key(e: KeyboardEvent) {
       if (e.key === '+' || e.key === '=') zoom(1.2, width / 2, height / 2);
       else if (e.key === '-') zoom(1 / 1.2, width / 2, height / 2);
-      else if (e.key === '0') fitGraph();
-      else if (e.key === 'Escape') callbacks.current.onSelect(null);
+      else if (e.key === '0') moveCamera(fitted());
+      else if (e.key === 'Escape') live.current.onSelect(null);
       else return;
       e.preventDefault();
     }
@@ -329,8 +497,9 @@ export function GraphCanvas({
       attributes: true,
       attributeFilter: ['data-motion'],
     });
-    // Canvas is idle when hidden; redraw when coming back into view.
+    // The canvas is idle when hidden; it draws again when it comes back.
     const visible = () => {
+      lastTime = 0;
       invalidate();
     };
     document.addEventListener('visibilitychange', visible);
@@ -350,7 +519,8 @@ export function GraphCanvas({
       canvas.removeEventListener('dblclick', double);
       canvas.removeEventListener('keydown', key);
     };
-  }, [model, style, fit]);
+    // How it looks is read as it draws; only a new model, or Fit, starts it afresh.
+  }, [model, fit]);
   return (
     <canvas
       ref={canvasRef}

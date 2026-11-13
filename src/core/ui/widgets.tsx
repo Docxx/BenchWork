@@ -1,4 +1,5 @@
 import {
+  AppWindow,
   CalendarDays,
   CalendarRange,
   Clock,
@@ -18,6 +19,7 @@ import type { OpenPage } from '../state/pageSlice';
 import { useApp } from './AppStoreContext';
 import { BacklinkList } from './Backlinks';
 import { CalendarWidget } from './CalendarWidget';
+import { ProgramsWidget } from './ProgramsWidget';
 import { useQuickNote } from './QuickCapture';
 import { updatedText } from './updated';
 
@@ -273,6 +275,15 @@ const BUILT_IN: readonly WidgetEntry[] = [
     starts: { home: true },
     moduleId: null,
     render: () => <PinnedWidget />,
+  },
+  {
+    id: 'home.programs',
+    title: 'Programs',
+    icon: <AppWindow {...ICON} />,
+    wide: false,
+    starts: {},
+    moduleId: null,
+    render: () => <ProgramsWidget />,
   },
   {
     id: 'home.recent',

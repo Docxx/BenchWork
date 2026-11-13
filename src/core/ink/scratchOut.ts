@@ -1,4 +1,4 @@
-import type { InkPoint, InkStroke } from '@core/api';
+import type { InkPoint, InkStroke } from './inkFile';
 
 /**
  * Scratching out: scribbling back and forth over strokes erases them, as

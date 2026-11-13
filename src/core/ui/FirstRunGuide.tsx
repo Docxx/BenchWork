@@ -349,7 +349,7 @@ function Tour() {
       <li>
         <Search aria-hidden />
         <span>
-          <strong>Search</strong> everything with Ctrl E, and list every command with Ctrl K.
+          <strong>Search</strong> everything with Ctrl E.
         </span>
       </li>
       <li>

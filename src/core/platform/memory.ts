@@ -466,6 +466,16 @@ export class MemoryAdapter implements PlatformAdapter {
     });
   }
 
+  /** Programs started, by path, for tests to look at. */
+  readonly launched: string[] = [];
+  get launchProgram(): ((path: string) => Promise<void>) | null {
+    if (this.kind !== 'desktop') return null;
+    return (path) =>
+      this.run(() => {
+        this.launched.push(path);
+      });
+  }
+
   openWebLink(url: string): Promise<void> {
     return this.run(() => {
       this.openedLinks.push(url);

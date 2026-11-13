@@ -48,8 +48,26 @@ test('tags notes and documents, finds tagged documents, and opens them through t
   await expect(page.locator('.graph-corner')).toHaveText('3 nodes · 3 connections');
   await page.getByRole('button', { name: 'Graph appearance', exact: true }).click();
   await page.getByLabel('Atmosphere').selectOption('violet');
-  await page.getByRole('button', { name: 'Save style', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Style saved', exact: true })).toBeVisible();
+  await page.getByRole('checkbox', { name: 'Signals along links' }).uncheck();
+  // Options are kept as they change, and are there when the graph is opened again.
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          window.__benchworkMemory?.snapshot()[
+            '.benchwork/modules/knowledge-graph/appearance.json'
+          ] ?? '',
+      ),
+    )
+    .toMatch(/"palette": "violet"[\s\S]*"motion": false[\s\S]*"tag": "project\/flies"/);
+  await page.getByRole('button', { name: 'Home', exact: true }).first().click();
+  await page
+    .getByRole('navigation', { name: 'Vault' })
+    .getByRole('button', { name: 'Knowledge graph', exact: true })
+    .click();
+  await expect(page.getByLabel('Filter graph by tag')).toHaveValue('project/flies');
+  await expect(page.getByLabel('Atmosphere')).toHaveValue('violet');
+  await expect(page.locator('.graph-corner')).toHaveText('3 nodes · 3 connections');
   await page.getByText('Browse files (2)', { exact: true }).click();
   await page.getByRole('button', { name: 'Open Measurements.csv', exact: true }).click();
   await expect(page.getByRole('table')).toContainText('42');

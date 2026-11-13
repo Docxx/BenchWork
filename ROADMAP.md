@@ -256,6 +256,17 @@ Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([gu
 - [ ] Stocks imported from the Drosophila Lab Manager export
 - [ ] Checked on the PC and the tablet
 
+### Tweaks, 13 Nov 2026
+
+- [x] Scratching out is the pen's own, with no module needed (it had stopped on the tablet)
+- [x] Commands off the sidebar; Ctrl+K still lists them
+- [x] Folder menu under headings with fold-outs; Tools list with pins and kinds; pen bar with favourite pens
+- [x] Programs on Home: shortcuts to other programs on the computer
+- [x] Cloud storage connections kept with the vault, so every device has them
+- [x] Knowledge graph: options kept as they change, named looks, and four kinds of motion
+- [x] Whiteboards: endless boards with pens, shapes, text, sticky notes, images and PDF pages ([guide](docs/whiteboard.md))
+- [ ] Checked on the PC and the tablet
+
 ## Phase 8: Apple port
 
 - [ ] macOS build (needs a Mac or macOS CI runner)

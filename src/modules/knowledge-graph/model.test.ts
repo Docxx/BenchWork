@@ -1,6 +1,6 @@
 // @vitest-environment node
 import type { VaultGraph } from '@core/api';
-import { DEFAULT_STYLE, graphModel, parseStyle, step } from './model';
+import { DEFAULT_FILTERS, DEFAULT_STYLE, graphModel, parseStyle, parseView, step } from './model';
 const data: VaultGraph = {
   nodes: [
     { id: 'a', path: 'a.md', title: 'Alpha', kind: 'note', tags: ['lab'] },
@@ -65,4 +65,24 @@ it('draws a connection once and separates unconnected groups in two dimensions',
   expect(
     Math.hypot((isolated?.x ?? 0) - (linked?.x ?? 0), (isolated?.y ?? 0) - (linked?.y ?? 0)),
   ).toBeGreaterThan(DEFAULT_STYLE.spacing);
+});
+
+describe('the saved view', () => {
+  it('reads style, filters and named looks, and an older style-only file', () => {
+    const view = parseView({
+      style: { palette: 'ember', live: false, speed: 9 },
+      filters: { folder: 'Lab', kind: 'note', tag: 'flies' },
+      presets: [{ name: ' Calm ', style: { glow: false } }, { name: '' }],
+      panel: true,
+    });
+    expect(view.style).toMatchObject({ palette: 'ember', live: false, speed: 3 });
+    expect(view.filters).toEqual({ folder: 'Lab', kind: 'note', tag: 'flies' });
+    expect(view.presets.map((p) => [p.name, p.style.glow])).toEqual([['Calm', false]]);
+    expect(view.panel).toBe(true);
+
+    const old = parseView({ palette: 'violet', motion: false });
+    expect(old.style).toMatchObject({ palette: 'violet', motion: false });
+    expect(old.filters).toEqual(DEFAULT_FILTERS);
+    expect(parseView(null).style).toEqual(DEFAULT_STYLE);
+  });
 });

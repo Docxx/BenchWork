@@ -1,5 +1,5 @@
 // @vitest-environment node
-import type { InkPoint, InkStroke } from '@core/api';
+import type { InkPoint, InkStroke } from './inkFile';
 import { isScribble, scribbledOver } from './scratchOut';
 
 const stroke = (id: string, points: InkPoint[]): InkStroke => ({

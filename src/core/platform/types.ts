@@ -65,6 +65,12 @@ export interface PlatformAdapter {
   /** Opens a web address in the device's browser. */
   openWebLink(url: string): Promise<void>;
 
+  /**
+   * Starts a program on this computer, or a shortcut to one, by its full
+   * path. Null where programs cannot be started, as on the tablet.
+   */
+  readonly launchProgram: ((path: string) => Promise<void>) | null;
+
   /** Opens a vault file in the program the system uses for it, such as Word; null on the tablet. */
   readonly openInSystem: ((path: string) => Promise<void>) | null;
   /** Opens a vault folder in the desktop file manager; relative to the vault. */

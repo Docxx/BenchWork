@@ -131,6 +131,7 @@ test('notebooks get icons and a sort, and favourites sit at the top', async ({ p
   await row(page, 'LPS model').click();
   await expect(row(page, 'Experiments')).toBeVisible();
   await row(page, 'LPS model').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Sort', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Sort: name, Z to A' }).click();
   await expect
     .poll(async () => (await snapshot(page))['LPS model/_section.yaml'])

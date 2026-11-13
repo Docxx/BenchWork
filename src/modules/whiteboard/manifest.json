@@ -1,0 +1,9 @@
+{
+  "id": "whiteboard",
+  "name": "Whiteboards",
+  "version": "0.1.0",
+  "description": "Endless boards to write and draw on: pens with pressure, shapes that tidy themselves, text, sticky notes, images and PDF pages, with a lasso to move and resize",
+  "dependsOn": [],
+  "platforms": ["desktop", "tablet"],
+  "defaultEnabled": false
+}

@@ -1,3 +1,4 @@
+import { isScribble, scribbledOver } from './scratchOut';
 import type { InkStroke, InkTool } from './inkFile';
 import { decide, DEFAULT_RULES, type PalmRules, type PalmState } from './palm';
 import {
@@ -440,6 +441,15 @@ export class InkSurface {
       e.timeStamp - this.lastMove.time >= HOLD_MS;
     let stroke: InkStroke | null = recorded;
     const erased = new Set<string>();
+    // Scratching out is the pen's own: a scribble over strokes erases them
+    // and goes too, whatever modules are on.
+    if (!held && isScribble(recorded.points)) {
+      const under = scribbledOver(recorded, this.strokes);
+      if (under.length > 0) {
+        for (const id of under) erased.add(id);
+        stroke = null;
+      }
+    }
     for (const f of this.hooks.filters?.() ?? []) {
       if (stroke === null) break;
       try {

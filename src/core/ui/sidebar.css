@@ -116,3 +116,47 @@
   outline-offset: -2px;
   background: var(--sidebar-active);
 }
+
+/* The Tools list: pinned tools, kinds, and a pin on each row. */
+.tools-scroll ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tools-pinned {
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--sidebar-border, var(--border));
+}
+.tools-kind {
+  padding: 8px 10px 2px;
+  color: var(--sidebar-muted, var(--muted));
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.tool-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.tool-row .nav-item {
+  flex: 1;
+  min-width: 0;
+}
+.sidebar button.tool-pin {
+  position: absolute;
+  right: 4px;
+  opacity: 0;
+}
+.tool-row:hover .tool-pin,
+.tool-pin:focus-visible,
+.tool-pin[aria-pressed='true'] {
+  opacity: 0.8;
+}
+@media (hover: none) {
+  .sidebar button.tool-pin {
+    opacity: 0.6;
+  }
+}

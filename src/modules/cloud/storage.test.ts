@@ -3,7 +3,16 @@ import { MemoryAdapter } from '@core/platform/memory';
 import { createModuleContext } from '@core/modules/context';
 import { createContributions } from '@core/modules/contributions';
 import { manifest } from '@core/modules/testModules';
-import { CloudSession, copyFile, parseConnections, relativeStoragePath } from './storage';
+import {
+  CloudSession,
+  copyFile,
+  loadConnections,
+  locate,
+  parseConnections,
+  relativeStoragePath,
+  saveConnections,
+  setOwnFolder,
+} from './storage';
 import type { VerifiedCopy } from '@core/api';
 
 async function setup() {
@@ -110,4 +119,42 @@ it('captures failed transfers and prevents work after the session closes', async
   expect(parseConnections([{ ...connection, provider: 'invalid' }, connection])).toEqual([
     connection,
   ]);
+});
+
+describe('connections shared between devices', () => {
+  it('moves a device’s old connections into the vault, and lets a device keep its own folder', async () => {
+    const { ctx } = await setup();
+    await ctx.deviceStorage.write('connections', [connection]);
+    const first = await loadConnections(ctx);
+    expect(first).toEqual([{ ...connection, shared: 'C:/OneDrive', own: false }]);
+    // Now with the vault, so another device has it too.
+    expect(await ctx.storage.read('connections.json')).toEqual([connection]);
+
+    await setOwnFolder(ctx, 'one', 'D:/Work/OneDrive');
+    const [mine] = await loadConnections(ctx);
+    expect(mine).toMatchObject({ folder: 'D:/Work/OneDrive', shared: 'C:/OneDrive', own: true });
+    // Saving keeps the shared address, not this device's own folder.
+    await saveConnections(ctx, mine ? [mine] : []);
+    expect(await ctx.storage.read('connections.json')).toEqual([connection]);
+    await setOwnFolder(ctx, 'one', null);
+    expect((await loadConnections(ctx))[0]?.own).toBe(false);
+  });
+
+  it('finds a stored file through its connection on a device that did not copy it', () => {
+    const data = {
+      connectionId: 'one',
+      storagePath: 'BenchWork-1/image.tif',
+      size: 4,
+      sha256: 'ab',
+    };
+    expect(locate(data, [{ ...connection, folder: '\\\\server\\lab\\' }])).toEqual({
+      source: '',
+      folder: '\\\\server\\lab',
+      target: '\\\\server\\lab\\BenchWork-1\\image.tif',
+      size: 4,
+      sha256: 'ab',
+    });
+    expect(locate({ ...data, connectionId: 'gone' }, [connection])).toBeNull();
+    expect(locate({ ...data, storagePath: '../x' }, [connection])).toBeNull();
+  });
 });

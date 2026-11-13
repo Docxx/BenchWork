@@ -7,7 +7,16 @@ export interface GraphStyle {
   tags: boolean;
   orphans: boolean;
   glow: boolean;
+  /** Signals flowing along the links. */
   motion: boolean;
+  /** The layout keeps moving: nodes drift, settle, and answer a drag. */
+  live: boolean;
+  /** A note's neighbours light up smoothly, and the rest dim. */
+  focus: boolean;
+  /** The graph grows in when opened, and the view glides to a chosen note. */
+  entrance: boolean;
+  /** How fast it all moves: 1 is usual. */
+  speed: number;
   size: number;
   spacing: number;
   opacity: number;
@@ -19,7 +28,11 @@ export const DEFAULT_STYLE: GraphStyle = {
   tags: true,
   orphans: true,
   glow: true,
-  motion: false,
+  motion: true,
+  live: true,
+  focus: true,
+  entrance: true,
+  speed: 1,
   size: 5,
   spacing: 110,
   opacity: 0.3,
@@ -32,18 +45,84 @@ export function parseStyle(value: unknown): GraphStyle {
     style.palette = data['palette'] as GraphStyle['palette'];
   if (['notebook', 'kind', 'tag'].includes(String(data['colourBy'])))
     style.colourBy = data['colourBy'] as GraphStyle['colourBy'];
-  for (const key of ['labels', 'tags', 'orphans', 'glow', 'motion'] as const)
+  for (const key of [
+    'labels',
+    'tags',
+    'orphans',
+    'glow',
+    'motion',
+    'live',
+    'focus',
+    'entrance',
+  ] as const)
     if (typeof data[key] === 'boolean') style[key] = data[key];
   for (const [key, min, max] of [
     ['size', 2, 12],
     ['spacing', 40, 240],
     ['opacity', 0.05, 1],
+    ['speed', 0.25, 3],
   ] as const) {
     const n = data[key];
     if (typeof n === 'number' && Number.isFinite(n)) style[key] = Math.max(min, Math.min(max, n));
   }
   return style;
 }
+/** What the graph shows of the vault, beside how it looks. */
+export interface GraphFilters {
+  folder: string;
+  /** `all`, `note` or `document`. */
+  kind: string;
+  tag: string;
+}
+
+export const DEFAULT_FILTERS: GraphFilters = { folder: '', kind: 'all', tag: '' };
+
+/** A look kept under a name, to go back to. */
+export interface GraphPreset {
+  name: string;
+  style: GraphStyle;
+}
+
+/** Everything the graph remembers, kept with the vault. */
+export interface GraphView {
+  style: GraphStyle;
+  filters: GraphFilters;
+  presets: GraphPreset[];
+  /** The appearance panel was open. */
+  panel: boolean;
+}
+
+/**
+ * Reads the saved view. A file from before filters and presets were kept
+ * is a style on its own, and reads as one.
+ */
+export function parseView(value: unknown): GraphView {
+  const data = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  const view: GraphView = {
+    style: parseStyle('style' in data ? data['style'] : value),
+    filters: { ...DEFAULT_FILTERS },
+    presets: [],
+    panel: data['panel'] === true,
+  };
+  const filters = data['filters'];
+  if (filters && typeof filters === 'object') {
+    const f = filters as Record<string, unknown>;
+    if (typeof f['folder'] === 'string') view.filters.folder = f['folder'];
+    if (f['kind'] === 'note' || f['kind'] === 'document') view.filters.kind = f['kind'];
+    if (typeof f['tag'] === 'string') view.filters.tag = f['tag'];
+  }
+  if (Array.isArray(data['presets'])) {
+    for (const p of data['presets'] as unknown[]) {
+      if (!p || typeof p !== 'object') continue;
+      const { name, style } = p as Record<string, unknown>;
+      if (typeof name !== 'string' || name.trim() === '') continue;
+      view.presets.push({ name: name.trim().slice(0, 40), style: parseStyle(style) });
+    }
+    view.presets = view.presets.slice(0, 20);
+  }
+  return view;
+}
+
 export interface GraphPoint {
   id: string;
   path: string | null;

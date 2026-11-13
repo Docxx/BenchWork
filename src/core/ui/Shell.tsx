@@ -117,9 +117,6 @@ export function Shell({ vault }: { vault: OpenVault }) {
               if (compact) setDrawer(null);
               else setSidebarOpen(false);
             }}
-            onCommands={() => {
-              setShowCommands(true);
-            }}
           />
           {!compact && (
             <ResizeEdge

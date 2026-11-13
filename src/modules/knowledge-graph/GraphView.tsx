@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Maximize, RefreshCw, Settings2, Sparkles } from 'lucide-react';
 import type { ModuleContext, VaultGraph } from '@core/api';
-import { DEFAULT_STYLE, graphModel, parseStyle, type GraphStyle } from './model';
+import { DEFAULT_STYLE, graphModel, parseView, type GraphPreset, type GraphStyle } from './model';
 import { GraphCanvas } from './GraphCanvas';
 
 export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | null }) {
@@ -15,7 +15,10 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
   const [settings, setSettings] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [saved, setSaved] = useState(false);
+  const [presets, setPresets] = useState<GraphPreset[]>([]);
+  /** The saved view has been read, so changes from here on are kept. */
+  const [ready, setReady] = useState(false);
+  const [kept, setKept] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [fit, setFit] = useState(0);
   const [selected, setSelected] = useState<string | null>(focus);
@@ -25,10 +28,20 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
     void ctx.storage
       .read('appearance.json')
       .then((value) => {
-        if (live) setStyle(parseStyle(value));
+        if (!live) return;
+        const view = parseView(value);
+        setStyle(view.style);
+        setPresets(view.presets);
+        setSettings(view.panel);
+        setFolder(view.filters.folder);
+        setKind(view.filters.kind);
+        setTag(view.filters.tag);
+        setReady(true);
       })
       .catch(() => {
-        if (live) setError('Saved graph style could not be read. You can still explore the graph.');
+        if (!live) return;
+        setError('Saved graph options could not be read. You can still explore the graph.');
+        setReady(true);
       });
     return () => {
       live = false;
@@ -66,6 +79,28 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
       watch.dispose();
     };
   }, [ctx, refresh]);
+  // Every option is kept as it is changed, a moment after the last change.
+  useEffect(() => {
+    if (!ready) return;
+    const timer = setTimeout(() => {
+      void ctx.storage
+        .write('appearance.json', {
+          style,
+          filters: { folder, kind, tag },
+          presets,
+          panel: settings,
+        })
+        .then(() => {
+          setKept(true);
+        })
+        .catch((e: unknown) => {
+          setError(String(e));
+        });
+    }, 400);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [ctx, ready, style, folder, kind, tag, presets, settings]);
   const model = useMemo(
     () =>
       graphModel(
@@ -81,13 +116,32 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
         tag,
         local ? focus : null,
       ),
-    [data, style, query, tag, local, focus, folder, kind],
+    // Only what changes the graph itself; how it looks is read as it is drawn.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      data,
+      style.colourBy,
+      style.tags,
+      style.orphans,
+      style.spacing,
+      query,
+      tag,
+      local,
+      focus,
+      folder,
+      kind,
+    ],
   );
   const tags = [...new Set(data.nodes.flatMap((n) => n.tags))].sort();
   const current = model.nodes.find((n) => n.id === selected);
   const update = (change: Partial<GraphStyle>) => {
     setStyle((s) => ({ ...s, ...change }));
-    setSaved(false);
+  };
+  const savePreset = async () => {
+    const name = await ctx.app.askText({ title: 'Save this look', label: 'Name' });
+    if (name === null || name.trim() === '') return;
+    const preset = { name: name.trim().slice(0, 40), style };
+    setPresets((all) => [...all.filter((p) => p.name !== preset.name), preset].slice(-20));
   };
   return (
     <div className={`knowledge-graph graph-${style.palette}`}>
@@ -340,7 +394,6 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
                 ['tags', 'Connect shared tags'],
                 ['orphans', 'Show unconnected files'],
                 ['glow', 'Node glow'],
-                ['motion', 'Subtle animated signals'],
               ] as const
             ).map(([key, label]) => (
               <label className="graph-check" key={key}>
@@ -354,29 +407,82 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
                 {label}
               </label>
             ))}
-            <p>Motion follows your device’s reduced-motion preference.</p>
-            <div className="graph-setting-actions">
-              <button
-                type="button"
-                onClick={() => {
-                  void ctx.storage
-                    .write('appearance.json', style)
-                    .then(() => {
-                      setSaved(true);
-                    })
-                    .catch((e: unknown) => {
-                      setError(String(e));
-                    });
+            <h3>Motion</h3>
+            {(
+              [
+                ['live', 'Moving layout'],
+                ['motion', 'Signals along links'],
+                ['focus', 'Smooth focus on a note'],
+                ['entrance', 'Grow in, and glide to a note'],
+              ] as const
+            ).map(([key, label]) => (
+              <label className="graph-check" key={key}>
+                <input
+                  type="checkbox"
+                  checked={style[key]}
+                  onChange={(e) => {
+                    update({ [key]: e.target.checked });
+                  }}
+                />
+                {label}
+              </label>
+            ))}
+            <label>
+              Speed
+              <input
+                type="range"
+                min="0.25"
+                max="3"
+                step="0.25"
+                value={style.speed}
+                onChange={(e) => {
+                  update({ speed: Number(e.target.value) });
                 }}
-              >
-                {saved ? 'Style saved' : 'Save style'}
+              />
+            </label>
+            <p>Motion follows your device’s reduced-motion preference.</p>
+            <h3>Your looks</h3>
+            {presets.length === 0 ? (
+              <p>Save a look to come back to it.</p>
+            ) : (
+              <ul className="graph-saved" aria-label="Saved looks">
+                {presets.map((p) => (
+                  <li key={p.name}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStyle(p.style);
+                      }}
+                    >
+                      {p.name}
+                    </button>
+                    <button
+                      type="button"
+                      className="quiet"
+                      aria-label={`Remove ${p.name}`}
+                      title="Remove"
+                      onClick={() => {
+                        setPresets((all) => all.filter((x) => x.name !== p.name));
+                      }}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="graph-kept" role="status">
+              {kept ? 'Your options are saved as you change them.' : ''}
+            </p>
+            <div className="graph-setting-actions">
+              <button type="button" onClick={() => void savePreset()}>
+                Save this look
               </button>
               <button
                 type="button"
                 className="quiet"
                 onClick={() => {
                   setStyle(DEFAULT_STYLE);
-                  setSaved(false);
                 }}
               >
                 Reset

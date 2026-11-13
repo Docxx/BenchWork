@@ -106,6 +106,34 @@ test('a drawing added from the toolbar is drawn in with the mouse, and erased', 
   await expect.poll(async () => (await snapshot(page))[file]).toContain('"strokes": []');
 });
 
+test('scribbling over a stroke erases it with no module switched on', async ({ page }) => {
+  await openPage(page, 'Notes');
+  await page.locator('.page-editor p', { hasText: 'First paragraph.' }).click();
+  await page.getByRole('tab', { name: 'Insert' }).click();
+  await page
+    .getByRole('toolbar', { name: 'Insert' })
+    .getByRole('button', { name: 'Drawing' })
+    .click();
+  const box = await page.locator('.ink-embed .ink-area').boundingBox();
+  if (!box) throw new Error('No drawing');
+  await page.mouse.move(box.x + 40, box.y + 60);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i += 1)
+    await page.mouse.move(box.x + 40 + i * 10, box.y + 60 + (i % 2) * 6);
+  await page.mouse.up();
+  await expect.poll(() => inkFiles(page)).toHaveLength(1);
+  const [file = ''] = await inkFiles(page);
+  await expect.poll(async () => (await snapshot(page))[file]).toMatch(/"tool":"pen"/);
+
+  await page.mouse.move(box.x + 30, box.y + 55);
+  await page.mouse.down();
+  for (let leg = 0; leg < 6; leg += 1) {
+    await page.mouse.move(box.x + (leg % 2 === 0 ? 130 : 30), box.y + 55 + leg * 2, { steps: 5 });
+  }
+  await page.mouse.up();
+  await expect.poll(async () => (await snapshot(page))[file]).toContain('"strokes": []');
+});
+
 test('the pen on a document page adds a drawing below the block it touched', async ({ page }) => {
   await openPage(page, 'Notes');
   await penStroke(page, '.page-editor p:first-of-type', [[10, 5]]);
