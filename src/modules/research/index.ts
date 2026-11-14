@@ -1,11 +1,12 @@
 import { createElement } from 'react';
-import { FlaskConical } from 'lucide-react';
+import { FlaskConical, FolderKanban } from 'lucide-react';
 import { defineModule, type ModuleContext } from '@core/api';
 import { DatasetView } from './DatasetView';
 import { checkFile, DATASET, DATASET_ENDING, datasetFiles } from './datasets';
 import { experimentType, newProject, projectType } from './projects';
 import './research.css';
 import { ExperimentHub } from './ExperimentHub';
+import { ProjectsView } from './ProjectsView';
 
 /**
  * The Research module: projects, experiment pages and dataset records.
@@ -58,6 +59,17 @@ async function checkAllDatasets(ctx: ModuleContext): Promise<void> {
 
 export default defineModule({
   activate(ctx) {
+    ctx.views.registerPageView({
+      id: 'research.projects',
+      title: 'Projects',
+      hideSidePanel: true,
+      render: (initial) => createElement(ProjectsView, { ctx, initial }),
+      tool: {
+        icon: createElement(FolderKanban, { size: 18, 'aria-hidden': true }),
+        hint: 'Each project’s notes, files, experiments and tasks',
+      },
+      pageButton: { icon: createElement(FolderKanban, { size: 16, 'aria-hidden': true }) },
+    });
     ctx.views.registerPageView({
       id: 'research.experiments',
       title: 'Experiment Hub',

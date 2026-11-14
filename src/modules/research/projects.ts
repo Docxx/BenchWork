@@ -7,7 +7,7 @@ import type { ModuleContext, PageTypeSpec } from '@core/api';
  */
 
 export const PROJECT_HUB = 'project';
-export const SECTIONS = ['Experiments', 'Data'];
+export const SECTIONS = ['Experiments', 'Data', 'Notes'];
 
 export const EXPERIMENT_STATUS = ['planned', 'running', 'done', 'stopped'];
 export const PROJECT_STATUS = ['active', 'paused', 'finished'];
@@ -85,8 +85,21 @@ export function experimentType(ctx: Pick<ModuleContext, 'vault' | 'app'>): PageT
 export async function newProject(ctx: Pick<ModuleContext, 'app'>): Promise<void> {
   const name = await ctx.app.askText({ title: 'New project', label: 'Project name' });
   if (name === null) return;
+  await createProject(ctx, name);
+}
+
+/** Shared by the existing command and the Projects picker. */
+export async function createProject(
+  ctx: Pick<ModuleContext, 'app'>,
+  name: string,
+  aim = '',
+): Promise<string | null> {
   const notebook = await ctx.app.createFolder('', name);
-  if (notebook === null) return;
+  if (notebook === null) return null;
   for (const section of SECTIONS) await ctx.app.createFolder(notebook, section);
-  await ctx.app.createPage(notebook, PROJECT_HUB, 'project');
+  if (aim.trim() === '') return ctx.app.createPage(notebook, PROJECT_HUB, 'project');
+  return ctx.app.createPage(notebook, PROJECT_HUB, 'project', {
+    properties: { aim: aim.trim(), status: 'active', started: day(new Date()) },
+    body: ['## Aim', '', aim.trim(), '', '## Notes', '', '## Experiments', ''].join('\n'),
+  });
 }

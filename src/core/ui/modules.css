@@ -17,29 +17,108 @@
   flex: 1 1 240px;
   min-width: 0;
 }
+.settings.settings-modules {
+  max-width: 70rem;
+}
+.modules .module-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+.modules .module-category-title {
+  grid-column: 1 / -1;
+}
 .module-category-title h3 {
+  margin: 18px 0 0;
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
-  margin: 28px 0 8px;
 }
 .modules .module {
-  padding: 18px 16px;
-  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 21px;
+  margin: 0;
+  gap: 17px;
   border: 1px solid var(--border);
-  border-radius: 12px;
-  margin: 8px 0;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg) 70%, var(--surface));
+  transition: border-color 0.15s;
+}
+.modules .module.on {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+.module-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 16px;
 }
-.modules .module-text {
-  flex: 1 1 240px;
-  gap: 6px;
+.module-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius);
+  color: var(--accent);
+  background: var(--accent-soft);
 }
-.modules .module-settings {
-  flex-basis: 100%;
-  order: 3;
+.modules .module-text {
+  flex: 1;
+  gap: 9px;
+}
+.modules .module-name {
+  font-size: 1rem;
 }
 .modules .module-name .version {
   display: none;
+}
+.modules .module-text > .hint {
+  line-height: 1.6;
+  margin: 0;
+}
+.modules .module-status {
+  margin-top: auto;
+  padding-top: 10px;
+  font-size: 0.8rem;
+}
+.modules .module.on .module-status {
+  color: var(--accent);
+}
+.modules .module-network,
+.modules .module-dependencies {
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.modules .module-settings {
+  flex-basis: auto;
+  padding: 12px 0 0;
+  border-left: 0;
+  border-top: 1px solid var(--border);
+  margin-top: 0;
+  font-size: 0.8rem;
+}
+.modules .module-settings summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+.modules .module:has(.module-settings[open]) {
+  grid-column: 1 / -1;
+}
+.modules .module.unavailable .module-icon {
+  color: var(--muted);
+  background: var(--surface);
+}
+.modules .module.failed {
+  border-color: var(--warn-text);
+}
+@media (prefers-reduced-motion: reduce) {
+  .modules .module {
+    transition: none;
+  }
 }

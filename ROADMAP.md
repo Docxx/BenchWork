@@ -304,6 +304,14 @@ Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([gu
 - [x] Bar, line and scatter graphs from data, with error bars and significance
 - [x] Guide, tests, and a check on the PC and the tablet
 
+### Main app: module picker and project workspaces (0.22.0)
+
+- [x] Theme-aware module cards with icons, descriptions, filters and existing dependency checks
+- [x] Projects list with separate notes, experiments, files and checklist views
+- [x] Existing project hubs and folders reused, including linked items and nested projects
+- [x] New project notes and experiments linked to their hub; task source pages retained
+- [x] Final regression and layout checks ([guide](docs/projects.md))
+
 ## Phase 8: Apple port
 
 - [ ] macOS build (needs a Mac or macOS CI runner)

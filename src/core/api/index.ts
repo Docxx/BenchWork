@@ -9,6 +9,7 @@
  * first need them.
  */
 export { LabelStudio } from '../labels/load';
+export { checklistItems, type ChecklistItem } from '../pages/checklist';
 export { newLabelDesign, parseLabelDesign, labelFolder } from '../labels/model';
 export type { LabelDesign, LabelRow } from '../labels/model';
 export type { LabelWorkspace } from '../labels/workspace';
@@ -528,6 +529,8 @@ export interface CalendarSourceSpec {
 }
 
 export interface PageViewSpec {
+  /** A workspace that uses the full main area without the note side panel. */
+  hideSidePanel?: boolean;
   /** Must start with the module id and a dot. */
   id: string;
   /** Shown at the top of the view. */

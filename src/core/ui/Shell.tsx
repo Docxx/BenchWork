@@ -89,8 +89,11 @@ export function Shell({ vault }: { vault: OpenVault }) {
   const setDrawer = useApp((s) => s.setDrawer);
   const showSidebar = compact ? drawer === 'sidebar' : sidebarOpen;
   const handlers = useApp((s) => s.fileHandlers);
+  const pageViews = useApp((s) => s.pageViews);
   const activeFile = useApp((s) => s.openFile);
-  const hidePanel = activeFile !== null && handlerFor(handlers, activeFile)?.hideSidePanel === true;
+  const hidePanel =
+    (activeFile !== null && handlerFor(handlers, activeFile)?.hideSidePanel === true) ||
+    (moduleView !== null && pageViews.find((v) => v.id === moduleView.id)?.hideSidePanel === true);
   const showPanel = !hidePanel && (compact ? drawer === 'panel' : sidePanel);
 
   // Choosing a page, a view or Settings puts away whatever slid over the page.

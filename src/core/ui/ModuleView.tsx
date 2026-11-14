@@ -27,7 +27,7 @@ export function ModuleView({ open }: { open: OpenModuleView }) {
         {view.tool && (
           <DockToolButton viewId={view.id} moduleId={view.moduleId} title={view.title} />
         )}
-        <SidePanelToggle />
+        {!view.hideSidePanel && <SidePanelToggle />}
         <button type="button" className="quiet" aria-label="Close" title="Close" onClick={close}>
           ×
         </button>

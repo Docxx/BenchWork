@@ -41,7 +41,10 @@ export function SettingsPage({ vault }: { vault: OpenVault }) {
   }
 
   return (
-    <section className="settings" aria-labelledby="settings-title">
+    <section
+      className={`settings${tab === 'modules' ? ' settings-modules' : ''}`}
+      aria-labelledby="settings-title"
+    >
       <header className="settings-header" data-window-drag>
         <h2 id="settings-title">Settings</h2>
         <button

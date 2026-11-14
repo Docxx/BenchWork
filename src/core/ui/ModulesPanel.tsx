@@ -4,6 +4,7 @@ import './modules.css';
 import { PACKS } from '../modules/packs';
 import type { ModuleInfo } from '../modules/registry';
 import { useApp } from './AppStoreContext';
+import { moduleIcon } from './moduleIcons';
 
 function statusText(info: ModuleInfo): string {
   switch (info.status) {
@@ -141,6 +142,7 @@ export function ModulesPanel() {
           {visible.map((info, index) => {
             const { id, name, version, description, network } = info.manifest;
             const on = info.status === 'on' || info.status === 'failed';
+            const Icon = moduleIcon(id);
             return (
               <Fragment key={id}>
                 {(index === 0 ||
@@ -150,11 +152,33 @@ export function ModulesPanel() {
                   </li>
                 )}
                 <li className={`module ${info.status}`}>
+                  <div className="module-card-head">
+                    <span className="module-icon" aria-hidden>
+                      <Icon size={25} strokeWidth={1.7} />
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      className="switch"
+                      aria-checked={on}
+                      aria-labelledby={`module-${id}-name`}
+                      aria-describedby={`module-${id}-status`}
+                      disabled={busy || info.status === 'unavailable' || pending !== null}
+                      onClick={() => void setModuleEnabled(id, !on)}
+                    >
+                      <span className="switch-knob" aria-hidden="true" />
+                    </button>
+                  </div>
                   <div className="module-text">
                     <span className="module-name" id={`module-${id}-name`}>
                       {name} <span className="version">{version}</span>
                     </span>
                     {description !== '' && <span className="hint">{description}</span>}
+                    {info.manifest.dependsOn.length > 0 && (
+                      <span className="hint module-dependencies">
+                        Needs {info.manifest.dependsOn.map(nameOf).join(', ')}
+                      </span>
+                    )}
                     {network.length > 0 && (
                       <span className="hint module-network">
                         Uses the internet: {network.join(', ')}
@@ -165,18 +189,6 @@ export function ModulesPanel() {
                     </span>
                   </div>
                   {on && <ModuleSettings id={id} />}
-                  <button
-                    type="button"
-                    role="switch"
-                    className="switch"
-                    aria-checked={on}
-                    aria-labelledby={`module-${id}-name`}
-                    aria-describedby={`module-${id}-status`}
-                    disabled={busy || info.status === 'unavailable' || pending !== null}
-                    onClick={() => void setModuleEnabled(id, !on)}
-                  >
-                    <span className="switch-knob" aria-hidden="true" />
-                  </button>
                 </li>
               </Fragment>
             );
