@@ -1,5 +1,6 @@
 import { PanelLeftOpen } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { handlerFor } from '../modules/contributions';
 import { PANEL_WIDTH, SIDEBAR_WIDTH } from '../settings/appearance';
 import type { OpenVault } from '../vault/vaultService';
 import { useApp, useAppStore } from './AppStoreContext';
@@ -87,7 +88,10 @@ export function Shell({ vault }: { vault: OpenVault }) {
   const drawer = useApp((s) => s.drawer);
   const setDrawer = useApp((s) => s.setDrawer);
   const showSidebar = compact ? drawer === 'sidebar' : sidebarOpen;
-  const showPanel = compact ? drawer === 'panel' : sidePanel;
+  const handlers = useApp((s) => s.fileHandlers);
+  const activeFile = useApp((s) => s.openFile);
+  const hidePanel = activeFile !== null && handlerFor(handlers, activeFile)?.hideSidePanel === true;
+  const showPanel = !hidePanel && (compact ? drawer === 'panel' : sidePanel);
 
   // Choosing a page, a view or Settings puts away whatever slid over the page.
   const pagePath = page?.path ?? null;

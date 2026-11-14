@@ -96,6 +96,12 @@ test('a figure is laid out from TIFFs, labelled and exported', async ({ page }) 
   const svg = await file(page, 'Lab/Fig 1.svg');
   expect(svg).toContain('<tspan font-style="italic">w</tspan>');
   expect(svg).toContain('<image');
+  expect(
+    await page.evaluate((text) => {
+      const parsed = new DOMParser().parseFromString(text ?? '', 'image/svg+xml');
+      return parsed.querySelector('parsererror')?.textContent ?? null;
+    }, svg),
+  ).toBeNull();
   expect(svg).toContain('>A</');
   expect(svg).toContain('Scale bars 20 µm');
 
@@ -223,4 +229,51 @@ test('a bar graph is made from pasted data, with a bracket and stars', async ({ 
   const svg = (await file(page, 'Lab/Fig 4.svg')) ?? '';
   for (const word of ['WT', 'Rescue', '**', 'Sox2']) expect(svg).toContain(word);
   expect(svg).toContain('<tspan font-style="italic">Sox2</tspan>');
+});
+
+test('failed saves keep the figure open until retry succeeds, with space for the canvas', async ({
+  page,
+}) => {
+  await expect(page.getByRole('complementary', { name: 'Side panel', exact: true })).toBeVisible();
+  await page.locator('.nav-item', { hasText: 'Figures' }).click();
+  await page.getByLabel('Figure name').fill('Recovery');
+  await page.getByRole('button', { name: 'New figure' }).click();
+  await expect(page.getByRole('complementary', { name: 'Side panel', exact: true })).toBeHidden();
+
+  await page.evaluate(() => {
+    const memory = window.__benchworkMemory;
+    if (!memory) throw new Error('Memory platform not available');
+    const write = memory.writeTextAtomic.bind(memory);
+    memory.writeTextAtomic = async (path, text) => {
+      if (path.endsWith('.figure.json')) throw new Error('Simulated disk full');
+      return write(path, text);
+    };
+    Object.assign(window, {
+      restoreFigureWrites: () => {
+        memory.writeTextAtomic = write;
+      },
+    });
+  });
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await page.getByLabel('Text', { exact: true }).fill('Keep these edits');
+  await page.getByLabel('Text size, points').click();
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'This figure could not be saved' }),
+  ).toBeVisible();
+  const home = page
+    .getByRole('navigation', { name: 'Vault' })
+    .getByRole('button', { name: 'Home', exact: true });
+  await home.click();
+  await expect(page.getByLabel('Text', { exact: true })).toHaveValue('Keep these edits');
+  await expect(page.getByRole('button', { name: 'Retry save' })).toBeVisible();
+  expect(await file(page, 'Lab/Recovery.figure.json')).not.toContain('Keep these edits');
+  await page.evaluate(() => {
+    (window as unknown as { restoreFigureWrites(): void }).restoreFigureWrites();
+  });
+  await page.getByRole('button', { name: 'Retry save' }).click();
+  await expect.poll(() => file(page, 'Lab/Recovery.figure.json')).toContain('Keep these edits');
+  await expect(page.getByRole('button', { name: 'Retry save' })).toBeHidden();
+  await home.click();
+  await expect(page.getByLabel('Text', { exact: true })).toBeHidden();
+  await expect(page.getByRole('complementary', { name: 'Side panel', exact: true })).toBeVisible();
 });

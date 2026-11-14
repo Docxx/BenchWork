@@ -152,7 +152,7 @@ export async function toSvg(scene: Scene, dpi = 300): Promise<string> {
           break;
         }
         parts.push(
-          `<image x=""${n(p.box.x)}" y="${n(p.box.y)}" width="${n(p.box.w)}" height="${n(p.box.h)}" preserveAspectRatio="none" href="${await imageData(p, dpi)}"/>`,
+          `<image x="${n(p.box.x)}" y="${n(p.box.y)}" width="${n(p.box.w)}" height="${n(p.box.h)}" preserveAspectRatio="none" href="${await imageData(p, dpi)}"/>`,
         );
         break;
       case 'rect':

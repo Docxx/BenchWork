@@ -461,6 +461,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
 
     openPage: async (path) => {
       if (get().status.kind !== 'open' || session?.path === path) return;
+      if (!(await get().saveEditors())) return;
       const token = (openToken += 1);
       if (!(await endSession())) return;
       let text: string;
@@ -484,6 +485,7 @@ export function createPageSlice(ctx: StoreContext): PageSlice {
     },
 
     closePage: async () => {
+      if (!(await get().saveEditors())) return false;
       openToken += 1;
       if (!(await endSession())) return false;
       set({

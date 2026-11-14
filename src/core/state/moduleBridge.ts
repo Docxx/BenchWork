@@ -24,6 +24,7 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
   }
 
   return {
+    beforeLeave: (save) => state().registerEditorSave(save),
     appearance: () => state().settings.appearance,
     applyAppearance: async (value) => {
       await state().setAppearance(parseAppearance(value));

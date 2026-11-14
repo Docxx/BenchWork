@@ -103,7 +103,7 @@ function ToolsWidget() {
           type="button"
           className="quiet"
           onClick={() => {
-            openSettings('modules');
+            void openSettings('modules');
           }}
         >
           Choose modules

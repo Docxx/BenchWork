@@ -140,6 +140,7 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
    * what gets updated, and notes the links pointing into `path`.
    */
   async function beforeMove(path: string): Promise<RelinkPlan | null> {
+    if (!(await get().saveEditors())) throw new Error('Save the open file before moving it.');
     await get().savePageNow();
     return get().planRelink(path);
   }
@@ -321,7 +322,9 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
           if (!(await get().closePage())) return false;
         }
         const file = get().openFile;
-        if (file !== null && (file === path || file.startsWith(`${path}/`))) get().closeFile();
+        if (file !== null && (file === path || file.startsWith(`${path}/`))) {
+          if (!(await get().closeFile())) return false;
+        }
         await recycleItem(platform, path);
         const { tree } = get();
         const gone = (p: string) => p === path || p.startsWith(`${path}/`);

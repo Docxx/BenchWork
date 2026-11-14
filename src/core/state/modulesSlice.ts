@@ -97,6 +97,7 @@ export function createModulesSlice(ctx: StoreContext): ModulesSlice {
   let answer: ((value: string | null) => void) | null = null;
 
   async function applyModuleChange(enable: boolean, ids: readonly string[]): Promise<void> {
+    if (!enable && !(await get().saveEditors())) return;
     set({ moduleBusy: true, moduleNotice: null, pendingModuleChange: null });
     try {
       await (enable ? registry.enable(ids) : registry.disable(ids));

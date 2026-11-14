@@ -48,7 +48,7 @@ export function SettingsPage({ vault }: { vault: OpenVault }) {
           type="button"
           className="quiet"
           onClick={() => {
-            showView('files');
+            void showView('files');
           }}
         >
           Close
@@ -307,7 +307,7 @@ function TemplateSettings() {
               <button
                 type="button"
                 onClick={() => {
-                  showView('files');
+                  void showView('files');
                   void openPage(t.path);
                 }}
               >

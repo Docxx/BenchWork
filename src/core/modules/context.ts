@@ -464,6 +464,12 @@ export function createModuleContext(
       },
     },
     app: {
+      beforeLeave(save) {
+        const stop = app().beforeLeave(save);
+        return track(() => {
+          stop.dispose();
+        });
+      },
       graph: () => app().graph(),
       open: (path, options) => app().open(path, options),
       createFolder: (folder, title) => app().createFolder(folder, title),

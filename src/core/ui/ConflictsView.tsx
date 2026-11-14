@@ -103,7 +103,7 @@ function Conflict({ conflict }: { conflict: ConflictCopy }) {
           type="button"
           className="quiet"
           onClick={() => {
-            showView('files');
+            void showView('files');
             void openPage(conflict.original);
           }}
         >
@@ -142,7 +142,7 @@ export function ConflictsView() {
           <button
             type="button"
             onClick={() => {
-              showView('files');
+              void showView('files');
             }}
           >
             Back to pages

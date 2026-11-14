@@ -10,8 +10,9 @@ import {
   Type,
   Undo2,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ModuleContext, PdfDocument } from '@core/api';
+import { FigureSave } from './figureSave';
 import { BlockControls, PageControls, TextControls } from './BlockControls';
 import { blotTop, newTable, tableHeight } from './blot';
 import { newChart } from './chart';
@@ -175,7 +176,11 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
   const current = useRef<FigureDoc | null>(null);
   const undo = useRef<FigureDoc[]>([]);
   const redo = useRef<FigureDoc[]>([]);
-  const lastText = useRef<string | null>(null);
+  const persistence = useMemo(
+    () => new FigureSave((text) => ctx.vault.writeText(path, text)),
+    [ctx, path],
+  );
+  const [saveError, setSaveError] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const planes = useRef(new Map<string, Planes>());
   const loading = useRef(new Set<string>());
@@ -187,23 +192,46 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
   const [graphPages, setGraphPages] = useState<ReadonlyMap<string, number>>(new Map());
 
   // ---- Saving ----
+  const flush = useCallback(async () => {
+    if (saveTimer.current !== null) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    try {
+      await persistence.flush();
+      setSaveError(null);
+    } catch (err) {
+      setSaveError(
+        `This figure could not be saved. ${err instanceof Error ? err.message : String(err)}`,
+      );
+      throw err;
+    }
+  }, [persistence]);
+
   const save = useCallback(
     (next: FigureDoc) => {
+      persistence.edit(serialiseDoc(next));
       if (saveTimer.current !== null) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
         saveTimer.current = null;
-        const text = serialiseDoc(next);
-        if (text === lastText.current) return;
-        lastText.current = text;
-        ctx.vault.writeText(path, text).catch((err: unknown) => {
-          setNotice(
-            `This figure could not be saved. ${err instanceof Error ? err.message : String(err)}`,
-          );
-        });
+        void flush().catch(() => undefined);
       }, SAVE_MS);
     },
-    [ctx, path],
+    [persistence, flush],
   );
+
+  useEffect(() => {
+    const guard = ctx.app.beforeLeave(flush);
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (persistence.dirty) event.preventDefault();
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => {
+      guard.dispose();
+      window.removeEventListener('beforeunload', beforeUnload);
+      if (saveTimer.current !== null) clearTimeout(saveTimer.current);
+    };
+  }, [ctx, flush, persistence]);
 
   /** Puts a change in place: kept for undo, shown and saved. */
   const commit = useCallback(
@@ -344,13 +372,13 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     let live = true;
     const read = async () => {
       const text = await ctx.vault.readText(path);
-      if (!live || text === lastText.current) return;
+      if (!live || persistence.dirty) return;
       const parsed = parseDoc(text);
       if (parsed === null) {
         setStatus('unreadable');
         return;
       }
-      lastText.current = text;
+      if (!persistence.accept(text)) return;
       current.current = parsed;
       setDoc(parsed);
       setStatus('ready');
@@ -359,24 +387,13 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
       if (live) setStatus('unreadable');
     });
     const watch = ctx.vault.watch((change) => {
-      if (change.paths.includes(path) && saveTimer.current === null)
-        void read().catch(() => undefined);
+      if (change.paths.includes(path) && !persistence.dirty) void read().catch(() => undefined);
     });
     return () => {
       live = false;
       watch.dispose();
     };
-  }, [ctx, path]);
-
-  useEffect(
-    () => () => {
-      if (saveTimer.current === null || !current.current) return;
-      clearTimeout(saveTimer.current);
-      const text = serialiseDoc(current.current);
-      if (text !== lastText.current) void ctx.vault.writeText(path, text).catch(() => undefined);
-    },
-    [ctx, path],
-  );
+  }, [ctx, path, persistence]);
 
   /** Each panel's picture, shown as its grid says; made once and kept. */
   const sourcesFor = useCallback((d: FigureDoc) => {
@@ -1399,6 +1416,18 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
             </button>
           </div>
         </section>
+      )}
+      {saveError !== null && (
+        <p className="notice" role="alert">
+          {saveError} Your changes are still open.{' '}
+          <button
+            type="button"
+            className="quiet"
+            onClick={() => void flush().catch(() => undefined)}
+          >
+            Retry save
+          </button>
+        </p>
       )}
       {notice !== null && (
         <p className="notice" role="alert">

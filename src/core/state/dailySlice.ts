@@ -74,7 +74,7 @@ export function createDailySlice(ctx: StoreContext): DailySlice {
     await get().reloadFolders(['', parentVaultPath(folder) ?? '', folder]);
     await get().revealFolder(folder);
     get().selectEntry(path);
-    get().showView('files');
+    await get().showView('files');
     await get().openPage(path);
   }
 

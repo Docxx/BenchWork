@@ -27,11 +27,11 @@ export interface SettingsSlice {
   /** Why the last settings change could not be saved. */
   settingsError: string | null;
 
-  showView: (view: View) => void;
+  showView: (view: View) => Promise<void>;
   /** The Settings tab to show when Settings next opens, such as `modules`. */
   settingsTab: string | null;
   /** Opens Settings, at a tab if given. */
-  openSettings: (tab?: string) => void;
+  openSettings: (tab?: string) => Promise<void>;
   /** Per-device; saved in the app settings, not the vault. */
   setTheme: (theme: Theme) => Promise<void>;
   /** Per-device: changes some of the appearance, keeping the rest. */
@@ -93,12 +93,15 @@ export function createSettingsSlice(ctx: StoreContext): SettingsSlice {
     settingsError: null,
     settingsTab: null,
 
-    openSettings: (tab) => {
+    openSettings: async (tab) => {
       if (get().status.kind !== 'open') return;
+      if (get().editorSaves.length > 0 && !(await get().saveEditors())) return;
       set({ view: 'settings', settingsTab: tab ?? null });
     },
 
-    showView: (view) => {
+    showView: async (view) => {
+      if (view !== get().view && get().editorSaves.length > 0 && !(await get().saveEditors()))
+        return;
       if (get().status.kind === 'open') set({ view });
     },
 

@@ -94,7 +94,7 @@ export function SearchResults({ results }: { results: SearchResult[] }) {
             className={result.path === openPath ? 'search-result active' : 'search-result'}
             aria-current={result.path === openPath ? 'page' : undefined}
             onClick={() => {
-              showView('files');
+              void showView('files');
               void openPage(result.path);
             }}
             onKeyDown={(e) => {

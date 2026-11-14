@@ -153,3 +153,11 @@ letters still in its panels. Once it is saved, older versions of BenchWork canno
 
 - Statistics worked out for you
 - Adjusting a single image on its own (left out on purpose)
+
+## Saving and workspace
+
+The note side panel is hidden while a figure is open, giving the canvas more room. Its previous
+visibility returns when you leave Figures.
+
+Edits save automatically. If a write fails, your changes stay open with **Retry save**.
+Navigation, closing the vault and installing an update wait for the figure to save successfully.

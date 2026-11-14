@@ -136,7 +136,7 @@ export function Sidebar({ vault, onCollapse }: { vault: OpenVault; onCollapse: (
               title="Pages changed on two devices before they synced"
               aria-pressed={view === 'conflicts'}
               onClick={() => {
-                showView('conflicts');
+                void showView('conflicts');
               }}
             >
               <Columns2 {...ICON} />
@@ -264,7 +264,7 @@ export function Sidebar({ vault, onCollapse }: { vault: OpenVault; onCollapse: (
           aria-label="Settings"
           aria-pressed={view === 'settings'}
           onClick={() => {
-            showView(view === 'settings' ? 'files' : 'settings');
+            void showView(view === 'settings' ? 'files' : 'settings');
           }}
         >
           <Settings {...ICON} />

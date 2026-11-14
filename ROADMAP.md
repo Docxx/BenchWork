@@ -295,6 +295,8 @@ Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([gu
 
 ### Figures: parts on a page
 
+- [x] Retry failed figure saves before leaving, valid SVG images, and more canvas space
+
 - [x] Parts placed freely on the page: images, grids of images and text, snapping to each other
 - [x] Letters in reading order, or a letter of its own; brightness tucked away under Adjust
 - [x] Headers and side labels with brackets, blot labels, and lines and arrows anywhere

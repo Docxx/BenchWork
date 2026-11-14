@@ -24,6 +24,9 @@ export interface OpenModuleView {
 }
 
 export interface FilesSlice {
+  editorSaves: readonly (() => Promise<void>)[];
+  registerEditorSave: (save: () => Promise<void>) => { dispose(): void };
+  saveEditors: () => Promise<boolean>;
   /** A file that is not a page, open in its viewer in the main area. */
   openFile: string | null;
   /** A module's full-page view, open in the main area instead of a page or file. */
@@ -43,7 +46,7 @@ export interface FilesSlice {
   clearRevealHeading: () => void;
   /** Moves the open page's editor to the first heading with this text. */
   goToHeading: (heading: string) => void;
-  closeFile: () => void;
+  closeFile: () => Promise<boolean>;
   /** After a rename or move, keeps the open file pointing at it. */
   fileMoved: (from: string, to: string) => void;
   /** A vault file's bytes for a preview; fails with TooLarge over PREVIEW_LIMIT_BYTES. */
@@ -85,6 +88,23 @@ export function createFilesSlice(ctx: StoreContext): FilesSlice {
   });
 
   return {
+    editorSaves: [],
+    registerEditorSave: (save) => {
+      set({ editorSaves: [...get().editorSaves, save] });
+      return {
+        dispose: () => {
+          set({ editorSaves: get().editorSaves.filter((s) => s !== save) });
+        },
+      };
+    },
+    saveEditors: async () => {
+      try {
+        for (const save of get().editorSaves) await save();
+        return true;
+      } catch {
+        return false;
+      }
+    },
     openFile: null,
     moduleView: null,
     fileVersion: 0,
@@ -92,7 +112,7 @@ export function createFilesSlice(ctx: StoreContext): FilesSlice {
 
     openModuleView: async (id, param = null) => {
       if (get().status.kind !== 'open') return;
-      get().showView('files');
+      await get().showView('files');
       if (!(await get().closePage())) return;
       set({ openFile: null, moduleView: { id, param } });
     },
@@ -103,7 +123,8 @@ export function createFilesSlice(ctx: StoreContext): FilesSlice {
 
     openPath: async (path, heading) => {
       if (get().status.kind !== 'open') return;
-      get().showView('files');
+      if (!(await get().saveEditors())) return;
+      await get().showView('files');
       set({ moduleView: null, revealHeading: null });
       if (isPage(baseName(path))) {
         set({ openFile: null });
@@ -126,8 +147,10 @@ export function createFilesSlice(ctx: StoreContext): FilesSlice {
       if (get().page !== null) set({ revealHeading: heading });
     },
 
-    closeFile: () => {
+    closeFile: async () => {
+      if (!(await get().saveEditors())) return false;
       set({ openFile: null });
+      return true;
     },
 
     fileMoved: (from, to) => {

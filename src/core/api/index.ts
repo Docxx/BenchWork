@@ -275,6 +275,8 @@ export interface FileHandlerSpec {
    * save the file.
    */
   watchesFile?: boolean;
+  /** Gives this editor the main area without the note side panel. */
+  hideSidePanel?: boolean;
   /** Shows the pen tools above the view, for views written on with the pen. */
   penTools?: boolean;
   render: (file: { path: string }) => ReactNode;
@@ -360,6 +362,8 @@ export interface VaultGraph {
 }
 
 export interface ModuleApp {
+  /** Save before navigation or shutdown. Throw to keep the editor open. */
+  beforeLeave(save: () => Promise<void>): Disposable;
   /** Notes, documents, tags and resolved links, read from the current vault. */
   graph(): Promise<VaultGraph>;
   /**

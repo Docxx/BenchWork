@@ -51,7 +51,7 @@ export function SidePanel() {
           type="button"
           className="quiet"
           onClick={() => {
-            openSettings('modules');
+            void openSettings('modules');
           }}
         >
           <Settings2 size={15} strokeWidth={1.75} aria-hidden />

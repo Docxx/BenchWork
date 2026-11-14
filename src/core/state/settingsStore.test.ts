@@ -43,11 +43,11 @@ beforeEach(() => {
 describe('settings', () => {
   it('opens and closes the Settings view only while a vault is open', async () => {
     const { state } = await openVault();
-    state().showView('settings');
+    await state().showView('settings');
     expect(state().view).toBe('settings');
     await state().closeVault();
     expect(state().view).toBe('files');
-    state().showView('settings');
+    await state().showView('settings');
     expect(state().view).toBe('files');
   });
 

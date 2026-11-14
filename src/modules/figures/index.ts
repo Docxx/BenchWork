@@ -30,6 +30,7 @@ export default defineModule({
       extensions: [FIGURE_ENDING],
       name: 'Figure',
       watchesFile: true,
+      hideSidePanel: true,
       render: ({ path }) => createElement(FigureEditor, { key: path, ctx, path }),
     });
 
