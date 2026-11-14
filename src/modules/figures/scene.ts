@@ -1,17 +1,24 @@
 import { imageToBox } from './marks';
 import {
   inReadingOrder,
-  layout,
   letter,
   sourceRect,
   type Box,
   type Corner,
-  type Figure,
+  type Grid,
   type Layout,
   type Mark,
   type PanelImage,
+  POINT,
 } from './model';
-import { parseRich, runFont, type Run } from './richText';
+import { blotPrims, tablePrims } from './blot';
+import { chartPrims } from './chart';
+import { layoutDoc, type FigureDoc, type TextBox } from './doc';
+import { fitIn, shownRect, type Graphic, type GraphicSource, type Trim } from './graphic';
+import { textWidth } from './measure';
+import { parseRich, type Run } from './richText';
+import { shapePrims } from './shapes';
+import type { Edges, Guide } from './snap';
 
 /**
  * A figure as a list of things to draw, in millimetres: images, shapes and
@@ -30,7 +37,15 @@ export interface Source {
 export type Paint = (c: CanvasRenderingContext2D, box: Box) => void;
 
 export type Prim =
-  | { kind: 'image'; box: Box; paint: Paint }
+  | {
+      kind: 'image';
+      box: Box;
+      paint: Paint;
+      /** A graph drawn from an SVG: kept as shapes and text in an SVG export. */
+      svg?: { markup: string; viewBox: [number, number, number, number]; trim: Trim };
+      /** Line art: drawn at no less than 600 dpi in a PDF. */
+      sharp?: boolean;
+    }
   | { kind: 'rect'; box: Box; fill?: string; stroke?: string; width?: number; dash?: boolean }
   | { kind: 'poly'; points: [number, number][]; fill?: string; stroke?: string; width?: number }
   | {
@@ -40,6 +55,7 @@ export type Prim =
       stroke: string;
       width: number;
       round?: boolean;
+      dash?: boolean;
     }
   | {
       kind: 'text';
@@ -59,7 +75,6 @@ export interface Scene {
   width: number;
   height: number;
   prims: Prim[];
-  layout: Layout;
 }
 
 export interface SceneOptions {
@@ -67,30 +82,14 @@ export interface SceneOptions {
   sources: ReadonlyMap<string, Source>;
   /** With the editing hints and outlines: on screen, not in an export. */
   editing: boolean;
-  selected?: string | null;
+  selectedPanels?: readonly string[];
+  /** Each graph part's picture, by block id. */
+  graphics?: ReadonlyMap<string, GraphicSource>;
   selectedMark?: string | null;
   accent?: string;
 }
 
-/** The figure's typeface: what journals ask for, and the same in every export. */
-export const FIGURE_FONT = 'Arial, Helvetica, "Liberation Sans", sans-serif';
-
-export const POINT = 25.4 / 72;
-
-let measurer: CanvasRenderingContext2D | null = null;
-
-/** How wide text is, in mm, at a size in mm. */
-export function textWidth(runs: readonly Run[], size: number): number {
-  measurer ??= document.createElement('canvas').getContext('2d');
-  if (!measurer) return runs.reduce((w, r) => w + r.text.length * size * 0.55, 0);
-  // Measured at 100 px to the mm, for precision.
-  let width = 0;
-  for (const run of runs) {
-    measurer.font = runFont(run, size * 100, FIGURE_FONT);
-    width += measurer.measureText(run.text).width;
-  }
-  return width / 100;
-}
+export { FIGURE_FONT, textWidth } from './measure';
 
 /** Text at a size that fits a width: shrunk, down to half, if it would not. */
 function fitted(runs: Run[], size: number, maxWidth: number): number {
@@ -180,12 +179,9 @@ function markPrims(mark: Mark, x: number, y: number, size: number): Prim[] {
   ];
 }
 
-/** Everything the figure draws, in mm, on a white page. */
-export function buildScene(figure: Figure, o: SceneOptions): Scene {
-  const l = layout(figure);
-  const prims: Prim[] = [
-    { kind: 'rect', box: { x: 0, y: 0, w: l.width, h: l.height }, fill: '#ffffff' },
-  ];
+/** What a grid draws, in mm, laid out where `l` says. */
+export function gridPrims(figure: Grid, l: Layout, o: SceneOptions): Prim[] {
+  const prims: Prim[] = [];
   const order = inReadingOrder(figure.panels).map((p) => p.id);
   const accent = o.accent ?? '#2f5fb3';
 
@@ -365,7 +361,7 @@ export function buildScene(figure: Figure, o: SceneOptions): Scene {
         align: c.right ? 'right' : 'left',
       });
     }
-    if (o.editing && o.selected === panel.id) {
+    if (o.editing && (o.selectedPanels ?? []).includes(panel.id)) {
       prims.push({
         kind: 'rect',
         box: { x: box.x + 0.25, y: box.y + 0.25, w: box.w - 0.5, h: box.h - 0.5 },
@@ -428,5 +424,252 @@ export function buildScene(figure: Figure, o: SceneOptions): Scene {
       width: 0.25,
     });
   }
-  return { width: l.width, height: l.height, prims, layout: l };
+  // Labels beside groups of rows, with a line along the rows, reading
+  // upwards on the left and downwards on the right.
+  for (const h of l.rowHeaders) {
+    if (h.header.text.trim() === '' || h.w === 0) continue;
+    const left = figure.rowHeaderSide === 'left';
+    const runs = parseRich(h.header.text);
+    prims.push({
+      kind: 'text',
+      runs,
+      x: h.x + h.w * (left ? 0.42 : 0.58),
+      y: h.y + h.h / 2,
+      size: fitted(runs, size, h.h),
+      colour: '#000000',
+      align: 'center',
+      rotate: left ? 90 : -90,
+    });
+    const x = h.x + h.w * (left ? 0.85 : 0.15);
+    prims.push({
+      kind: 'line',
+      from: [x, h.y + 0.5],
+      to: [x, h.y + h.h - 0.5],
+      stroke: '#000000',
+      width: 0.25,
+    });
+  }
+  return prims;
+}
+
+// ---- The page ----
+
+/** Neighbouring runs in the same style joined, so text stays whole when exported. */
+function joinRuns(runs: Run[]): Run[] {
+  const out: Run[] = [];
+  for (const r of runs) {
+    const last = out.at(-1);
+    if (last && last.bold === r.bold && last.italic === r.italic && last.shift === r.shift)
+      out[out.length - 1] = { ...last, text: last.text + r.text };
+    else out.push(r);
+  }
+  return out;
+}
+
+/** Text broken into lines that fit a width, each a list of runs. Lines in the text are kept. */
+export function wrapText(text: string, size: number, maxWidth: number): Run[][] {
+  const lines: Run[][] = [];
+  for (const paragraph of text.split('\n')) {
+    const words: Run[] = [];
+    for (const run of parseRich(paragraph)) {
+      for (const piece of run.text.split(/(\s+)/)) {
+        if (piece !== '') words.push({ ...run, text: piece });
+      }
+    }
+    let line: Run[] = [];
+    let width = 0;
+    for (const word of words) {
+      const w = textWidth([word], size);
+      const space = word.text.trim() === '';
+      if (!space && line.length > 0 && width + w > maxWidth) {
+        while (line.length > 0 && (line.at(-1)?.text.trim() ?? 'x') === '') line.pop();
+        lines.push(joinRuns(line));
+        line = [];
+        width = 0;
+      }
+      if (space && line.length === 0) continue;
+      line.push(word);
+      width += w;
+    }
+    lines.push(joinRuns(line));
+  }
+  return lines;
+}
+
+/** What a text box draws, inside its box. */
+export function textPrims(t: TextBox, box: Box): Prim[] {
+  const size = t.size * POINT;
+  const lineHeight = size * 1.25;
+  const along = t.upright ? box.h : box.w;
+  const lines = wrapText(t.text, size, Math.max(1, along - size * 0.2));
+  return lines.flatMap((runs, i): Prim[] => {
+    if (runs.length === 0) return [];
+    const across = size * 0.6 + i * lineHeight;
+    if (!t.upright) {
+      const x =
+        t.align === 'left' ? box.x : t.align === 'right' ? box.x + box.w : box.x + box.w / 2;
+      return [{ kind: 'text', runs, x, y: box.y + across, size, colour: t.colour, align: t.align }];
+    }
+    // Reading upwards: the first line at the left, the start at the bottom.
+    const y = t.align === 'left' ? box.y + box.h : t.align === 'right' ? box.y : box.y + box.h / 2;
+    return [
+      {
+        kind: 'text',
+        runs,
+        x: box.x + across,
+        y,
+        size,
+        colour: t.colour,
+        align: t.align,
+        rotate: 90,
+      },
+    ];
+  });
+}
+
+/** What a graph draws: its trimmed part, as large as fits its box. */
+function graphicPrims(g: Graphic, box: Box, o: SceneOptions, id: string): Prim[] {
+  const source = o.graphics?.get(id);
+  if (!source) {
+    if (!o.editing) return [];
+    return [
+      { kind: 'rect', box, fill: '#eef1f0' },
+      {
+        kind: 'text',
+        runs: parseRich('Opening the graph…'),
+        x: box.x + box.w / 2,
+        y: box.y + box.h / 2,
+        size: Math.min(4, Math.max(2.2, box.w / 14)),
+        colour: '#7b8784',
+        align: 'center',
+      },
+    ];
+  }
+  const shown = shownRect(source, g.trim);
+  const at = fitIn(shown, box);
+  return [
+    {
+      kind: 'image',
+      box: at,
+      paint: (c, to) => {
+        c.save();
+        c.imageSmoothingQuality = 'high';
+        c.drawImage(source.image, shown.x, shown.y, shown.w, shown.h, to.x, to.y, to.w, to.h);
+        c.restore();
+      },
+      ...(source.svg ? { svg: { ...source.svg, trim: g.trim } } : {}),
+      sharp: true,
+    },
+  ];
+}
+
+/** The handles a chosen block is resized by, and the one it is moved by, in mm. */
+export function handlesOf(box: Box, size: number) {
+  const { x, y, w, h } = box;
+  const at = (hx: number, hy: number, edges: Edges) => ({
+    box: { x: hx - size / 2, y: hy - size / 2, w: size, h: size },
+    edges,
+  });
+  return {
+    resize: [
+      at(x, y, { left: true, top: true }),
+      at(x + w / 2, y, { top: true }),
+      at(x + w, y, { right: true, top: true }),
+      at(x + w, y + h / 2, { right: true }),
+      at(x + w, y + h, { right: true, bottom: true }),
+      at(x + w / 2, y + h, { bottom: true }),
+      at(x, y + h, { left: true, bottom: true }),
+      at(x, y + h / 2, { left: true }),
+    ],
+    move: { x: x + w / 2, y: y - size * 2.2, r: size * 0.75 },
+  };
+}
+
+export interface PageOptions extends SceneOptions {
+  selectedBlock?: string | null;
+  guides?: readonly Guide[];
+  /** Handle size, mm, so handles look the same at any zoom. */
+  handle?: number;
+}
+
+/** Everything the figure draws, in mm, on a white page. */
+export function buildScene(doc: FigureDoc, o: PageOptions): Scene {
+  const l = layoutDoc(doc);
+  const height = l.height;
+  const prims: Prim[] = [
+    { kind: 'rect', box: { x: 0, y: 0, w: doc.width, h: height }, fill: '#ffffff' },
+  ];
+  const accent = o.accent ?? '#2f5fb3';
+  const letterSize = doc.letters.size * POINT;
+  for (const b of l.blocks) {
+    if (b.block.kind === 'grid' && b.grid) {
+      prims.push(...gridPrims(b.block.grid, b.grid, o));
+      if (b.block.blot && b.blot)
+        prims.push(...blotPrims(b.block.blot, b.blot, b.block.grid.labelSize * POINT));
+    }
+    if (b.block.kind === 'graphic')
+      prims.push(...graphicPrims(b.block.graphic, b.content, o, b.block.id));
+    if (b.block.kind === 'chart') prims.push(...chartPrims(b.block.chart, b.content));
+    if (b.block.kind === 'table') prims.push(...tablePrims(b.block.table, b.content));
+    if (b.block.kind === 'shape') prims.push(...shapePrims(b.block.shape, b.content));
+    if (b.block.kind === 'text') {
+      if (b.block.text.text.trim() === '' && o.editing) {
+        prims.push({ kind: 'rect', box: b.content, stroke: '#9aa5a2', width: 0.2, dash: true });
+      } else prims.push(...textPrims(b.block.text, b.content));
+    }
+    if (b.letter) {
+      prims.push({
+        kind: 'text',
+        runs: parseRich(b.letter.text).map((r) => ({ ...r, bold: true })),
+        x: b.letter.x,
+        y: b.letter.y,
+        size: letterSize,
+        colour: '#000000',
+        align: 'left',
+      });
+    }
+  }
+  if (o.editing) {
+    for (const g of o.guides ?? []) {
+      prims.push({
+        kind: 'line',
+        from: g.axis === 'x' ? [g.at, 0] : [0, g.at],
+        to: g.axis === 'x' ? [g.at, height] : [doc.width, g.at],
+        stroke: '#e0457b',
+        width: 0.2,
+      });
+    }
+    const chosen = l.blocks.find((b) => b.block.id === o.selectedBlock);
+    if (chosen) {
+      const size = o.handle ?? 2;
+      prims.push({ kind: 'rect', box: chosen.box, stroke: accent, width: size * 0.12, dash: true });
+      const handles = handlesOf(chosen.box, size);
+      for (const hd of handles.resize)
+        prims.push({
+          kind: 'rect',
+          box: hd.box,
+          fill: '#ffffff',
+          stroke: accent,
+          width: size * 0.15,
+        });
+      const m = handles.move;
+      prims.push({
+        kind: 'line',
+        from: [m.x, m.y + m.r],
+        to: [m.x, chosen.box.y],
+        stroke: accent,
+        width: size * 0.12,
+      });
+      const n = 12;
+      prims.push({
+        kind: 'poly',
+        points: Array.from({ length: n }, (_x, i): [number, number] => [
+          m.x + m.r * Math.cos((i / n) * Math.PI * 2),
+          m.y + m.r * Math.sin((i / n) * Math.PI * 2),
+        ]),
+        fill: accent,
+      });
+    }
+  }
+  return { width: doc.width, height, prims };
 }

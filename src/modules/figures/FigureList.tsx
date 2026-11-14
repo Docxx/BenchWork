@@ -1,20 +1,19 @@
 import { useEffect, useState } from 'react';
 import type { DirEntry, ModuleContext } from '@core/api';
-import { FIGURE_ENDING, newFigure, serialiseFigure } from './model';
+import { newDoc, serialiseDoc } from './doc';
+import { FIGURE_ENDING } from './model';
 
 const isFigure = (path: string) => path.toLowerCase().endsWith(FIGURE_ENDING);
 
-/** Makes a figure with a grid in `folder`, and opens it. */
+/** Makes an empty figure in `folder`, and opens it. */
 export async function createFigure(
   ctx: ModuleContext,
   folder: string,
   name: string,
-  rows = 2,
-  cols = 3,
 ): Promise<void> {
   const file = await ctx.vault.freeName(folder, name.trim(), FIGURE_ENDING);
   const path = folder === '' ? file : `${folder}/${file}`;
-  await ctx.vault.createNew(path, serialiseFigure(newFigure(rows, cols)));
+  await ctx.vault.createNew(path, serialiseDoc(newDoc()));
   await ctx.app.open(path);
 }
 
@@ -39,14 +38,12 @@ export async function findFigures(ctx: ModuleContext): Promise<DirEntry[]> {
   return found.sort((a, b) => (b.modified ?? 0) - (a.modified ?? 0));
 }
 
-/** The Figures tool: every figure, and a new one with its grid. */
+/** The Figures tool: every figure, and a new one. */
 export function FigureList({ ctx }: { ctx: ModuleContext }) {
   const [figures, setFigures] = useState<DirEntry[] | null>(null);
   const [notebooks, setNotebooks] = useState<string[]>([]);
   const [folder, setFolder] = useState('');
   const [name, setName] = useState('');
-  const [rows, setRows] = useState(2);
-  const [cols, setCols] = useState(3);
   const [reads, setReads] = useState(0);
 
   useEffect(() => {
@@ -75,23 +72,6 @@ export function FigureList({ ctx }: { ctx: ModuleContext }) {
     };
   }, [ctx]);
 
-  const size = (label: string, value: number, set: (n: number) => void) => (
-    <label className="fig-field">
-      {label}
-      <input
-        type="number"
-        aria-label={label}
-        min={1}
-        max={12}
-        value={value}
-        onChange={(e) => {
-          const n = Math.round(Number(e.target.value));
-          if (n >= 1 && n <= 12) set(n);
-        }}
-      />
-    </label>
-  );
-
   return (
     <div className="fig-list">
       <form
@@ -99,7 +79,7 @@ export function FigureList({ ctx }: { ctx: ModuleContext }) {
         onSubmit={(e) => {
           e.preventDefault();
           if (name.trim() === '') return;
-          void createFigure(ctx, folder, name, rows, cols).then(() => {
+          void createFigure(ctx, folder, name).then(() => {
             setName('');
           });
         }}
@@ -112,8 +92,6 @@ export function FigureList({ ctx }: { ctx: ModuleContext }) {
             setName(e.target.value);
           }}
         />
-        {size('Rows', rows, setRows)}
-        {size('Columns', cols, setCols)}
         <select
           aria-label="Notebook"
           value={folder}
@@ -134,8 +112,8 @@ export function FigureList({ ctx }: { ctx: ModuleContext }) {
         <p className="hint">Reading…</p>
       ) : figures.length === 0 ? (
         <p className="hint">
-          No figures yet. A figure lays images out in panels on a page of real size, with labels,
-          ready to export for a paper or a talk.
+          No figures yet. A figure puts images, grids of images and labels on a page of real size,
+          ready to export for a paper, a poster or a talk.
         </p>
       ) : (
         <ul aria-label="Figures">

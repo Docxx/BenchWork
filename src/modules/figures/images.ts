@@ -1,4 +1,4 @@
-import { displayGroup, START_COLOURS, type ChannelShow, type Figure, type Panel } from './model';
+import { displayGroup, START_COLOURS, type ChannelShow, type Grid, type Panel } from './model';
 import { composite, decodeTiff, type Planes } from './tiff';
 
 const TIFF = /\.tiff?$/i;
@@ -46,7 +46,7 @@ const full = (bits: number) => (bits === 8 ? 255 : bits === 16 ? 65535 : 1);
  * the same depth in the figure, so every panel starts alike.
  */
 export function showsFor(
-  figure: Figure,
+  figure: Grid,
   panel: Panel,
   planes: Planes,
   all: ReadonlyMap<string, Planes>,

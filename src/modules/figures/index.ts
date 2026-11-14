@@ -6,8 +6,8 @@ import { createFigure, FigureList } from './FigureList';
 import { FIGURE_ENDING } from './model';
 
 /**
- * Figures: images laid out in panels on a page of real size, with labels,
- * scale bars and letters, for microscopy above all. Each figure is a
+ * Figures: images, grids of images and text placed on a page of real size,
+ * lettered and labelled, for papers and talks. Each figure is a
  * `<name>.figure.json` file; the images it uses are never changed.
  */
 
@@ -21,7 +21,7 @@ export default defineModule({
       render: () => createElement(FigureList, { ctx }),
       tool: {
         icon: createElement(LayoutPanelTop, { size: 18, strokeWidth: 1.75, 'aria-hidden': true }),
-        hint: 'Panels of images with labels, for papers and talks',
+        hint: 'Images, grids and labels on a page, for papers and talks',
       },
     });
 

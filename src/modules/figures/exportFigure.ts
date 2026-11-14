@@ -1,5 +1,6 @@
 import { drawScene, perMm } from './render';
 import { runRise, runSize, type Run } from './richText';
+import { nestedSvg } from './graphic';
 import { FIGURE_FONT, type Prim, type Scene } from './scene';
 import { encodeTiff } from './tiffWrite';
 
@@ -115,6 +116,8 @@ async function imageData(p: Extract<Prim, { kind: 'image' }>, dpi: number): Prom
 const esc = (text: string) =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const n = (v: number) => String(Math.round(v * 1000) / 1000);
+/** Dashes 1 mm long with 0.7 mm gaps, as on screen. */
+const DASH = ' stroke-dasharray="1 0.7"';
 
 function svgText(p: Extract<Prim, { kind: 'text' }>): string {
   const anchor = p.align === 'left' ? 'start' : p.align === 'right' ? 'end' : 'middle';
@@ -139,16 +142,22 @@ function svgText(p: Extract<Prim, { kind: 'text' }>): string {
 /** The figure as SVG, in mm: shapes and text as they are, images inside at `dpi`. */
 export async function toSvg(scene: Scene, dpi = 300): Promise<string> {
   const parts: string[] = [];
+  let graphs = 0;
   for (const p of scene.prims) {
     switch (p.kind) {
       case 'image':
+        if (p.svg) {
+          graphs += 1;
+          parts.push(nestedSvg(p.svg, p.box, p.svg.trim, n, `g${String(graphs)}-`));
+          break;
+        }
         parts.push(
-          `<image x="${n(p.box.x)}" y="${n(p.box.y)}" width="${n(p.box.w)}" height="${n(p.box.h)}" preserveAspectRatio="none" href="${await imageData(p, dpi)}"/>`,
+          `<image x=""${n(p.box.x)}" y="${n(p.box.y)}" width="${n(p.box.w)}" height="${n(p.box.h)}" preserveAspectRatio="none" href="${await imageData(p, dpi)}"/>`,
         );
         break;
       case 'rect':
         parts.push(
-          `<rect x="${n(p.box.x)}" y="${n(p.box.y)}" width="${n(p.box.w)}" height="${n(p.box.h)}" fill="${p.fill ?? 'none'}"${p.stroke ? ` stroke="${p.stroke}" stroke-width="${n(p.width ?? 0.25)}"` : ''}/>`,
+          `<rect x="${n(p.box.x)}" y="${n(p.box.y)}" width="${n(p.box.w)}" height="${n(p.box.h)}" fill="${p.fill ?? 'none'}"${p.stroke ? ` stroke="${p.stroke}" stroke-width="${n(p.width ?? 0.25)}"` : ''}${p.dash ? DASH : ''}/>`,
         );
         break;
       case 'poly':
@@ -158,7 +167,7 @@ export async function toSvg(scene: Scene, dpi = 300): Promise<string> {
         break;
       case 'line':
         parts.push(
-          `<line x1="${n(p.from[0])}" y1="${n(p.from[1])}" x2="${n(p.to[0])}" y2="${n(p.to[1])}" stroke="${p.stroke}" stroke-width="${n(p.width)}"${p.round ? ' stroke-linecap="round"' : ''}/>`,
+          `<line x1="${n(p.from[0])}" y1="${n(p.from[1])}" x2="${n(p.to[0])}" y2="${n(p.to[1])}" stroke="${p.stroke}" stroke-width="${n(p.width)}"${p.round ? ' stroke-linecap="round"' : ''}${p.dash ? DASH : ''}/>`,
         );
         break;
       case 'text':
@@ -197,7 +206,8 @@ export async function toPdf(scene: Scene, dpi = 300): Promise<Uint8Array> {
     switch (p.kind) {
       case 'image':
         doc.addImage(
-          await imageData(p, dpi),
+          // Line art from a graph is drawn finer, so its text and lines stay crisp.
+          await imageData(p, p.sharp ? Math.max(dpi, 600) : dpi),
           'PNG',
           p.box.x,
           p.box.y,
@@ -213,6 +223,7 @@ export async function toPdf(scene: Scene, dpi = 300): Promise<Uint8Array> {
           doc.setDrawColor(...rgb(p.stroke));
           doc.setLineWidth(p.width ?? 0.25);
         }
+        doc.setLineDashPattern(p.dash ? [1, 0.7] : [], 0);
         doc.rect(
           p.box.x,
           p.box.y,
@@ -220,6 +231,7 @@ export async function toPdf(scene: Scene, dpi = 300): Promise<Uint8Array> {
           p.box.h,
           p.fill && p.stroke ? 'FD' : p.fill ? 'F' : 'S',
         );
+        doc.setLineDashPattern([], 0);
         break;
       }
       case 'poly': {
@@ -241,7 +253,9 @@ export async function toPdf(scene: Scene, dpi = 300): Promise<Uint8Array> {
         doc.setDrawColor(...rgb(p.stroke));
         doc.setLineWidth(p.width);
         doc.setLineCap(p.round ? 'round' : 'butt');
+        doc.setLineDashPattern(p.dash ? [1, 0.7] : [], 0);
         doc.line(p.from[0], p.from[1], p.to[0], p.to[1]);
+        doc.setLineDashPattern([], 0);
         break;
       case 'text': {
         doc.setTextColor(...rgb(p.colour));
