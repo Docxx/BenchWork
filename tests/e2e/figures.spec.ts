@@ -113,3 +113,52 @@ test('a figure is laid out from TIFFs, labelled and exported', async ({ page }) 
     .poll(async () => file(page, 'Lab/Fig 1 methods.md'))
     .toContain('`Lab/attachments/control.tif` (w1118)');
 });
+
+test('a blot is labelled, with a table and a bracket beside it', async ({ page }) => {
+  await page.locator('.nav-item', { hasText: 'Figures' }).click();
+  await page.getByLabel('Figure name').fill('Fig 2');
+  await page.getByRole('button', { name: 'New figure' }).click();
+
+  // One image becomes a part of its own, chosen and ready to label.
+  await page
+    .getByLabel('Images to add')
+    .setInputFiles([{ name: 'blot.tif', mimeType: 'image/tiff', buffer: fijiTiff(2) }]);
+  await page.getByRole('button', { name: 'Label as a blot' }).click();
+  await page.getByLabel('Lanes', { exact: true }).fill('3');
+  await page.getByLabel('Lane names').fill('Mock, Drug, Both');
+  await page.getByLabel('Lane names').press('Enter');
+
+  await page.getByRole('button', { name: 'Add a row' }).click();
+  await page.getByLabel('Row 1 name').fill('siRNA');
+  await page.getByLabel('Row 1 name').press('Enter');
+  await page.getByRole('button', { name: 'Row 1, 3: empty' }).click();
+  await expect(page.getByRole('button', { name: 'Row 1, 3: +' })).toBeVisible();
+
+  await page
+    .getByRole('group', { name: 'Size markers, on the left' })
+    .getByRole('button', { name: 'Add' })
+    .click();
+  await page.getByLabel('Marker 1', { exact: true }).fill('62 kDa');
+  await page.getByLabel('Marker 1', { exact: true }).press('Enter');
+
+  // A table and a bracket, placed below.
+  await page.getByRole('button', { name: 'Table', exact: true }).click();
+  await page.getByRole('button', { name: 'Line', exact: true }).click();
+  await page.getByLabel('Kind of shape').selectOption('bracket');
+
+  await expect
+    .poll(async () => {
+      const text = await file(page, 'Lab/Fig 2.figure.json');
+      if (text === null) return [];
+      const f = JSON.parse(text) as { blocks: { kind: string }[] };
+      return f.blocks.map((b) => b.kind);
+    })
+    .toEqual(['grid', 'table', 'shape']);
+
+  await page.getByLabel('Export as').selectOption('svg');
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Fig 2.svg' })).toBeVisible();
+  const svg = (await file(page, 'Lab/Fig 2.svg')) ?? '';
+  for (const word of ['Mock', 'Both', 'siRNA', '62 kDa', 'Drug']) expect(svg).toContain(word);
+  expect(svg).toContain('>A</');
+});

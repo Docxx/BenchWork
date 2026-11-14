@@ -1,6 +1,7 @@
 import { Plus, X } from 'lucide-react';
-import { useState } from 'react';
 import { CHANNEL_COLOURS, newId, type Corner, type Grid, type Panel } from './model';
+import { SpanList } from './SpanList';
+import { Text } from './TextField';
 
 const CORNERS: { value: Corner; label: string }[] = [
   { value: 'top-left', label: 'Top left' },
@@ -8,43 +9,6 @@ const CORNERS: { value: Corner; label: string }[] = [
   { value: 'bottom-left', label: 'Bottom left' },
   { value: 'bottom-right', label: 'Bottom right' },
 ];
-
-/** A text box that saves when it loses focus or Enter is pressed. */
-export function Text({
-  label,
-  value,
-  onSave,
-  hint,
-}: {
-  label: string;
-  value: string;
-  onSave: (v: string) => void;
-  hint?: string;
-}) {
-  const [draft, setDraft] = useState(value);
-  const [shown, setShown] = useState(value);
-  if (value !== shown) {
-    setShown(value);
-    setDraft(value);
-  }
-  const commit = () => {
-    if (draft !== value) onSave(draft);
-  };
-  return (
-    <input
-      aria-label={label}
-      placeholder={hint}
-      value={draft}
-      onChange={(e) => {
-        setDraft(e.target.value);
-      }}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') commit();
-      }}
-    />
-  );
-}
 
 const HELP = (
   <p className="hint fig-help">
@@ -177,6 +141,45 @@ export function FigureLabels({ figure, onChange }: { figure: Grid; onChange: (f:
         >
           <Plus size={14} aria-hidden /> Add a header
         </button>
+      </fieldset>
+      <fieldset>
+        <legend>Beside groups of rows</legend>
+        <SpanList
+          spans={figure.rowHeaders.map((h) => ({ ...h, start: h.row }))}
+          count={figure.rows.length}
+          noun="row"
+          hint="PC-9/AR"
+          addLabel="Add a side label"
+          onChange={(spans) => {
+            onChange({
+              ...figure,
+              rowHeaders: spans.map((x) => ({
+                id: x.id,
+                text: x.text,
+                row: x.start,
+                span: x.span,
+              })),
+            });
+          }}
+        />
+        {figure.rowHeaders.length > 0 && (
+          <label className="fig-field">
+            Side
+            <select
+              aria-label="Side for row group labels"
+              value={figure.rowHeaderSide}
+              onChange={(e) => {
+                onChange({
+                  ...figure,
+                  rowHeaderSide: e.target.value === 'left' ? 'left' : 'right',
+                });
+              }}
+            >
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+            </select>
+          </label>
+        )}
       </fieldset>
       <label className="fig-field">
         Label size

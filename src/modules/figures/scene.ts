@@ -11,8 +11,11 @@ import {
   type PanelImage,
   POINT,
 } from './model';
+import { blotPrims, tablePrims } from './blot';
 import { layoutDoc, type FigureDoc, type TextBox } from './doc';
-import { parseRich, runFont, type Run } from './richText';
+import { textWidth } from './measure';
+import { parseRich, type Run } from './richText';
+import { shapePrims } from './shapes';
 import type { Edges, Guide } from './snap';
 
 /**
@@ -42,6 +45,7 @@ export type Prim =
       stroke: string;
       width: number;
       round?: boolean;
+      dash?: boolean;
     }
   | {
       kind: 'text';
@@ -73,25 +77,7 @@ export interface SceneOptions {
   accent?: string;
 }
 
-/** The figure's typeface: what journals ask for, and the same in every export. */
-export const FIGURE_FONT = 'Arial, Helvetica, "Liberation Sans", sans-serif';
-
-export { POINT };
-
-let measurer: CanvasRenderingContext2D | null = null;
-
-/** How wide text is, in mm, at a size in mm. */
-export function textWidth(runs: readonly Run[], size: number): number {
-  measurer ??= document.createElement('canvas').getContext('2d');
-  if (!measurer) return runs.reduce((w, r) => w + r.text.length * size * 0.55, 0);
-  // Measured at 100 px to the mm, for precision.
-  let width = 0;
-  for (const run of runs) {
-    measurer.font = runFont(run, size * 100, FIGURE_FONT);
-    width += measurer.measureText(run.text).width;
-  }
-  return width / 100;
-}
+export { FIGURE_FONT, textWidth } from './measure';
 
 /** Text at a size that fits a width: shrunk, down to half, if it would not. */
 function fitted(runs: Run[], size: number, maxWidth: number): number {
@@ -426,6 +412,31 @@ export function gridPrims(figure: Grid, l: Layout, o: SceneOptions): Prim[] {
       width: 0.25,
     });
   }
+  // Labels beside groups of rows, with a line along the rows, reading
+  // upwards on the left and downwards on the right.
+  for (const h of l.rowHeaders) {
+    if (h.header.text.trim() === '' || h.w === 0) continue;
+    const left = figure.rowHeaderSide === 'left';
+    const runs = parseRich(h.header.text);
+    prims.push({
+      kind: 'text',
+      runs,
+      x: h.x + h.w * (left ? 0.42 : 0.58),
+      y: h.y + h.h / 2,
+      size: fitted(runs, size, h.h),
+      colour: '#000000',
+      align: 'center',
+      rotate: left ? 90 : -90,
+    });
+    const x = h.x + h.w * (left ? 0.85 : 0.15);
+    prims.push({
+      kind: 'line',
+      from: [x, h.y + 0.5],
+      to: [x, h.y + h.h - 0.5],
+      stroke: '#000000',
+      width: 0.25,
+    });
+  }
   return prims;
 }
 
@@ -543,7 +554,13 @@ export function buildScene(doc: FigureDoc, o: PageOptions): Scene {
   const accent = o.accent ?? '#2f5fb3';
   const letterSize = doc.letters.size * POINT;
   for (const b of l.blocks) {
-    if (b.block.kind === 'grid' && b.grid) prims.push(...gridPrims(b.block.grid, b.grid, o));
+    if (b.block.kind === 'grid' && b.grid) {
+      prims.push(...gridPrims(b.block.grid, b.grid, o));
+      if (b.block.blot && b.blot)
+        prims.push(...blotPrims(b.block.blot, b.blot, b.block.grid.labelSize * POINT));
+    }
+    if (b.block.kind === 'table') prims.push(...tablePrims(b.block.table, b.content));
+    if (b.block.kind === 'shape') prims.push(...shapePrims(b.block.shape, b.content));
     if (b.block.kind === 'text') {
       if (b.block.text.text.trim() === '' && o.editing) {
         prims.push({ kind: 'rect', box: b.content, stroke: '#9aa5a2', width: 0.2, dash: true });

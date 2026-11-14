@@ -40,7 +40,7 @@ function drawPrim(c: CanvasRenderingContext2D, p: Prim, s: number): void {
       if (p.stroke) {
         c.strokeStyle = p.stroke;
         c.lineWidth = Math.max(1, (p.width ?? 0.25) * s);
-        if (p.dash) c.setLineDash([3, 3]);
+        if (p.dash) c.setLineDash([Math.max(3, s), Math.max(3, 0.7 * s)]);
         c.strokeRect(x, y, w, h);
       }
       break;
@@ -66,6 +66,7 @@ function drawPrim(c: CanvasRenderingContext2D, p: Prim, s: number): void {
       c.strokeStyle = p.stroke;
       c.lineWidth = Math.max(1, p.width * s);
       c.lineCap = p.round ? 'round' : 'butt';
+      if (p.dash) c.setLineDash([Math.max(3, s), Math.max(3, 0.7 * s)]);
       c.beginPath();
       c.moveTo(p.from[0] * s, p.from[1] * s);
       c.lineTo(p.to[0] * s, p.to[1] * s);

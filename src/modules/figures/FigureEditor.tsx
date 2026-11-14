@@ -1,7 +1,18 @@
-import { Download, FileText, Grid2x2, ImagePlus, Redo2, Type, Undo2 } from 'lucide-react';
+import {
+  Download,
+  FileText,
+  Grid2x2,
+  ImagePlus,
+  MoveRight,
+  Redo2,
+  Table2,
+  Type,
+  Undo2,
+} from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ModuleContext } from '@core/api';
 import { BlockControls, PageControls, TextControls } from './BlockControls';
+import { blotTop, newTable, tableHeight } from './blot';
 import {
   blockAt,
   blockGrid,
@@ -24,6 +35,8 @@ import {
   type GridBlock,
 } from './doc';
 import { GridControls, PanelControls } from './GridControls';
+import { BlotControls, ShapeControls, TableControls } from './PartControls';
+import { newShape } from './shapes';
 import {
   DEFAULT_CROP,
   FIGURE_ENDING,
@@ -514,6 +527,7 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
           h: layout(grid).height + strip,
           letter: null,
           grid,
+          blot: null,
         };
       }, target.at);
     },
@@ -533,6 +547,7 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
         h: layout(grid).height + strip,
         letter: null,
         grid,
+        blot: null,
       };
     });
   };
@@ -551,6 +566,35 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     setTimeout(() => document.getElementById('fig-text-input')?.focus(), 50);
   };
 
+  const addTable = () => {
+    place((_d, at) => {
+      const table = newTable();
+      return {
+        id: newId(),
+        kind: 'table',
+        x: at.x,
+        y: at.y,
+        w: 60,
+        h: tableHeight(table),
+        letter: null,
+        table,
+      };
+    });
+  };
+
+  const addLine = () => {
+    place((_d, at) => ({
+      id: newId(),
+      kind: 'shape',
+      x: at.x,
+      y: at.y,
+      w: 40,
+      h: 6,
+      letter: null,
+      shape: newShape('line'),
+    }));
+  };
+
   // ---- Pointer: choosing, moving and resizing parts; moving and zooming images ----
   useEffect(() => {
     const c = canvas.current;
@@ -566,6 +610,7 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
       | (Moving & { mode: 'crop'; id: string; x: number; y: number })
       | (Moving & { mode: 'mark'; id: string; mark: string })
       | (Moving & { mode: 'inset'; id: string; u: number; v: number })
+      | (Moving & { mode: 'side'; id: string; side: 'markers' | 'bands'; label: string })
       | { mode: 'scroll'; y: number; top: number };
     let drag: Drag | null = null;
     let pinch = 0;
@@ -667,6 +712,18 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
         setSelectedMark(null);
         drag = moveBlock;
         return;
+      }
+      // A blot's size marker or band name, beside the image, moves up and down.
+      if (hit.blot && hit.block.kind === 'grid' && hit.block.blot) {
+        const img = hit.blot.image;
+        const side = p.x < img.x ? 'markers' : p.x > img.x + img.w ? 'bands' : null;
+        const near = side
+          ? hit.block.blot[side].find((m) => Math.abs(img.y + m.at * img.h - p.y) < 2)
+          : undefined;
+        if (side && near) {
+          drag = { mode: 'side', id, side, label: near.id, before: d, moved: false };
+          return;
+        }
       }
       if (!panel) {
         if (hit.grid) setSel({ block: id, panels: [] });
@@ -775,6 +832,28 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
             const along = b.text.upright ? b.h : b.w;
             return fitText(b, wrapText(b.text.text, size, Math.max(1, along - size * 0.2)).length);
           }),
+        );
+        return;
+      }
+      if (drag.mode === 'side') {
+        const dr = drag;
+        const bl = layoutDoc(d).blocks.find((b) => b.block.id === dr.id);
+        if (!bl?.blot) return;
+        const img = bl.blot.image;
+        const at = Math.min(1, Math.max(0, (mm(e).y - img.y) / img.h));
+        drag.moved = true;
+        show(
+          editBlock(d, dr.id, (b) =>
+            b.kind === 'grid' && b.blot
+              ? {
+                  ...b,
+                  blot: {
+                    ...b.blot,
+                    [dr.side]: b.blot[dr.side].map((m) => (m.id === dr.label ? { ...m, at } : m)),
+                  },
+                }
+              : b,
+          ),
         );
         return;
       }
@@ -1039,6 +1118,22 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
           <button type="button" className="quiet" title="Add text" onClick={addText}>
             <Type {...ICON} /> Text
           </button>
+          <button
+            type="button"
+            className="quiet"
+            title="Add a table of conditions, such as + and − under a graph"
+            onClick={addTable}
+          >
+            <Table2 {...ICON} /> Table
+          </button>
+          <button
+            type="button"
+            className="quiet"
+            title="Add a line, arrow, bracket or box"
+            onClick={addLine}
+          >
+            <MoveRight {...ICON} /> Line
+          </button>
         </div>
         <div className="tool-group fig-export" role="group" aria-label="Export">
           <select
@@ -1190,11 +1285,39 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
               <h3>
                 {block.kind === 'text'
                   ? 'Text'
-                  : block.grid.panels.length === 1
-                    ? 'Image'
-                    : 'Grid of images'}
+                  : block.kind === 'table'
+                    ? 'Table'
+                    : block.kind === 'shape'
+                      ? 'Line or shape'
+                      : block.blot
+                        ? 'Blot'
+                        : block.grid.panels.length === 1
+                          ? 'Image'
+                          : 'Grid of images'}
                 {shownLetter !== '' ? ` ${shownLetter}` : ''}
               </h3>
+              {block.kind === 'table' && (
+                <TableControls
+                  table={block.table}
+                  onChange={(table) => {
+                    commit(
+                      editBlock(doc, block.id, (b) =>
+                        b.kind === 'table' ? { ...b, table, h: tableHeight(table) } : b,
+                      ),
+                    );
+                  }}
+                />
+              )}
+              {block.kind === 'shape' && (
+                <ShapeControls
+                  shape={block.shape}
+                  onChange={(shape) => {
+                    commit(
+                      editBlock(doc, block.id, (b) => (b.kind === 'shape' ? { ...b, shape } : b)),
+                    );
+                  }}
+                />
+              )}
               {block.kind === 'text' && (
                 <TextControls
                   text={block.text}
@@ -1250,6 +1373,22 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
                     }}
                     onNotice={setNotice}
                   />
+                  {gridBlock.grid.panels.length === 1 && (
+                    <BlotControls
+                      blot={gridBlock.blot}
+                      onChange={(blot) => {
+                        // Labels above the image add room, rather than squeeze it.
+                        const size = gridBlock.grid.labelSize * POINT;
+                        const was = gridBlock.blot ? blotTop(gridBlock.blot, size) : 0;
+                        const now = blot ? blotTop(blot, size) : 0;
+                        commit(
+                          editBlock(doc, gridBlock.id, (b) =>
+                            b.kind === 'grid' ? { ...b, blot, h: Math.max(4, b.h + now - was) } : b,
+                          ),
+                        );
+                      }}
+                    />
+                  )}
                 </>
               )}
               <BlockControls

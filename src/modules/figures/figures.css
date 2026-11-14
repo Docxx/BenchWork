@@ -320,3 +320,31 @@
   width: 100%;
   font: inherit;
 }
+
+.fig-table-row {
+  display: grid;
+  gap: 0.25rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.fig-cells {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+}
+
+.fig-cell {
+  min-width: 1.6rem;
+  padding: 0.1rem 0.3rem;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.fig-blot {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.fig-header-row input[type='number'] {
+  width: 3.2rem;
+}

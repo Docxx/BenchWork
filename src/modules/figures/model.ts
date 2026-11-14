@@ -150,6 +150,14 @@ export interface Header {
   span: number;
 }
 
+/** A label beside several rows, with a line along them, such as a cell line. */
+export interface RowHeader {
+  id: string;
+  text: string;
+  row: number;
+  span: number;
+}
+
 export interface LetterStyle {
   /** `A`, `a` or `(a)`. */
   form: 'upper' | 'lower' | 'brackets';
@@ -177,6 +185,9 @@ export interface Grid {
   /** A label for each column, at the top, such as an antibody; empty for none. */
   colLabels: string[];
   headers: Header[];
+  /** Labels beside groups of rows, and which side they go. */
+  rowHeaders: RowHeader[];
+  rowHeaderSide: 'left' | 'right';
   letters: LetterStyle;
   /** Label text size, points. */
   labelSize: number;
@@ -202,6 +213,7 @@ export interface Layout {
   rowLabels: (Box & { row: number })[];
   colLabels: (Box & { col: number })[];
   headers: (Box & { header: Header })[];
+  rowHeaders: (Box & { header: RowHeader })[];
   /** The grid's own box, inside the label room. */
   grid: Box;
   /** Each row's height as laid out, mm. */
@@ -227,6 +239,8 @@ export function newGrid(rows = 2, cols = 3, width = 174): Grid {
     rowLabels: Array.from({ length: rows }, () => ''),
     colLabels: Array.from({ length: cols }, () => ''),
     headers: [],
+    rowHeaders: [],
+    rowHeaderSide: 'right',
     letters: { form: 'upper', corner: 'top-left', size: 10, colour: '#ffffff', show: true },
     labelSize: 8,
     channelCorner: 'top-right',
@@ -281,12 +295,19 @@ export function inReadingOrder(panels: readonly Panel[]): Panel[] {
 export const POINT = 25.4 / 72;
 
 /** Room the labels take, mm: a label's text height and a little space. */
-export function labelRoom(figure: Grid): { left: number; top: number; header: number } {
+export function labelRoom(figure: Grid): {
+  left: number;
+  top: number;
+  header: number;
+  /** Room for headers beside groups of rows, on their side. */
+  side: number;
+} {
   const line = figure.labelSize * POINT * 1.35;
   const left = figure.rowLabels.some((l) => l.trim() !== '') ? line * 1.6 : 0;
   const top = figure.colLabels.some((l) => l.trim() !== '') ? line * 1.6 : 0;
   const header = figure.headers.some((h) => h.text.trim() !== '') ? line * 1.8 : 0;
-  return { left, top, header };
+  const side = figure.rowHeaders.some((h) => h.text.trim() !== '') ? line * 1.8 : 0;
+  return { left, top, header, side };
 }
 
 /**
@@ -299,9 +320,11 @@ export function layout(figure: Grid, box?: Box): Layout {
   const ox = box?.x ?? 0;
   const oy = box?.y ?? 0;
   const width = box?.w ?? figure.width;
-  const gridX = ox + room.left;
+  const sideLeft = figure.rowHeaderSide === 'left' ? room.side : 0;
+  const sideRight = figure.rowHeaderSide === 'right' ? room.side : 0;
+  const gridX = ox + sideLeft + room.left;
   const gridY = oy + room.header + room.top;
-  const gridW = Math.max(1, width - room.left);
+  const gridW = Math.max(1, width - room.left - room.side);
   const gaps = figure.gap * Math.max(0, figure.cols.length - 1);
   const total = figure.cols.reduce((s, w) => s + w, 0) || 1;
   const colW = figure.cols.map((w) => (Math.max(0, gridW - gaps) * w) / total);
@@ -342,7 +365,20 @@ export function layout(figure: Grid, box?: Box): Layout {
       w: span(colX, colW, panel.col, panel.colSpan),
       h: span(rowY, rowH, panel.row, panel.rowSpan),
     })),
-    rowLabels: rowH.map((h, row) => ({ row, x: ox, y: rowY[row] ?? 0, w: room.left, h })),
+    rowLabels: rowH.map((h, row) => ({
+      row,
+      x: ox + sideLeft,
+      y: rowY[row] ?? 0,
+      w: room.left,
+      h,
+    })),
+    rowHeaders: figure.rowHeaders.map((header) => ({
+      header,
+      x: sideLeft > 0 ? ox : gridX + gridW,
+      y: rowY[header.row] ?? 0,
+      w: sideLeft + sideRight,
+      h: span(rowY, rowH, header.row, header.span),
+    })),
     colLabels: colW.map((w, col) => ({
       col,
       x: colX[col] ?? 0,
@@ -595,6 +631,16 @@ export function parseGrid(text: string): Grid | null {
         col: clamp(Math.floor(h['col'] as number), 0, cols.length - 1),
         span: clamp(Math.floor(h['span'] as number), 1, cols.length),
       })),
+    rowHeaders: (Array.isArray(r['rowHeaders']) ? (r['rowHeaders'] as unknown[]) : [])
+      .filter((h): h is Record<string, unknown> => !!h && typeof h === 'object')
+      .filter((h) => typeof h['text'] === 'string' && num(h['row']) && num(h['span']))
+      .map((h) => ({
+        id: typeof h['id'] === 'string' ? h['id'] : newId(),
+        text: h['text'] as string,
+        row: clamp(Math.floor(h['row'] as number), 0, rows.length - 1),
+        span: clamp(Math.floor(h['span'] as number), 1, rows.length),
+      })),
+    rowHeaderSide: r['rowHeaderSide'] === 'left' ? 'left' : 'right',
     letters: {
       form: l['form'] === 'lower' || l['form'] === 'brackets' ? l['form'] : 'upper',
       corner: corner(l['corner'], 'top-left'),
@@ -639,6 +685,13 @@ export function insertLine(figure: Grid, axis: 'row' | 'col', index: number): Gr
             ...figure.rows.slice(at),
           ],
           rowLabels: [...figure.rowLabels.slice(0, at), '', ...figure.rowLabels.slice(at)],
+          rowHeaders: figure.rowHeaders.map((h) =>
+            h.row >= at
+              ? { ...h, row: h.row + 1 }
+              : h.row + h.span > at
+                ? { ...h, span: h.span + 1 }
+                : h,
+          ),
           panels,
         }
       : {
@@ -675,6 +728,15 @@ export function removeLine(figure: Grid, axis: 'row' | 'col', index: number): Gr
           ...figure,
           rows: figure.rows.filter((_r, i) => i !== index),
           rowLabels: figure.rowLabels.filter((_r, i) => i !== index),
+          rowHeaders: figure.rowHeaders.flatMap((h) =>
+            h.row > index
+              ? [{ ...h, row: h.row - 1 }]
+              : h.row + h.span <= index
+                ? [h]
+                : h.span === 1
+                  ? []
+                  : [{ ...h, span: h.span - 1 }],
+          ),
           panels,
         }
       : {

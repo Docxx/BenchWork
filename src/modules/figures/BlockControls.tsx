@@ -1,7 +1,7 @@
 import { BringToFront, Copy, SendToBack, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { TEXT_ALIGNS, type Block, type FigureDoc, type TextBox } from './doc';
-import { Text } from './LabelControls';
+import { Text } from './TextField';
 import { PAGE_WIDTHS } from './model';
 
 const ICON = { size: 17, strokeWidth: 1.8, 'aria-hidden': true } as const;

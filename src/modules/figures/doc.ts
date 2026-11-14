@@ -1,4 +1,13 @@
 import {
+  blotLayout,
+  blotTop,
+  parseBlot,
+  parseTable,
+  type Blot,
+  type BlotLayout,
+  type Table,
+} from './blot';
+import {
   labelRoom,
   layout,
   letter as letterFor,
@@ -11,6 +20,7 @@ import {
   type Layout,
   type LetterStyle,
 } from './model';
+import { parseShape, type Shape } from './shapes';
 
 /**
  * A figure: blocks placed freely on a page of real size, saved as
@@ -43,9 +53,19 @@ interface BlockBase {
   letter: string | null;
 }
 
-export type Block = BlockBase & ({ kind: 'grid'; grid: Grid } | { kind: 'text'; text: TextBox });
+export type Block = BlockBase &
+  (
+    | { kind: 'grid'; grid: Grid; blot: Blot | null }
+    | { kind: 'text'; text: TextBox }
+    | { kind: 'table'; table: Table }
+    | { kind: 'shape'; shape: Shape }
+  );
 export type GridBlock = Extract<Block, { kind: 'grid' }>;
 export type TextBlock = Extract<Block, { kind: 'text' }>;
+export type TableBlock = Extract<Block, { kind: 'table' }>;
+
+/** Only images (and later graphs) take the next letter unless told otherwise. */
+export const takesLetter = (b: Block) => b.kind === 'grid';
 
 export interface FigureLetters {
   form: LetterStyle['form'];
@@ -109,8 +129,8 @@ export function letters(doc: FigureDoc): Map<string, string> {
   for (const b of readingOrder(doc.blocks)) {
     if (!doc.letters.show || b.letter === '') out.set(b.id, '');
     else if (b.letter === null) {
-      out.set(b.id, b.kind === 'text' ? '' : letterFor(n, doc.letters.form));
-      if (b.kind !== 'text') n += 1;
+      out.set(b.id, takesLetter(b) ? letterFor(n, doc.letters.form) : '');
+      if (takesLetter(b)) n += 1;
     } else out.set(b.id, b.letter);
   }
   return out;
@@ -125,6 +145,8 @@ export interface BlockLayout {
   letter: { text: string; x: number; y: number } | null;
   /** For a grid, where its panels and labels are. */
   grid: Layout | null;
+  /** For a blot, where its labels go round the image. */
+  blot: BlotLayout | null;
 }
 
 export interface DocLayout {
@@ -144,7 +166,7 @@ export const letterStrip = (doc: FigureDoc) => doc.letters.size * POINT * 1.2;
 export function contentBox(doc: FigureDoc, block: Block, text: string): Box {
   const box = { x: block.x, y: block.y, w: block.w, h: block.h };
   if (text === '') return box;
-  if (block.kind === 'grid') {
+  if (block.kind === 'grid' && !block.blot) {
     const room = labelRoom(block.grid);
     const size = doc.letters.size * POINT;
     if (room.left >= size * 0.9 * text.length && room.top + room.header >= size) return box;
@@ -159,12 +181,17 @@ export function layoutDoc(doc: FigureDoc): DocLayout {
   const blocks = doc.blocks.map((block): BlockLayout => {
     const text = shown.get(block.id) ?? '';
     const content = contentBox(doc, block, text);
+    const blot =
+      block.kind === 'grid' && block.blot
+        ? blotLayout(block.blot, content, block.grid.labelSize * POINT)
+        : null;
     return {
       block,
       box: { x: block.x, y: block.y, w: block.w, h: block.h },
       content,
       letter: text === '' ? null : { text, x: block.x, y: block.y + size * 0.5 },
-      grid: block.kind === 'grid' ? layout(block.grid, content) : null,
+      grid: block.kind === 'grid' ? layout(block.grid, blot ? blot.image : content) : null,
+      blot,
     };
   });
   const bottom = Math.max(0, ...doc.blocks.map((b) => b.y + b.h));
@@ -187,7 +214,13 @@ export function blockAt(l: DocLayout, x: number, y: number): BlockLayout | null 
  */
 export function heightFor(doc: FigureDoc, block: GridBlock, next: Grid): number {
   const text = letters(doc).get(block.id) ?? '';
-  const before = layout(block.grid, contentBox(doc, block, text));
+  const content = contentBox(doc, block, text);
+  const size = block.grid.labelSize * POINT;
+  const above = block.blot ? blotTop(block.blot, size) : 0;
+  const before = layout(
+    block.grid,
+    block.blot ? blotLayout(block.blot, content, size).image : content,
+  );
   const sum = block.grid.rows.reduce((s, h) => s + h, 0) || 1;
   const perUnit = before.rowHeights.reduce((s, h) => s + h, 0) / sum;
   const room = labelRoom(next);
@@ -195,7 +228,7 @@ export function heightFor(doc: FigureDoc, block: GridBlock, next: Grid): number 
   const gaps = next.gap * Math.max(0, next.rows.length - 1);
   const after = { ...block, grid: next };
   const strip = block.h - contentBox(doc, after, text).h;
-  return Math.max(4, rows + gaps + room.top + room.header + strip);
+  return Math.max(4, rows + gaps + room.top + room.header + strip + above);
 }
 
 /** Lowest point of the blocks, mm: where a new block goes. */
@@ -236,9 +269,11 @@ function parseBlock(raw: unknown, pageWidth: number): Block | null {
   };
   if (r['kind'] === 'grid') {
     const grid = parseGrid(JSON.stringify(r['grid'] ?? null));
-    return grid ? { ...base, kind: 'grid', grid } : null;
+    return grid ? { ...base, kind: 'grid', grid, blot: parseBlot(r['blot']) } : null;
   }
   if (r['kind'] === 'text') return { ...base, kind: 'text', text: parseText(r['text']) };
+  if (r['kind'] === 'table') return { ...base, kind: 'table', table: parseTable(r['table']) };
+  if (r['kind'] === 'shape') return { ...base, kind: 'shape', shape: parseShape(r['shape']) };
   return null;
 }
 
@@ -264,7 +299,17 @@ export function parseDoc(text: string): FigureDoc | null {
       ...newDoc(grid.width),
       letters: { form: grid.letters.form, size: grid.letters.size, show: true },
       blocks: [
-        { id: newId(), kind: 'grid', x: 0, y: 0, w: grid.width, h: height, letter: '', grid },
+        {
+          id: newId(),
+          kind: 'grid',
+          x: 0,
+          y: 0,
+          w: grid.width,
+          h: height,
+          letter: '',
+          grid,
+          blot: null,
+        },
       ],
     };
   }

@@ -30,6 +30,7 @@ const grid = (id: string, x: number, y: number, w = 50, h = 40): GridBlock => ({
   h,
   letter: null,
   grid: blockGrid(1, 1, w),
+  blot: null,
 });
 
 const text = (id: string, x: number, y: number): TextBlock => ({
