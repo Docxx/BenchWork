@@ -175,7 +175,7 @@ test('a graph saved as SVG is added and stays as shapes and text in an SVG expor
   await page
     .getByLabel('Images to add')
     .setInputFiles([{ name: 'bars.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(graph) }]);
-  await expect(page.getByRole('heading', { name: 'Graph A' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Imported graph A' })).toBeVisible();
   await page.getByLabel('Trim bottom, %').fill('5');
 
   await page.getByLabel('Export as').selectOption('svg');
@@ -185,4 +185,42 @@ test('a graph saved as SVG is added and stays as shapes and text in an SVG expor
   expect(svg).toMatch(/<svg x="[\d.]+" y="[\d.]+" width="87"[^>]*viewBox="0 0 300 190"/);
   expect(svg).toContain('>WT</text>');
   expect(svg).not.toContain('alert');
+});
+
+test('a bar graph is made from pasted data, with a bracket and stars', async ({ page }) => {
+  await page.locator('.nav-item', { hasText: 'Figures' }).click();
+  await page.getByLabel('Figure name').fill('Fig 4');
+  await page.getByRole('button', { name: 'New figure' }).click();
+
+  await page.getByRole('button', { name: 'Graph', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Graph A' })).toBeVisible();
+  // As pasted from a spreadsheet: groups across, replicates down.
+  await page
+    .getByLabel('Graph data')
+    .fill('WT\tKO\tRescue\n1.0\t0.42\t0.95\n1.1\t0.38\t1.02\n0.9\t0.51\t0.88');
+  await page.getByLabel('Value axis name').click();
+  await page.getByLabel('Value axis name').fill('Relative *Sox2* level');
+  await page.getByLabel('Value axis name').press('Enter');
+  await page.getByRole('button', { name: 'Add a bracket' }).click();
+  await page.getByLabel('Bracket 1 text').fill('**');
+  await page.getByLabel('Bracket 1 text').press('Enter');
+
+  await expect
+    .poll(async () => {
+      const text = await file(page, 'Lab/Fig 4.figure.json');
+      if (text === null) return null;
+      const f = JSON.parse(text) as {
+        blocks: { chart?: { groups: string[]; brackets: { text: string }[] } }[];
+      };
+      const c = f.blocks[0]?.chart;
+      return c ? [c.groups, c.brackets.map((b) => b.text)] : null;
+    })
+    .toEqual([['WT', 'KO', 'Rescue'], ['**']]);
+
+  await page.getByLabel('Export as').selectOption('svg');
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Fig 4.svg' })).toBeVisible();
+  const svg = (await file(page, 'Lab/Fig 4.svg')) ?? '';
+  for (const word of ['WT', 'Rescue', '**', 'Sox2']) expect(svg).toContain(word);
+  expect(svg).toContain('<tspan font-style="italic">Sox2</tspan>');
 });

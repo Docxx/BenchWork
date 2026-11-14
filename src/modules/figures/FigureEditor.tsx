@@ -1,4 +1,5 @@
 import {
+  ChartColumn,
   Download,
   FileText,
   Grid2x2,
@@ -13,6 +14,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ModuleContext, PdfDocument } from '@core/api';
 import { BlockControls, PageControls, TextControls } from './BlockControls';
 import { blotTop, newTable, tableHeight } from './blot';
+import { newChart } from './chart';
+import { ChartControls } from './ChartControls';
 import {
   blockAt,
   blockGrid,
@@ -684,6 +687,22 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     setTimeout(() => document.getElementById('fig-text-input')?.focus(), 50);
   };
 
+  const addChart = () => {
+    place((d, at) => {
+      const strip = d.letters.show ? letterStrip(d) : 0;
+      return {
+        id: newId(),
+        kind: 'chart',
+        x: at.x,
+        y: at.y,
+        w: 60,
+        h: 50 + strip,
+        letter: null,
+        chart: newChart(),
+      };
+    });
+  };
+
   const addTable = () => {
     place((_d, at) => {
       const table = newTable();
@@ -1233,6 +1252,14 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
           >
             <Grid2x2 {...ICON} /> Grid
           </button>
+          <button
+            type="button"
+            className="quiet"
+            title="Add a graph drawn from data you paste or type in"
+            onClick={addChart}
+          >
+            <ChartColumn {...ICON} /> Graph
+          </button>
           <button type="button" className="quiet" title="Add text" onClick={addText}>
             <Type {...ICON} /> Text
           </button>
@@ -1410,14 +1437,26 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
                     : block.kind === 'shape'
                       ? 'Line or shape'
                       : block.kind === 'graphic'
-                        ? 'Graph'
-                        : block.blot
-                          ? 'Blot'
-                          : block.grid.panels.length === 1
-                            ? 'Image'
-                            : 'Grid of images'}
+                        ? 'Imported graph'
+                        : block.kind === 'chart'
+                          ? 'Graph'
+                          : block.blot
+                            ? 'Blot'
+                            : block.grid.panels.length === 1
+                              ? 'Image'
+                              : 'Grid of images'}
                 {shownLetter !== '' ? ` ${shownLetter}` : ''}
               </h3>
+              {block.kind === 'chart' && (
+                <ChartControls
+                  chart={block.chart}
+                  onChange={(chart) => {
+                    commit(
+                      editBlock(doc, block.id, (b) => (b.kind === 'chart' ? { ...b, chart } : b)),
+                    );
+                  }}
+                />
+              )}
               {block.kind === 'graphic' && (
                 <GraphicControls
                   graphic={block.graphic}

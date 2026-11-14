@@ -348,3 +348,29 @@
 .fig-header-row input[type='number'] {
   width: 3.2rem;
 }
+
+.fig-data {
+  width: 100%;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.8rem;
+  white-space: pre;
+  tab-size: 8;
+}
+
+.fig-series {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+}
+
+.fig-bracket {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.fig-bracket select {
+  min-width: 0;
+}

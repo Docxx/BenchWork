@@ -12,6 +12,7 @@ import {
   POINT,
 } from './model';
 import { blotPrims, tablePrims } from './blot';
+import { chartPrims } from './chart';
 import { layoutDoc, type FigureDoc, type TextBox } from './doc';
 import { fitIn, shownRect, type Graphic, type GraphicSource, type Trim } from './graphic';
 import { textWidth } from './measure';
@@ -608,6 +609,7 @@ export function buildScene(doc: FigureDoc, o: PageOptions): Scene {
     }
     if (b.block.kind === 'graphic')
       prims.push(...graphicPrims(b.block.graphic, b.content, o, b.block.id));
+    if (b.block.kind === 'chart') prims.push(...chartPrims(b.block.chart, b.content));
     if (b.block.kind === 'table') prims.push(...tablePrims(b.block.table, b.content));
     if (b.block.kind === 'shape') prims.push(...shapePrims(b.block.shape, b.content));
     if (b.block.kind === 'text') {
