@@ -300,7 +300,7 @@ Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([gu
 - [x] Headers and side labels with brackets, blot labels, and lines and arrows anywhere
 - [x] Graphs from Prism, Excel or R (SVG, PDF or PNG), kept sharp in exports
 - [x] Bar, line and scatter graphs from data, with error bars and significance
-- [ ] Guide, tests, and a check on the PC and the tablet
+- [x] Guide, tests, and a check on the PC and the tablet
 
 ## Phase 8: Apple port
 
