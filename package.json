@@ -14,7 +14,11 @@
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
     "test:e2e": "playwright test",
     "lint": "tsc --noEmit && eslint . && prettier --check .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "next:dev": "vite --port 1440",
+    "next:build": "node scripts/build-next.mjs",
+    "next:desktop": "tauri dev --config src-tauri/tauri.next.conf.json",
+    "next:package": "tauri build --config src-tauri/tauri.next.conf.json --debug --bundles nsis && node scripts/collect-next.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

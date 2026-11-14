@@ -16,3 +16,7 @@ Thumbs.db
 # Private relay provisioning/recovery details and Python caches.
 .relay-private/
 __pycache__/
+
+dist-next/
+
+artifacts/

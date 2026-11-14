@@ -7,6 +7,7 @@ export default tseslint.config(
     ignores: [
       'dist',
       'dist-labels',
+      'dist-next',
       'src-tauri/target',
       'src-tauri/gen',
       'playwright-report',

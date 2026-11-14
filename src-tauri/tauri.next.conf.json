@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "BenchWork Next",
+  "version": "0.1.0",
+  "identifier": "app.benchwork.next",
+  "build": {
+    "beforeDevCommand": "pnpm next:dev",
+    "devUrl": "http://127.0.0.1:1440/next.html",
+    "beforeBuildCommand": "pnpm next:build",
+    "frontendDist": "../dist-next"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "BenchWork Next",
+        "url": "next.html",
+        "width": 1510,
+        "height": 1000,
+        "minWidth": 700,
+        "minHeight": 500,
+        "dragDropEnabled": false,
+        "decorations": true
+      }
+    ]
+  },
+  "bundle": {
+    "shortDescription": "An experimental, connected research studio",
+    "longDescription": "BenchWork Next is a separate experimental edition of BenchWork, with its own workspace and application identity."
+  }
+}

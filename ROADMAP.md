@@ -309,3 +309,15 @@ Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([gu
 - [ ] macOS build (needs a Mac or macOS CI runner)
 - [ ] iPad build with Apple Pencil support
 - [ ] Apple developer account, signing and TestFlight
+
+## Experimental edition: BenchWork Next
+
+A separately authorised exploration alongside the main roadmap; it does not replace BenchWork.
+
+- [x] Separate entry point, output directory and Windows application identity
+- [x] New responsive studio, project board, evidence library and interactive constellation
+- [x] Existing rich-text editor, figures, whiteboards, canvases and lab tools reused
+- [x] Guided protocol runs and notebook reports; immersive focus room and session history
+- [x] Durable isolated storage, complete exports, reviewed imports and save-failure recovery
+- [x] Light/dark themes, command palette, full-text note search and reduced-motion support
+- [x] Final native smoke test and regression checks ([guide](docs/benchwork-next.md))

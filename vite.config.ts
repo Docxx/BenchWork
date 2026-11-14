@@ -11,6 +11,7 @@ import { defineConfig } from 'vitest/config';
 const host = process.env['TAURI_DEV_HOST'];
 const LOOPBACK = '127.0.0.1';
 const labelOnly = process.env['BENCHWORK_LABEL_STUDIO'] === '1';
+const nextOnly = process.env['BENCHWORK_NEXT'] === '1';
 // Personal modules (src/personal), and the label page that goes with them,
 // are built in only on a device whose .env.local sets VITE_PERSONAL=1.
 const personal = loadEnv('', process.cwd(), 'VITE_')['VITE_PERSONAL'] === '1';
@@ -47,17 +48,19 @@ export default defineConfig({
     watch: { ignored: ['**/src-tauri/**'] },
   },
   build: {
-    outDir: labelOnly ? 'dist-labels' : 'dist',
+    outDir: nextOnly ? 'dist-next' : labelOnly ? 'dist-labels' : 'dist',
     rolldownOptions: {
-      input: labelOnly
-        ? { labels: fileURLToPath(new URL('./labels.html', import.meta.url)) }
-        : {
-            main: fileURLToPath(new URL('./index.html', import.meta.url)),
-            audience: fileURLToPath(new URL('./audience.html', import.meta.url)),
-            ...(personal
-              ? { labels: fileURLToPath(new URL('./labels.html', import.meta.url)) }
-              : {}),
-          },
+      input: nextOnly
+        ? { next: fileURLToPath(new URL('./next.html', import.meta.url)) }
+        : labelOnly
+          ? { labels: fileURLToPath(new URL('./labels.html', import.meta.url)) }
+          : {
+              main: fileURLToPath(new URL('./index.html', import.meta.url)),
+              audience: fileURLToPath(new URL('./audience.html', import.meta.url)),
+              ...(personal
+                ? { labels: fileURLToPath(new URL('./labels.html', import.meta.url)) }
+                : {}),
+            },
     },
     target: 'es2022',
     sourcemap: Boolean(process.env['TAURI_ENV_DEBUG']),

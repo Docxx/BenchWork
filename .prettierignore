@@ -7,3 +7,5 @@ playwright-report
 test-results
 .relay-private
 src/core/editor/markdown/fixtures
+
+dist-next/
