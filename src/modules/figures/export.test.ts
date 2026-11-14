@@ -1,31 +1,36 @@
 import { toSvg, withResolution } from './exportFigure';
 import { methodsNote } from './methods';
-import { newFigure, type Figure } from './model';
+import { parseDoc, type FigureDoc } from './doc';
+import { newGrid } from './model';
 import { buildScene } from './scene';
 import type { Planes } from './tiff';
 
-/** A labelled two-panel figure, with one image in the first panel. */
-function sample(): Figure {
-  const f = newFigure(1, 2, 85);
+/** A labelled two-panel figure, with one image in the first panel, saved before parts. */
+function sample(): FigureDoc {
+  const f = newGrid(1, 2, 85);
   const [a, b] = f.panels;
   if (!a || !b) throw new Error('no panels');
-  return {
-    ...f,
-    rowLabels: ['*w*^1118^'],
-    colLabels: ['Control', 'H~2~O & <salt>'],
-    panels: [
-      {
-        ...a,
-        scaleBar: true,
-        image: {
-          path: 'Lab/attachments/control.tif',
-          crop: { zoom: 2, cx: 0.5, cy: 0.5, turns: 1, flip: false },
-          umPerPx: 0.325,
+  const doc = parseDoc(
+    JSON.stringify({
+      ...f,
+      rowLabels: ['*w*^1118^'],
+      colLabels: ['Control', 'H~2~O & <salt>'],
+      panels: [
+        {
+          ...a,
+          scaleBar: true,
+          image: {
+            path: 'Lab/attachments/control.tif',
+            crop: { zoom: 2, cx: 0.5, cy: 0.5, turns: 1, flip: false },
+            umPerPx: 0.325,
+          },
         },
-      },
-      b,
-    ],
-  };
+        b,
+      ],
+    }),
+  );
+  if (!doc) throw new Error('not read');
+  return doc;
 }
 
 const planes: Planes = {

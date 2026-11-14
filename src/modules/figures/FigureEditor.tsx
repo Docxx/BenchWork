@@ -1,54 +1,53 @@
-import {
-  Columns3,
-  Download,
-  FileText,
-  FlipHorizontal2,
-  ImagePlus,
-  Merge,
-  Minus,
-  Plus,
-  Redo2,
-  RotateCw,
-  Rows3,
-  SplitSquareHorizontal,
-  Trash2,
-  Undo2,
-  ZoomIn,
-  ZoomOut,
-} from 'lucide-react';
+import { Download, FileText, Grid2x2, ImagePlus, Redo2, Type, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ModuleContext } from '@core/api';
+import { BlockControls, PageControls, TextControls } from './BlockControls';
+import {
+  blockAt,
+  blockGrid,
+  bottomOf,
+  duplicate,
+  editBlock,
+  fitText,
+  heightFor,
+  layoutDoc,
+  letters,
+  letterStrip,
+  newText,
+  parseDoc,
+  removeBlock,
+  restack,
+  serialiseDoc,
+  type Block,
+  type DocLayout,
+  type FigureDoc,
+  type GridBlock,
+} from './doc';
+import { GridControls, PanelControls } from './GridControls';
 import {
   DEFAULT_CROP,
   FIGURE_ENDING,
   fillWith,
-  insertLine,
   layout,
-  merge,
-  PAGE_WIDTHS,
-  panelAt,
-  panned,
-  parseFigure,
-  removeLine,
-  serialiseFigure,
-  sourceRect,
-  split,
   newId,
+  panelAt,
+  POINT,
+  panned,
+  sourceRect,
+  type Box,
   type Crop,
-  type Figure,
+  type Grid,
   type Mark,
   type MarkKind,
   type Panel,
 } from './model';
-import { FigureLabels, PanelLabels } from './LabelControls';
-import { DisplayControls, ScaleControls } from './DisplayControls';
-import { MarkControls } from './MarkControls';
 import { boxToImage, imageToBox } from './marks';
 import { loadPlanes, picture, showsFor } from './images';
 import { toPdf, toPng, toSvg, toTiff, type ExportFormat } from './exportFigure';
 import { methodsNote } from './methods';
 import { drawFigure, type Source } from './render';
-import { buildScene } from './scene';
+import { buildScene, handlesOf, wrapText } from './scene';
+import { keepShape, resized, snapMove, snapResize, type Edges, type Guide } from './snap';
 import type { Planes } from './tiff';
 import './figures.css';
 
@@ -56,22 +55,82 @@ const ICON = { size: 17, strokeWidth: 1.8, 'aria-hidden': true } as const;
 const SAVE_MS = 500;
 const MAX_UNDO = 60;
 const IMAGE_TYPES = /\.(png|jpe?g|gif|webp|bmp|tiff?)$/i;
+/** Room kept below the lowest part on screen, mm, to drop and add more. */
+const ROOM_BELOW = 50;
+/** Handle size and reach on screen, px. */
+const HANDLE_PX = 9;
+const REACH_PX = 7;
 
 const dirOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
 
+interface Selection {
+  block: string | null;
+  /** Panels chosen inside a grid block. */
+  panels: string[];
+}
+
+const NONE: Selection = { block: null, panels: [] };
+
+interface AddTarget {
+  panel?: string;
+  at?: { x: number; y: number };
+}
+
+/** A grid block with its new grid, grown to keep its rows' height when asked. */
+function withGrid(doc: FigureDoc, id: string, grid: Grid, grow: boolean): FigureDoc {
+  return editBlock(doc, id, (b) =>
+    b.kind === 'grid' ? { ...b, grid, h: grow ? heightFor(doc, b, grid) : b.h } : b,
+  );
+}
+
+/** Where a panel is on the page, with its block. */
+function findPanel(l: DocLayout, panelId: string) {
+  for (const b of l.blocks) {
+    const box = b.grid?.panels.find((p) => p.panel.id === panelId);
+    if (box && b.block.kind === 'grid') return { block: b.block, box };
+  }
+  return null;
+}
+
+/** The handle of a chosen part under a point: resizing by its edges, or moving. */
+function handleAt(box: Box, p: { x: number; y: number }, perMm: number) {
+  const handles = handlesOf(box, HANDLE_PX / perMm);
+  const reach = REACH_PX / perMm;
+  const m = handles.move;
+  if (Math.hypot(p.x - m.x, p.y - m.y) < m.r + reach) return { move: true as const };
+  const hd = handles.resize.find(
+    (h) =>
+      Math.abs(p.x - (h.box.x + h.box.w / 2)) < reach &&
+      Math.abs(p.y - (h.box.y + h.box.h / 2)) < reach,
+  );
+  return hd ? { edges: hd.edges } : null;
+}
+
+function cursorFor(edges: Edges): string {
+  const diag = (edges.left && edges.top) || (edges.right && edges.bottom);
+  const anti = (edges.right && edges.top) || (edges.left && edges.bottom);
+  if (diag) return 'nwse-resize';
+  if (anti) return 'nesw-resize';
+  return edges.left || edges.right ? 'ew-resize' : 'ns-resize';
+}
+
 /**
- * A figure, laid out on a page of real size. Drop images onto panels (or
- * anywhere, to fill the empty ones in order); drag inside a panel to move
- * its image, and zoom with the wheel or a pinch. The grid's rows, columns
- * and gaps are set beside it.
+ * A figure: parts placed freely on a page of real size. Drop images on the
+ * page to add them, or onto a grid's panels to fill it; drag parts into
+ * place, where they snap to each other. Once a part is chosen, dragging
+ * inside an image moves the image in its frame.
  */
 export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }) {
   const stage = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const [figure, setFigure] = useState<Figure | null>(null);
+  const [doc, setDoc] = useState<FigureDoc | null>(null);
   const [status, setStatus] = useState<'reading' | 'ready' | 'unreadable'>('reading');
-  const [selected, setSelected] = useState<string[]>([]);
+  const [sel, setSel] = useState<Selection>(NONE);
+  const selRef = useRef(sel);
+  useEffect(() => {
+    selRef.current = sel;
+  }, [sel]);
   /** What pressing a panel does: move its image, place a mark, or draw an inset's region. */
   const [tool, setTool] = useState<'move' | MarkKind | 'inset'>('move');
   const toolRef = useRef(tool);
@@ -79,31 +138,31 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     toolRef.current = tool;
   }, [tool]);
   const [selectedMark, setSelectedMark] = useState<string | null>(null);
+  const [guides, setGuides] = useState<Guide[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [history, setHistory] = useState({ undo: 0, redo: 0 });
   const [loaded, setLoaded] = useState(0);
-  /** The images read so far, for the controls beside the page. */
   const [readImages, setReadImages] = useState<ReadonlyMap<string, Planes>>(new Map());
-  const [fit, setFit] = useState({ scale: 3, width: 600 });
+  const [scale, setScale] = useState(3);
+  /** Where images from the file chooser go. */
+  const addTarget = useRef<AddTarget>({});
 
-  const current = useRef<Figure | null>(null);
-  const undo = useRef<Figure[]>([]);
-  const redo = useRef<Figure[]>([]);
+  const current = useRef<FigureDoc | null>(null);
+  const undo = useRef<FigureDoc[]>([]);
+  const redo = useRef<FigureDoc[]>([]);
   const lastText = useRef<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Each image file's values, once read. */
   const planes = useRef(new Map<string, Planes>());
   const loading = useRef(new Set<string>());
-  /** Pictures already made, by file and how it is shown. */
   const pictures = useRef(new Map<string, HTMLCanvasElement>());
 
   // ---- Saving ----
   const save = useCallback(
-    (next: Figure) => {
+    (next: FigureDoc) => {
       if (saveTimer.current !== null) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
         saveTimer.current = null;
-        const text = serialiseFigure(next);
+        const text = serialiseDoc(next);
         if (text === lastText.current) return;
         lastText.current = text;
         ctx.vault.writeText(path, text).catch((err: unknown) => {
@@ -118,7 +177,7 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
 
   /** Puts a change in place: kept for undo, shown and saved. */
   const commit = useCallback(
-    (next: Figure, remember = true) => {
+    (next: FigureDoc, remember = true) => {
       const before = current.current;
       if (remember && before) {
         undo.current.push(before);
@@ -126,7 +185,7 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
         redo.current = [];
       }
       current.current = next;
-      setFigure(next);
+      setDoc(next);
       setHistory({ undo: undo.current.length, redo: redo.current.length });
       save(next);
     },
@@ -140,7 +199,7 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     if (!next || !current.current) return;
     to.push(current.current);
     current.current = next;
-    setFigure(next);
+    setDoc(next);
     setHistory({ undo: undo.current.length, redo: redo.current.length });
     save(next);
   };
@@ -158,20 +217,30 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
           setLoaded((n) => n + 1);
           setReadImages(new Map(planes.current));
           // A pixel size the file gives fills in panels that have none yet.
-          const f = current.current;
-          if (read.umPerPx === null || !f) return;
-          const missing = f.panels.some((p) => p.image?.path === file && p.image.umPerPx === null);
-          if (!missing) return;
-          const next = {
-            ...f,
-            panels: f.panels.map((p) =>
-              p.image?.path === file && p.image.umPerPx === null
-                ? { ...p, image: { ...p.image, umPerPx: read.umPerPx } }
-                : p,
-            ),
-          };
+          const d = current.current;
+          if (read.umPerPx === null || !d) return;
+          const missing = (b: Block) =>
+            b.kind === 'grid' &&
+            b.grid.panels.some((p) => p.image?.path === file && p.image.umPerPx === null);
+          if (!d.blocks.some(missing)) return;
+          const blocks = d.blocks.map((b): Block =>
+            b.kind !== 'grid' || !missing(b)
+              ? b
+              : {
+                  ...b,
+                  grid: {
+                    ...b.grid,
+                    panels: b.grid.panels.map((p) =>
+                      p.image?.path === file && p.image.umPerPx === null
+                        ? { ...p, image: { ...p.image, umPerPx: read.umPerPx } }
+                        : p,
+                    ),
+                  },
+                },
+          );
+          const next = { ...d, blocks };
           current.current = next;
-          setFigure(next);
+          setDoc(next);
           save(next);
         })
         .catch((err: unknown) => {
@@ -184,8 +253,11 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
   );
 
   useEffect(() => {
-    for (const p of figure?.panels ?? []) if (p.image) loadImage(p.image.path);
-  }, [figure, loadImage]);
+    for (const b of doc?.blocks ?? []) {
+      if (b.kind !== 'grid') continue;
+      for (const p of b.grid.panels) if (p.image) loadImage(p.image.path);
+    }
+  }, [doc, loadImage]);
 
   // ---- Reading, and following changes made elsewhere ----
   useEffect(() => {
@@ -193,14 +265,14 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     const read = async () => {
       const text = await ctx.vault.readText(path);
       if (!live || text === lastText.current) return;
-      const parsed = parseFigure(text);
+      const parsed = parseDoc(text);
       if (parsed === null) {
         setStatus('unreadable');
         return;
       }
       lastText.current = text;
       current.current = parsed;
-      setFigure(parsed);
+      setDoc(parsed);
       setStatus('ready');
     };
     void read().catch(() => {
@@ -220,30 +292,33 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     () => () => {
       if (saveTimer.current === null || !current.current) return;
       clearTimeout(saveTimer.current);
-      const text = serialiseFigure(current.current);
+      const text = serialiseDoc(current.current);
       if (text !== lastText.current) void ctx.vault.writeText(path, text).catch(() => undefined);
     },
     [ctx, path],
   );
 
-  /** Each panel's picture, shown as its group says; made once and kept. */
-  const sourcesFor = useCallback((f: Figure) => {
+  /** Each panel's picture, shown as its grid says; made once and kept. */
+  const sourcesFor = useCallback((d: FigureDoc) => {
     const sources = new Map<string, Source>();
-    for (const panel of f.panels) {
-      const read = panel.image ? planes.current.get(panel.image.path) : undefined;
-      if (!panel.image || !read) continue;
-      const shows = showsFor(f, panel, read, planes.current);
-      const key = `${panel.image.path}|${JSON.stringify(shows)}`;
-      let made = pictures.current.get(key);
-      if (!made) {
-        made = picture(read, shows);
-        pictures.current.set(key, made);
-        if (pictures.current.size > 80) {
-          const oldest = pictures.current.keys().next().value;
-          if (oldest !== undefined) pictures.current.delete(oldest);
+    for (const b of d.blocks) {
+      if (b.kind !== 'grid') continue;
+      for (const panel of b.grid.panels) {
+        const read = panel.image ? planes.current.get(panel.image.path) : undefined;
+        if (!panel.image || !read) continue;
+        const shows = showsFor(b.grid, panel, read, planes.current);
+        const key = `${panel.image.path}|${JSON.stringify(shows)}`;
+        let made = pictures.current.get(key);
+        if (!made) {
+          made = picture(read, shows);
+          pictures.current.set(key, made);
+          if (pictures.current.size > 80) {
+            const oldest = pictures.current.keys().next().value;
+            if (oldest !== undefined) pictures.current.delete(oldest);
+          }
         }
+        sources.set(panel.id, { image: made, w: read.width, h: read.height });
       }
-      sources.set(panel.id, { image: made, w: read.width, h: read.height });
     }
     return sources;
   }, []);
@@ -258,9 +333,17 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
   const folder = dirOf(path);
 
   const exportFigure = async () => {
-    const f = current.current;
-    if (!f) return;
-    const waiting = f.panels.some((p) => p.image && !planes.current.has(p.image.path));
+    const d = current.current;
+    if (!d) return;
+    if (d.blocks.length === 0) {
+      setNotice('The page is empty. Add images, a grid or text first.');
+      return;
+    }
+    const waiting = d.blocks.some(
+      (b) =>
+        b.kind === 'grid' &&
+        b.grid.panels.some((p) => p.image && !planes.current.has(p.image.path)),
+    );
     if (waiting) {
       setNotice('Some images are still being read. Try again in a moment.');
       return;
@@ -268,7 +351,10 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     setBusy(true);
     setExported(null);
     try {
-      const scene = buildScene(f, { sources: sourcesFor(f), editing: false });
+      // The page starts at the top part: no empty band above it.
+      const top = Math.min(...d.blocks.map((b) => b.y));
+      const trimmed = { ...d, blocks: d.blocks.map((b) => ({ ...b, y: b.y - top })) };
+      const scene = buildScene(trimmed, { sources: sourcesFor(d), editing: false });
       const ext = { png: '.png', tiff: '.tif', svg: '.svg', pdf: '.pdf' }[format];
       const name = await ctx.vault.freeName(folder, baseName, ext);
       const target = folder === '' ? name : `${folder}/${name}`;
@@ -293,14 +379,13 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
   };
 
   // ---- Fitting the page to the room ----
+  const pageWidth = doc?.width ?? 174;
   useEffect(() => {
     const el = stage.current;
-    if (!el || !figure) return;
+    if (!el) return;
     const measure = () => {
       const box = el.getBoundingClientRect();
-      const l = layout(figure);
-      const scale = Math.max(0.5, Math.min((box.width - 48) / l.width, 12));
-      setFit({ scale, width: box.width });
+      setScale(Math.max(0.5, Math.min((box.width - 48) / pageWidth, 12)));
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -308,37 +393,57 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     return () => {
       observer.disconnect();
     };
-  }, [figure]);
+  }, [pageWidth, status]);
 
   // ---- Drawing ----
   useEffect(() => {
     const c = canvas.current;
     const g = c?.getContext('2d');
-    if (!c || !g || !figure) return;
-    const l = layout(figure);
+    if (!c || !g || !doc) return;
+    const height = layoutDoc(doc).height + ROOM_BELOW;
     const ratio = Math.min(2, window.devicePixelRatio || 1);
-    c.width = Math.round(l.width * fit.scale * ratio);
-    c.height = Math.round(l.height * fit.scale * ratio);
-    c.style.width = `${String(l.width * fit.scale)}px`;
-    c.style.height = `${String(l.height * fit.scale)}px`;
+    c.width = Math.round(doc.width * scale * ratio);
+    c.height = Math.round(height * scale * ratio);
+    c.style.width = `${String(doc.width * scale)}px`;
+    c.style.height = `${String(height * scale)}px`;
     g.setTransform(ratio, 0, 0, ratio, 0, 0);
-    const sources = sourcesFor(figure);
-    drawFigure(g, figure, {
-      scale: fit.scale,
-      sources,
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, doc.width * scale, height * scale);
+    drawFigure(g, doc, {
+      scale,
+      sources: sourcesFor(doc),
       editing: true,
-      selected: selected.at(-1) ?? null,
+      selectedBlock: sel.block,
+      selectedPanels: sel.panels,
       selectedMark,
+      guides,
+      handle: HANDLE_PX / scale,
       accent: getComputedStyle(c).getPropertyValue('--accent').trim() || '#2f5fb3',
     });
-  }, [figure, fit, selected, selectedMark, loaded, sourcesFor]);
+  }, [doc, scale, sel, selectedMark, guides, loaded, sourcesFor]);
 
-  // ---- Adding images ----
+  // ---- Adding ----
+  /** Puts a new part on the page, at a point or below the rest, and chooses it. */
+  const place = useCallback(
+    (
+      make: (d: FigureDoc, at: { x: number; y: number }) => Block,
+      at?: { x: number; y: number },
+    ) => {
+      const d = current.current;
+      if (!d) return;
+      const b = make(d, at ?? { x: 0, y: bottomOf(d) });
+      const x = Math.max(0, Math.min(d.width - b.w, b.x));
+      commit({ ...d, blocks: [...d.blocks, { ...b, x }] });
+      setSel({ block: b.id, panels: [] });
+    },
+    [commit],
+  );
+
   const addFiles = useCallback(
-    async (files: readonly File[], onto?: string) => {
-      const f = current.current;
-      if (!f) return;
-      const folder = `${dirOf(path)}${dirOf(path) === '' ? '' : '/'}attachments`;
+    async (files: readonly File[], target: AddTarget) => {
+      const d = current.current;
+      if (!d) return;
+      const attachments = `${dirOf(path)}${dirOf(path) === '' ? '' : '/'}attachments`;
       const added: string[] = [];
       try {
         for (const file of files) {
@@ -346,198 +451,359 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
             setNotice(`${file.name} is not an image BenchWork can show yet.`);
             continue;
           }
-          await ctx.vault.ensureDir(folder);
+          await ctx.vault.ensureDir(attachments);
           const stem =
             file.name.replace(/\.[^.]+$/, '').replace(/[\\/:*?"<>|#^[\]]+/g, '-') || 'image';
           const ext = /\.[a-z0-9]+$/i.exec(file.name)?.[0].toLowerCase() ?? '.png';
-          const name = await ctx.vault.freeName(folder, stem, ext);
-          const target = `${folder}/${name}`;
-          await ctx.vault.writeBytes(target, new Uint8Array(await file.arrayBuffer()));
-          added.push(target);
+          const name = await ctx.vault.freeName(attachments, stem, ext);
+          const saved = `${attachments}/${name}`;
+          const bytes = new Uint8Array(await file.arrayBuffer());
+          await ctx.vault.writeBytes(saved, bytes);
+          added.push(saved);
+          // Read now, so a new part can take the image's shape.
+          try {
+            planes.current.set(saved, await loadPlanes(bytes, saved));
+            loading.current.add(saved);
+            setLoaded((n) => n + 1);
+            setReadImages(new Map(planes.current));
+          } catch {
+            // Read again, and reported, when drawn.
+          }
         }
       } catch (err) {
         setNotice(`That could not be added. ${err instanceof Error ? err.message : String(err)}`);
       }
-      if (added.length > 0) commit(fillWith(current.current ?? f, added, onto));
+      if (added.length === 0) return;
+      const now = current.current ?? d;
+      // Panels given these images take the pixel size each file brings.
+      const sized = (g: Grid): Grid => ({
+        ...g,
+        panels: g.panels.map((p) => {
+          const read = p.image ? planes.current.get(p.image.path) : undefined;
+          return p.image && p.image.umPerPx === null && read?.umPerPx
+            ? { ...p, image: { ...p.image, umPerPx: read.umPerPx } }
+            : p;
+        }),
+      });
+      // Onto a grid's panel: fill that grid from there.
+      const into = target.panel ? findPanel(layoutDoc(now), target.panel) : null;
+      if (into) {
+        const grid = sized(fillWith(into.block.grid, added, target.panel));
+        commit(withGrid(now, into.block.id, grid, true));
+        return;
+      }
+      // Anywhere else: a new part, one image or a grid of them, shaped like the first.
+      const first = planes.current.get(added[0] ?? '');
+      const aspect = first ? first.height / first.width : 0.75;
+      const cols = Math.min(added.length, 4);
+      const rows = Math.ceil(added.length / cols);
+      const width = added.length === 1 ? Math.round(now.width / 2) : now.width;
+      place((doc, at) => {
+        const base = blockGrid(rows, cols, width);
+        const panelWidth = (width - base.gap * (cols - 1)) / cols;
+        const grid = sized(
+          fillWith({ ...base, rows: base.rows.map(() => panelWidth * aspect) }, added),
+        );
+        const strip = doc.letters.show ? letterStrip(doc) : 0;
+        return {
+          id: newId(),
+          kind: 'grid',
+          x: at.x,
+          y: at.y,
+          w: width,
+          h: layout(grid).height + strip,
+          letter: null,
+          grid,
+        };
+      }, target.at);
     },
-    [ctx, path, commit],
+    [ctx, path, commit, place],
   );
 
-  // ---- Pointer: choosing panels, moving and zooming images ----
+  const addGrid = () => {
+    place((d, at) => {
+      const grid = blockGrid(2, 3, d.width);
+      const strip = d.letters.show ? letterStrip(d) : 0;
+      return {
+        id: newId(),
+        kind: 'grid',
+        x: at.x,
+        y: at.y,
+        w: d.width,
+        h: layout(grid).height + strip,
+        letter: null,
+        grid,
+      };
+    });
+  };
+
+  const addText = () => {
+    place((_d, at) => ({
+      id: newId(),
+      kind: 'text',
+      x: at.x,
+      y: at.y,
+      w: 50,
+      h: 8,
+      letter: null,
+      text: newText(),
+    }));
+    setTimeout(() => document.getElementById('fig-text-input')?.focus(), 50);
+  };
+
+  // ---- Pointer: choosing, moving and resizing parts; moving and zooming images ----
   useEffect(() => {
     const c = canvas.current;
     if (!c) return;
     const pointers = new Map<number, { x: number; y: number }>();
-    let drag:
-      | { mode: 'crop'; id: string; x: number; y: number; before: Figure; moved: boolean }
-      | {
-          mode: 'mark';
-          id: string;
-          mark: string;
-          x: number;
-          y: number;
-          before: Figure;
-          moved: boolean;
-        }
-      | {
-          mode: 'inset';
-          id: string;
-          u: number;
-          v: number;
-          x: number;
-          y: number;
-          before: Figure;
-          moved: boolean;
-        }
-      | null = null;
+    interface Moving {
+      before: FigureDoc;
+      moved: boolean;
+    }
+    type Drag =
+      | (Moving & { mode: 'block'; id: string; start: Box; x: number; y: number })
+      | (Moving & { mode: 'resize'; id: string; edges: Edges; start: Box; x: number; y: number })
+      | (Moving & { mode: 'crop'; id: string; x: number; y: number })
+      | (Moving & { mode: 'mark'; id: string; mark: string })
+      | (Moving & { mode: 'inset'; id: string; u: number; v: number })
+      | { mode: 'scroll'; y: number; top: number };
+    let drag: Drag | null = null;
     let pinch = 0;
+    const show = (next: FigureDoc) => {
+      current.current = next;
+      setDoc(next);
+    };
+    const perMm = () => c.getBoundingClientRect().width / (current.current?.width ?? 1);
     const mm = (e: { clientX: number; clientY: number }) => {
       const r = c.getBoundingClientRect();
-      const scale = r.width / (current.current ? layout(current.current).width : 1);
-      return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale };
+      const s = perMm();
+      return { x: (e.clientX - r.left) / s, y: (e.clientY - r.top) / s };
     };
-    const hit = (e: { clientX: number; clientY: number }) => {
-      const f = current.current;
-      if (!f) return null;
-      const p = mm(e);
-      return panelAt(layout(f), p.x, p.y);
+
+    const editPanel = (base: FigureDoc, id: string, change: (p: Panel) => Panel): FigureDoc => {
+      const found = findPanel(layoutDoc(base), id);
+      if (!found) return base;
+      const grid = found.block.grid;
+      return withGrid(
+        base,
+        found.block.id,
+        { ...grid, panels: grid.panels.map((p) => (p.id === id ? change(p) : p)) },
+        false,
+      );
     };
     const setCrop = (
       id: string,
-      change: (
-        crop: Crop,
-        box: { w: number; h: number },
-        natural: { w: number; h: number },
-      ) => Crop,
-      base: Figure,
+      change: (crop: Crop, box: Box, natural: { w: number; h: number }) => Crop,
+      base: FigureDoc,
     ) => {
-      const box = layout(base).panels.find((p) => p.panel.id === id);
-      const panel = box?.panel;
+      const found = findPanel(layoutDoc(base), id);
+      const panel = found?.box.panel;
       const read = panel?.image ? planes.current.get(panel.image.path) : undefined;
-      if (!box || !panel?.image || !read) return null;
-      const crop = change(panel.image.crop, box, { w: read.width, h: read.height });
-      return {
-        ...base,
-        panels: base.panels.map((p) =>
-          p.id === id && p.image ? { ...p, image: { ...p.image, crop } } : p,
-        ),
-      };
+      if (!found || !panel?.image || !read) return null;
+      const crop = change(panel.image.crop, found.box, { w: read.width, h: read.height });
+      return editPanel(base, id, (p) => (p.image ? { ...p, image: { ...p.image, crop } } : p));
     };
-
+    const zoomBy = (factor: number) => (crop: Crop) => ({
+      ...crop,
+      zoom: Math.min(40, Math.max(1, crop.zoom * factor)),
+    });
     /** Where a pointer is in a panel's image, with that panel's box and the image's size. */
-    const inImage = (e: { clientX: number; clientY: number }, id: string, base: Figure) => {
-      const box = layout(base).panels.find((p) => p.panel.id === id);
+    const inImage = (e: { clientX: number; clientY: number }, id: string, base: FigureDoc) => {
+      const box = findPanel(layoutDoc(base), id)?.box;
       const read = box?.panel.image ? planes.current.get(box.panel.image.path) : undefined;
       if (!box?.panel.image || !read) return null;
       const natural = { w: read.width, h: read.height };
       const at = mm(e);
       return { ...boxToImage(at.x, at.y, natural, box, box.panel.image.crop), box, natural };
     };
-    const editPanel = (base: Figure, id: string, change: (p: Panel) => Panel): Figure => ({
-      ...base,
-      panels: base.panels.map((p) => (p.id === id ? change(p) : p)),
-    });
+    const others = (d: FigureDoc, id: string) =>
+      d.blocks.filter((b) => b.id !== id).map((b) => ({ x: b.x, y: b.y, w: b.w, h: b.h }));
 
     function down(e: PointerEvent) {
       c?.focus();
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       c?.setPointerCapture(e.pointerId);
-      const target = hit(e);
-      const f = current.current;
-      if (!target || !f) {
-        setSelected([]);
-        setSelectedMark(null);
-        return;
-      }
-      if (e.shiftKey || e.ctrlKey || e.metaKey) {
-        setSelected((s) =>
-          s.includes(target.panel.id)
-            ? s.filter((x) => x !== target.panel.id)
-            : [...s, target.panel.id],
-        );
-        return;
-      }
-      setSelected([target.panel.id]);
+      const d = current.current;
+      if (!d) return;
+      const p = mm(e);
+      const l = layoutDoc(d);
+      const s = selRef.current;
       pinch = 0;
-      const id = target.panel.id;
-      const point = inImage(e, id, f);
-      const tool = toolRef.current;
-      if (point && tool !== 'move' && tool !== 'inset') {
-        // A new mark where the panel was pressed; the tool goes back to moving.
+
+      // A chosen part's handles: resize by the squares, move by the round one.
+      const chosen = l.blocks.find((b) => b.block.id === s.block);
+      const handle = chosen ? handleAt(chosen.box, p, perMm()) : null;
+      if (chosen && handle) {
+        const start = chosen.box;
+        drag =
+          'edges' in handle
+            ? {
+                mode: 'resize',
+                id: chosen.block.id,
+                edges: handle.edges,
+                start,
+                ...p,
+                before: d,
+                moved: false,
+              }
+            : { mode: 'block', id: chosen.block.id, start, ...p, before: d, moved: false };
+        return;
+      }
+
+      const hit = blockAt(l, p.x, p.y);
+      if (!hit) {
+        setSel(NONE);
+        setSelectedMark(null);
+        drag = { mode: 'scroll', y: e.clientY, top: stage.current?.scrollTop ?? 0 };
+        return;
+      }
+      const id = hit.block.id;
+      const moveBlock: Drag = { mode: 'block', id, start: hit.box, ...p, before: d, moved: false };
+      const panel = hit.grid ? panelAt(hit.grid, p.x, p.y) : null;
+
+      // A part not chosen yet: choose it, and a drag moves it.
+      if (s.block !== id) {
+        setSel({ block: id, panels: panel ? [panel.panel.id] : [] });
+        setSelectedMark(null);
+        drag = moveBlock;
+        return;
+      }
+      if (!panel) {
+        if (hit.grid) setSel({ block: id, panels: [] });
+        drag = moveBlock;
+        return;
+      }
+      const pid = panel.panel.id;
+      if (e.shiftKey || e.ctrlKey || e.metaKey) {
+        setSel({
+          block: id,
+          panels: s.panels.includes(pid) ? s.panels.filter((x) => x !== pid) : [...s.panels, pid],
+        });
+        return;
+      }
+      setSel({ block: id, panels: [pid] });
+      const point = inImage(e, pid, d);
+      if (!point) {
+        drag = moveBlock;
+        return;
+      }
+      const t = toolRef.current;
+      if (t !== 'move' && t !== 'inset') {
+        // A new mark where the image was pressed; the tool goes back to moving.
         const mark: Mark = {
           id: newId(),
-          kind: tool,
+          kind: t,
           u: point.u,
           v: point.v,
           angle: 135,
-          size: tool === 'text' ? 8 : 10,
+          size: t === 'text' ? 8 : 10,
           colour: '#ffffff',
-          text: tool === 'text' ? 'Text' : '',
+          text: t === 'text' ? 'Text' : '',
         };
-        commit(editPanel(f, id, (p) => ({ ...p, marks: [...p.marks, mark] })));
+        commit(editPanel(d, pid, (x) => ({ ...x, marks: [...x.marks, mark] })));
         setSelectedMark(mark.id);
         setTool('move');
         return;
       }
-      if (point && tool === 'inset') {
-        drag = { mode: 'inset', id, u: point.u, v: point.v, before: f, moved: false, x: 0, y: 0 };
+      if (t === 'inset') {
+        drag = { mode: 'inset', id: pid, u: point.u, v: point.v, before: d, moved: false };
         return;
       }
       // A mark under the pointer is picked up and moved.
-      if (point) {
-        const near = target.panel.marks.find((m) => {
-          const at = imageToBox(
-            m.u,
-            m.v,
-            point.natural,
-            point.box,
-            target.panel.image?.crop ?? DEFAULT_CROP,
-          );
-          const here = mm(e);
-          return at !== null && Math.hypot(at.x - here.x, at.y - here.y) < 3;
-        });
-        if (near) {
-          setSelectedMark(near.id);
-          drag = { mode: 'mark', id, mark: near.id, before: f, moved: false, x: 0, y: 0 };
-          return;
-        }
+      const crop = panel.panel.image?.crop ?? DEFAULT_CROP;
+      const near = panel.panel.marks.find((m) => {
+        const at = imageToBox(m.u, m.v, point.natural, point.box, crop);
+        return at !== null && Math.hypot(at.x - p.x, at.y - p.y) < 3;
+      });
+      if (near) {
+        setSelectedMark(near.id);
+        drag = { mode: 'mark', id: pid, mark: near.id, before: d, moved: false };
+        return;
       }
       setSelectedMark(null);
-      drag = { mode: 'crop', id, x: e.clientX, y: e.clientY, before: f, moved: false };
+      drag = { mode: 'crop', id: pid, x: e.clientX, y: e.clientY, before: d, moved: false };
+    }
+
+    function hover(e: PointerEvent, d: FigureDoc) {
+      const chosen = layoutDoc(d).blocks.find((b) => b.block.id === selRef.current.block);
+      const handle = chosen ? handleAt(chosen.box, mm(e), perMm()) : null;
+      if (c) c.style.cursor = !handle ? '' : 'edges' in handle ? cursorFor(handle.edges) : 'move';
     }
 
     function move(e: PointerEvent) {
+      const d = current.current;
+      if (!d) return;
+      if (!drag && e.pointerType === 'mouse') hover(e, d);
       if (!pointers.has(e.pointerId) || !drag) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      const f = current.current;
-      if (!f) return;
+      if (drag.mode === 'scroll') {
+        // Fingers on the empty page scroll it, as the page takes all touches.
+        if (e.pointerType !== 'mouse' && stage.current)
+          stage.current.scrollTop = drag.top - (e.clientY - drag.y);
+        return;
+      }
+      if (drag.mode === 'block' || drag.mode === 'resize') {
+        const p = mm(e);
+        const dx = p.x - drag.x;
+        const dy = p.y - drag.y;
+        if (!drag.moved && Math.hypot(dx, dy) * perMm() < 3) return;
+        drag.moved = true;
+        const o = { pageWidth: d.width, gap: d.gap, reach: 10 / perMm() };
+        const rest = others(d, drag.id);
+        const snapped =
+          drag.mode === 'block'
+            ? snapMove({ ...drag.start, x: drag.start.x + dx, y: drag.start.y + dy }, rest, o)
+            : snapResize(resized(drag.start, drag.edges, dx, dy), drag.edges, rest, o);
+        // Kept on the page across; it can grow down as far as it likes.
+        const id = drag.id;
+        const kind = d.blocks.find((x) => x.id === id)?.kind;
+        // Images keep their shape from a corner; an edge crops them.
+        const b =
+          drag.mode === 'resize' && kind === 'grid'
+            ? keepShape(drag.start, snapped.box, drag.edges)
+            : snapped.box;
+        const x =
+          drag.mode === 'block' && b.w <= d.width ? Math.min(d.width - b.w, Math.max(0, b.x)) : b.x;
+        const box = { ...b, x, y: Math.max(0, b.y) };
+        setGuides(snapped.guides);
+        show(
+          editBlock(d, id, (old) => {
+            const b = { ...old, ...box };
+            if (b.kind !== 'text' || drag?.mode !== 'resize') return b;
+            // Text keeps to its words: dragging across rewraps it.
+            const size = b.text.size * POINT;
+            const along = b.text.upright ? b.h : b.w;
+            return fitText(b, wrapText(b.text.text, size, Math.max(1, along - size * 0.2)).length);
+          }),
+        );
+        return;
+      }
       if (drag.mode === 'mark' || drag.mode === 'inset') {
-        const point = inImage(e, drag.id, f);
+        const point = inImage(e, drag.id, d);
         if (!point) return;
         const u = Math.min(1, Math.max(0, point.u));
         const v = Math.min(1, Math.max(0, point.v));
         drag.moved = true;
-        const d = drag;
-        const next =
-          d.mode === 'mark'
-            ? editPanel(f, d.id, (p) => ({
-                ...p,
-                marks: p.marks.map((m) => (m.id === d.mark ? { ...m, u, v } : m)),
+        const dr = drag;
+        show(
+          dr.mode === 'mark'
+            ? editPanel(d, dr.id, (x) => ({
+                ...x,
+                marks: x.marks.map((m) => (m.id === dr.mark ? { ...m, u, v } : m)),
               }))
-            : editPanel(f, d.id, (p) => ({
-                ...p,
+            : editPanel(d, dr.id, (x) => ({
+                ...x,
                 inset: {
-                  u0: Math.min(d.u, u),
-                  v0: Math.min(d.v, v),
-                  u1: Math.max(d.u, u),
-                  v1: Math.max(d.v, v),
-                  corner: p.inset?.corner ?? 'bottom-left',
-                  size: p.inset?.size ?? 0.4,
-                  colour: p.inset?.colour ?? '#ffffff',
+                  u0: Math.min(dr.u, u),
+                  v0: Math.min(dr.v, v),
+                  u1: Math.max(dr.u, u),
+                  v1: Math.max(dr.v, v),
+                  corner: x.inset?.corner ?? 'bottom-left',
+                  size: x.inset?.size ?? 0.4,
+                  colour: x.inset?.colour ?? '#ffffff',
                 },
-              }));
-        current.current = next;
-        setFigure(next);
+              })),
+        );
         return;
       }
       if (pointers.size >= 2) {
@@ -545,68 +811,93 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
         if (!a || !b) return;
         const distance = Math.hypot(a.x - b.x, a.y - b.y);
         if (pinch > 0) {
-          const factor = distance / pinch;
-          const next = setCrop(
-            drag.id,
-            (crop) => ({ ...crop, zoom: Math.min(40, Math.max(1, crop.zoom * factor)) }),
-            f,
-          );
+          const next = setCrop(drag.id, zoomBy(distance / pinch), d);
           if (next) {
-            current.current = next;
-            setFigure(next);
+            show(next);
             drag.moved = true;
           }
         }
         pinch = distance;
         return;
       }
-      const box = layout(f).panels.find((p) => p.panel.id === drag?.id);
-      if (!box) return;
-      const r = c?.getBoundingClientRect();
-      const scale = r ? r.width / layout(f).width : 1;
-      const dx = (e.clientX - drag.x) / (box.w * scale);
-      const dy = (e.clientY - drag.y) / (box.h * scale);
+      const found = findPanel(layoutDoc(d), drag.id);
+      if (!found) return;
+      const s = perMm();
+      const dx = (e.clientX - drag.x) / (found.box.w * s);
+      const dy = (e.clientY - drag.y) / (found.box.h * s);
       if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 3) return;
       drag.moved = true;
       const next = setCrop(
         drag.id,
         (crop, b, natural) => panned(crop, dx, dy, sourceRect(natural, b, crop), natural),
-        f,
+        d,
       );
       drag.x = e.clientX;
       drag.y = e.clientY;
-      if (next) {
-        current.current = next;
-        setFigure(next);
-      }
+      if (next) show(next);
     }
 
     function up(e: PointerEvent) {
       pointers.delete(e.pointerId);
       if (pointers.size > 0) return;
-      const d = drag;
+      const dr = drag;
       drag = null;
       pinch = 0;
-      if (d?.mode === 'inset') setTool('move');
-      if (d?.moved && current.current) {
+      setGuides([]);
+      if (!dr || dr.mode === 'scroll') return;
+      if (dr.mode === 'inset') setTool('move');
+      if (dr.moved && current.current) {
         const after = current.current;
-        current.current = d.before;
+        current.current = dr.before;
         commit(after);
       }
     }
 
     function wheel(e: WheelEvent) {
-      const target = hit(e);
-      const f = current.current;
-      if (!target?.panel.image || !f) return;
+      const d = current.current;
+      if (!d) return;
+      const p = mm(e);
+      const hit = blockAt(layoutDoc(d), p.x, p.y);
+      // Only a chosen part's images zoom; otherwise the page scrolls.
+      if (!hit?.grid || hit.block.id !== selRef.current.block) return;
+      const panel = panelAt(hit.grid, p.x, p.y);
+      if (!panel?.panel.image) return;
       e.preventDefault();
-      const factor = Math.exp(-e.deltaY * 0.0015);
-      const next = setCrop(
-        target.panel.id,
-        (crop) => ({ ...crop, zoom: Math.min(40, Math.max(1, crop.zoom * factor)) }),
-        f,
-      );
+      const next = setCrop(panel.panel.id, zoomBy(Math.exp(-e.deltaY * 0.0015)), d);
       if (next) commit(next);
+    }
+
+    function dblclick() {
+      const b = current.current?.blocks.find((x) => x.id === selRef.current.block);
+      if (b?.kind === 'text') document.getElementById('fig-text-input')?.focus();
+    }
+
+    function key(e: KeyboardEvent) {
+      const d = current.current;
+      const id = selRef.current.block;
+      if (!d || id === null) return;
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        commit(removeBlock(d, id));
+        setSel(NONE);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setSel(NONE);
+        return;
+      }
+      const step = e.shiftKey ? 5 : 0.5;
+      const shifts: Record<string, [number, number]> = {
+        ArrowLeft: [-step, 0],
+        ArrowRight: [step, 0],
+        ArrowUp: [0, -step],
+        ArrowDown: [0, step],
+      };
+      const shift = shifts[e.key];
+      if (!shift) return;
+      e.preventDefault();
+      const [dx, dy] = shift;
+      commit(editBlock(d, id, (b) => ({ ...b, x: b.x + dx, y: Math.max(0, b.y + dy) })));
     }
 
     c.addEventListener('pointerdown', down);
@@ -614,12 +905,16 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     c.addEventListener('pointerup', up);
     c.addEventListener('pointercancel', up);
     c.addEventListener('wheel', wheel, { passive: false });
+    c.addEventListener('dblclick', dblclick);
+    c.addEventListener('keydown', key);
     return () => {
       c.removeEventListener('pointerdown', down);
       c.removeEventListener('pointermove', move);
       c.removeEventListener('pointerup', up);
       c.removeEventListener('pointercancel', up);
       c.removeEventListener('wheel', wheel);
+      c.removeEventListener('dblclick', dblclick);
+      c.removeEventListener('keydown', key);
     };
   }, [commit, status]);
 
@@ -635,21 +930,21 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
       if (files.length === 0) return;
       e.preventDefault();
       const c = canvas.current;
-      const f = current.current;
-      let onto: string | undefined;
-      if (c && f) {
-        const r = c.getBoundingClientRect();
-        const scale = r.width / layout(f).width;
-        onto = panelAt(layout(f), (e.clientX - r.left) / scale, (e.clientY - r.top) / scale)?.panel
-          .id;
-      }
-      void addFiles(files, onto);
+      const d = current.current;
+      if (!c || !d) return;
+      const r = c.getBoundingClientRect();
+      const s = r.width / d.width;
+      const at = { x: (e.clientX - r.left) / s, y: Math.max(0, (e.clientY - r.top) / s) };
+      const hit = blockAt(layoutDoc(d), at.x, at.y);
+      const panel = hit?.grid ? panelAt(hit.grid, at.x, at.y) : null;
+      void addFiles(files, panel ? { panel: panel.panel.id } : { at });
     };
     const paste = (e: ClipboardEvent) => {
       const files = [...(e.clipboardData?.files ?? [])];
       if (files.length === 0) return;
       e.preventDefault();
-      void addFiles(files, selected.at(-1));
+      const panel = selRef.current.panels.at(-1);
+      void addFiles(files, panel ? { panel } : {});
     };
     el.addEventListener('dragover', over);
     el.addEventListener('drop', drop);
@@ -659,33 +954,39 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
       el.removeEventListener('drop', drop);
       el.removeEventListener('paste', paste);
     };
-  }, [addFiles, selected]);
+  }, [addFiles, status]);
 
   if (status === 'unreadable')
     return <p className="notice">This figure could not be read, so it is left as it is.</p>;
-  if (!figure) return <p className="hint">Opening the figure…</p>;
+  if (!doc) return <p className="hint">Opening the figure…</p>;
 
-  const chosen = figure.panels.filter((p) => selected.includes(p.id));
-  const one: Panel | undefined = chosen.length === 1 ? chosen[0] : undefined;
-  const editPanels = (change: (p: Panel) => Panel) => {
-    commit({
-      ...figure,
-      panels: figure.panels.map((p) => (selected.includes(p.id) ? change(p) : p)),
-    });
-  };
-  const editCrop = (change: (c: Crop) => Crop) => {
-    editPanels((p) => (p.image ? { ...p, image: { ...p.image, crop: change(p.image.crop) } } : p));
-  };
-  const block = (() => {
-    if (chosen.length < 2) return null;
-    const row = Math.min(...chosen.map((p) => p.row));
-    const col = Math.min(...chosen.map((p) => p.col));
-    const rowEnd = Math.max(...chosen.map((p) => p.row + p.rowSpan));
-    const colEnd = Math.max(...chosen.map((p) => p.col + p.colSpan));
-    return { row, col, rowSpan: rowEnd - row, colSpan: colEnd - col };
+  const block = doc.blocks.find((b) => b.id === sel.block) ?? null;
+  const gridBlock: GridBlock | null = block?.kind === 'grid' ? block : null;
+  const chosenPanels = gridBlock
+    ? gridBlock.grid.panels.filter((p) => sel.panels.includes(p.id))
+    : [];
+  // A grid of one image goes straight to that image.
+  const panelsShown =
+    gridBlock && chosenPanels.length === 0 && gridBlock.grid.panels.length === 1
+      ? gridBlock.grid.panels
+      : chosenPanels;
+  const shownLetters = letters(doc);
+  const shownLetter = block ? (shownLetters.get(block.id) ?? '') : '';
+  const onePanel = panelsShown.length === 1 ? panelsShown[0] : undefined;
+  const rowHeight = (() => {
+    if (!gridBlock || !onePanel) return null;
+    const bl = layoutDoc(doc).blocks.find((b) => b.block.id === gridBlock.id);
+    return bl?.grid?.rowHeights[onePanel.row] ?? null;
   })();
-  const lastRow = one ? one.row + one.rowSpan - 1 : figure.rows.length - 1;
-  const lastCol = one ? one.col + one.colSpan - 1 : figure.cols.length - 1;
+  const openPicker = (target: AddTarget) => {
+    addTarget.current = target;
+    fileInput.current?.click();
+  };
+  const commitGrid = (g: Grid, grow: boolean) => {
+    if (!gridBlock) return;
+    commit(withGrid(doc, gridBlock.id, g, grow));
+    setSel((s) => ({ ...s, panels: s.panels.filter((id) => g.panels.some((p) => p.id === id)) }));
+  };
 
   return (
     <div className="fig">
@@ -716,94 +1017,29 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
             <Redo2 {...ICON} />
           </button>
         </div>
-        <label className="fig-field">
-          Width
-          <select
-            aria-label="Page width"
-            value={PAGE_WIDTHS.find((w) => w.width === figure.width)?.width ?? 'own'}
-            onChange={(e) => {
-              if (e.target.value !== 'own') commit({ ...figure, width: Number(e.target.value) });
-            }}
-          >
-            {PAGE_WIDTHS.map((w) => (
-              <option key={w.width} value={w.width}>
-                {w.name}, {w.width} mm
-              </option>
-            ))}
-            {!PAGE_WIDTHS.some((w) => w.width === figure.width) && (
-              <option value="own">{figure.width} mm</option>
-            )}
-          </select>
-        </label>
-        <label className="fig-field">
-          Gap
-          <input
-            type="number"
-            aria-label="Gap between panels, mm"
-            min={0}
-            max={20}
-            step={0.5}
-            value={figure.gap}
-            onChange={(e) => {
-              const gap = Number(e.target.value);
-              if (Number.isFinite(gap) && gap >= 0 && gap <= 20) commit({ ...figure, gap });
-            }}
-          />
-          mm
-        </label>
-        <div className="tool-group" role="group" aria-label="Rows and columns">
-          <Rows3 {...ICON} />
+        <div className="tool-group" role="group" aria-label="Add">
           <button
             type="button"
-            className="tool"
-            title="Add a row"
-            aria-label="Add a row"
+            className="quiet"
+            title="Add images to the page"
             onClick={() => {
-              commit(insertLine(figure, 'row', lastRow));
+              openPicker({});
             }}
           >
-            <Plus {...ICON} />
+            <ImagePlus {...ICON} /> Images
           </button>
           <button
             type="button"
-            className="tool"
-            title="Remove a row"
-            aria-label="Remove a row"
-            disabled={figure.rows.length <= 1}
-            onClick={() => {
-              commit(removeLine(figure, 'row', lastRow));
-            }}
+            className="quiet"
+            title="Add an empty grid to fill with images"
+            onClick={addGrid}
           >
-            <Minus {...ICON} />
+            <Grid2x2 {...ICON} /> Grid
           </button>
-          <Columns3 {...ICON} />
-          <button
-            type="button"
-            className="tool"
-            title="Add a column"
-            aria-label="Add a column"
-            onClick={() => {
-              commit(insertLine(figure, 'col', lastCol));
-            }}
-          >
-            <Plus {...ICON} />
-          </button>
-          <button
-            type="button"
-            className="tool"
-            title="Remove a column"
-            aria-label="Remove a column"
-            disabled={figure.cols.length <= 1}
-            onClick={() => {
-              commit(removeLine(figure, 'col', lastCol));
-            }}
-          >
-            <Minus {...ICON} />
+          <button type="button" className="quiet" title="Add text" onClick={addText}>
+            <Type {...ICON} /> Text
           </button>
         </div>
-        <button type="button" className="quiet" onClick={() => fileInput.current?.click()}>
-          <ImagePlus {...ICON} /> Add images
-        </button>
         <div className="tool-group fig-export" role="group" aria-label="Export">
           <select
             aria-label="Export as"
@@ -836,10 +1072,10 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
           <button
             type="button"
             className="quiet"
-            title="How each panel was made: files, crops, scale and display"
+            title="How each image was made: files, crops, scale and display"
             onClick={() => {
-              const f = current.current;
-              if (f) setMethods(methodsNote(f, planes.current, baseName));
+              const d = current.current;
+              if (d) setMethods(methodsNote(d, planes.current, baseName));
             }}
           >
             <FileText {...ICON} /> Methods note
@@ -860,7 +1096,8 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
           onChange={(e) => {
             const files = [...(e.target.files ?? [])];
             e.target.value = '';
-            void addFiles(files, selected.at(-1));
+            void addFiles(files, addTarget.current);
+            addTarget.current = {};
           }}
         />
       </div>
@@ -942,186 +1179,99 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
             className="fig-page"
             tabIndex={0}
             role="img"
-            aria-label="The figure. Drop images onto panels; drag inside a panel to move its image, and zoom with the wheel or a pinch."
+            aria-label="The figure. Drop images on the page to add them, drag parts to move them, and drag inside a chosen image to move it in its frame."
           />
         </div>
-        <aside className="fig-side" aria-label="Panel">
-          {chosen.length === 0 ? (
-            <>
-              <p className="hint">
-                {ctx.platform === 'tablet'
-                  ? 'Press a panel to crop, turn or name its channels. Add several images to fill the empty panels in order; extra ones go in new rows.'
-                  : 'Choose a panel to crop, turn or name its channels. Drop several images to fill the empty panels in order; extra ones go in new rows. Shift-click to choose more than one.'}
-              </p>
-              <FigureLabels figure={figure} onChange={commit} />
-            </>
+        <aside className="fig-side" aria-label="Part">
+          {!block ? (
+            <PageControls doc={doc} tablet={ctx.platform === 'tablet'} onChange={commit} />
           ) : (
             <>
-              <h3>{chosen.length === 1 ? 'Panel' : `${String(chosen.length)} panels`}</h3>
-              {one?.image && (
-                <p className="fig-file" title={one.image.path}>
-                  {one.image.path.split('/').at(-1)}
-                </p>
-              )}
-              <div className="tool-group" role="group" aria-label="Image">
-                <button
-                  type="button"
-                  className="tool"
-                  title="Zoom out"
-                  aria-label="Zoom out"
-                  onClick={() => {
-                    editCrop((c) => ({ ...c, zoom: Math.max(1, c.zoom / 1.25) }));
-                  }}
-                >
-                  <ZoomOut {...ICON} />
-                </button>
-                <button
-                  type="button"
-                  className="tool"
-                  title="Zoom in"
-                  aria-label="Zoom in"
-                  onClick={() => {
-                    editCrop((c) => ({ ...c, zoom: Math.min(40, c.zoom * 1.25) }));
-                  }}
-                >
-                  <ZoomIn {...ICON} />
-                </button>
-                <button
-                  type="button"
-                  className="tool"
-                  title="Turn a quarter"
-                  aria-label="Turn a quarter"
-                  onClick={() => {
-                    editCrop((c) => ({ ...c, turns: ((c.turns + 1) % 4) as Crop['turns'] }));
-                  }}
-                >
-                  <RotateCw {...ICON} />
-                </button>
-                <button
-                  type="button"
-                  className="tool"
-                  title="Flip"
-                  aria-label="Flip"
-                  onClick={() => {
-                    editCrop((c) => ({ ...c, flip: !c.flip }));
-                  }}
-                >
-                  <FlipHorizontal2 {...ICON} />
-                </button>
-                <button
-                  type="button"
-                  className="quiet"
-                  onClick={() => {
-                    editCrop(() => ({ ...DEFAULT_CROP }));
-                  }}
-                >
-                  Reset
-                </button>
-              </div>
-              <DisplayControls
-                figure={figure}
-                panels={chosen}
-                planes={readImages}
-                onChange={commit}
-              />
-              <ScaleControls figure={figure} panels={chosen} onChange={commit} />
-              {one?.image && (
-                <MarkControls
-                  panel={one}
-                  tool={tool}
-                  selectedMark={selectedMark}
-                  onTool={setTool}
-                  onSelectMark={setSelectedMark}
-                  onChange={(panel) => {
-                    commit({
-                      ...figure,
-                      panels: figure.panels.map((p) => (p.id === panel.id ? panel : p)),
-                    });
+              <h3>
+                {block.kind === 'text'
+                  ? 'Text'
+                  : block.grid.panels.length === 1
+                    ? 'Image'
+                    : 'Grid of images'}
+                {shownLetter !== '' ? ` ${shownLetter}` : ''}
+              </h3>
+              {block.kind === 'text' && (
+                <TextControls
+                  text={block.text}
+                  onChange={(text) => {
+                    commit(
+                      editBlock(doc, block.id, (b) => {
+                        if (b.kind !== 'text') return b;
+                        const along = text.upright ? b.h : b.w;
+                        const size = text.size * POINT;
+                        const lines = wrapText(text.text, size, Math.max(1, along - size * 0.2));
+                        return fitText({ ...b, text }, lines.length);
+                      }),
+                    );
                   }}
                 />
               )}
-              <PanelLabels
-                panels={chosen}
-                onChange={(labels) => {
-                  editPanels((p) => ({ ...p, labels }));
+              {gridBlock && panelsShown.length === 0 && (
+                <GridControls
+                  grid={gridBlock.grid}
+                  onChange={commitGrid}
+                  onAddImages={() => {
+                    const empty = gridBlock.grid.panels.find((p) => p.image === null);
+                    const first = empty ?? gridBlock.grid.panels[0];
+                    openPicker(first ? { panel: first.id } : {});
+                  }}
+                />
+              )}
+              {gridBlock && panelsShown.length > 0 && (
+                <>
+                  {gridBlock.grid.panels.length === 1 && onePanel && !onePanel.image && (
+                    <button
+                      type="button"
+                      className="quiet"
+                      onClick={() => {
+                        openPicker({ panel: onePanel.id });
+                      }}
+                    >
+                      <ImagePlus {...ICON} /> Choose an image
+                    </button>
+                  )}
+                  <PanelControls
+                    grid={gridBlock.grid}
+                    chosen={panelsShown}
+                    planes={readImages}
+                    tool={tool}
+                    selectedMark={selectedMark}
+                    rowHeight={rowHeight}
+                    onTool={setTool}
+                    onSelectMark={setSelectedMark}
+                    onChange={commitGrid}
+                    onBack={() => {
+                      setSel({ block: gridBlock.id, panels: [] });
+                    }}
+                    onNotice={setNotice}
+                  />
+                </>
+              )}
+              <BlockControls
+                block={block}
+                shownLetter={shownLetter}
+                pageWidth={doc.width}
+                onChange={(b) => {
+                  commit(editBlock(doc, block.id, () => b));
+                }}
+                onDuplicate={() => {
+                  const out = duplicate(doc, block.id);
+                  commit(out.doc);
+                  setSel({ block: out.id, panels: [] });
+                }}
+                onRestack={(front) => {
+                  commit(restack(doc, block.id, front));
+                }}
+                onRemove={() => {
+                  commit(removeBlock(doc, block.id));
+                  setSel(NONE);
                 }}
               />
-              {chosen.length > 1 && (
-                <button
-                  type="button"
-                  className="quiet"
-                  title="Copy the first panel's zoom to the others, so they match"
-                  onClick={() => {
-                    const zoom = chosen[0]?.image?.crop.zoom ?? 1;
-                    editCrop((c) => ({ ...c, zoom }));
-                  }}
-                >
-                  Match zoom
-                </button>
-              )}
-              <div className="tool-group" role="group" aria-label="Arrange">
-                {block !== null && (
-                  <button
-                    type="button"
-                    className="quiet"
-                    onClick={() => {
-                      const next = merge(figure, block);
-                      if (next) {
-                        commit(next);
-                        setSelected([]);
-                      } else
-                        setNotice(
-                          'Those panels cannot be joined: the block would cut through another panel.',
-                        );
-                    }}
-                  >
-                    <Merge {...ICON} /> Join
-                  </button>
-                )}
-                {one && (one.rowSpan > 1 || one.colSpan > 1) && (
-                  <button
-                    type="button"
-                    className="quiet"
-                    onClick={() => {
-                      commit(split(figure, one.id));
-                    }}
-                  >
-                    <SplitSquareHorizontal {...ICON} /> Split
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="quiet"
-                  onClick={() => {
-                    editPanels((p) => ({ ...p, image: null }));
-                  }}
-                >
-                  <Trash2 {...ICON} /> Remove image
-                </button>
-              </div>
-              {one && (
-                <label className="fig-field">
-                  Row height
-                  <input
-                    type="number"
-                    aria-label="Row height, mm"
-                    min={5}
-                    max={400}
-                    step={1}
-                    value={Math.round((figure.rows[one.row] ?? 0) * 10) / 10}
-                    onChange={(e) => {
-                      const h = Number(e.target.value);
-                      if (Number.isFinite(h) && h >= 5 && h <= 400) {
-                        commit({
-                          ...figure,
-                          rows: figure.rows.map((r, i) => (i === one.row ? h : r)),
-                        });
-                      }
-                    }}
-                  />
-                  mm
-                </label>
-              )}
             </>
           )}
         </aside>

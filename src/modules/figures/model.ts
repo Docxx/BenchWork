@@ -161,7 +161,7 @@ export interface LetterStyle {
   show: boolean;
 }
 
-export interface Figure {
+export interface Grid {
   version: 1;
   /** Page width, mm. The height follows from the rows. */
   width: number;
@@ -204,6 +204,8 @@ export interface Layout {
   headers: (Box & { header: Header })[];
   /** The grid's own box, inside the label room. */
   grid: Box;
+  /** Each row's height as laid out, mm. */
+  rowHeights: number[];
 }
 
 export function newId(): string {
@@ -213,9 +215,9 @@ export function newId(): string {
 export const DEFAULT_CROP: Crop = { zoom: 1, cx: 0.5, cy: 0.5, turns: 0, flip: false };
 
 /** A figure with a grid of empty panels, one to a cell. */
-export function newFigure(rows = 2, cols = 3, width = 174): Figure {
+export function newGrid(rows = 2, cols = 3, width = 174): Grid {
   const panelWidth = (width - 2 * (cols - 1)) / cols;
-  const figure: Figure = {
+  const figure: Grid = {
     version: 1,
     width,
     gap: 2,
@@ -236,7 +238,7 @@ export function newFigure(rows = 2, cols = 3, width = 174): Figure {
 }
 
 /** Every cell not covered by a panel gets an empty one, in reading order. */
-export function fillCells(figure: Figure): Figure {
+export function fillCells(figure: Grid): Grid {
   const taken = new Set<string>();
   const kept = figure.panels.filter(
     (p) =>
@@ -276,10 +278,10 @@ export function inReadingOrder(panels: readonly Panel[]): Panel[] {
   return [...panels].sort((a, b) => a.row - b.row || a.col - b.col);
 }
 
-const POINT = 25.4 / 72;
+export const POINT = 25.4 / 72;
 
 /** Room the labels take, mm: a label's text height and a little space. */
-function labelRoom(figure: Figure): { left: number; top: number; header: number } {
+export function labelRoom(figure: Grid): { left: number; top: number; header: number } {
   const line = figure.labelSize * POINT * 1.35;
   const left = figure.rowLabels.some((l) => l.trim() !== '') ? line * 1.6 : 0;
   const top = figure.colLabels.some((l) => l.trim() !== '') ? line * 1.6 : 0;
@@ -287,12 +289,19 @@ function labelRoom(figure: Figure): { left: number; top: number; header: number 
   return { left, top, header };
 }
 
-/** Where everything goes on the page. */
-export function layout(figure: Figure): Layout {
+/**
+ * Where everything in a grid goes. Alone, it starts at the page's corner at
+ * its own width, with rows as tall as they say. Placed in a box on a page,
+ * it fills the box: rows share the height in their proportions.
+ */
+export function layout(figure: Grid, box?: Box): Layout {
   const room = labelRoom(figure);
-  const gridX = room.left;
-  const gridY = room.header + room.top;
-  const gridW = Math.max(10, figure.width - gridX);
+  const ox = box?.x ?? 0;
+  const oy = box?.y ?? 0;
+  const width = box?.w ?? figure.width;
+  const gridX = ox + room.left;
+  const gridY = oy + room.header + room.top;
+  const gridW = Math.max(1, width - room.left);
   const gaps = figure.gap * Math.max(0, figure.cols.length - 1);
   const total = figure.cols.reduce((s, w) => s + w, 0) || 1;
   const colW = figure.cols.map((w) => (Math.max(0, gridW - gaps) * w) / total);
@@ -302,45 +311,58 @@ export function layout(figure: Figure): Layout {
     colX.push(x);
     x += w + figure.gap;
   }
+  let rowH = figure.rows;
+  if (box) {
+    const rowGaps = figure.gap * Math.max(0, figure.rows.length - 1);
+    const room = Math.max(1, box.h - (gridY - oy) - rowGaps);
+    const sum = figure.rows.reduce((s, h) => s + h, 0) || 1;
+    rowH = figure.rows.map((h) => (room * h) / sum);
+  }
   const rowY: number[] = [];
   let y = gridY;
-  for (const h of figure.rows) {
+  for (const h of rowH) {
     rowY.push(y);
     y += h + figure.gap;
   }
   const gridH = Math.max(0, y - figure.gap - gridY);
-  const span = (start: number[], size: number[], from: number, n: number) => {
+  const span = (start: number[], size: readonly number[], from: number, n: number) => {
     const a = start[from] ?? 0;
     const lastIndex = Math.min(from + n, size.length) - 1;
     return (start[lastIndex] ?? a) + (size[lastIndex] ?? 0) - a;
   };
   return {
-    width: figure.width,
-    height: gridY + gridH,
+    width,
+    height: box ? box.h : gridY + gridH - oy,
     grid: { x: gridX, y: gridY, w: gridW, h: gridH },
+    rowHeights: rowH,
     panels: figure.panels.map((panel) => ({
       panel,
       x: colX[panel.col] ?? 0,
       y: rowY[panel.row] ?? 0,
       w: span(colX, colW, panel.col, panel.colSpan),
-      h: span(rowY, figure.rows, panel.row, panel.rowSpan),
+      h: span(rowY, rowH, panel.row, panel.rowSpan),
     })),
-    rowLabels: figure.rows.map((h, row) => ({ row, x: 0, y: rowY[row] ?? 0, w: room.left, h })),
+    rowLabels: rowH.map((h, row) => ({ row, x: ox, y: rowY[row] ?? 0, w: room.left, h })),
     colLabels: colW.map((w, col) => ({
       col,
       x: colX[col] ?? 0,
-      y: room.header,
+      y: oy + room.header,
       w,
       h: room.top,
     })),
     headers: figure.headers.map((header) => ({
       header,
       x: colX[header.col] ?? 0,
-      y: 0,
+      y: oy,
       w: span(colX, colW, header.col, header.span),
       h: room.header,
     })),
   };
+}
+
+/** How tall a grid is at a width, with rows as tall as they say in mm. */
+export function naturalHeight(figure: Grid, width: number): number {
+  return layout({ ...figure, width }).height;
 }
 
 /** The panel at a page point (mm), or null. */
@@ -498,7 +520,7 @@ function parseCrop(raw: unknown): Crop {
 }
 
 /** Reads a figure's text; null if it is not a figure. Odd values fall back. */
-export function parseFigure(text: string): Figure | null {
+export function parseGrid(text: string): Grid | null {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
@@ -508,7 +530,7 @@ export function parseFigure(text: string): Figure | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
   if (!Array.isArray(r['rows']) || !Array.isArray(r['cols'])) return null;
-  const base = newFigure(1, 1);
+  const base = newGrid(1, 1);
   const rows = (r['rows'] as unknown[])
     .filter(num)
     .map((h) => clamp(h, 5, 400))
@@ -555,7 +577,7 @@ export function parseFigure(text: string): Figure | null {
       };
     });
   const l = (r['letters'] ?? {}) as Record<string, unknown>;
-  const figure: Figure = {
+  const figure: Grid = {
     version: 1,
     width: num(r['width']) ? clamp(r['width'], 20, 600) : base.width,
     gap: num(r['gap']) ? clamp(r['gap'], 0, 20) : base.gap,
@@ -589,14 +611,14 @@ export function parseFigure(text: string): Figure | null {
   return fillCells(figure);
 }
 
-export function serialiseFigure(figure: Figure): string {
+export function serialiseFigure(figure: Grid): string {
   return `${JSON.stringify(figure, (_k, v: unknown) => (typeof v === 'number' ? Math.round(v * 1000) / 1000 : v), 1)}\n`;
 }
 
 // ---- Changing the grid ----
 
 /** Adds a row or column after `index`, with empty panels in it; panels that span it grow. */
-export function insertLine(figure: Figure, axis: 'row' | 'col', index: number): Figure {
+export function insertLine(figure: Grid, axis: 'row' | 'col', index: number): Grid {
   const at = index + 1;
   const panels = figure.panels.map((p) => {
     const start = axis === 'row' ? p.row : p.col;
@@ -636,7 +658,7 @@ export function insertLine(figure: Figure, axis: 'row' | 'col', index: number): 
 }
 
 /** Removes a row or column; panels only in it go, panels across it shrink. */
-export function removeLine(figure: Figure, axis: 'row' | 'col', index: number): Figure {
+export function removeLine(figure: Grid, axis: 'row' | 'col', index: number): Grid {
   if ((axis === 'row' ? figure.rows : figure.cols).length <= 1) return figure;
   const panels = figure.panels.flatMap((p) => {
     const start = axis === 'row' ? p.row : p.col;
@@ -678,9 +700,9 @@ export function removeLine(figure: Figure, axis: 'row' | 'col', index: number): 
  * Null if the block would cut through a panel that reaches outside it.
  */
 export function merge(
-  figure: Figure,
+  figure: Grid,
   block: { row: number; col: number; rowSpan: number; colSpan: number },
-): Figure | null {
+): Grid | null {
   const inside = (p: Panel) =>
     p.row >= block.row &&
     p.col >= block.col &&
@@ -707,7 +729,7 @@ export function merge(
 }
 
 /** Splits a panel back into one per cell; its image stays in the first. */
-export function split(figure: Figure, id: string): Figure {
+export function split(figure: Grid, id: string): Grid {
   const panel = figure.panels.find((p) => p.id === id);
   if (!panel) return figure;
   const rest = figure.panels.filter((p) => p.id !== id);
@@ -715,7 +737,7 @@ export function split(figure: Figure, id: string): Figure {
 }
 
 /** Puts images into empty panels in reading order, from a starting panel; extra ones get new rows. */
-export function fillWith(figure: Figure, paths: readonly string[], fromId?: string): Figure {
+export function fillWith(figure: Grid, paths: readonly string[], fromId?: string): Grid {
   const order = inReadingOrder(figure.panels);
   const start =
     fromId === undefined

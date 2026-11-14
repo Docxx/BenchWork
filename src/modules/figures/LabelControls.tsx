@@ -1,6 +1,6 @@
 import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
-import { CHANNEL_COLOURS, newId, type Corner, type Figure, type Panel } from './model';
+import { CHANNEL_COLOURS, newId, type Corner, type Grid, type Panel } from './model';
 
 const CORNERS: { value: Corner; label: string }[] = [
   { value: 'top-left', label: 'Top left' },
@@ -10,7 +10,7 @@ const CORNERS: { value: Corner; label: string }[] = [
 ];
 
 /** A text box that saves when it loses focus or Enter is pressed. */
-function Text({
+export function Text({
   label,
   value,
   onSave,
@@ -54,13 +54,7 @@ const HELP = (
 );
 
 /** The grid's labels: rows, columns, headers over columns, and letters. */
-export function FigureLabels({
-  figure,
-  onChange,
-}: {
-  figure: Figure;
-  onChange: (f: Figure) => void;
-}) {
+export function FigureLabels({ figure, onChange }: { figure: Grid; onChange: (f: Grid) => void }) {
   const setAt = (list: readonly string[], i: number, v: string) =>
     list.map((x, j) => (j === i ? v : x));
   return (
@@ -200,7 +194,7 @@ export function FigureLabels({
         pt
       </label>
       <fieldset>
-        <legend>Panel letters</legend>
+        <legend>Letters in panels</legend>
         <label className="choice">
           <input
             type="checkbox"

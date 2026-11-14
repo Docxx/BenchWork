@@ -5,7 +5,7 @@ import {
   CHANNEL_COLOURS,
   type ChannelShow,
   type Corner,
-  type Figure,
+  type Grid,
   type Panel,
 } from './model';
 import type { Planes } from './tiff';
@@ -79,10 +79,10 @@ export function DisplayControls({
   planes,
   onChange,
 }: {
-  figure: Figure;
+  figure: Grid;
   panels: readonly Panel[];
   planes: ReadonlyMap<string, Planes>;
-  onChange: (f: Figure) => void;
+  onChange: (f: Grid) => void;
 }) {
   const first = panels.find((p) => p.image && planes.has(p.image.path));
   const read = first?.image ? planes.get(first.image.path) : undefined;
@@ -235,9 +235,9 @@ export function ScaleControls({
   panels,
   onChange,
 }: {
-  figure: Figure;
+  figure: Grid;
   panels: readonly Panel[];
-  onChange: (f: Figure) => void;
+  onChange: (f: Grid) => void;
 }) {
   const withImages = panels.filter((p) => p.image);
   if (withImages.length === 0) return null;

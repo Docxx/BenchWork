@@ -1,4 +1,4 @@
-import type { Figure, Layout } from './model';
+import type { FigureDoc } from './doc';
 import { runFont, runRise } from './richText';
 import {
   buildScene,
@@ -6,13 +6,13 @@ import {
   textWidth,
   type Prim,
   type Scene,
-  type SceneOptions,
+  type PageOptions,
   type Source,
 } from './scene';
 
 export { FIGURE_FONT, type Source };
 
-export interface RenderOptions extends SceneOptions {
+export interface RenderOptions extends PageOptions {
   /** Pixels per millimetre. */
   scale: number;
 }
@@ -92,10 +92,8 @@ function drawPrim(c: CanvasRenderingContext2D, p: Prim, s: number): void {
 }
 
 /** Draws the whole figure on a white page, at `scale` pixels per mm. */
-export function drawFigure(c: CanvasRenderingContext2D, figure: Figure, o: RenderOptions): Layout {
-  const scene = buildScene(figure, o);
-  drawScene(c, scene, o.scale);
-  return scene.layout;
+export function drawFigure(c: CanvasRenderingContext2D, doc: FigureDoc, o: RenderOptions): void {
+  drawScene(c, buildScene(doc, o), o.scale);
 }
 
 /** Pixels per mm for a resolution in dots per inch. */

@@ -1,5 +1,6 @@
+import { letters, readingOrder, type FigureDoc } from './doc';
 import { showsFor } from './images';
-import { displayGroup, inReadingOrder, letter, type Figure } from './model';
+import { displayGroup, inReadingOrder, letter, type Grid } from './model';
 import { plainText } from './richText';
 import type { Planes } from './tiff';
 
@@ -24,15 +25,30 @@ const NAMES: Record<string, string> = {
  * applied: to the whole figure, a row or a column.
  */
 export function methodsNote(
-  figure: Figure,
+  doc: FigureDoc,
   planes: ReadonlyMap<string, Planes>,
   name: string,
 ): string {
   const lines: string[] = [`# ${name}: how it was made`, ''];
   lines.push(
-    `Laid out in BenchWork at ${round(figure.width, 1)} mm wide, ${count(figure.rows.length, 'row')} by ${count(figure.cols.length, 'column')}. Images were not altered: crops, turns and display ranges are applied when drawn.`,
+    `Laid out in BenchWork at ${round(doc.width, 1)} mm wide. Images were not altered: crops, turns and display ranges are applied when drawn.`,
     '',
   );
+  const shown = letters(doc);
+  let n = 0;
+  for (const block of readingOrder(doc.blocks)) {
+    if (block.kind !== 'grid' || !block.grid.panels.some((p) => p.image)) continue;
+    n += 1;
+    const tag = shown.get(block.id) ?? '';
+    lines.push(...gridNote(block.grid, planes, tag === '' ? `Part ${String(n)}` : `Panel ${tag}`));
+  }
+  return lines.join('\n');
+}
+
+/** How one grid of images was made. */
+function gridNote(figure: Grid, planes: ReadonlyMap<string, Planes>, title: string): string[] {
+  const lines: string[] = [`## ${title}`, ''];
+  lines.push(`${count(figure.rows.length, 'row')} by ${count(figure.cols.length, 'column')}.`, '');
   const scope =
     figure.display.scope === 'figure'
       ? 'the same for every panel'
@@ -40,13 +56,12 @@ export function methodsNote(
         ? 'set for each row, the same for every panel in it'
         : 'set for each column, the same for every panel in it';
   lines.push(`Brightness and contrast were ${scope}.`, '');
-  lines.push('## Panels', '');
   const order = inReadingOrder(figure.panels);
   order.forEach((panel, i) => {
     if (!panel.image) return;
     const image = panel.image;
     const read = planes.get(image.path);
-    const tag = figure.letters.show ? letter(i, figure.letters.form) : `Panel ${String(i + 1)}`;
+    const tag = figure.letters.show ? letter(i, figure.letters.form) : `Image ${String(i + 1)}`;
     const parts = [`**${tag}**: \`${image.path}\``];
     const where: string[] = [];
     const rowName = plainText(figure.rowLabels[panel.row] ?? '');
@@ -90,5 +105,5 @@ export function methodsNote(
     }
     lines.push('');
   });
-  return lines.join('\n');
+  return lines;
 }

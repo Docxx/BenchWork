@@ -56,7 +56,7 @@
   touch-action: none;
   outline: none;
   font-family: var(--font-body, sans-serif);
-  cursor: grab;
+  cursor: default;
 }
 
 .fig-side {
@@ -278,4 +278,45 @@
   box-sizing: border-box;
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.8rem;
+}
+
+.fig-side h4 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.fig-back {
+  justify-self: start;
+}
+
+.fig-check {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.fig-place {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem 0.5rem;
+}
+
+.fig-place .fig-field {
+  justify-content: space-between;
+}
+
+.fig-place .fig-field input[type='number'] {
+  width: 3.8rem;
+}
+
+.fig-adjust summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.fig-side textarea {
+  width: 100%;
+  font: inherit;
 }

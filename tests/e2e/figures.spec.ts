@@ -2,8 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 import { encodeTiff } from '../../src/modules/figures/tiffWrite';
 
 /**
- * Figures: a new figure, two TIFFs from FIJI dropped into its grid, labels
- * typed in, and the figure exported beside itself with a methods note.
+ * Figures: a new figure, two TIFFs from FIJI added as a grid, labels typed
+ * in, a text part added, and the figure exported beside itself with a
+ * methods note.
  */
 
 /** A two-channel 16-bit TIFF as FIJI saves it, at 0.325 µm per pixel. */
@@ -53,8 +54,6 @@ test.beforeEach(async ({ page }) => {
 test('a figure is laid out from TIFFs, labelled and exported', async ({ page }) => {
   await page.locator('.nav-item', { hasText: 'Figures' }).click();
   await page.getByLabel('Figure name').fill('Fig 1');
-  await page.getByLabel('Rows', { exact: true }).fill('1');
-  await page.getByLabel('Columns', { exact: true }).fill('2');
   await page.getByRole('button', { name: 'New figure' }).click();
 
   await page.getByLabel('Images to add').setInputFiles([
@@ -62,15 +61,17 @@ test('a figure is laid out from TIFFs, labelled and exported', async ({ page }) 
     { name: 'treated.tif', mimeType: 'image/tiff', buffer: fijiTiff(5) },
   ]);
 
-  // Both images are copied in and fill the grid, with the pixel size read.
+  // Both images are copied in as a grid of two, with the pixel size read.
   await expect
     .poll(async () => {
       const text = await file(page, 'Lab/Fig 1.figure.json');
       if (text === null) return [];
       const f = JSON.parse(text) as {
-        panels: { image: { path: string; umPerPx: number | null } | null }[];
+        blocks: {
+          grid?: { panels: { image: { path: string; umPerPx: number | null } | null }[] };
+        }[];
       };
-      return f.panels.map((p) => [p.image?.path, p.image?.umPerPx]);
+      return (f.blocks[0]?.grid?.panels ?? []).map((p) => [p.image?.path, p.image?.umPerPx]);
     })
     .toEqual([
       ['Lab/attachments/control.tif', 0.325],
@@ -82,6 +83,12 @@ test('a figure is laid out from TIFFs, labelled and exported', async ({ page }) 
   await page.getByLabel('Row 1 label').press('Enter');
   await expect.poll(async () => file(page, 'Lab/Fig 1.figure.json')).toContain('*w*^1118^');
 
+  // A text part, lettered by nothing, under the grid.
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await page.getByLabel('Text', { exact: true }).fill('Scale bars 20 µm');
+  await page.getByLabel('Text size, points').click();
+  await expect.poll(async () => file(page, 'Lab/Fig 1.figure.json')).toContain('Scale bars 20');
+
   // Exported as an SVG with its text kept, and as a PNG.
   await page.getByLabel('Export as').selectOption('svg');
   await page.getByRole('button', { name: 'Export', exact: true }).click();
@@ -89,6 +96,8 @@ test('a figure is laid out from TIFFs, labelled and exported', async ({ page }) 
   const svg = await file(page, 'Lab/Fig 1.svg');
   expect(svg).toContain('<tspan font-style="italic">w</tspan>');
   expect(svg).toContain('<image');
+  expect(svg).toContain('>A</');
+  expect(svg).toContain('Scale bars 20 µm');
 
   await page.getByLabel('Export as').selectOption('png');
   await page.getByLabel('Resolution').selectOption('600');
