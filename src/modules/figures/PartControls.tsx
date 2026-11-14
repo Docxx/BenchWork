@@ -9,6 +9,7 @@ import {
   type Table,
   type TableRow,
 } from './blot';
+import type { Graphic } from './graphic';
 import { newId } from './model';
 import { SHAPE_FORMS, SHAPE_WAYS, type Shape } from './shapes';
 import { SpanList } from './SpanList';
@@ -507,6 +508,68 @@ export function ShapeControls({ shape, onChange }: { shape: Shape; onChange: (s:
           {shape.form === 'arrow' ? 'Point the other way' : 'Ends the other way'}
         </label>
       )}
+    </>
+  );
+}
+
+/** A graph from elsewhere: its page, and how much of each edge is trimmed. */
+export function GraphicControls({
+  graphic,
+  pages,
+  onChange,
+  onFit,
+}: {
+  graphic: Graphic;
+  pages: number;
+  onChange: (g: Graphic) => void;
+  onFit: () => void;
+}) {
+  const edge = (key: keyof Graphic['trim'], label: string) => (
+    <label className="fig-field">
+      {label}
+      <input
+        type="number"
+        aria-label={`Trim ${label.toLowerCase()}, %`}
+        min={0}
+        max={45}
+        value={Math.round(graphic.trim[key] * 100)}
+        onChange={(e) => {
+          const v = Number(e.target.value) / 100;
+          if (v >= 0 && v <= 0.45) onChange({ ...graphic, trim: { ...graphic.trim, [key]: v } });
+        }}
+      />
+      %
+    </label>
+  );
+  return (
+    <>
+      <p className="fig-file" title={graphic.path}>
+        {graphic.path.split('/').at(-1)}
+      </p>
+      <p className="hint">
+        Save graphs from Prism, Excel or R as SVG to keep them sharp and editable, or as PDF.
+      </p>
+      {pages > 1 && (
+        <Count
+          label="Page"
+          value={graphic.page}
+          min={1}
+          max={pages}
+          onSave={(page) => {
+            onChange({ ...graphic, page });
+          }}
+        />
+      )}
+      <fieldset className="fig-place">
+        <legend>Trim the edges</legend>
+        {edge('left', 'Left')}
+        {edge('right', 'Right')}
+        {edge('top', 'Top')}
+        {edge('bottom', 'Bottom')}
+      </fieldset>
+      <button type="button" className="quiet" onClick={onFit}>
+        Fit the part to the graph
+      </button>
     </>
   );
 }

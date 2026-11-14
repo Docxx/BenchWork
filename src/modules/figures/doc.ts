@@ -20,6 +20,7 @@ import {
   type Layout,
   type LetterStyle,
 } from './model';
+import { parseGraphic, type Graphic } from './graphic';
 import { parseShape, type Shape } from './shapes';
 
 /**
@@ -57,6 +58,7 @@ export type Block = BlockBase &
   (
     | { kind: 'grid'; grid: Grid; blot: Blot | null }
     | { kind: 'text'; text: TextBox }
+    | { kind: 'graphic'; graphic: Graphic }
     | { kind: 'table'; table: Table }
     | { kind: 'shape'; shape: Shape }
   );
@@ -65,7 +67,7 @@ export type TextBlock = Extract<Block, { kind: 'text' }>;
 export type TableBlock = Extract<Block, { kind: 'table' }>;
 
 /** Only images (and later graphs) take the next letter unless told otherwise. */
-export const takesLetter = (b: Block) => b.kind === 'grid';
+export const takesLetter = (b: Block) => b.kind === 'grid' || b.kind === 'graphic';
 
 export interface FigureLetters {
   form: LetterStyle['form'];
@@ -272,6 +274,10 @@ function parseBlock(raw: unknown, pageWidth: number): Block | null {
     return grid ? { ...base, kind: 'grid', grid, blot: parseBlot(r['blot']) } : null;
   }
   if (r['kind'] === 'text') return { ...base, kind: 'text', text: parseText(r['text']) };
+  if (r['kind'] === 'graphic') {
+    const graphic = parseGraphic(r['graphic']);
+    return graphic ? { ...base, kind: 'graphic', graphic } : null;
+  }
   if (r['kind'] === 'table') return { ...base, kind: 'table', table: parseTable(r['table']) };
   if (r['kind'] === 'shape') return { ...base, kind: 'shape', shape: parseShape(r['shape']) };
   return null;

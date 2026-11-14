@@ -162,3 +162,27 @@ test('a blot is labelled, with a table and a bracket beside it', async ({ page }
   for (const word of ['Mock', 'Both', 'siRNA', '62 kDa', 'Drug']) expect(svg).toContain(word);
   expect(svg).toContain('>A</');
 });
+
+test('a graph saved as SVG is added and stays as shapes and text in an SVG export', async ({
+  page,
+}) => {
+  await page.locator('.nav-item', { hasText: 'Figures' }).click();
+  await page.getByLabel('Figure name').fill('Fig 3');
+  await page.getByRole('button', { name: 'New figure' }).click();
+
+  const graph = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200"><script>alert(1)</script>
+<rect x="40" y="40" width="50" height="150" fill="#000"/><text x="65" y="198">WT</text></svg>`;
+  await page
+    .getByLabel('Images to add')
+    .setInputFiles([{ name: 'bars.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(graph) }]);
+  await expect(page.getByRole('heading', { name: 'Graph A' })).toBeVisible();
+  await page.getByLabel('Trim bottom, %').fill('5');
+
+  await page.getByLabel('Export as').selectOption('svg');
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Fig 3.svg' })).toBeVisible();
+  const svg = (await file(page, 'Lab/Fig 3.svg')) ?? '';
+  expect(svg).toMatch(/<svg x="[\d.]+" y="[\d.]+" width="87"[^>]*viewBox="0 0 300 190"/);
+  expect(svg).toContain('>WT</text>');
+  expect(svg).not.toContain('alert');
+});

@@ -1,5 +1,6 @@
 import { drawScene, perMm } from './render';
 import { runRise, runSize, type Run } from './richText';
+import { nestedSvg } from './graphic';
 import { FIGURE_FONT, type Prim, type Scene } from './scene';
 import { encodeTiff } from './tiffWrite';
 
@@ -141,11 +142,17 @@ function svgText(p: Extract<Prim, { kind: 'text' }>): string {
 /** The figure as SVG, in mm: shapes and text as they are, images inside at `dpi`. */
 export async function toSvg(scene: Scene, dpi = 300): Promise<string> {
   const parts: string[] = [];
+  let graphs = 0;
   for (const p of scene.prims) {
     switch (p.kind) {
       case 'image':
+        if (p.svg) {
+          graphs += 1;
+          parts.push(nestedSvg(p.svg, p.box, p.svg.trim, n, `g${String(graphs)}-`));
+          break;
+        }
         parts.push(
-          `<image x="${n(p.box.x)}" y="${n(p.box.y)}" width="${n(p.box.w)}" height="${n(p.box.h)}" preserveAspectRatio="none" href="${await imageData(p, dpi)}"/>`,
+          `<image x=""${n(p.box.x)}" y="${n(p.box.y)}" width="${n(p.box.w)}" height="${n(p.box.h)}" preserveAspectRatio="none" href="${await imageData(p, dpi)}"/>`,
         );
         break;
       case 'rect':
@@ -199,7 +206,8 @@ export async function toPdf(scene: Scene, dpi = 300): Promise<Uint8Array> {
     switch (p.kind) {
       case 'image':
         doc.addImage(
-          await imageData(p, dpi),
+          // Line art from a graph is drawn finer, so its text and lines stay crisp.
+          await imageData(p, p.sharp ? Math.max(dpi, 600) : dpi),
           'PNG',
           p.box.x,
           p.box.y,

@@ -13,6 +13,7 @@ import {
 } from './model';
 import { blotPrims, tablePrims } from './blot';
 import { layoutDoc, type FigureDoc, type TextBox } from './doc';
+import { fitIn, shownRect, type Graphic, type GraphicSource, type Trim } from './graphic';
 import { textWidth } from './measure';
 import { parseRich, type Run } from './richText';
 import { shapePrims } from './shapes';
@@ -35,7 +36,15 @@ export interface Source {
 export type Paint = (c: CanvasRenderingContext2D, box: Box) => void;
 
 export type Prim =
-  | { kind: 'image'; box: Box; paint: Paint }
+  | {
+      kind: 'image';
+      box: Box;
+      paint: Paint;
+      /** A graph drawn from an SVG: kept as shapes and text in an SVG export. */
+      svg?: { markup: string; viewBox: [number, number, number, number]; trim: Trim };
+      /** Line art: drawn at no less than 600 dpi in a PDF. */
+      sharp?: boolean;
+    }
   | { kind: 'rect'; box: Box; fill?: string; stroke?: string; width?: number; dash?: boolean }
   | { kind: 'poly'; points: [number, number][]; fill?: string; stroke?: string; width?: number }
   | {
@@ -73,6 +82,8 @@ export interface SceneOptions {
   /** With the editing hints and outlines: on screen, not in an export. */
   editing: boolean;
   selectedPanels?: readonly string[];
+  /** Each graph part's picture, by block id. */
+  graphics?: ReadonlyMap<string, GraphicSource>;
   selectedMark?: string | null;
   accent?: string;
 }
@@ -515,6 +526,42 @@ export function textPrims(t: TextBox, box: Box): Prim[] {
   });
 }
 
+/** What a graph draws: its trimmed part, as large as fits its box. */
+function graphicPrims(g: Graphic, box: Box, o: SceneOptions, id: string): Prim[] {
+  const source = o.graphics?.get(id);
+  if (!source) {
+    if (!o.editing) return [];
+    return [
+      { kind: 'rect', box, fill: '#eef1f0' },
+      {
+        kind: 'text',
+        runs: parseRich('Opening the graph…'),
+        x: box.x + box.w / 2,
+        y: box.y + box.h / 2,
+        size: Math.min(4, Math.max(2.2, box.w / 14)),
+        colour: '#7b8784',
+        align: 'center',
+      },
+    ];
+  }
+  const shown = shownRect(source, g.trim);
+  const at = fitIn(shown, box);
+  return [
+    {
+      kind: 'image',
+      box: at,
+      paint: (c, to) => {
+        c.save();
+        c.imageSmoothingQuality = 'high';
+        c.drawImage(source.image, shown.x, shown.y, shown.w, shown.h, to.x, to.y, to.w, to.h);
+        c.restore();
+      },
+      ...(source.svg ? { svg: { ...source.svg, trim: g.trim } } : {}),
+      sharp: true,
+    },
+  ];
+}
+
 /** The handles a chosen block is resized by, and the one it is moved by, in mm. */
 export function handlesOf(box: Box, size: number) {
   const { x, y, w, h } = box;
@@ -559,6 +606,8 @@ export function buildScene(doc: FigureDoc, o: PageOptions): Scene {
       if (b.block.blot && b.blot)
         prims.push(...blotPrims(b.block.blot, b.blot, b.block.grid.labelSize * POINT));
     }
+    if (b.block.kind === 'graphic')
+      prims.push(...graphicPrims(b.block.graphic, b.content, o, b.block.id));
     if (b.block.kind === 'table') prims.push(...tablePrims(b.block.table, b.content));
     if (b.block.kind === 'shape') prims.push(...shapePrims(b.block.shape, b.content));
     if (b.block.kind === 'text') {

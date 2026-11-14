@@ -10,13 +10,14 @@ import {
   Undo2,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ModuleContext } from '@core/api';
+import type { ModuleContext, PdfDocument } from '@core/api';
 import { BlockControls, PageControls, TextControls } from './BlockControls';
 import { blotTop, newTable, tableHeight } from './blot';
 import {
   blockAt,
   blockGrid,
   bottomOf,
+  contentBox,
   duplicate,
   editBlock,
   fitText,
@@ -34,8 +35,16 @@ import {
   type FigureDoc,
   type GridBlock,
 } from './doc';
+import {
+  GRAPHIC_TYPES,
+  NO_TRIM,
+  pdfPicture,
+  shownRect,
+  svgPicture,
+  type GraphicSource,
+} from './graphic';
 import { GridControls, PanelControls } from './GridControls';
-import { BlotControls, ShapeControls, TableControls } from './PartControls';
+import { BlotControls, GraphicControls, ShapeControls, TableControls } from './PartControls';
 import { newShape } from './shapes';
 import {
   DEFAULT_CROP,
@@ -168,6 +177,11 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
   const planes = useRef(new Map<string, Planes>());
   const loading = useRef(new Set<string>());
   const pictures = useRef(new Map<string, HTMLCanvasElement>());
+  /** Graphs read so far, by file and page; and PDFs kept open to draw again for export. */
+  const graphs = useRef(new Map<string, GraphicSource>());
+  const graphsLoading = useRef(new Set<string>());
+  const pdfs = useRef(new Map<string, PdfDocument>());
+  const [graphPages, setGraphPages] = useState<ReadonlyMap<string, number>>(new Map());
 
   // ---- Saving ----
   const save = useCallback(
@@ -265,12 +279,62 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     [ctx, save],
   );
 
+  /** Reads a graph's file, once for each file and page. */
+  const loadGraph = useCallback(
+    (file: string, page: number) => {
+      const key = `${file}#${String(page)}`;
+      if (graphs.current.has(key) || graphsLoading.current.has(key)) return;
+      graphsLoading.current.add(key);
+      void (async () => {
+        const bytes = await ctx.vault.readBytes(file);
+        let source: GraphicSource | null;
+        if (/\.pdf$/i.test(file)) {
+          let pdf = pdfs.current.get(file);
+          if (!pdf) {
+            pdf = await ctx.files.openPdf(bytes);
+            pdfs.current.set(file, pdf);
+            const pages = pdf.pages;
+            setGraphPages((m) => new Map(m).set(file, pages));
+          }
+          source = await pdfPicture(pdf, Math.min(page, pdf.pages), 2400);
+        } else source = await svgPicture(new TextDecoder().decode(bytes));
+        if (!source) throw new Error('It is not an SVG drawing.');
+        graphs.current.set(key, source);
+        setLoaded((n) => n + 1);
+      })().catch((err: unknown) => {
+        setNotice(
+          `${file.split('/').at(-1) ?? file} could not be read. ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
+    },
+    [ctx],
+  );
+
+  useEffect(
+    () => () => {
+      for (const pdf of pdfs.current.values()) pdf.destroy();
+    },
+    [],
+  );
+
   useEffect(() => {
     for (const b of doc?.blocks ?? []) {
+      if (b.kind === 'graphic') loadGraph(b.graphic.path, b.graphic.page);
       if (b.kind !== 'grid') continue;
       for (const p of b.grid.panels) if (p.image) loadImage(p.image.path);
     }
-  }, [doc, loadImage]);
+  }, [doc, loadImage, loadGraph]);
+
+  /** Each graph part's picture, by block id. */
+  const graphsFor = useCallback((d: FigureDoc) => {
+    const out = new Map<string, GraphicSource>();
+    for (const b of d.blocks) {
+      if (b.kind !== 'graphic') continue;
+      const source = graphs.current.get(`${b.graphic.path}#${String(b.graphic.page)}`);
+      if (source) out.set(b.id, source);
+    }
+    return out;
+  }, []);
 
   // ---- Reading, and following changes made elsewhere ----
   useEffect(() => {
@@ -367,7 +431,16 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
       // The page starts at the top part: no empty band above it.
       const top = Math.min(...d.blocks.map((b) => b.y));
       const trimmed = { ...d, blocks: d.blocks.map((b) => ({ ...b, y: b.y - top })) };
-      const scene = buildScene(trimmed, { sources: sourcesFor(d), editing: false });
+      // PDF graphs are drawn again, finely enough for the export.
+      const graphics = graphsFor(d);
+      for (const b of d.blocks) {
+        const pdf = b.kind === 'graphic' ? pdfs.current.get(b.graphic.path) : undefined;
+        if (b.kind !== 'graphic' || !pdf) continue;
+        const t = b.graphic.trim;
+        const px = (b.w / Math.max(0.1, 1 - t.left - t.right)) * (Math.max(dpi, 600) / 25.4);
+        graphics.set(b.id, await pdfPicture(pdf, Math.min(b.graphic.page, pdf.pages), px));
+      }
+      const scene = buildScene(trimmed, { sources: sourcesFor(d), graphics, editing: false });
       const ext = { png: '.png', tiff: '.tif', svg: '.svg', pdf: '.pdf' }[format];
       const name = await ctx.vault.freeName(folder, baseName, ext);
       const target = folder === '' ? name : `${folder}/${name}`;
@@ -425,6 +498,7 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
     drawFigure(g, doc, {
       scale,
       sources: sourcesFor(doc),
+      graphics: graphsFor(doc),
       editing: true,
       selectedBlock: sel.block,
       selectedPanels: sel.panels,
@@ -433,7 +507,7 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
       handle: HANDLE_PX / scale,
       accent: getComputedStyle(c).getPropertyValue('--accent').trim() || '#2f5fb3',
     });
-  }, [doc, scale, sel, selectedMark, guides, loaded, sourcesFor]);
+  }, [doc, scale, sel, selectedMark, guides, loaded, sourcesFor, graphsFor]);
 
   // ---- Adding ----
   /** Puts a new part on the page, at a point or below the rest, and chooses it. */
@@ -458,9 +532,11 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
       if (!d) return;
       const attachments = `${dirOf(path)}${dirOf(path) === '' ? '' : '/'}attachments`;
       const added: string[] = [];
+      const graphFiles: string[] = [];
       try {
         for (const file of files) {
-          if (!IMAGE_TYPES.test(file.name) && !file.type.startsWith('image/')) {
+          const graph = GRAPHIC_TYPES.test(file.name);
+          if (!graph && !IMAGE_TYPES.test(file.name) && !file.type.startsWith('image/')) {
             setNotice(`${file.name} is not an image BenchWork can show yet.`);
             continue;
           }
@@ -472,6 +548,10 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
           const saved = `${attachments}/${name}`;
           const bytes = new Uint8Array(await file.arrayBuffer());
           await ctx.vault.writeBytes(saved, bytes);
+          if (graph) {
+            graphFiles.push(saved);
+            continue;
+          }
           added.push(saved);
           // Read now, so a new part can take the image's shape.
           try {
@@ -485,6 +565,44 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
         }
       } catch (err) {
         setNotice(`That could not be added. ${err instanceof Error ? err.message : String(err)}`);
+      }
+      // Graphs: each a part of its own, half the page wide, shaped like the graph.
+      for (const [i, file] of graphFiles.entries()) {
+        let aspect = 0.75;
+        try {
+          const bytes = await ctx.vault.readBytes(file);
+          if (/\.pdf$/i.test(file)) {
+            const pdf = await ctx.files.openPdf(bytes);
+            pdfs.current.set(file, pdf);
+            const pages = pdf.pages;
+            setGraphPages((m) => new Map(m).set(file, pages));
+            const size = await pdf.size(1);
+            aspect = size.height / size.width;
+          } else {
+            const source = await svgPicture(new TextDecoder().decode(bytes));
+            if (source) {
+              graphs.current.set(`${file}#1`, source);
+              aspect = source.h / source.w;
+            }
+          }
+        } catch {
+          // Reported when it is drawn.
+        }
+        const at = target.at ? { x: target.at.x + i * 4, y: target.at.y + i * 4 } : undefined;
+        place((doc, where) => {
+          const w = Math.round(doc.width / 2);
+          const strip = doc.letters.show ? letterStrip(doc) : 0;
+          return {
+            id: newId(),
+            kind: 'graphic',
+            x: where.x,
+            y: where.y,
+            w,
+            h: w * aspect + strip,
+            letter: null,
+            graphic: { path: file, page: 1, trim: { ...NO_TRIM } },
+          };
+        }, at);
       }
       if (added.length === 0) return;
       const now = current.current ?? d;
@@ -1185,7 +1303,9 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
           // renames files (and so loses names from FIJI). Asking for any file
           // as well opens the file manager, which keeps them.
           accept={
-            ctx.platform === 'tablet' ? 'application/octet-stream,image/*' : 'image/*,.tif,.tiff'
+            ctx.platform === 'tablet'
+              ? 'application/octet-stream,application/pdf,image/*'
+              : 'image/*,.tif,.tiff,.svg,.pdf'
           }
           aria-label="Images to add"
           onChange={(e) => {
@@ -1289,13 +1409,40 @@ export function FigureEditor({ ctx, path }: { ctx: ModuleContext; path: string }
                     ? 'Table'
                     : block.kind === 'shape'
                       ? 'Line or shape'
-                      : block.blot
-                        ? 'Blot'
-                        : block.grid.panels.length === 1
-                          ? 'Image'
-                          : 'Grid of images'}
+                      : block.kind === 'graphic'
+                        ? 'Graph'
+                        : block.blot
+                          ? 'Blot'
+                          : block.grid.panels.length === 1
+                            ? 'Image'
+                            : 'Grid of images'}
                 {shownLetter !== '' ? ` ${shownLetter}` : ''}
               </h3>
+              {block.kind === 'graphic' && (
+                <GraphicControls
+                  graphic={block.graphic}
+                  pages={graphPages.get(block.graphic.path) ?? 1}
+                  onChange={(graphic) => {
+                    commit(
+                      editBlock(doc, block.id, (b) =>
+                        b.kind === 'graphic' ? { ...b, graphic } : b,
+                      ),
+                    );
+                  }}
+                  onFit={() => {
+                    const source = graphsFor(doc).get(block.id);
+                    if (!source) return;
+                    const shown = shownRect(source, block.graphic.trim);
+                    const strip = block.h - contentBox(doc, block, shownLetter).h;
+                    commit(
+                      editBlock(doc, block.id, (b) => ({
+                        ...b,
+                        h: (b.w * shown.h) / shown.w + strip,
+                      })),
+                    );
+                  }}
+                />
+              )}
               {block.kind === 'table' && (
                 <TableControls
                   table={block.table}

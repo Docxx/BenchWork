@@ -37,9 +37,21 @@ export function methodsNote(
   const shown = letters(doc);
   let n = 0;
   for (const block of readingOrder(doc.blocks)) {
+    const tag = shown.get(block.id) ?? '';
+    if (block.kind === 'graphic') {
+      n += 1;
+      const g = block.graphic;
+      const trimmed = g.trim.left + g.trim.top + g.trim.right + g.trim.bottom > 0;
+      lines.push(
+        `## ${tag === '' ? `Part ${String(n)}` : `Panel ${tag}`}`,
+        '',
+        `Graph from \`${g.path}\`${g.page > 1 ? `, page ${String(g.page)}` : ''}${trimmed ? ', its edges trimmed' : ''}.`,
+        '',
+      );
+      continue;
+    }
     if (block.kind !== 'grid' || !block.grid.panels.some((p) => p.image)) continue;
     n += 1;
-    const tag = shown.get(block.id) ?? '';
     lines.push(...gridNote(block.grid, planes, tag === '' ? `Part ${String(n)}` : `Panel ${tag}`));
   }
   return lines.join('\n');
