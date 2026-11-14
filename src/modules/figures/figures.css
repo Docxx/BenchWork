@@ -349,7 +349,7 @@
   width: 3.2rem;
 }
 
-.fig-data {
+.fig-side .fig-data {
   width: 100%;
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.8rem;
