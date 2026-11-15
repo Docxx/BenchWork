@@ -21,6 +21,12 @@ for (const [name, preset] of [
   ['Starship bridge', 'bridge'],
   ['Dino park', 'dino'],
   ['Wizarding school', 'wizard'],
+  ['Arcade', 'arcade'],
+  ['Miami postcard', 'miami'],
+  ['Mixtape', 'mixtape'],
+  ['Memphis pop', 'memphis'],
+  ['Disco violet', 'disco'],
+  ['Indian Ocean', 'indian-ocean'],
 ] as const) {
   test(`${name} has readable desktop and tablet views`, async ({ page }, testInfo) => {
     await appearanceSettings(page);

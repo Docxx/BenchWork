@@ -17,6 +17,8 @@ export function ThemeScene({ preset }: { preset: ThemePreset }) {
 }
 
 function SceneArt({ preset }: { preset: ThemePreset }) {
+  if (['arcade', 'miami', 'mixtape', 'memphis', 'disco', 'indian-ocean'].includes(preset))
+    return <RetroArt preset={preset} />;
   if (preset === 'bridge') return <Bridge />;
   if (preset === 'dino') return <Park />;
   if (preset === 'wizard') return <Castle />;
@@ -24,6 +26,79 @@ function SceneArt({ preset }: { preset: ThemePreset }) {
   if (preset === 'sparkle') return <Glitter />;
   if (['mars', 'moonlit', 'neon', 'synthwave'].includes(preset)) return <Horizon preset={preset} />;
   return <Stars preset={preset} />;
+}
+
+function RetroArt({ preset }: { preset: ThemePreset }) {
+  const ink = 'var(--scene-ink, var(--accent))';
+  const alt = 'var(--scene-alt, var(--section-purple))';
+  const third = 'var(--section-green)';
+  if (preset === 'mixtape')
+    return (
+      <g stroke={ink} strokeWidth="4">
+        <rect x="260" y="18" width="280" height="130" rx="16" fill={alt} fillOpacity=".16" />
+        <rect x="280" y="34" width="240" height="66" rx="8" />
+        <circle cx="330" cy="67" r="23" stroke={alt} />
+        <circle cx="470" cy="67" r="23" stroke={alt} />
+        <path d="M354 67H446M310 146L325 116H475L490 146M365 46H435" />
+        <path d="M40 54H230M80 78H230M120 102H230" stroke={third} strokeWidth="9" />
+      </g>
+    );
+  if (preset === 'arcade')
+    return (
+      <g stroke={ink} strokeWidth="5" strokeLinejoin="round">
+        <path d="M335 150V108L355 86V16H495V86L515 108V150ZM355 86H495M335 108H515" />
+        <path d="M375 33H475V74H375Z" stroke={alt} />
+        <path d="M378 121V137M370 129H386M460 129H467M480 129H487" stroke={third} />
+        <path d="M210 40H225V55H240V70H225V85H210V70H195V55H210ZM95 110H110V125H125" stroke={alt} />
+        <path className="scene-lights" d="M398 49H406V57H414V49H422M440 49H448V65H440" />
+      </g>
+    );
+  if (preset === 'memphis')
+    return (
+      <g strokeWidth="7">
+        <path d="M320 140L370 24L430 140ZM80 40L110 70L140 40L170 70L200 40" stroke={ink} />
+        <circle cx="500" cy="52" r="32" stroke={alt} />
+        <path d="M450 128L475 103L500 128L525 103L550 128M230 28V65M211 47H249" stroke={third} />
+        <path d="M265 96L285 116M265 116L285 136M300 96L320 116" stroke={alt} />
+      </g>
+    );
+  if (preset === 'disco')
+    return (
+      <g stroke={ink} strokeWidth="3">
+        <path
+          d="M420 0V18M330 40L295 22M510 40L545 22M325 100L285 115M515 100L555 115"
+          stroke={alt}
+        />
+        <circle cx="420" cy="78" r="58" fill={alt} fillOpacity=".18" />
+        <ellipse cx="420" cy="78" rx="25" ry="58" />
+        <path d="M362 78H478M370 49H470M370 107H470M420 20V136" />
+        <path
+          className="scene-lights"
+          d="M220 75V105M205 90H235M540 125V145M530 135H550"
+          stroke={third}
+        />
+      </g>
+    );
+  return (
+    <>
+      <circle cx="420" cy="67" r="50" fill={ink} opacity=".75" />
+      <path d="M370 54H470M370 66H470M370 78H470M380 90H460" stroke={alt} strokeWidth="4" />
+      <path
+        d="M130 120Q180 100 230 120T330 120T430 120T530 120T630 120M90 141Q140 121 190 141T290 141T390 141T490 141T590 141"
+        stroke={third}
+        strokeWidth="6"
+      />
+      {preset === 'indian-ocean' ? (
+        <path d="M265 112L302 43V112ZM310 55L348 112H310ZM255 120H357L342 134H272Z" fill={alt} />
+      ) : (
+        <path
+          d="M285 119L300 36M300 36Q270 10 240 34M300 36Q330 10 360 32M300 36Q270 38 258 66M300 36Q329 38 345 65"
+          stroke={alt}
+          strokeWidth="5"
+        />
+      )}
+    </>
+  );
 }
 
 function Bridge() {

@@ -26,7 +26,23 @@ export type ThemePreset =
   | 'wizard'
   | 'sparkle'
   | 'synthwave'
-  | 'deep';
+  | 'deep'
+  | 'linen'
+  | 'sage'
+  | 'slate'
+  | 'rose'
+  | 'sand'
+  | 'lagoon'
+  | 'lavender'
+  | 'olive'
+  | 'cocoa'
+  | 'arctic'
+  | 'arcade'
+  | 'miami'
+  | 'mixtape'
+  | 'memphis'
+  | 'disco'
+  | 'indian-ocean';
 export type Scheme = 'light' | 'dark';
 export type SidebarStyle = 'dark' | 'light';
 export type FontChoice = 'serif' | 'sans' | 'mono';
@@ -939,6 +955,620 @@ const DEEP: PresetSpec = {
   bodyFont: 'sans',
 };
 
+const LINEN: PresetSpec = {
+  name: 'Linen',
+  light: {
+    bg: '#faf8f2',
+    surface: '#eee9df',
+    border: '#ded5c6',
+    text: '#302b24',
+    muted: '#71675b',
+    accent: '#79613e',
+    warnBg: '#fff0d9',
+    warnText: '#784500',
+  },
+  dark: {
+    bg: '#201d18',
+    surface: '#2d2821',
+    border: '#423a2f',
+    text: '#eee6d9',
+    muted: '#b7aa96',
+    accent: '#d4b681',
+    warnBg: '#3b2b16',
+    warnText: '#f6cf91',
+  },
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#201d18',
+    hover: '#2d2821',
+    active: '#423a2f',
+    text: '#eee6d9',
+    muted: '#b7aa96',
+    border: '#423a2f',
+  },
+  headingFont: 'serif',
+  bodyFont: 'sans',
+};
+
+const SAGE: PresetSpec = {
+  name: 'Sage',
+  light: {
+    bg: '#f5f8f1',
+    surface: '#e8efdf',
+    border: '#cedcc3',
+    text: '#263122',
+    muted: '#5c6c54',
+    accent: '#487037',
+    warnBg: '#fff0d9',
+    warnText: '#784500',
+  },
+  dark: {
+    bg: '#172018',
+    surface: '#222d22',
+    border: '#354435',
+    text: '#e5efdf',
+    muted: '#a3b89a',
+    accent: '#a4ce8a',
+    warnBg: '#3b2b16',
+    warnText: '#f6cf91',
+  },
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#172018',
+    hover: '#222d22',
+    active: '#354435',
+    text: '#e5efdf',
+    muted: '#a3b89a',
+    border: '#354435',
+  },
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
+const SLATE: PresetSpec = {
+  name: 'Slate',
+  light: {
+    bg: '#f5f7fa',
+    surface: '#e8edf3',
+    border: '#ced7e2',
+    text: '#222d3c',
+    muted: '#5c6b80',
+    accent: '#48658c',
+    warnBg: '#fff0d9',
+    warnText: '#784500',
+  },
+  dark: {
+    bg: '#171d28',
+    surface: '#222c3a',
+    border: '#354358',
+    text: '#e6edf7',
+    muted: '#a1b1c9',
+    accent: '#96b9ed',
+    warnBg: '#3b2b16',
+    warnText: '#f6cf91',
+  },
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#171d28',
+    hover: '#222c3a',
+    active: '#354358',
+    text: '#e6edf7',
+    muted: '#a1b1c9',
+    border: '#354358',
+  },
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
+const ROSE: PresetSpec = {
+  name: 'Rose',
+  light: {
+    bg: '#fff7f8',
+    surface: '#f6e8ed',
+    border: '#e8ccd6',
+    text: '#39232d',
+    muted: '#795763',
+    accent: '#a44566',
+    warnBg: '#fff0d9',
+    warnText: '#784500',
+  },
+  dark: {
+    bg: '#26181e',
+    surface: '#35232c',
+    border: '#513442',
+    text: '#f9e6ed',
+    muted: '#c4a0ae',
+    accent: '#ed9bb9',
+    warnBg: '#3b2b16',
+    warnText: '#f6cf91',
+  },
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#26181e',
+    hover: '#35232c',
+    active: '#513442',
+    text: '#f9e6ed',
+    muted: '#c4a0ae',
+    border: '#513442',
+  },
+  headingFont: 'serif',
+  bodyFont: 'sans',
+};
+
+const SAND: PresetSpec = {
+  name: 'Sand',
+  light: {
+    bg: '#fbf8f0',
+    surface: '#f0e9d8',
+    border: '#ded2b5',
+    text: '#342e20',
+    muted: '#71674f',
+    accent: '#856724',
+    warnBg: '#fff0d9',
+    warnText: '#784500',
+  },
+  dark: {
+    bg: '#211e16',
+    surface: '#302b20',
+    border: '#48402d',
+    text: '#f4ecd7',
+    muted: '#bcb08d',
+    accent: '#dfc170',
+    warnBg: '#3b2b16',
+    warnText: '#f6cf91',
+  },
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#211e16',
+    hover: '#302b20',
+    active: '#48402d',
+    text: '#f4ecd7',
+    muted: '#bcb08d',
+    border: '#48402d',
+  },
+  headingFont: 'serif',
+  bodyFont: 'sans',
+};
+
+const LAGOON: PresetSpec = {
+  name: 'Lagoon',
+  light: {
+    bg: '#f2faf8',
+    surface: '#e0efeb',
+    border: '#bfdcd4',
+    text: '#19352e',
+    muted: '#4b7066',
+    accent: '#247565',
+    warnBg: '#fff0d9',
+    warnText: '#784500',
+  },
+  dark: {
+    bg: '#12231f',
+    surface: '#1c332c',
+    border: '#2e4a40',
+    text: '#ddf4eb',
+    muted: '#99bfb0',
+    accent: '#78d3b5',
+    warnBg: '#3b2b16',
+    warnText: '#f6cf91',
+  },
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#12231f',
+    hover: '#1c332c',
+    active: '#2e4a40',
+    text: '#ddf4eb',
+    muted: '#99bfb0',
+    border: '#2e4a40',
+  },
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
+const LAVENDER: PresetSpec = {
+  name: 'Lavender',
+  light: {
+    bg: '#f9f7ff',
+    surface: '#eeebf8',
+    border: '#d9d1eb',
+    text: '#2d2640',
+    muted: '#6c6081',
+    accent: '#7251a1',
+    warnBg: '#fff0d9',
+    warnText: '#784500',
+  },
+  dark: {
+    bg: '#1e192a',
+    surface: '#2b243c',
+    border: '#413653',
+    text: '#eee7fa',
+    muted: '#b4a3cd',
+    accent: '#c2a4ed',
+    warnBg: '#3b2b16',
+    warnText: '#f6cf91',
+  },
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#1e192a',
+    hover: '#2b243c',
+    active: '#413653',
+    text: '#eee7fa',
+    muted: '#b4a3cd',
+    border: '#413653',
+  },
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
+const OLIVE: PresetSpec = {
+  name: 'Olive',
+  light: {
+    bg: '#f8f8ef',
+    surface: '#ededdd',
+    border: '#d7d9bc',
+    text: '#2d3020',
+    muted: '#686c4d',
+    accent: '#65752d',
+    warnBg: '#fff0d9',
+    warnText: '#784500',
+  },
+  dark: {
+    bg: '#1e2116',
+    surface: '#2c3020',
+    border: '#41472e',
+    text: '#eef1db',
+    muted: '#b1b98c',
+    accent: '#c0d477',
+    warnBg: '#3b2b16',
+    warnText: '#f6cf91',
+  },
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#1e2116',
+    hover: '#2c3020',
+    active: '#41472e',
+    text: '#eef1db',
+    muted: '#b1b98c',
+    border: '#41472e',
+  },
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
+const COCOA: PresetSpec = {
+  name: 'Cocoa',
+  light: {
+    bg: '#fcf7f3',
+    surface: '#f1e7df',
+    border: '#dfcfc2',
+    text: '#362820',
+    muted: '#786153',
+    accent: '#8b5435',
+    warnBg: '#fff0d9',
+    warnText: '#784500',
+  },
+  dark: {
+    bg: '#241a16',
+    surface: '#332720',
+    border: '#4b382c',
+    text: '#f5e6db',
+    muted: '#c2a58f',
+    accent: '#dfa77c',
+    warnBg: '#3b2b16',
+    warnText: '#f6cf91',
+  },
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#241a16',
+    hover: '#332720',
+    active: '#4b382c',
+    text: '#f5e6db',
+    muted: '#c2a58f',
+    border: '#4b382c',
+  },
+  headingFont: 'serif',
+  bodyFont: 'sans',
+};
+
+const ARCTIC: PresetSpec = {
+  name: 'Arctic',
+  light: {
+    bg: '#f3faff',
+    surface: '#e2f0f8',
+    border: '#c5dde9',
+    text: '#20333e',
+    muted: '#526f7e',
+    accent: '#286f91',
+    warnBg: '#fff0d9',
+    warnText: '#784500',
+  },
+  dark: {
+    bg: '#14212b',
+    surface: '#1e303c',
+    border: '#304857',
+    text: '#e3f3fc',
+    muted: '#9fbdce',
+    accent: '#86cdeb',
+    warnBg: '#3b2b16',
+    warnText: '#f6cf91',
+  },
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#14212b',
+    hover: '#1e303c',
+    active: '#304857',
+    text: '#e3f3fc',
+    muted: '#9fbdce',
+    border: '#304857',
+  },
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
+const ARCADE_PALETTE: Palette = {
+  bg: '#15132b',
+  surface: '#242040',
+  border: '#48416c',
+  text: '#f3efff',
+  muted: '#bab1d8',
+  accent: '#ffe071',
+  warnBg: '#3b2b16',
+  warnText: '#f6cf91',
+};
+const ARCADE: PresetSpec = {
+  name: 'Arcade',
+  light: ARCADE_PALETTE,
+  dark: ARCADE_PALETTE,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#15132b',
+    hover: '#242040',
+    active: '#48416c',
+    text: '#f3efff',
+    muted: '#bab1d8',
+    border: '#48416c',
+  },
+  sections: {
+    red: '#ef9296',
+    orange: '#ffc176',
+    yellow: '#ffe071',
+    green: '#81d6aa',
+    teal: '#80e4e0',
+    blue: '#90baff',
+    purple: '#ff79bd',
+    grey: '#bab1d8',
+  },
+  accents: [
+    { name: 'Signature', value: '#ffe071' },
+    { name: 'Pop', value: '#ff79bd' },
+    { name: 'Highlight', value: '#7cebdc' },
+  ],
+  headingFont: 'mono',
+  bodyFont: 'sans',
+};
+
+const MIAMI_PALETTE: Palette = {
+  bg: '#201a30',
+  surface: '#33263f',
+  border: '#574166',
+  text: '#fff0f5',
+  muted: '#d2adc9',
+  accent: '#ff9bc6',
+  warnBg: '#3b2b16',
+  warnText: '#f6cf91',
+};
+const MIAMI: PresetSpec = {
+  name: 'Miami postcard',
+  light: MIAMI_PALETTE,
+  dark: MIAMI_PALETTE,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#201a30',
+    hover: '#33263f',
+    active: '#574166',
+    text: '#fff0f5',
+    muted: '#d2adc9',
+    border: '#574166',
+  },
+  sections: {
+    red: '#ef9296',
+    orange: '#ffc176',
+    yellow: '#ffe071',
+    green: '#81d6aa',
+    teal: '#80e4e0',
+    blue: '#90baff',
+    purple: '#86e5de',
+    grey: '#d2adc9',
+  },
+  accents: [
+    { name: 'Signature', value: '#ff9bc6' },
+    { name: 'Pop', value: '#86e5de' },
+    { name: 'Highlight', value: '#ffc578' },
+  ],
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
+const MIXTAPE_PALETTE: Palette = {
+  bg: '#261c16',
+  surface: '#382a22',
+  border: '#584637',
+  text: '#fff1d9',
+  muted: '#cbb79c',
+  accent: '#f6bb63',
+  warnBg: '#3b2b16',
+  warnText: '#f6cf91',
+};
+const MIXTAPE: PresetSpec = {
+  name: 'Mixtape',
+  light: MIXTAPE_PALETTE,
+  dark: MIXTAPE_PALETTE,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#261c16',
+    hover: '#382a22',
+    active: '#584637',
+    text: '#fff1d9',
+    muted: '#cbb79c',
+    border: '#584637',
+  },
+  sections: {
+    red: '#ef9296',
+    orange: '#ffc176',
+    yellow: '#ffe071',
+    green: '#81d6aa',
+    teal: '#80e4e0',
+    blue: '#90baff',
+    purple: '#ef8b9b',
+    grey: '#cbb79c',
+  },
+  accents: [
+    { name: 'Signature', value: '#f6bb63' },
+    { name: 'Pop', value: '#ef8b9b' },
+    { name: 'Highlight', value: '#84d1bd' },
+  ],
+  headingFont: 'mono',
+  bodyFont: 'sans',
+};
+
+const MEMPHIS_PALETTE: Palette = {
+  bg: '#17283a',
+  surface: '#24384d',
+  border: '#405b72',
+  text: '#f1f7ff',
+  muted: '#adbed2',
+  accent: '#80e4e0',
+  warnBg: '#3b2b16',
+  warnText: '#f6cf91',
+};
+const MEMPHIS: PresetSpec = {
+  name: 'Memphis pop',
+  light: MEMPHIS_PALETTE,
+  dark: MEMPHIS_PALETTE,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#17283a',
+    hover: '#24384d',
+    active: '#405b72',
+    text: '#f1f7ff',
+    muted: '#adbed2',
+    border: '#405b72',
+  },
+  sections: {
+    red: '#ef9296',
+    orange: '#ffc176',
+    yellow: '#ffe071',
+    green: '#81d6aa',
+    teal: '#80e4e0',
+    blue: '#90baff',
+    purple: '#ff91bb',
+    grey: '#adbed2',
+  },
+  accents: [
+    { name: 'Signature', value: '#80e4e0' },
+    { name: 'Pop', value: '#ff91bb' },
+    { name: 'Highlight', value: '#ffe071' },
+  ],
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
+const DISCO_PALETTE: Palette = {
+  bg: '#25152d',
+  surface: '#39223f',
+  border: '#583461',
+  text: '#fff0fc',
+  muted: '#cda8d0',
+  accent: '#f4a3ec',
+  warnBg: '#3b2b16',
+  warnText: '#f6cf91',
+};
+const DISCO: PresetSpec = {
+  name: 'Disco violet',
+  light: DISCO_PALETTE,
+  dark: DISCO_PALETTE,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#25152d',
+    hover: '#39223f',
+    active: '#583461',
+    text: '#fff0fc',
+    muted: '#cda8d0',
+    border: '#583461',
+  },
+  sections: {
+    red: '#ef9296',
+    orange: '#ffc176',
+    yellow: '#ffe071',
+    green: '#81d6aa',
+    teal: '#80e4e0',
+    blue: '#90baff',
+    purple: '#b8a1ff',
+    grey: '#cda8d0',
+  },
+  accents: [
+    { name: 'Signature', value: '#f4a3ec' },
+    { name: 'Pop', value: '#b8a1ff' },
+    { name: 'Highlight', value: '#ffd77d' },
+  ],
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
+const INDIAN_OCEAN_PALETTE: Palette = {
+  bg: '#142b29',
+  surface: '#203b36',
+  border: '#3c574b',
+  text: '#fff3dd',
+  muted: '#b8c7ae',
+  accent: '#ffc176',
+  warnBg: '#3b2b16',
+  warnText: '#f6cf91',
+};
+const INDIAN_OCEAN: PresetSpec = {
+  name: 'Indian Ocean',
+  light: INDIAN_OCEAN_PALETTE,
+  dark: INDIAN_OCEAN_PALETTE,
+  fixedScheme: 'dark',
+  fun: true,
+  sidebar: 'dark',
+  darkSidebar: {
+    bg: '#142b29',
+    hover: '#203b36',
+    active: '#3c574b',
+    text: '#fff3dd',
+    muted: '#b8c7ae',
+    border: '#3c574b',
+  },
+  sections: {
+    red: '#ef9296',
+    orange: '#ffc176',
+    yellow: '#ffe071',
+    green: '#81d6aa',
+    teal: '#80e4e0',
+    blue: '#90baff',
+    purple: '#ef9296',
+    grey: '#b8c7ae',
+  },
+  accents: [
+    { name: 'Signature', value: '#ffc176' },
+    { name: 'Pop', value: '#ef9296' },
+    { name: 'Highlight', value: '#81d6aa' },
+  ],
+  headingFont: 'sans',
+  bodyFont: 'sans',
+};
+
 export const PRESETS: Record<ThemePreset, PresetSpec> = {
   forest: FOREST,
   classic: CLASSIC,
@@ -960,6 +1590,22 @@ export const PRESETS: Record<ThemePreset, PresetSpec> = {
   sparkle: SPARKLE,
   synthwave: SYNTHWAVE,
   deep: DEEP,
+  linen: LINEN,
+  sage: SAGE,
+  slate: SLATE,
+  rose: ROSE,
+  sand: SAND,
+  lagoon: LAGOON,
+  lavender: LAVENDER,
+  olive: OLIVE,
+  cocoa: COCOA,
+  arctic: ARCTIC,
+  arcade: ARCADE,
+  miami: MIAMI,
+  mixtape: MIXTAPE,
+  memphis: MEMPHIS,
+  disco: DISCO,
+  'indian-ocean': INDIAN_OCEAN,
 };
 
 /** The scheme a preset is shown in: its own fixed one, or the one asked for. */

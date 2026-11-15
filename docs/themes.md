@@ -1,8 +1,8 @@
 # Theme atmosphere
 
 Open **Settings > Appearance** to choose a theme, then adjust its colours, fonts,
-page paper, spacing and widths. The gallery contains seven everyday themes and
-thirteen fun themes. The current-theme panel previews the selected look.
+page paper, spacing and widths. The gallery contains seventeen everyday themes and
+nineteen fun themes. The current-theme panel previews the selected look.
 
 The fun themes add vector scenes and small details around Home and the workspace.
 Starship bridge has segmented consoles, Dino park has jungle gates and amber
@@ -34,3 +34,13 @@ sound is not a background alarm service when BenchWork is closed.
 All choices are saved on this device. Existing settings gain the new controls
 without losing their current theme or other customisation. **Reset to the theme's
 own look** also resets the sound and motion choices.
+
+## New palettes
+
+Everyday: Linen, Sage, Slate, Rose, Sand, Lagoon, Lavender, Olive, Cocoa and Arctic.
+All ten follow your light, dark or system setting.
+
+Retro: Arcade, Miami postcard, Mixtape, Memphis pop, Disco violet and Indian Ocean.
+These use dark reading surfaces with colourful decorative header artwork.
+Indian Ocean is a special tribute to India and Kenya with a vintage travel-poster sun,
+coastal waves, warm orange, teal and green. It is included in the six new fun themes.
