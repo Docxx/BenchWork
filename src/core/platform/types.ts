@@ -185,6 +185,26 @@ export interface RelayAdapter {
   exportDetails?: (text: string) => Promise<string>;
   request: (endpoint: string, certificate: string, body: string) => Promise<string>;
   apply: (path: string, expected: string | null, bytes: string | null) => Promise<boolean>;
+  /** Account sign-in; absent where accounts are unavailable. */
+  account?: AccountAdapter;
+}
+
+/** Argon2id settings for the account password, as the relay stores them. */
+export interface AccountKdf {
+  alg: 'argon2id';
+  m: number;
+  t: number;
+  p: number;
+}
+
+/** The device side of account sign-in. */
+export interface AccountAdapter {
+  /** The built-in relay address and this device's suggested name. */
+  relay: () => Promise<{ endpoint: string; certificate: string; device: string }>;
+  /** Argon2id of the password: 64 bytes, base64. */
+  deriveKey: (password: string, salt: string, kdf: AccountKdf) => Promise<string>;
+  /** Makes an empty folder for a vault from the account and returns its path. */
+  prepareFolder: (name: string) => Promise<string>;
 }
 
 export interface SyncConnection {

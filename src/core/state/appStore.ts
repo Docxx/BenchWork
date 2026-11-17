@@ -13,6 +13,7 @@ import { createScreenSlice, type ScreenSlice } from './screenSlice';
 import { createSyncSlice, type SyncSlice } from './syncSlice';
 import { createNativeSyncSlice, type NativeSyncSlice } from './nativeSyncSlice';
 import { createRelaySyncSlice, type RelaySyncSlice } from './relaySyncSlice';
+import { createAccountSlice, type AccountSlice } from './accountSlice';
 import { createUpdatesSlice, type UpdatesSlice } from './updatesSlice';
 import { createBackupSlice, type BackupSlice } from './backupSlice';
 import { createHomeSlice, type HomeSlice } from './homeSlice';
@@ -54,6 +55,7 @@ export type AppState = KnowledgeSlice &
   SyncSlice &
   NativeSyncSlice &
   RelaySyncSlice &
+  AccountSlice &
   UpdatesSlice &
   BackupSlice &
   HomeSlice &
@@ -98,6 +100,7 @@ export function createAppStore(
       ...createGuideSlice(ctx),
       ...createNativeSyncSlice(ctx),
       ...createRelaySyncSlice(ctx),
+      ...createAccountSlice(ctx),
       ...createUpdatesSlice(ctx),
     };
   });

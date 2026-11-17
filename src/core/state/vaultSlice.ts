@@ -57,6 +57,11 @@ export interface VaultSlice {
   closeVault: () => Promise<boolean>;
   /** Closes the open vault and opens the one at `path`, such as a restored backup. */
   switchToVault: (path: string) => Promise<void>;
+  /**
+   * Opens an empty folder BenchWork made for a vault arriving from the account:
+   * no sample notebook and no questions, since the notes are on their way.
+   */
+  openArrivingVault: (path: string) => Promise<void>;
 }
 
 const PICK_TITLES: Record<PickMode, string> = {
@@ -153,6 +158,7 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
         const settings = await loadAppSettings(platform);
         set({ settings, guide: settings.guided ? null : 'welcome' });
         get().initAppUpdates();
+        void get().initAccount();
         const last = settings.lastVault;
         if (last === null) {
           set({ status: { kind: 'no-vault' } });
@@ -245,5 +251,10 @@ export function createVaultSlice(ctx: StoreContext): VaultSlice {
         if (!(await closeOpen())) return;
         await goOnWith(path);
       }),
+
+    openArrivingVault: async (path) => {
+      if (!(await closeOpen())) throw new Error('Finish saving the open vault first.');
+      await openCurrent(await platform.setVaultRoot(path));
+    },
   };
 }

@@ -35,6 +35,13 @@ export interface RelaySyncSlice {
   closeCloudSharing: () => Promise<void>;
   restoreCloudSync: (recovery: string) => Promise<void>;
   saveCloudDetails: (kind: 'pairing' | 'recovery') => Promise<void>;
+  /**
+   * Starts Cloud sync with a connection from the account. `fresh` means
+   * BenchWork made this folder itself, so no other folder sync can be on it.
+   */
+  adoptCloudSync: (connection: RelayConnection, fresh: boolean) => Promise<void>;
+  /** The open vault's connection, for the account. Null when not set up. */
+  cloudConnection: () => RelayConnection | null;
 }
 export function createRelaySyncSlice(ctx: StoreContext): RelaySyncSlice {
   const { platform, get, set } = ctx;
@@ -253,6 +260,26 @@ export function createRelaySyncSlice(ctx: StoreContext): RelaySyncSlice {
           throw new Error('Invalid recovery details.');
         await connect(recovery.connection, true, true);
       }),
+    adoptCloudSync: async (value, fresh) => {
+      if (fresh && get().desktopSync.mode === 'off' && !(await platform.exists('.stfolder')))
+        patch({ confirmed: true });
+      let failure: unknown = null;
+      // perform() skips work while a sync runs; this must not be skipped.
+      while (active) await active;
+      await perform(async () => {
+        try {
+          consent();
+          if (get().relaySync.enabled) throw new Error('Cloud sync is already configured.');
+          await platform.secureWrite(secretKey, JSON.stringify(value));
+          await connect(value, true);
+        } catch (err) {
+          failure = err;
+          throw err;
+        }
+      });
+      if (failure) throw failure instanceof Error ? failure : new Error(describeError(failure));
+    },
+    cloudConnection: () => connection,
     syncCloudNow: () => perform(run),
     pairCloudDevice: () =>
       perform(async () => {

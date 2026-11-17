@@ -260,6 +260,14 @@ export class TauriAdapter implements PlatformAdapter {
       call<string>('relay_request', () => ({ input: { endpoint, certificate, body } })),
     apply: (path, expected, bytes) =>
       call<boolean>('relay_apply', () => ({ path: normaliseVaultPath(path), expected, bytes })),
+    account: {
+      relay: () => call<{ endpoint: string; certificate: string; device: string }>('account_relay'),
+      deriveKey: (password, salt, kdf) =>
+        call<string>('account_derive_key', () => ({
+          input: { password, salt, m: kdf.m, t: kdf.t, p: kdf.p },
+        })),
+      prepareFolder: (name) => call<string>('account_prepare_folder', () => ({ name })),
+    },
   };
   readonly labelBluetooth = nativeLabelBluetooth();
   async openFeedbackEmail(subject: string, body: string): Promise<void> {
