@@ -2,7 +2,7 @@
 import { MemoryAdapter } from '../platform/memory';
 import { parsePage } from '../pages/frontmatter';
 import { createAppStore } from './appStore';
-import { cleanTags, FILE_TAGS } from './knowledgeSlice';
+import { canvasLinks, cleanTags, FILE_TAGS } from './knowledgeSlice';
 
 async function setup(extra: Record<string, string> = {}) {
   const platform = new MemoryAdapter({
@@ -91,5 +91,31 @@ it('builds note and document links, includes inline tags and skips vault interna
     { source: 'Lab/Plan.md', target: 'Lab/Report.pdf' },
     { source: 'Lab/Plan.md', target: 'Lab/Other.md' },
   ]);
+  await state().closeVault();
+});
+
+it('joins a canvas to the pages and pictures on it', async () => {
+  const { state } = await setup({
+    'Lab/Map.canvas.json': JSON.stringify({
+      version: 1,
+      items: [
+        { id: 'a', kind: 'page', x: 0, y: 0, width: 1, height: 1, path: 'Lab/Plan.md' },
+        { id: 'b', kind: 'image', x: 0, y: 0, width: 1, height: 1, path: 'Lab/Gel.png' },
+        { id: 'c', kind: 'text', x: 0, y: 0, width: 1, height: 1, text: 'See [[Other]]' },
+      ],
+      links: [],
+    }),
+    'Lab/Gel.png': 'png',
+  });
+  const graph = await state().vaultGraph();
+  expect(graph.edges.filter((e) => e.source === 'Lab/Map.canvas.json')).toEqual([
+    { source: 'Lab/Map.canvas.json', target: 'Lab/Plan.md' },
+    { source: 'Lab/Map.canvas.json', target: 'Lab/Gel.png' },
+    { source: 'Lab/Map.canvas.json', target: 'Lab/Other.md' },
+  ]);
+  expect(canvasLinks('{"items": [{"path": 3}, null, {"text": "[[A|alias]] [[B#part]]"}]}')).toEqual(
+    ['A', 'B'],
+  );
+  expect(() => canvasLinks('not json')).toThrow('not valid JSON');
   await state().closeVault();
 });

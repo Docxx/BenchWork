@@ -133,6 +133,15 @@ export function createKnowledgeSlice(ctx: StoreContext): KnowledgeSlice {
           )
             continue;
           const isNote = /\.md$/i.test(entry.name);
+          if (/\.canvas\.json$/i.test(entry.name)) {
+            // A canvas links to the pages, pictures and files placed on it.
+            try {
+              const targets = canvasLinks(await platform.readText(entry.path));
+              links.push(...targets.map((target) => ({ source: entry.path, target })));
+            } catch {
+              warnings.push(entry.path);
+            }
+          }
           let title = baseName(entry.path).replace(/\.md$/i, '');
           let tags = metadata[entry.path] ?? [];
           if (isNote || /\.ya?ml$/i.test(entry.name)) {
@@ -185,4 +194,34 @@ function strings(value: unknown): string[] {
     : typeof value === 'string'
       ? value.split(/[,\s]+/)
       : [];
+}
+
+/**
+ * What a canvas file links to: the vault paths of its page, picture and file
+ * cards, and `[[wiki links]]` in its text cards. Anything unreadable is left out.
+ */
+export function canvasLinks(text: string): string[] {
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error('The canvas is not valid JSON.');
+  }
+  const items =
+    typeof data === 'object' && data !== null && Array.isArray((data as { items?: unknown }).items)
+      ? (data as { items: unknown[] }).items
+      : [];
+  const out = new Set<string>();
+  for (const item of items) {
+    if (typeof item !== 'object' || item === null) continue;
+    const { path, text: words } = item as { path?: unknown; text?: unknown };
+    if (typeof path === 'string' && path !== '') out.add(path);
+    if (typeof words === 'string') {
+      for (const m of words.matchAll(/\[\[([^\]|#]+)/g)) {
+        const target = (m[1] ?? '').trim();
+        if (target !== '') out.add(target);
+      }
+    }
+  }
+  return [...out];
 }

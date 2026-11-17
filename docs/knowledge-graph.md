@@ -35,7 +35,8 @@ graph of two connection hops. It is an optional module and can be switched off
 without changing any files. Research and General notes packs include it.
 
 The graph reads notes, YAML records, document previews, images and canvases. It
-resolves existing wiki and Markdown links using the core link resolver. Shared tags
+resolves existing wiki and Markdown links using the core link resolver. A canvas links
+to the pages, pictures and files placed on it. Shared tags
 add separate tag nodes when enabled; unlinked files can be shown or hidden.
 
 The graph fills its space. Search, folder, file type and tag filters, and
