@@ -36,6 +36,8 @@
   --section-teal: #2a9d8f;
   --section-blue: #4a78b8;
   --section-purple: #8a7cb8;
+  /* Pink sits between the theme's own red and purple. */
+  --section-pink: color-mix(in oklch, var(--section-red) 50%, var(--section-purple));
   --section-grey: #8c959f;
   font-family: var(--font-ui);
   font-size: var(--text-size);
@@ -4759,4 +4761,46 @@ button.program-button:hover {
 .programs-actions {
   display: flex;
   gap: 0.5rem;
+}
+
+/* Short formatted notes, such as canvas card text (NoteText.tsx). */
+.note-text {
+  overflow-wrap: anywhere;
+}
+
+.note-text p,
+.note-text ul,
+.note-text ol,
+.note-text blockquote,
+.note-text pre {
+  margin: 0 0 0.4em;
+}
+
+.note-text ul,
+.note-text ol {
+  padding-left: 1.2em;
+}
+
+.note-text > :last-child,
+.note-text .note-editor > :last-child {
+  margin-bottom: 0;
+}
+
+.note-text a {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.note-text .note-editor {
+  min-height: 100%;
+  outline: none;
+}
+
+.note-text .note-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--muted);
+  pointer-events: none;
 }

@@ -72,6 +72,7 @@ export { newStrokeId } from '../ink/inkFile';
 /** Scratching out: whether a stroke is a scribble, for views that draw their own ink. */
 export { isScribble } from '../ink/scratchOut';
 export { AudienceSlide } from '../presentation/AudienceSlide';
+export { NoteText, NoteTextEditor, noteWords, plainTextToMarkdown } from '../ui/NoteText';
 export type { PdfRender } from '../files/pdf';
 export type { PdfDocument };
 

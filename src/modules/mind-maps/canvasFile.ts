@@ -10,9 +10,18 @@
  * `path`). Items of other kinds, such as ink strokes from a later module,
  * and any extra keys are kept exactly as they are when the canvas is saved.
  * How cards and arrows look is kept in keys of their own: see canvasStyle.ts.
+ *
+ * A text card with `"format": "markdown"` holds Markdown, shown formatted
+ * (bold, italic, links, lists); without it, its text is plain, as written.
  */
 
 export const CANVAS_ENDING = '.canvas.json';
+export const MARKDOWN_FORMAT = 'markdown';
+
+/** Whether a text card's text is Markdown, shown formatted. */
+export function isFormatted(item: CanvasItem): boolean {
+  return item['format'] === MARKDOWN_FORMAT;
+}
 export const KNOWN_KINDS = ['text', 'page', 'image', 'file'] as const;
 export type KnownKind = (typeof KNOWN_KINDS)[number];
 

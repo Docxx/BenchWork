@@ -8,6 +8,9 @@ import type { CanvasItem, CanvasLink } from './canvasFile';
  * section colours, so they suit light and dark.
  *
  *   card:  fill, borderColour, border, shape, textSize, link
+ *
+ * A card's fill can also be `none`: see-through, so a ring or frame can sit
+ * over a picture.
  *   arrow: colour, line, width, ends, path, fromSide, toSide
  */
 
@@ -19,6 +22,7 @@ export const COLOURS = [
   'teal',
   'blue',
   'purple',
+  'pink',
   'grey',
 ] as const;
 export type Colour = (typeof COLOURS)[number];
@@ -41,8 +45,12 @@ export type Ends = (typeof ENDS)[number];
 export type PathKind = (typeof PATHS)[number];
 export type Side = (typeof SIDES)[number];
 
+/** A fill that lets what is behind the card show through. */
+export const SEE_THROUGH = 'none';
+export type Fill = Colour | typeof SEE_THROUGH;
+
 export interface CardLook {
-  fill: Colour | null;
+  fill: Fill | null;
   borderColour: Colour | null;
   border: Border;
   shape: Shape;
@@ -102,7 +110,7 @@ function side(value: unknown): Side | null {
 /** A card's look, with anything unknown read as the usual look. */
 export function cardLook(item: CanvasItem): CardLook {
   return {
-    fill: colour(item['fill']),
+    fill: item['fill'] === SEE_THROUGH ? SEE_THROUGH : colour(item['fill']),
     borderColour: colour(item['borderColour']),
     border: pick(item['border'], BORDERS, 'solid'),
     shape: pick(item['shape'], SHAPES, 'rounded'),
@@ -158,7 +166,8 @@ export function cardStyle(look: CardLook): CSSProperties {
   const style: CSSProperties & Record<`--${string}`, string> = {
     fontSize: TEXT_SCALE[look.textSize],
   };
-  if (look.fill !== null) {
+  if (look.fill === SEE_THROUGH) style['--card-fill'] = 'transparent';
+  else if (look.fill !== null) {
     style['--card-fill'] = `color-mix(in srgb, ${colourVar(look.fill)} 24%, var(--surface))`;
   }
   if (look.borderColour !== null) style['--card-border'] = colourVar(look.borderColour);
@@ -171,7 +180,7 @@ export function cardClass(look: CardLook, kind: string): string {
     kind,
     `shape-${look.shape}`,
     `border-${look.border}`,
-    look.fill === null ? '' : 'filled',
+    look.fill === null ? '' : look.fill === SEE_THROUGH ? 'see-through' : 'filled',
   ]
     .filter((c) => c !== '')
     .join(' ');

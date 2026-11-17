@@ -7,6 +7,7 @@ import {
   Controls,
   Handle,
   MarkerType,
+  MiniMap,
   NodeResizer,
   Position,
   ReactFlow,
@@ -26,14 +27,17 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
 } from 'react';
-import type { ModuleContext } from '@core/api';
+import { NoteText, NoteTextEditor, plainTextToMarkdown, type ModuleContext } from '@core/api';
 import {
   DEFAULT_SIZE,
+  isFormatted,
   kindForPath,
+  MARKDOWN_FORMAT,
   newId,
   parseCanvas,
   serialiseCanvas,
@@ -51,12 +55,54 @@ import {
   cardClass,
   cardLook,
   cardStyle,
+  colourVar,
   edgeLook,
+  SEE_THROUGH,
   SIDES,
   withLook,
   type ArrowLook,
   type CardLook,
 } from './canvasStyle';
+
+/** The usual furthest zoom; a canvas too big to see whole at it may go further. */
+export const USUAL_MIN_ZOOM = 0.1;
+/** Never further than this, however big the canvas. */
+const FURTHEST_ZOOM = 0.002;
+/** Below this zoom, cards show as plain blocks: their words are too small to read. */
+export const FAR_ZOOM = 0.2;
+
+interface Box {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** The box around all the items, or null for an empty canvas. */
+export function boundsOf(items: readonly Box[]): Box | null {
+  if (items.length === 0) return null;
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  for (const i of items) {
+    x0 = Math.min(x0, i.x);
+    y0 = Math.min(y0, i.y);
+    x1 = Math.max(x1, i.x + i.width);
+    y1 = Math.max(y1, i.y + i.height);
+  }
+  return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+}
+
+/**
+ * How far out the canvas may zoom: the usual limit, or far enough to see the
+ * whole canvas in `view` with room to spare.
+ */
+export function minZoomFor(bounds: Box | null, view: { width: number; height: number }): number {
+  if (bounds === null || bounds.width <= 0 || bounds.height <= 0) return USUAL_MIN_ZOOM;
+  const fit = Math.min(view.width / bounds.width, view.height / bounds.height);
+  return Math.max(FURTHEST_ZOOM, Math.min(USUAL_MIN_ZOOM, fit / 2));
+}
 
 /** Saves this long after the last change. */
 export const CANVAS_SAVE_MS = 800;
@@ -256,9 +302,12 @@ function CardFrame({
 }
 
 function TextCard({ id, data, selected }: NodeProps<CardNode>) {
-  const { setText } = useActions();
-  const [editing, setEditing] = useState(data.item.text === '');
-  const [draft, setDraft] = useState(data.item.text ?? '');
+  const { ctx, setText } = useActions();
+  const text = data.item.text ?? '';
+  const formatted = isFormatted(data.item);
+  const [editing, setEditing] = useState(text === '');
+  // Plain cards from before formatting become formatted the first time they are changed.
+  const markdown = formatted ? text : plainTextToMarkdown(text);
   return (
     <CardFrame
       item={data.item}
@@ -266,31 +315,30 @@ function TextCard({ id, data, selected }: NodeProps<CardNode>) {
       selected={selected}
       min={{ width: 80, height: 40 }}
       onDoubleClick={() => {
-        setDraft(data.item.text ?? '');
         setEditing(true);
       }}
     >
       {editing ? (
-        <textarea
-          className="nodrag nowheel"
-          aria-label="Card text"
-          autoFocus
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-          }}
-          onBlur={() => {
+        <NoteTextEditor
+          markdown={markdown}
+          label="Card text"
+          onDone={(next) => {
             setEditing(false);
-            if (draft !== data.item.text) setText(id, draft);
+            if (next !== markdown || (!formatted && text === '')) setText(id, next);
           }}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') e.currentTarget.blur();
+        />
+      ) : text === '' ? (
+        <p className="card-text">Double-click to write</p>
+      ) : formatted ? (
+        <NoteText
+          className="card-text"
+          markdown={text}
+          onOpenLink={(url) => {
+            openLink(ctx, url);
           }}
         />
       ) : (
-        <p className="card-text">
-          {data.item.text === '' ? 'Double-click to write' : data.item.text}
-        </p>
+        <p className="card-text">{text}</p>
       )}
     </CardFrame>
   );
@@ -412,6 +460,9 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [changedElsewhere, setChangedElsewhere] = useState(false);
   const [reads, setReads] = useState(0);
+  const [far, setFar] = useState(false);
+  /** Whether the overview map shows; null until chosen, when it shows for big canvases. */
+  const [overview, setOverview] = useState<boolean | null>(null);
   const board = useRef<HTMLDivElement>(null);
 
   const base = useRef<CanvasDoc | null>(null);
@@ -567,7 +618,9 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
   const setText = useCallback(
     (id: string, text: string) => {
       const next = latest.current.nodes.map((n) =>
-        n.id === id ? { ...n, data: { item: { ...n.data.item, text } } } : n,
+        n.id === id
+          ? { ...n, data: { item: { ...n.data.item, text, format: MARKDOWN_FORMAT } } }
+          : n,
       );
       setNodes(next);
       changed({ ...latest.current, nodes: next });
@@ -719,6 +772,24 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
     }
   };
 
+  const minZoom = useMemo(
+    () =>
+      minZoomFor(
+        boundsOf(
+          nodes.map((n) => ({
+            x: n.position.x,
+            y: n.position.y,
+            width: n.width ?? n.data.item.width,
+            height: n.height ?? n.data.item.height,
+          })),
+        ),
+        // The window, not the board: close enough, as the limit leaves room to spare.
+        { width: window.innerWidth, height: window.innerHeight },
+      ),
+    [nodes],
+  );
+  const showOverview = overview ?? minZoom < USUAL_MIN_ZOOM;
+
   const shownEdges = routed(edges, nodes);
   const selectedCards = nodes.filter((n) => n.selected === true);
   const selectedArrows = edges.filter((e) => e.selected === true);
@@ -748,6 +819,17 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
           <span className="hint">
             Drag from a dot to draw an arrow. Select cards or arrows to change their look.
           </span>
+          <button
+            type="button"
+            className="quiet"
+            aria-pressed={showOverview}
+            title="A small map of the whole canvas"
+            onClick={() => {
+              setOverview(!showOverview);
+            }}
+          >
+            Overview
+          </button>
         </div>
         {!changedElsewhere && (
           <CanvasStyleBar
@@ -788,7 +870,7 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
         {saveError !== null && (
           <p className="notice">This canvas could not be saved. {saveError}</p>
         )}
-        <div ref={board} className="canvas-board" aria-label="Canvas">
+        <div ref={board} className={far ? 'canvas-board far' : 'canvas-board'} aria-label="Canvas">
           <ReactFlow
             nodes={nodes}
             edges={shownEdges}
@@ -803,7 +885,12 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
             nodesDraggable={!changedElsewhere}
             nodesConnectable={!changedElsewhere}
             fitView
-            minZoom={0.1}
+            minZoom={minZoom}
+            onlyRenderVisibleElements
+            onMove={(_e, viewport) => {
+              const isFar = viewport.zoom < FAR_ZOOM;
+              if (isFar !== far) setFar(isFar);
+            }}
             proOptions={{ hideAttribution: true }}
             onPaneClick={(e) => {
               // Double-click on empty space: a new card there.
@@ -821,6 +908,17 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
           >
             <Background gap={24} />
             <Controls showInteractive={false} />
+            {showOverview && (
+              <MiniMap
+                pannable
+                zoomable
+                ariaLabel="Overview of the canvas"
+                nodeColor={(n: CardNode) => {
+                  const fill = cardLook(n.data.item).fill;
+                  return fill === null || fill === SEE_THROUGH ? 'var(--border)' : colourVar(fill);
+                }}
+              />
+            )}
           </ReactFlow>
         </div>
       </div>

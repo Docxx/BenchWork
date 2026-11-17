@@ -145,10 +145,16 @@ interface SidebarPalette {
 }
 
 export type SectionColour =
-  'red' | 'orange' | 'yellow' | 'green' | 'teal' | 'blue' | 'purple' | 'grey';
+  'red' | 'orange' | 'yellow' | 'green' | 'teal' | 'blue' | 'purple' | 'pink' | 'grey';
+
+/** A theme's section colours. Pink may be left out: it is then mixed from the theme's red and purple. */
+export type SectionColours = Record<Exclude<SectionColour, 'pink'>, string> & { pink?: string };
+
+/** Pink for a theme that has none of its own: halfway between its red and purple. */
+export const MIXED_PINK = 'color-mix(in oklch, var(--section-red) 50%, var(--section-purple))';
 
 /** The usual section colours, for themes without their own. */
-const SECTIONS: Record<SectionColour, string> = {
+const SECTIONS: SectionColours = {
   red: '#d1495b',
   orange: '#c8794f',
   yellow: '#c99a1e',
@@ -170,7 +176,7 @@ export interface PresetSpec {
   sidebar: SidebarStyle;
   darkSidebar: SidebarPalette;
   /** Its own section colours, used for notebooks, cards and canvases. */
-  sections?: Record<SectionColour, string>;
+  sections?: SectionColours;
   /** Accent colours offered with it, in place of the usual ones. */
   accents?: readonly { name: string; value: string }[];
   headingFont: FontChoice;
@@ -1827,7 +1833,7 @@ export function appearanceTokens(appearance: Appearance, scheme: Scheme): Record
           border: palette.border,
         };
   const sections = Object.fromEntries(
-    Object.entries(spec.sections ?? SECTIONS).map(([name, colour]) => [
+    Object.entries({ pink: MIXED_PINK, ...(spec.sections ?? SECTIONS) }).map(([name, colour]) => [
       `--section-${name}`,
       colour,
     ]),

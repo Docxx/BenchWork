@@ -321,6 +321,14 @@ Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([gu
 - [x] New project notes and experiments linked to their hub; task source pages retained
 - [x] Final regression and layout checks ([guide](docs/projects.md))
 
+### Main app: big canvases and richer cards
+
+- [x] A canvas zooms out far enough to show all of it, with an overview map; far out, cards draw as plain blocks
+- [x] See-through card fill, and pink among the card and arrow colours (mixed from each theme's red and purple)
+- [x] Formatted card text (bold, italic, links, lists), kept as Markdown; older plain cards unchanged until edited
+- [x] Six mind map PDFs imported onto one canvas (converter kept outside the app)
+- [ ] Checked on the tablet
+
 ## Phase 8: Apple port
 
 - [ ] macOS build (needs a Mac or macOS CI runner)

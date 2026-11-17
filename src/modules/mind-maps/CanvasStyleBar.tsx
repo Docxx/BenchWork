@@ -13,7 +13,9 @@ import {
   WIDTHS,
   type ArrowLook,
   type CardLook,
+  SEE_THROUGH,
   type Colour,
+  type Fill,
 } from './canvasStyle';
 
 const COLOUR_NAMES: Record<Colour, string> = {
@@ -24,6 +26,7 @@ const COLOUR_NAMES: Record<Colour, string> = {
   teal: 'Teal',
   blue: 'Blue',
   purple: 'Purple',
+  pink: 'Pink',
   grey: 'Grey',
 };
 
@@ -57,14 +60,17 @@ function shared<T>(values: T[]): T | null {
   return values.every((v) => v === first) ? (first ?? null) : null;
 }
 
-function Swatches({
+function Swatches<T extends Fill>({
   label,
   value,
   onChange,
+  seeThrough = false,
 }: {
   label: string;
-  value: Colour | null | undefined;
-  onChange: (colour: Colour | null) => void;
+  value: T | null | undefined;
+  onChange: (colour: T | null) => void;
+  /** Also offer a see-through fill. */
+  seeThrough?: boolean;
 }) {
   return (
     <span className="canvas-swatches" role="group" aria-label={label}>
@@ -72,13 +78,25 @@ function Swatches({
       <button
         type="button"
         className="canvas-swatch none"
-        aria-label="None"
-        title="None"
+        aria-label="Usual"
+        title="Usual"
         aria-pressed={value === null}
         onClick={() => {
           onChange(null);
         }}
       />
+      {seeThrough && (
+        <button
+          type="button"
+          className="canvas-swatch see-through"
+          aria-label="See-through"
+          title="See-through"
+          aria-pressed={value === SEE_THROUGH}
+          onClick={() => {
+            onChange(SEE_THROUGH as T);
+          }}
+        />
+      )}
       {COLOURS.map((c) => (
         <button
           key={c}
@@ -89,7 +107,7 @@ function Swatches({
           title={COLOUR_NAMES[c]}
           aria-pressed={value === c}
           onClick={() => {
-            onChange(c);
+            onChange(c as T);
           }}
         />
       ))}
@@ -157,14 +175,15 @@ export function CanvasStyleBar({
     <div className="canvas-style" role="toolbar" aria-label="Style">
       {cards.length > 0 && (
         <>
-          <Swatches
+          <Swatches<Fill>
             label="Fill"
+            seeThrough
             value={shared(cardLooks.map((l) => l.fill))}
             onChange={(fill) => {
               onCards({ fill });
             }}
           />
-          <Swatches
+          <Swatches<Colour>
             label="Border"
             value={shared(cardLooks.map((l) => l.borderColour))}
             onChange={(borderColour) => {

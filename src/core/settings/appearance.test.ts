@@ -160,4 +160,12 @@ describe('appearance settings', () => {
       expect(Object.keys(spec.sections ?? {})).toHaveLength(8);
     }
   });
+
+  it('gives every theme a pink, mixed from its own red and purple', () => {
+    for (const id of ['forest', 'neon', 'mars'] as const) {
+      expect(appearanceTokens(defaultAppearance(id), 'dark')['--section-pink']).toBe(
+        'color-mix(in oklch, var(--section-red) 50%, var(--section-purple))',
+      );
+    }
+  });
 });

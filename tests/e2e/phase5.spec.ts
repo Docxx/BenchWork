@@ -306,3 +306,92 @@ test('cards and arrows can be coloured and shaped, and arrows turned round', asy
     .poll(async () => Object.keys((await canvas()).links[0] ?? {}).sort())
     .toEqual(['from', 'id', 'line', 'to']);
 });
+
+test('a big canvas zooms out to show all of it, with an overview map', async ({ page }) => {
+  await page.evaluate(() => {
+    const memory = window.__benchworkMemory;
+    if (!memory) throw new Error('No memory adapter');
+    void memory.writeTextAtomic(
+      'Lab/Big.canvas.json',
+      JSON.stringify({
+        version: 1,
+        items: [
+          { id: 'near', kind: 'text', x: 0, y: 0, width: 300, height: 120, text: 'Start here' },
+          { id: 'far', kind: 'text', x: 120000, y: 80000, width: 300, height: 120, text: 'Far' },
+        ],
+        links: [],
+      }),
+    );
+  });
+  await page.getByRole('button', { name: 'Refresh' }).click();
+  await tree(page).getByRole('treeitem', { name: 'Lab' }).click();
+  await tree(page).getByRole('treeitem', { name: 'Big' }).click();
+  const board = page.getByLabel('Canvas', { exact: true });
+
+  // Both corners are in view at once (only cards in view are drawn), with an overview map.
+  await expect(board.locator('.react-flow__node')).toHaveCount(2);
+  await expect(board).toHaveClass(/far/);
+  const overview = page.getByRole('button', { name: 'Overview' });
+  await expect(overview).toHaveAttribute('aria-pressed', 'true');
+  await expect(board.locator('.react-flow__minimap')).toBeVisible();
+  await overview.click();
+  await expect(board.locator('.react-flow__minimap')).toHaveCount(0);
+});
+
+test('cards can be see-through, and card text is formatted', async ({ page }) => {
+  await page.evaluate(() => {
+    const memory = window.__benchworkMemory;
+    if (!memory) throw new Error('No memory adapter');
+    void memory.writeTextAtomic(
+      'Lab/Notes.canvas.json',
+      JSON.stringify({
+        version: 1,
+        items: [
+          { id: 'a', kind: 'text', x: 0, y: 0, width: 240, height: 100, text: 'Start here' },
+          { id: 'b', kind: 'text', x: 400, y: 0, width: 240, height: 100, text: 'Plain *stays*' },
+        ],
+        links: [],
+      }),
+    );
+  });
+  await page.getByRole('button', { name: 'Refresh' }).click();
+  await tree(page).getByRole('treeitem', { name: 'Lab' }).click();
+  await tree(page).getByRole('treeitem', { name: 'Notes' }).click();
+  const board = page.getByLabel('Canvas', { exact: true });
+  await expect(board.locator('.react-flow__node')).toHaveCount(2);
+  await expect(page.getByRole('button', { name: 'Overview' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  // A plain card from before shows its words exactly as written.
+  await expect(board.locator('.react-flow__node[data-id="b"]')).toContainText('Plain *stays*');
+
+  const canvas = async () =>
+    JSON.parse(
+      (await page.evaluate(() => window.__benchworkMemory?.snapshot()['Lab/Notes.canvas.json'])) ??
+        '{}',
+    ) as { items: Record<string, unknown>[] };
+
+  // See-through: the card keeps its border but shows what is behind it.
+  await board.locator('.react-flow__node[data-id="a"]').click();
+  const style = page.getByRole('toolbar', { name: 'Style' });
+  await style
+    .getByRole('group', { name: 'Fill' })
+    .getByRole('button', { name: 'See-through' })
+    .click();
+  await expect.poll(async () => (await canvas()).items[0]).toMatchObject({ fill: 'none' });
+  await expect(board.locator('.react-flow__node[data-id="a"] .canvas-card')).toHaveClass(
+    /see-through/,
+  );
+
+  // Bold text, saved as Markdown and shown without its symbols.
+  await board.locator('.react-flow__node[data-id="a"]').dblclick();
+  const text = page.getByRole('textbox', { name: 'Card text' });
+  await text.press('Control+a');
+  await text.press('Control+b');
+  await board.locator('.react-flow__pane').click({ position: { x: 20, y: 300 } });
+  await expect
+    .poll(async () => (await canvas()).items[0])
+    .toMatchObject({ text: '**Start here**', format: 'markdown' });
+  await expect(board.locator('.react-flow__node[data-id="a"] strong')).toHaveText('Start here');
+});

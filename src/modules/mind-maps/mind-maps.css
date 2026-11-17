@@ -260,6 +260,13 @@ button.canvas-swatch.none {
   );
 }
 
+/* See-through: a hollow ring on a checked ground. */
+button.canvas-swatch.see-through {
+  background:
+    radial-gradient(circle, var(--bg) 40%, transparent 42%),
+    repeating-conic-gradient(var(--muted) 0 25%, var(--bg) 0 50%) 0 0 / 8px 8px;
+}
+
 button.canvas-swatch[aria-pressed='true'] {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
@@ -299,16 +306,16 @@ button.canvas-swatch[aria-pressed='true'] {
   white-space: pre-wrap;
 }
 
-.text-card textarea {
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  resize: none;
-  border: none;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  outline: none;
+/* Formatted text keeps Markdown's own line breaks, not the file's. */
+.card-text.note-text {
+  white-space: normal;
+}
+
+.text-card .note-text.editing {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  cursor: text;
 }
 
 .card-title {
@@ -385,4 +392,22 @@ button.canvas-swatch[aria-pressed='true'] {
 
 .canvas-file-name {
   font-weight: 600;
+}
+
+/* Far out, cards are plain blocks: their words would be too small to read, and drawing them is slow. */
+.canvas-board.far .canvas-card .card-text,
+.canvas-board.far .canvas-card .card-title,
+.canvas-board.far .canvas-card .card-preview,
+.canvas-board.far .canvas-card .card-link {
+  visibility: hidden;
+}
+
+.canvas-board .react-flow__minimap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.canvas-toolbar button[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
 }

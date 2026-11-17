@@ -7,8 +7,8 @@ import { createAppStore } from '@core/state/appStore';
 import { AppStoreProvider } from '@core/ui/AppStoreContext';
 import { PageView } from '@core/ui/PageView';
 import manifestJson from './manifest.json';
-import { facingSides } from './CanvasEditor';
-import { kindForPath, parseCanvas, serialiseCanvas } from './canvasFile';
+import { boundsOf, facingSides, minZoomFor, USUAL_MIN_ZOOM } from './CanvasEditor';
+import { isFormatted, kindForPath, parseCanvas, serialiseCanvas } from './canvasFile';
 import {
   ARROW_DEFAULTS,
   arrowLook,
@@ -192,6 +192,27 @@ describe('Mind maps: canvas files', () => {
     ]);
   });
 
+  it('knows which text cards are formatted', () => {
+    const card = { id: 'a', kind: 'text', x: 0, y: 0, width: 100, height: 50, text: '**Hi**' };
+    expect(isFormatted(card)).toBe(false);
+    expect(isFormatted({ ...card, format: 'markdown' })).toBe(true);
+  });
+
+  it('zoom out far enough to see a big canvas whole, but no further than usual for a small one', () => {
+    const view = { width: 1600, height: 900 };
+    expect(minZoomFor(null, view)).toBe(USUAL_MIN_ZOOM);
+    const small = boundsOf([
+      { x: 0, y: 0, width: 200, height: 100 },
+      { x: 900, y: 400, width: 200, height: 100 },
+    ]);
+    expect(small).toEqual({ x: 0, y: 0, width: 1100, height: 500 });
+    expect(minZoomFor(small, view)).toBe(USUAL_MIN_ZOOM);
+    // About 130,000 points wide, like a big imported map: half the zoom that fits it.
+    const big = { x: 0, y: 0, width: 160000, height: 104000 };
+    expect(minZoomFor(big, view)).toBeCloseTo(900 / 104000 / 2);
+    expect(minZoomFor({ x: 0, y: 0, width: 1e9, height: 1e9 }, view)).toBe(0.002);
+  });
+
   it('joins arrows to the sides of cards that face each other', () => {
     const box = (x: number, y: number) => ({ x, y, width: 100, height: 50 });
     expect(facingSides(box(0, 0), box(300, 20))).toEqual({ source: 'right', target: 'left' });
@@ -245,6 +266,20 @@ describe('Mind maps: canvas styles', () => {
       '--card-fill': 'color-mix(in srgb, var(--section-green) 24%, var(--surface))',
       '--card-border': 'var(--section-red)',
     });
+  });
+
+  it('can be see-through, so a ring over a picture shows the picture', () => {
+    const look = cardLook({ ...card, fill: 'none', borderColour: 'pink' });
+    expect(look).toMatchObject({ fill: 'none', borderColour: 'pink' });
+    expect(cardClass(look, 'text-card')).toBe(
+      'canvas-card text-card shape-rounded border-solid see-through',
+    );
+    expect(cardStyle(look)).toMatchObject({
+      '--card-fill': 'transparent',
+      '--card-border': 'var(--section-pink)',
+    });
+    // See-through is for fills only.
+    expect(cardLook({ ...card, borderColour: 'none' }).borderColour).toBeNull();
   });
 
   it('draw arrows with their line, heads and path', () => {
