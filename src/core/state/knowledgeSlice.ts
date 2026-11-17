@@ -1,5 +1,6 @@
 import type { VaultGraph } from '../api';
 import { resolveLink } from '../links/resolve';
+import { SECTION_FILE } from '../notebooks/sectionMeta';
 import { parsePage } from '../pages/frontmatter';
 import { baseName, normaliseVaultPath, type PageRef } from '../platform';
 import { extractFile } from '../search/extract';
@@ -121,7 +122,13 @@ export function createKnowledgeSlice(ctx: StoreContext): KnowledgeSlice {
       async function walk(folder: string): Promise<void> {
         for (const entry of await platform.listDir(folder)) {
           if (token !== ctx.session()) throw new Error('The vault changed. Refresh the graph.');
-          if (entry.name.startsWith('.') || entry.name.endsWith('.ink.json')) continue;
+          // Hidden files, ink and folder settings are not part of the graph.
+          if (
+            entry.name.startsWith('.') ||
+            entry.name.endsWith('.ink.json') ||
+            entry.name === SECTION_FILE
+          )
+            continue;
           if (entry.isDir) {
             await walk(entry.path);
             continue;

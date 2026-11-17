@@ -74,6 +74,7 @@ it('builds note and document links, includes inline tags and skips vault interna
     '.benchwork/hidden.md': 'secret',
     'Lab/Map.canvas.json': '{}',
     'Lab/Plan.md.ink.json': '{}',
+    'Lab/_section.yaml': 'colour: blue',
   });
   await state().setItemTags('Lab/Report.pdf', ['evidence']);
   const graph = await state().vaultGraph();
