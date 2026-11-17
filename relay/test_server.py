@@ -82,7 +82,8 @@ class AccountTests(unittest.TestCase):
 
     def register(self, **extra):
         return self.store.handle({'action': 'register', 'login': 'Ray', 'salt': 'c2FsdHNhbHRzYWx0c2FsdA==',
-                                  'kdf': KDF, 'auth': 'a' * 43, 'keyring': KEYRING, 'name': 'PC', **extra})
+                                  'kdf': KDF, 'auth': 'a' * 43, 'keyring': KEYRING, 'recovery': 'r' * 43,
+                                  'rkeyring': KEYRING, 'name': 'PC', **extra})
 
     def login(self, auth='a' * 43, name='Tablet', ip='10.0.0.1'):
         return self.store.handle({'action': 'login', 'login': 'ray', 'auth': auth, 'name': name}, ip)
@@ -136,18 +137,25 @@ class AccountTests(unittest.TestCase):
     def test_keyring_compare_and_swap_and_password_change(self):
         account = self.register(vault=self.owner['vault'], token=self.owner['token'])
         session = account['session']
-        put = {'action': 'keyring_put', 'session': session, 'keyring': KEYRING}
+        put = {'action': 'keyring_put', 'session': session, 'keyring': KEYRING, 'rkeyring': KEYRING}
         self.assertEqual(self.store.handle({**put, 'version': 1})['version'], 2)
         with self.assertRaises(RelayError):
             self.store.handle({**put, 'version': 1})
         change = {'action': 'change_password', 'session': session, 'salt': 'bmV3c2FsdG5ld3NhbHQ=',
-                  'kdf': KDF, 'auth': 'b' * 43, 'keyring': KEYRING, 'version': 2}
+                  'kdf': KDF, 'auth': 'b' * 43, 'keyring': KEYRING, 'rkeyring': KEYRING, 'version': 2}
         with self.assertRaises(RelayError):
             self.store.handle({**change, 'current': 'wrong' * 5})
         self.store.handle({**change, 'current': 'a' * 43})
         with self.assertRaises(RelayError):
             self.login()
         self.assertEqual(self.login(auth='b' * 43)['version'], 3)
+        # Forgotten password: the recovery key signs in and sets a new one.
+        with self.assertRaises(RelayError):
+            self.store.handle({'action': 'login', 'login': 'ray', 'recovery': 'x' * 43, 'name': 'New'})
+        rescued = self.store.handle({'action': 'login', 'login': 'ray', 'recovery': 'r' * 43, 'name': 'New'})
+        self.store.handle({**change, 'session': rescued['session'], 'recovery': 'r' * 43,
+                           'auth': 'c' * 43, 'version': 3})
+        self.assertEqual(self.login(auth='c' * 43)['version'], 4)
 
     def test_sign_in_failures_are_limited_by_username_and_by_address(self):
         self.register(vault=self.owner['vault'], token=self.owner['token'])

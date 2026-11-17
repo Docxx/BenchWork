@@ -32,6 +32,7 @@ rcgen = "0.14"
 rand = "0.9"
 qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 base64 = "0.22"
+argon2 = { version = "0.5", default-features = false, features = ["alloc"] }
 
 # Android has no Recycle Bin; deleted items go to the vault's own trash folder there.
 [target.'cfg(not(target_os = "android"))'.dependencies]

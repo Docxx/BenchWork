@@ -58,7 +58,7 @@ class Store:
                 CREATE TABLE IF NOT EXISTS claimed(setup TEXT PRIMARY KEY);
                 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
                 CREATE TABLE IF NOT EXISTS accounts(id TEXT PRIMARY KEY, login TEXT UNIQUE, salt TEXT, kdf TEXT,
-                    auth TEXT, keyring TEXT, version INTEGER, created INTEGER);
+                    auth TEXT, keyring TEXT, version INTEGER, created INTEGER, recovery TEXT, rkeyring TEXT);
                 CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY, token TEXT UNIQUE, account TEXT, name TEXT,
                     created INTEGER, seen INTEGER);
                 CREATE TABLE IF NOT EXISTS attempts(key TEXT PRIMARY KEY, count INTEGER, start INTEGER);
@@ -201,8 +201,8 @@ class Store:
         return value
 
     @staticmethod
-    def keyring(data):
-        value = data.get("keyring", "")
+    def keyring(data, key="keyring"):
+        value = data.get(key, "")
         if not isinstance(value, str) or not 40 <= len(value) <= MAX_KEYRING:
             raise RelayError(413, "Encrypted keyring exceeds size limit")
         try:
@@ -245,7 +245,10 @@ class Store:
 
     def login(self, data, ip):
         login = self.login_id(data)
-        auth = self.secret(data, "auth")
+        # A recovery key signs in like a password and returns the keyring copy
+        # sealed under it, so a device can set a new password.
+        recovering = "recovery" in data
+        auth = self.secret(data, "recovery" if recovering else "auth")
         now = int(time.time())
         keys = [("login:" + login, LOGIN_LIMIT, LOGIN_WINDOW), ("ip:" + str(ip), IP_LIMIT, IP_WINDOW)]
         # Failures are committed before the error is raised, so they count.
@@ -255,8 +258,9 @@ class Store:
                 row = db.execute("SELECT count, start FROM attempts WHERE key=?", (key,)).fetchone()
                 if row and row[1] + window > now and row[0] >= limit:
                     raise RelayError(429, "Too many tries. Wait 15 minutes.")
-            row = db.execute("SELECT id, auth, keyring, version FROM accounts WHERE login=?", (login,)).fetchone()
-            if row and hmac.compare_digest(digest(auth), row[1]):
+            columns = "recovery, rkeyring" if recovering else "auth, keyring"
+            row = db.execute(f"SELECT id, {columns}, version FROM accounts WHERE login=?", (login,)).fetchone()
+            if row and row[1] and hmac.compare_digest(digest(auth), row[1]):
                 db.execute("DELETE FROM attempts WHERE key=?", (keys[0][0],))
                 token, ident = self.start_session(db, row[0], data)
                 return {"session": token, "device": ident, "keyring": row[2], "version": row[3]}
@@ -292,6 +296,7 @@ class Store:
             login = self.login_id(data)
             salt, kdf = self.kdf(data)
             auth, keyring = self.secret(data, "auth"), self.keyring(data)
+            recovery, rkeyring = self.secret(data, "recovery"), self.keyring(data, "rkeyring")
             attach = None
             signup = data.get("signup")
             if isinstance(signup, str) and signup:
@@ -308,8 +313,9 @@ class Store:
             if db.execute("SELECT 1 FROM accounts WHERE login=?", (login,)).fetchone():
                 raise RelayError(409, "That username is taken")
             account = secrets.token_urlsafe(16)
-            db.execute("INSERT INTO accounts VALUES(?,?,?,?,?,?,1,?)",
-                       (account, login, salt, kdf, digest(auth), keyring, int(time.time())))
+            db.execute("INSERT INTO accounts VALUES(?,?,?,?,?,?,1,?,?,?)",
+                       (account, login, salt, kdf, digest(auth), keyring, int(time.time()),
+                        digest(recovery), rkeyring))
             if attach:
                 db.execute("UPDATE vaults SET account=? WHERE id=?", (account, attach))
             token, ident = self.start_session(db, account, data)
@@ -324,24 +330,29 @@ class Store:
             return {"keyring": row[0], "version": row[1]}
         if action == "keyring_put":
             keyring, version = self.keyring(data), data.get("version")
+            rkeyring = self.keyring(data, "rkeyring")
             current = db.execute("SELECT version FROM accounts WHERE id=?", (account,)).fetchone()[0]
             # Compare and swap: a device must have seen the latest keyring first.
             if not isinstance(version, int) or isinstance(version, bool) or version != current:
                 raise RelayError(409, "Keyring changed on another device")
-            db.execute("UPDATE accounts SET keyring=?, version=? WHERE id=?", (keyring, current + 1, account))
+            db.execute("UPDATE accounts SET keyring=?, rkeyring=?, version=? WHERE id=?",
+                       (keyring, rkeyring, current + 1, account))
             return {"version": current + 1}
         if action == "change_password":
-            row = db.execute("SELECT auth, version FROM accounts WHERE id=?", (account,)).fetchone()
-            if not hmac.compare_digest(digest(self.secret(data, "current")), row[0]):
+            row = db.execute("SELECT auth, recovery, version FROM accounts WHERE id=?", (account,)).fetchone()
+            # Either the current password or the recovery key proves it is you.
+            proof, stored = ("recovery", row[1]) if "recovery" in data else ("current", row[0])
+            if not hmac.compare_digest(digest(self.secret(data, proof)), stored or ""):
                 raise RelayError(403, "Current password is wrong.")
             salt, kdf = self.kdf(data)
             keyring, version, auth = self.keyring(data), data.get("version"), self.secret(data, "auth")
-            if version != row[1]:
+            rkeyring = self.keyring(data, "rkeyring")
+            if version != row[2]:
                 raise RelayError(409, "Keyring changed on another device")
-            db.execute("UPDATE accounts SET salt=?, kdf=?, auth=?, keyring=?, version=? WHERE id=?",
-                       (salt, kdf, digest(auth), keyring, row[1] + 1, account))
+            db.execute("UPDATE accounts SET salt=?, kdf=?, auth=?, keyring=?, rkeyring=?, version=? WHERE id=?",
+                       (salt, kdf, digest(auth), keyring, rkeyring, row[2] + 1, account))
             # Other devices keep their sessions; they hold the keys already.
-            return {"version": row[1] + 1}
+            return {"version": row[2] + 1}
         if action == "account_devices":
             rows = db.execute("SELECT id, name, seen FROM sessions WHERE account=? ORDER BY created", (account,))
             return {"devices": [{"id": r[0], "name": r[1], "seen": r[2], "current": r[0] == ident} for r in rows]}

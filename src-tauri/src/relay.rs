@@ -137,9 +137,57 @@ pub fn allowed(path: &str) -> bool {
             && !path.split('/').skip(1).any(|p| p.starts_with('.')))
 }
 
+#[derive(Deserialize)]
+pub struct KeyInput {
+    password: String,
+    salt: String,
+    m: u32,
+    t: u32,
+    p: u32,
+}
+/// Argon2id over the account password. Settings come from the relay, so they
+/// have a floor here: a dishonest relay cannot make the result cheap to guess,
+/// nor ask for so much memory that the device stalls.
+pub fn derive_key(input: KeyInput) -> Result<String, String> {
+    use argon2::{Algorithm, Argon2, Params, Version};
+    let salt = STANDARD.decode(&input.salt).map_err(|_| "Invalid salt")?;
+    if !(16..=32).contains(&salt.len())
+        || !(65_536..=262_144).contains(&input.m)
+        || !(3..=10).contains(&input.t)
+        || !(1..=4).contains(&input.p)
+        || input.password.is_empty()
+        || input.password.len() > 1024
+    {
+        return Err("Unsupported account key settings".into());
+    }
+    let params = Params::new(input.m, input.t, input.p, Some(64)).map_err(|e| e.to_string())?;
+    let mut output = [0u8; 64];
+    Argon2::new(Algorithm::Argon2id, Version::V0x13, params)
+        .hash_password_into(input.password.as_bytes(), &salt, &mut output)
+        .map_err(|e| e.to_string())?;
+    Ok(STANDARD.encode(output))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn account_key_is_argon2id_and_refuses_weak_settings() {
+        let input = |m, t| KeyInput {
+            password: "correct horse battery".into(),
+            salt: STANDARD.encode([7u8; 16]),
+            m,
+            t,
+            p: 1,
+        };
+        let first = derive_key(input(65_536, 3)).unwrap();
+        assert_eq!(first, derive_key(input(65_536, 3)).unwrap());
+        assert_eq!(STANDARD.decode(&first).unwrap().len(), 64);
+        assert_ne!(first, derive_key(input(65_536, 4)).unwrap());
+        assert!(derive_key(input(1024, 3)).is_err());
+        assert!(derive_key(input(65_536, 1)).is_err());
+        assert!(derive_key(input(1 << 20, 3)).is_err());
+    }
     #[test]
     fn confines_projection_and_keeps_recovery_before_changes() {
         for path in [

@@ -189,6 +189,76 @@ async fn relay_request(
     main_window(&window).map_err(|e| e.message)?;
     relay::request(input).await
 }
+/// The relay that serves updates also holds accounts, so its pinned certificate
+/// is already built in. Nobody types a server address to sign in.
+#[tauri::command]
+fn account_relay(window: tauri::WebviewWindow) -> Result<serde_json::Value, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    #[cfg(target_os = "android")]
+    let device = "Android tablet".to_string();
+    #[cfg(not(target_os = "android"))]
+    let device = std::env::var("COMPUTERNAME")
+        .or_else(|_| std::env::var("HOSTNAME"))
+        .unwrap_or_else(|_| "This computer".into());
+    Ok(serde_json::json!({
+        "endpoint": "https://178.62.50.124",
+        "certificate": include_str!("../update-server.pem"),
+        "device": device,
+    }))
+}
+/// Makes an empty folder for a vault that arrives from the account, under
+/// Documents/BenchWork. A name already in use gets a number, so nothing is mixed.
+#[tauri::command]
+fn account_prepare_folder(app: AppHandle, name: String) -> Result<String, String> {
+    #[cfg(target_os = "android")]
+    let documents = std::path::PathBuf::from("/storage/emulated/0/Documents");
+    #[cfg(not(target_os = "android"))]
+    let documents = app.path().document_dir().map_err(|e| e.to_string())?;
+    #[cfg(target_os = "android")]
+    let _ = &app;
+    let clean: String = name
+        .chars()
+        .filter(|c| {
+            !matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') && !c.is_control()
+        })
+        .take(60)
+        .collect();
+    let clean = clean.trim().trim_matches('.').to_string();
+    let base = if clean.is_empty() {
+        "Vault".to_string()
+    } else {
+        clean
+    };
+    let parent = documents.join("BenchWork");
+    for n in 1..100 {
+        let name = if n == 1 {
+            base.clone()
+        } else {
+            format!("{base} ({n})")
+        };
+        let folder = parent.join(name);
+        let empty = match std::fs::read_dir(&folder) {
+            Ok(mut entries) => entries.next().is_none(),
+            Err(_) => true,
+        };
+        if empty {
+            std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+            return Ok(folder.to_string_lossy().replace('\\', "/"));
+        }
+    }
+    Err("Could not make a folder for the vault".into())
+}
+#[tauri::command]
+async fn account_derive_key(
+    window: tauri::WebviewWindow,
+    input: relay::KeyInput,
+) -> Result<String, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    // Argon2id takes about a second; keep it off the async workers.
+    tauri::async_runtime::spawn_blocking(move || relay::derive_key(input))
+        .await
+        .map_err(|e| e.to_string())?
+}
 #[tauri::command]
 async fn relay_apply(
     window: tauri::WebviewWindow,
@@ -1082,6 +1152,9 @@ pub fn run() {
             updates_install,
             relay_request,
             relay_apply,
+            account_relay,
+            account_derive_key,
+            account_prepare_folder,
             relay_export_details,
             native_sync_read_invitation,
             native_sync_export_invitation,
