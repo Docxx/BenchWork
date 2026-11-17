@@ -403,6 +403,11 @@ button.canvas-swatch[aria-pressed='true'] {
 }
 
 .canvas-board .react-flow__minimap {
+  /* The view's frame is clear and the rest is dimmed, in the theme's own colours. */
+  --xy-minimap-background-color: var(--surface);
+  --xy-minimap-mask-background-color: color-mix(in srgb, var(--bg) 65%, transparent);
+  --xy-minimap-mask-stroke-color: var(--accent);
+  --xy-minimap-mask-stroke-width: 2;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
