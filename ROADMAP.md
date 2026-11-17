@@ -321,7 +321,7 @@ Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([gu
 - [x] New project notes and experiments linked to their hub; task source pages retained
 - [x] Final regression and layout checks ([guide](docs/projects.md))
 
-### Main app: big canvases and richer cards
+### Main app: big canvases and richer cards (0.23.0)
 
 - [x] A canvas zooms out far enough to show all of it, with an overview map; far out, cards draw as plain blocks
 - [x] See-through card fill, and pink among the card and arrow colours (mixed from each theme's red and purple)
@@ -329,7 +329,7 @@ Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([gu
 - [x] Six mind map PDFs imported onto one canvas (converter kept outside the app)
 - [ ] Checked on the tablet
 
-### Main app: a calmer knowledge graph
+### Main app: a calmer knowledge graph (0.23.0)
 
 - [x] Keeps still while you work elsewhere: no redraw unless links or tags change, places and view kept, drift and signals only while in use
 - [x] Search and filters behind a Graph options button, with a Filtered label when hidden
