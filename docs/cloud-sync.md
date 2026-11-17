@@ -4,7 +4,59 @@ Cloud sync connects Windows and Android directly to your private, always-on rela
 Your PC does not need to stay awake. It is separate from Desktop Sync, which uses
 your PC as the local-network host. Use one sync engine for a vault at a time.
 
-## First device
+## Sign in (recommended)
+
+With an account, a new device needs only your username and password. BenchWork
+already knows the relay's address and certificate, because the same server
+delivers updates.
+
+**First time, on the PC.** Open the vault that already uses Cloud sync on its
+original device, go to Settings > Sync and choose **Create account**. That device's
+owner credential lets it create the account; registration is not open to the public.
+The vault keeps its history, so nothing uploads again. Save the **recovery key**
+shown next. Without a vault set up this way, enter a **sign-up code** instead; make
+one over SSH with `sudo -u benchwork-relay python3 /opt/benchwork-relay/signup.py`
+(single use, valid 7 days).
+
+**A vault without Cloud sync yet.** Signed in, open it, confirm that Syncthing and
+other folder sync are stopped, and choose **Sync this vault with your account**.
+
+**Each new device.** On the welcome screen choose **Sign in** and enter your username
+and password. BenchWork makes `Documents\BenchWork\<vault name>` (Windows) or
+`Documents/BenchWork/<vault name>` (Android), downloads the vault and keeps it in
+sync. If the account has several vaults, choose which to open. Android still asks
+once for All files access.
+
+**Your devices** in Settings > Sync lists signed-in devices. **Remove** ends that
+device's sign-in and its sync credentials at once. If a device was lost, also change
+your password: it may still hold downloaded notes and the vault key. **Sign out of
+this device** stops syncing and keeps the files. **Forgot password** on the sign-in
+screen sets a new password with the recovery key. The relay cannot reset it.
+
+### How accounts keep notes private
+
+The password never leaves the device. Argon2id (64 MB, 3 passes, run in Rust) turns
+it into a sign-in key and a separate wrapping key. The relay stores only a SHA-256 of
+the sign-in key. The wrapping key seals the **keyring**: each vault's relay id, name,
+content key and owner credential. A second copy of the keyring is sealed with the
+recovery key. Devices refuse Argon2id settings weaker than the default, so the relay
+cannot make the password cheaper to guess. The keyring carries a revision number
+bound inside the encryption; devices refuse one older than they have seen, and the
+relay accepts a new keyring only from a device that saw the latest one.
+
+The relay learns the username (stored as a keyed hash), the salt, device names and
+the encrypted keyrings, in addition to what is listed below. Sign-in failures are
+limited to 5 per username per 15 minutes and 20 per address per hour, with the same
+message for an unknown username and a wrong password. A weak password is the main
+risk: anyone with a copy of the relay database or a backup can try passwords offline
+against the sealed keyring. Use a long passphrase and keep relay backups private.
+
+Devices paired the earlier way keep working. A paired device can also sign in;
+it keeps its existing history.
+
+## First device, set up by hand (Advanced)
+
+These steps are under Settings > Sync > **Advanced: Cloud sync set up by hand**.
 
 1. Keep an independent vault backup. Stop Syncthing and other folder sync for this
    vault, and disable Desktop Sync. Use an ordinary local folder on each device.

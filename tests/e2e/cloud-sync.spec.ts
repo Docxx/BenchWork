@@ -79,6 +79,7 @@ test('sets up cloud sync, keeps recovery private until requested, and blocks a s
   await page.getByRole('button', { name: 'Open vault' }).click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('tab', { name: 'Sync', exact: true }).click();
+  await page.getByText('Advanced: Cloud sync set up by hand', { exact: true }).click();
   await page.getByText('First device or recovery', { exact: true }).click();
   await page.getByLabel('Cloud connection details').fill(
     JSON.stringify({

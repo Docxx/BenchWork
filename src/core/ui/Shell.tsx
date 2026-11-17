@@ -14,6 +14,7 @@ import { QuickCapture } from './QuickCapture';
 import { ResizeEdge } from './ResizeEdge';
 import { SettingsPage } from './SettingsPage';
 import { SidePanel } from './SidePanel';
+import { RecoveryKeyDialog } from './AccountPanel';
 import { Sidebar } from './Sidebar';
 import { WindowControls } from './WindowControls';
 
@@ -179,6 +180,7 @@ export function Shell({ vault }: { vault: OpenVault }) {
       {guide !== null ? <FirstRunGuide /> : choosingPack && <PackChooser />}
       <TextPromptDialog />
       <AttachDialog />
+      <RecoveryKeyDialog />
     </div>
   );
 }

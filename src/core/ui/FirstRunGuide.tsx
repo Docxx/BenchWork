@@ -128,6 +128,8 @@ export function FirstRunGuide() {
 }
 
 function Welcome() {
+  const canSignIn = useApp((s) => s.account.available && s.status.kind !== 'open');
+  const endGuide = useApp((s) => s.endGuide);
   return (
     <>
       <div className="guide-logo">
@@ -138,6 +140,14 @@ function Welcome() {
         experiments, data and plans, kept together and easy to find.
       </p>
       <p>This guide takes about a minute. You can skip it now and run it again from Settings.</p>
+      {canSignIn && (
+        <p>
+          Already use BenchWork on another device?{' '}
+          <button type="button" onClick={() => void endGuide()}>
+            Sign in
+          </button>
+        </p>
+      )}
     </>
   );
 }

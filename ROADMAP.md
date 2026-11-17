@@ -246,6 +246,15 @@ See [preview testing](docs/preview-testing.md).
 
 See [Cloud sync setup, protocol and operational limits](docs/cloud-sync.md).
 
+### Account sign-in and automatic device sync
+
+Planned and approved 17 Nov 2026 (Argon2id chosen for password keys).
+
+- [x] Account sign-in with automatic device sync: username and password, keys made on the device, an end-to-end encrypted keyring, and no pairing codes or server details
+- [x] Relay accounts: closed sign-up (vault owner or SSH sign-up code), sign-in limits, device removal, password change and recovery key
+- [x] Existing Cloud sync vaults move into an account with their history; paired devices keep working
+- [ ] Deploy the account relay and check a fresh tablet install that signs in and syncs
+
 ### In-app updates (0.19.0)
 
 - [x] Manual update checks and optional per-device startup checks

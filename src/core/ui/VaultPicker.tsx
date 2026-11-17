@@ -3,6 +3,7 @@ import { describeError, type PickMode } from '../state/appStore';
 import { useApp } from './AppStoreContext';
 import { vaultName } from './Sidebar';
 import { Logo } from './Logo';
+import { AccountSignIn, AccountVaults, RecoveryKeyDialog } from './AccountPanel';
 
 /** The folder above a full path, or null at the top. */
 function parentOf(path: string): string | null {
@@ -188,12 +189,31 @@ export function VaultPicker() {
   const chooseFolder = useApp((s) => s.chooseFolder);
   const busy = useApp((s) => s.busy);
   const notice = useApp((s) => s.notice);
+  const account = useApp((s) => s.account);
 
   return (
     <main className="app picker">
       <Logo className="picker-logo" size={100} />
       <h1>BenchWork</h1>
-      <p>Choose a folder to keep your notebooks in.</p>
+      {account.available && !account.login && <AccountSignIn />}
+      {account.login && (
+        <>
+          <p>Signed in as {account.login}</p>
+          {account.progress && <p role="status">{account.progress}…</p>}
+          {account.error && (
+            <p className="notice" role="alert">
+              {account.error}
+            </p>
+          )}
+          <AccountVaults />
+          <RecoveryKeyDialog />
+        </>
+      )}
+      <p className={account.available ? 'picker-divider' : undefined}>
+        {account.available
+          ? 'Or keep a vault on this device only.'
+          : 'Choose a folder to keep your notebooks in.'}
+      </p>
       {notice !== null && (
         <p className="notice" role="alert">
           {notice}
