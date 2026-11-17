@@ -118,9 +118,9 @@
 .graph-settings {
   position: absolute;
   right: 12px;
-  top: 12px;
+  top: 3.2rem;
   width: min(270px, calc(100% - 24px));
-  max-height: calc(100% - 24px);
+  max-height: calc(100% - 3.2rem - 12px);
   overflow: auto;
   box-sizing: border-box;
   padding: 1rem;
@@ -267,4 +267,27 @@
   min-height: 1.2em;
   font-size: 0.78rem;
   opacity: 0.75;
+}
+/* Fit, refresh and the options button sit in a corner; the options bar only shows when asked for. */
+.graph-tools {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem;
+  border-radius: var(--radius, 8px);
+  background: color-mix(in srgb, var(--graph-bg) 70%, transparent);
+}
+.graph-tools button.quiet[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--graph-line) 18%, transparent);
+}
+.graph-filtered {
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--graph-border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  opacity: 0.8;
 }

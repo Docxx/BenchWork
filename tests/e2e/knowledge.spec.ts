@@ -44,6 +44,9 @@ test('tags notes and documents, finds tagged documents, and opens them through t
     .getByRole('button', { name: 'Knowledge graph', exact: true })
     .click();
   await expect(page.getByRole('img', { name: /^Interactive knowledge graph/ })).toBeVisible();
+  // The options bar is hidden until asked for.
+  await expect(page.getByLabel('Filter graph by tag')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Graph options', exact: true }).click();
   await page.getByLabel('Filter graph by tag').selectOption('project/flies');
   await expect(page.locator('.graph-corner')).toHaveText('3 nodes · 3 connections');
   await page.getByRole('button', { name: 'Graph appearance', exact: true }).click();
@@ -60,6 +63,11 @@ test('tags notes and documents, finds tagged documents, and opens them through t
       ),
     )
     .toMatch(/"palette": "violet"[\s\S]*"motion": false[\s\S]*"tag": "project\/flies"/);
+  // Hidden again, it says the graph is filtered.
+  await page.getByRole('button', { name: 'Graph options', exact: true }).click();
+  await expect(page.getByLabel('Filter graph by tag')).toHaveCount(0);
+  await expect(page.locator('.graph-filtered')).toHaveText('Filtered');
+  await page.getByRole('button', { name: 'Graph options', exact: true }).click();
   await page.getByRole('button', { name: 'Home', exact: true }).first().click();
   await page
     .getByRole('navigation', { name: 'Vault' })
@@ -109,4 +117,28 @@ test('fills wide screens, docks calculators and fits a narrow device', async ({ 
   }));
   expect(sizes.scroll).toBeLessThanOrEqual(sizes.width);
   await page.screenshot({ path: 'test-results/knowledge-graph-tablet.png', fullPage: true });
+});
+
+test('keeps still while a page is saved elsewhere', async ({ page }) => {
+  await page
+    .getByRole('navigation', { name: 'Vault' })
+    .getByRole('button', { name: 'Knowledge graph', exact: true })
+    .click();
+  const graph = page.getByRole('img', { name: /^Interactive knowledge graph/ });
+  await expect(page.locator('.graph-corner')).toContainText('nodes');
+  // Away from the graph, once it has grown in and settled.
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(3500);
+  const before = await graph.screenshot();
+  await page.waitForTimeout(1000);
+  expect((await graph.screenshot()).equals(before), 'still before the save').toBe(true);
+  // A page saved with new words but no new links or tags.
+  await page.evaluate(() =>
+    window.__benchworkMemory?.writeTextAtomic(
+      'Research/Study 1.md',
+      '---\ntags: [flies]\n---\n# Study 1\n\n[[Study 2]] [[Study 10]]\n\nMore notes.',
+    ),
+  );
+  await page.waitForTimeout(1500);
+  expect((await graph.screenshot()).equals(before)).toBe(true);
 });

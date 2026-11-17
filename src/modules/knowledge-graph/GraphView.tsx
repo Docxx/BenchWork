@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Maximize, RefreshCw, Settings2, Sparkles } from 'lucide-react';
+import { Maximize, RefreshCw, Settings2, SlidersHorizontal, Sparkles } from 'lucide-react';
 import type { ModuleContext, VaultGraph } from '@core/api';
-import { DEFAULT_STYLE, graphModel, parseView, type GraphPreset, type GraphStyle } from './model';
+import {
+  DEFAULT_STYLE,
+  graphModel,
+  graphSignature,
+  parseView,
+  type GraphPreset,
+  type GraphStyle,
+} from './model';
 import { GraphCanvas } from './GraphCanvas';
 
 export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | null }) {
@@ -13,6 +20,8 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
   const [kind, setKind] = useState('all');
   const [local, setLocal] = useState(focus !== null);
   const [settings, setSettings] = useState(false);
+  /** The search and filter bar; hidden until asked for, so the graph has the room. */
+  const [options, setOptions] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [presets, setPresets] = useState<GraphPreset[]>([]);
@@ -23,6 +32,8 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
   const [fit, setFit] = useState(0);
   const [selected, setSelected] = useState<string | null>(focus);
   const request = useRef(0);
+  /** What was last drawn; a reload that finds the same graph changes nothing. */
+  const signature = useRef('');
   useEffect(() => {
     let live = true;
     void ctx.storage
@@ -33,6 +44,7 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
         setStyle(view.style);
         setPresets(view.presets);
         setSettings(view.panel);
+        setOptions(view.options);
         setFolder(view.filters.folder);
         setKind(view.filters.kind);
         setTag(view.filters.tag);
@@ -56,7 +68,11 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
         .graph()
         .then((snapshot) => {
           if (live && request.current === id) {
-            setData(snapshot);
+            const next = graphSignature(snapshot);
+            if (next !== signature.current) {
+              signature.current = next;
+              setData(snapshot);
+            }
             setLoading(false);
             setError('');
           }
@@ -89,6 +105,7 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
           filters: { folder, kind, tag },
           presets,
           panel: settings,
+          options,
         })
         .then(() => {
           setKept(true);
@@ -100,7 +117,7 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
     return () => {
       clearTimeout(timer);
     };
-  }, [ctx, ready, style, folder, kind, tag, presets, settings]);
+  }, [ctx, ready, style, folder, kind, tag, presets, settings, options]);
   const model = useMemo(
     () =>
       graphModel(
@@ -145,111 +162,134 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
   };
   return (
     <div className={`knowledge-graph graph-${style.palette}`}>
-      <div className="graph-toolbar">
-        <div className="graph-brand">
-          <Sparkles size={18} aria-hidden />
-          <span>Your knowledge, connected</span>
-        </div>
-        <input
-          aria-label="Search graph"
-          placeholder="Find a note, document or tag…"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-          }}
-        />
-        <select
-          aria-label="Graph folder"
-          value={folder}
-          onChange={(e) => {
-            setFolder(e.target.value);
-          }}
-        >
-          <option value="">All folders</option>
-          {[
-            ...new Set(
-              data.nodes.filter((n) => n.path.includes('/')).map((n) => n.path.split('/')[0] ?? ''),
-            ),
-          ]
-            .sort()
-            .map((path) => (
-              <option key={path}>{path}</option>
+      {options && (
+        <div className="graph-toolbar" role="toolbar" aria-label="Graph options">
+          <div className="graph-brand">
+            <Sparkles size={18} aria-hidden />
+            <span>Your knowledge, connected</span>
+          </div>
+          <input
+            aria-label="Search graph"
+            placeholder="Find a note, document or tag…"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+            }}
+          />
+          <select
+            aria-label="Graph folder"
+            value={folder}
+            onChange={(e) => {
+              setFolder(e.target.value);
+            }}
+          >
+            <option value="">All folders</option>
+            {[
+              ...new Set(
+                data.nodes
+                  .filter((n) => n.path.includes('/'))
+                  .map((n) => n.path.split('/')[0] ?? ''),
+              ),
+            ]
+              .sort()
+              .map((path) => (
+                <option key={path}>{path}</option>
+              ))}
+          </select>
+          <select
+            aria-label="Graph file types"
+            value={kind}
+            onChange={(e) => {
+              setKind(e.target.value);
+            }}
+          >
+            <option value="all">Notes and documents</option>
+            <option value="note">Notes only</option>
+            <option value="document">Documents only</option>
+          </select>
+          <select
+            aria-label="Filter graph by tag"
+            value={tag}
+            onChange={(e) => {
+              setTag(e.target.value);
+            }}
+          >
+            <option value="">All tags</option>
+            {tags.map((t) => (
+              <option key={t} value={t}>
+                #{t}
+              </option>
             ))}
-        </select>
-        <select
-          aria-label="Graph file types"
-          value={kind}
-          onChange={(e) => {
-            setKind(e.target.value);
-          }}
-        >
-          <option value="all">Notes and documents</option>
-          <option value="note">Notes only</option>
-          <option value="document">Documents only</option>
-        </select>
-        <select
-          aria-label="Filter graph by tag"
-          value={tag}
-          onChange={(e) => {
-            setTag(e.target.value);
-          }}
-        >
-          <option value="">All tags</option>
-          {tags.map((t) => (
-            <option key={t} value={t}>
-              #{t}
-            </option>
-          ))}
-        </select>
-        {focus && (
-          <label className="graph-check">
-            <input
-              type="checkbox"
-              checked={local}
-              onChange={(e) => {
-                setLocal(e.target.checked);
-              }}
-            />
-            Local graph
-          </label>
-        )}
-        <button
-          type="button"
-          className="quiet"
-          title="Fit graph"
-          aria-label="Fit graph"
-          onClick={() => {
-            setFit((n) => n + 1);
-          }}
-        >
-          <Maximize size={17} aria-hidden />
-        </button>
-        <button
-          type="button"
-          className="quiet"
-          title="Refresh graph"
-          aria-label="Refresh graph"
-          onClick={() => {
-            setLoading(true);
-            setRefresh((n) => n + 1);
-          }}
-        >
-          <RefreshCw size={17} aria-hidden />
-        </button>
-        <button
-          type="button"
-          className="quiet"
-          aria-label="Graph appearance"
-          aria-expanded={settings}
-          onClick={() => {
-            setSettings((v) => !v);
-          }}
-        >
-          <Settings2 size={17} aria-hidden />
-          Appearance
-        </button>
-      </div>
+          </select>
+          {focus && (
+            <label className="graph-check">
+              <input
+                type="checkbox"
+                checked={local}
+                onChange={(e) => {
+                  setLocal(e.target.checked);
+                }}
+              />
+              Local graph
+            </label>
+          )}
+          <button
+            type="button"
+            className="quiet"
+            aria-label="Graph appearance"
+            aria-expanded={settings}
+            onClick={() => {
+              setSettings((v) => !v);
+            }}
+          >
+            <Settings2 size={17} aria-hidden />
+            Appearance
+          </button>
+        </div>
+      )}
       <div className="graph-stage">
+        <div className="graph-tools">
+          {!options && (folder !== '' || kind !== 'all' || tag !== '' || query !== '') && (
+            <span className="graph-filtered" title="Some files are hidden by the options">
+              Filtered
+            </span>
+          )}
+          <button
+            type="button"
+            className="quiet"
+            title="Search, filters and appearance"
+            aria-label="Graph options"
+            aria-expanded={options}
+            onClick={() => {
+              setOptions((v) => !v);
+            }}
+          >
+            <SlidersHorizontal size={17} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="quiet"
+            title="Fit graph"
+            aria-label="Fit graph"
+            onClick={() => {
+              setFit((n) => n + 1);
+            }}
+          >
+            <Maximize size={17} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="quiet"
+            title="Refresh graph"
+            aria-label="Refresh graph"
+            onClick={() => {
+              setLoading(true);
+              setRefresh((n) => n + 1);
+            }}
+          >
+            <RefreshCw size={17} aria-hidden />
+          </button>
+        </div>
         <GraphCanvas
           model={model}
           style={style}

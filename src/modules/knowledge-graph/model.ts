@@ -90,6 +90,8 @@ export interface GraphView {
   presets: GraphPreset[];
   /** The appearance panel was open. */
   panel: boolean;
+  /** The search and filter bar was showing; it is hidden until asked for. */
+  options: boolean;
 }
 
 /**
@@ -103,6 +105,7 @@ export function parseView(value: unknown): GraphView {
     filters: { ...DEFAULT_FILTERS },
     presets: [],
     panel: data['panel'] === true,
+    options: data['options'] === true,
   };
   const filters = data['filters'];
   if (filters && typeof filters === 'object') {
@@ -323,4 +326,64 @@ export function step(model: GraphModel, spacing: number): void {
     n.x += n.vx;
     n.y += n.vy;
   }
+}
+
+/**
+ * What the graph is drawn from, as one string: the same string means the
+ * same graph, so a saved page that changed no links or tags redraws nothing.
+ */
+export function graphSignature(data: VaultGraph): string {
+  const nodes = data.nodes
+    .map((n) => [n.id, n.path, n.title, n.kind, n.tags.join(',')].join('\t'))
+    .sort();
+  const edges = data.edges.map((e) => `${e.source}\t${e.target}`).sort();
+  return [nodes.join('\n'), edges.join('\n'), data.warnings.join('\n')].join('\n--\n');
+}
+
+/**
+ * Puts nodes back where they were, and settles only the new ones around
+ * them, so a graph that gains a note does not rearrange itself. Returns
+ * how many nodes were already placed.
+ */
+export function keepPlaces(
+  model: GraphModel,
+  places: ReadonlyMap<string, { x: number; y: number }>,
+  spacing: number,
+  rounds = 120,
+): number {
+  const known: GraphPoint[] = [];
+  for (const n of model.nodes) {
+    const place = places.get(n.id);
+    if (!place) continue;
+    n.x = place.x;
+    n.y = place.y;
+    known.push(n);
+  }
+  if (known.length === 0 || known.length === model.nodes.length) return known.length;
+  // New nodes start beside a placed neighbour, or near the middle.
+  const placed = new Set(known.map((n) => n.id));
+  for (const e of model.edges) {
+    for (const [a, b] of [
+      [e.source, e.target],
+      [e.target, e.source],
+    ] as const) {
+      if (!placed.has(a.id) && placed.has(b.id)) {
+        a.x = b.x + spacing * 0.5 * Math.cos(a.id.length);
+        a.y = b.y + spacing * 0.5 * Math.sin(a.id.length);
+        placed.add(a.id);
+      }
+    }
+  }
+  for (let i = 0; i < rounds; i++) {
+    step(model, spacing);
+    for (const n of known) {
+      const place = places.get(n.id);
+      if (!place) continue;
+      n.x = place.x;
+      n.y = place.y;
+      n.vx = 0;
+      n.vy = 0;
+    }
+  }
+  return known.length;
 }

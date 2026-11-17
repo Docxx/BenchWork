@@ -329,6 +329,12 @@ Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([gu
 - [x] Six mind map PDFs imported onto one canvas (converter kept outside the app)
 - [ ] Checked on the tablet
 
+### Main app: a calmer knowledge graph
+
+- [x] Keeps still while you work elsewhere: no redraw unless links or tags change, places and view kept, drift and signals only while in use
+- [x] Search and filters behind a Graph options button, with a Filtered label when hidden
+- [ ] Checked on the tablet
+
 ## Phase 8: Apple port
 
 - [ ] macOS build (needs a Mac or macOS CI runner)

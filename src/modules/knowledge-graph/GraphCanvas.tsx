@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { step, type GraphModel, type GraphPoint, type GraphStyle } from './model';
+import { keepPlaces, step, type GraphModel, type GraphPoint, type GraphStyle } from './model';
 
 const PALETTES = {
   aurora: ['#50cddd', '#f58fba', '#eac873', '#8de4bd', '#a99cf6', '#fcaa7c'],
@@ -19,6 +19,11 @@ const ease = (t: number) => 1 - (1 - Math.min(1, Math.max(0, t))) ** 3;
  * rebuilds it. Four kinds of motion, each its own option: a live layout,
  * signals along the links, smooth focus on a note's neighbours, and an
  * entrance with a view that glides. None run where motion is reduced.
+ *
+ * It keeps still while you work elsewhere: the drift and the signals run
+ * only while the pointer is over the graph or it has the keyboard, and a
+ * new model (a note saved, a filter changed) keeps the places of the nodes
+ * it already had, and the view, rather than starting again.
  */
 export function GraphCanvas({
   model,
@@ -38,6 +43,11 @@ export function GraphCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const invalidateRef = useRef<(() => void) | null>(null);
   const live = useRef({ onSelect, onOpen, selected, style });
+  /** Where each node was last drawn, and the view, kept across new models. */
+  const places = useRef(new Map<string, { x: number; y: number }>());
+  const placesSpacing = useRef<number | null>(null);
+  const view = useRef<{ x: number; y: number; zoom: number } | null>(null);
+  const lastFit = useRef(fit);
   useEffect(() => {
     live.current = { onSelect, onOpen, selected, style };
     invalidateRef.current?.();
@@ -143,9 +153,24 @@ export function GraphCanvas({
         Math.max(60, Math.floor(24000 / Math.max(1, model.nodes.length))),
       );
       for (let i = 0; i < rounds; i++) step(model, look().spacing);
-      energy = 0.4;
+      energy = 0.15;
     }
-    settle();
+    // Places from before are kept unless the spacing changed; Fit only moves the view.
+    const refit = fit !== lastFit.current;
+    lastFit.current = fit;
+    const placeMap = places.current;
+    if (placesSpacing.current !== look().spacing) placeMap.clear();
+    placesSpacing.current = look().spacing;
+    const kept = keepPlaces(model, placeMap, look().spacing);
+    /** Already on show before this model, so it does not grow in again. */
+    const shown = kept > 0;
+    if (shown) energy = 0.05;
+    else settle();
+    /** The view stays where it was, unless this is the first look or Fit was pressed. */
+    let placedView = view.current !== null && !refit;
+    if (placedView && view.current) camera = { ...view.current };
+    /** The pointer is over the graph, or it has the keyboard: only then does it drift. */
+    let engaged = false;
     function resize() {
       const box = canvas.getBoundingClientRect();
       width = box.width;
@@ -154,7 +179,10 @@ export function GraphCanvas({
       canvas.width = Math.round(width * ratio);
       canvas.height = Math.round(height * ratio);
       context?.setTransform(ratio, 0, 0, ratio, 0, 0);
-      camera = fitted();
+      if (!placedView) {
+        camera = fitted();
+        placedView = true;
+      }
       glide = null;
       invalidate();
     }
@@ -171,7 +199,7 @@ export function GraphCanvas({
 
       // Growing in.
       if (born === null) born = now;
-      if (s.entrance && can) {
+      if (s.entrance && can && !shown) {
         const t = ((now - born) * speed) / ENTRANCE_MS;
         grown = ease(t);
         if (t < 1) busy = true;
@@ -251,10 +279,10 @@ export function GraphCanvas({
         return 1 - (1 - l) * 0.8 * focusMix;
       };
 
-      const flow = s.motion && can;
+      const flow = s.motion && can && engaged;
       if (flow) busy = true;
-      // A slow drift, so a resting graph still feels alive.
-      const drift = s.live && can;
+      // A slow drift while you are looking at it, so it feels alive; still otherwise.
+      const drift = s.live && can && engaged;
       if (drift) busy = true;
       const sway = (n: GraphPoint) => {
         if (!drift || n === held) return { x: 0, y: 0 };
@@ -488,9 +516,18 @@ export function GraphCanvas({
     invalidate();
     const leave = () => {
       hover = null;
+      engaged = document.activeElement === canvas;
+      invalidate();
+    };
+    const enter = () => {
+      engaged = true;
+      lastTime = 0;
       invalidate();
     };
     canvas.addEventListener('pointerleave', leave);
+    canvas.addEventListener('pointerenter', enter);
+    canvas.addEventListener('focus', enter);
+    canvas.addEventListener('blur', leave);
     reduced.addEventListener('change', invalidate);
     const motionObserver = new MutationObserver(invalidate);
     motionObserver.observe(document.documentElement, {
@@ -506,6 +543,11 @@ export function GraphCanvas({
     return () => {
       cancelAnimationFrame(frame);
       invalidateRef.current = null;
+      for (const n of model.nodes) placeMap.set(n.id, { x: n.x, y: n.y });
+      view.current = glide?.to ?? camera;
+      canvas.removeEventListener('pointerenter', enter);
+      canvas.removeEventListener('focus', enter);
+      canvas.removeEventListener('blur', leave);
       motionObserver.disconnect();
       reduced.removeEventListener('change', invalidate);
       canvas.removeEventListener('pointerleave', leave);

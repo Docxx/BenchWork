@@ -1,6 +1,15 @@
 // @vitest-environment node
 import type { VaultGraph } from '@core/api';
-import { DEFAULT_FILTERS, DEFAULT_STYLE, graphModel, parseStyle, parseView, step } from './model';
+import {
+  DEFAULT_FILTERS,
+  DEFAULT_STYLE,
+  graphModel,
+  graphSignature,
+  keepPlaces,
+  parseStyle,
+  parseView,
+  step,
+} from './model';
 const data: VaultGraph = {
   nodes: [
     { id: 'a', path: 'a.md', title: 'Alpha', kind: 'note', tags: ['lab'] },
@@ -85,4 +94,36 @@ describe('the saved view', () => {
     expect(old.filters).toEqual(DEFAULT_FILTERS);
     expect(parseView(null).style).toEqual(DEFAULT_STYLE);
   });
+});
+it('sees a reload with no new links or tags as the same graph', () => {
+  const same = { ...data, nodes: data.nodes.map((n) => ({ ...n })).reverse() };
+  expect(graphSignature(same)).toBe(graphSignature(data));
+  const tagged = {
+    ...data,
+    nodes: data.nodes.map((n) => (n.id === 'c' ? { ...n, tags: ['lab'] } : n)),
+  };
+  expect(graphSignature(tagged)).not.toBe(graphSignature(data));
+  expect(graphSignature({ ...data, edges: [{ source: 'a', target: 'c' }] })).not.toBe(
+    graphSignature(data),
+  );
+});
+it('keeps nodes where they were, settling only new ones beside them', () => {
+  const first = graphModel(data, DEFAULT_STYLE, '', '', null);
+  for (let i = 0; i < 50; i++) step(first, DEFAULT_STYLE.spacing);
+  const places = new Map(first.nodes.map((n) => [n.id, { x: n.x, y: n.y }]));
+  const grown: typeof data = {
+    ...data,
+    nodes: [...data.nodes, { id: 'd', path: 'd.md', title: 'New', kind: 'note', tags: ['lab'] }],
+  };
+  const next = graphModel(grown, DEFAULT_STYLE, '', '', null);
+  expect(keepPlaces(next, places, DEFAULT_STYLE.spacing)).toBe(first.nodes.length);
+  for (const n of next.nodes) {
+    const was = places.get(n.id);
+    if (was) expect({ x: n.x, y: n.y }).toEqual(was);
+  }
+  const added = next.nodes.find((n) => n.id === 'd');
+  expect(Number.isFinite(added?.x)).toBe(true);
+  // The options bar is hidden unless it was left open.
+  expect(parseView({}).options).toBe(false);
+  expect(parseView({ options: true }).options).toBe(true);
 });

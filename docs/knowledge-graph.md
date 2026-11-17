@@ -38,6 +38,11 @@ The graph reads notes, YAML records, document previews, images and canvases. It
 resolves existing wiki and Markdown links using the core link resolver. Shared tags
 add separate tag nodes when enabled; unlinked files can be shown or hidden.
 
+The graph fills its space. Search, folder, file type and tag filters, and
+**Appearance**, sit behind the **Graph options** button in the corner, beside **Fit**
+and **Refresh**. While the options are hidden, a **Filtered** label shows if any
+filter is still on.
+
 Drag the background to pan, drag a node to reposition it, scroll or pinch to zoom,
 and double-click a file to open it. Selection highlights its immediate connections.
 The file list below the graph provides keyboard navigation. On the canvas, `+` and
@@ -48,10 +53,14 @@ colours, node size, spacing, connection brightness, labels, glow, shared tags,
 unconnected files and optional animated signals. **Save style** stores the settings
 in `.benchwork/modules/knowledge-graph/appearance.json`. The graph never changes
 notes or documents. Motion respects the app setting, reduced-motion preference and
-page visibility. Positions are regenerated when the graph is refreshed.
+page visibility. The gentle drift and the signals along links run only while the
+pointer is over the graph or it has the keyboard, so it keeps still while you work
+elsewhere.
 
 Refresh reloads the graph, including metadata changes from outside the app.
-Ordinary vault file changes also refresh automatically. Unreadable text files remain
+Ordinary vault file changes also refresh automatically, but only links, tags and
+files coming or going change what is drawn. Nodes keep their places and the view
+stays where it was; only new nodes find a place beside their neighbours. Unreadable text files remain
 as nodes and are listed in a visible warning. Binary document contents are not read
 to infer semantic relationships: their links come from notes and shared tags.
 
