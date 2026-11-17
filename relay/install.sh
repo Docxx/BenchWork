@@ -15,6 +15,7 @@ install -d -o benchwork-relay -g benchwork-relay -m 0700 /var/lib/benchwork-rela
 install -o root -g root -m 0644 server.py /opt/benchwork-relay/server.py
 install -o root -g root -m 0644 admin.py /opt/benchwork-relay/admin.py
 install -o root -g root -m 0644 backup.py /opt/benchwork-relay/backup.py
+install -o root -g root -m 0644 signup.py /opt/benchwork-relay/signup.py
 install -d -o benchwork-relay -g benchwork-relay -m 0700 /var/backups/benchwork-relay
 if [[ ! -e /etc/benchwork-relay/server.key ]]; then
   umask 077
