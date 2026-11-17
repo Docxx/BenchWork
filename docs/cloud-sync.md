@@ -228,6 +228,17 @@ the encrypted chunk transport with matching SHA-256 on both devices. The existin
 research vaults were not enrolled as part of this smoke check. The full ink,
 rename/delete and restored-backup acceptance checklist remains outstanding.
 
+### Account sign-in check, 17 November 2026
+
+The relay was updated to protocol 2 after a fresh backup; existing vaults, devices
+and history were kept. On the PC an account was created with a sign-up code and an
+existing test vault was synced with it. On the Galaxy Tab, with the new build
+installed over the old one and no vault open, signing in made
+`Documents/BenchWork/Test Vault 2` and downloaded it: all 10 files, including two
+images, matched the PC by SHA-256. A note added on each device reached the other
+within about 3 seconds, and deleting both on the PC removed them from the tablet.
+The tablet kept its app data, so a wiped install was not tested.
+
 References: [Yjs updates](https://docs.yjs.dev/api/document-updates),
 [Web Crypto AES-GCM](https://www.w3.org/TR/WebCryptoAPI/#aes-gcm),
 [SQLite atomic commit](https://sqlite.org/atomiccommit.html).

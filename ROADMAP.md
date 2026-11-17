@@ -253,7 +253,7 @@ Planned and approved 17 Nov 2026 (Argon2id chosen for password keys).
 - [x] Account sign-in with automatic device sync: username and password, keys made on the device, an end-to-end encrypted keyring, and no pairing codes or server details
 - [x] Relay accounts: closed sign-up (vault owner or SSH sign-up code), sign-in limits, device removal, password change and recovery key
 - [x] Existing Cloud sync vaults move into an account with their history; paired devices keep working
-- [ ] Deploy the account relay and check a fresh tablet install that signs in and syncs
+- [x] Deploy the account relay; the tablet signs in and syncs a PC vault with no other steps (17 Nov 2026)
 
 ### In-app updates (0.19.0)
 
