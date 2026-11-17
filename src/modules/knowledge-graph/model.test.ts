@@ -89,8 +89,10 @@ describe('the saved view', () => {
     expect(view.presets.map((p) => [p.name, p.style.glow])).toEqual([['Calm', false]]);
     expect(view.panel).toBe(true);
 
-    const old = parseView({ palette: 'violet', motion: false });
-    expect(old.style).toMatchObject({ palette: 'violet', motion: false });
+    const old = parseView({ palette: 'violet', motion: true });
+    // Signals are off unless chosen; the old `motion` key, on for everyone, is not read.
+    expect(old.style).toMatchObject({ palette: 'violet', signals: false });
+    expect(parseView({ style: { signals: true } }).style.signals).toBe(true);
     expect(old.filters).toEqual(DEFAULT_FILTERS);
     expect(parseView(null).style).toEqual(DEFAULT_STYLE);
   });

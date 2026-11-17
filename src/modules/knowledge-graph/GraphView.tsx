@@ -11,8 +11,17 @@ import {
 } from './model';
 import { GraphCanvas } from './GraphCanvas';
 
+/**
+ * The last graph read, kept between showings: a side dock shows the graph
+ * afresh for each page, and should not read the vault and redraw each time.
+ */
+let lastRead: { vault: unknown; data: VaultGraph; signature: string } | null = null;
+
 export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | null }) {
-  const [data, setData] = useState<VaultGraph>({ nodes: [], edges: [], warnings: [] });
+  const remembered = lastRead?.vault === ctx.vault ? lastRead : null;
+  const [data, setData] = useState<VaultGraph>(
+    remembered?.data ?? { nodes: [], edges: [], warnings: [] },
+  );
   const [style, setStyle] = useState<GraphStyle>(DEFAULT_STYLE);
   const [query, setQuery] = useState('');
   const [tag, setTag] = useState('');
@@ -22,7 +31,7 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
   const [settings, setSettings] = useState(false);
   /** The search and filter bar; hidden until asked for, so the graph has the room. */
   const [options, setOptions] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(remembered === null);
   const [error, setError] = useState('');
   const [presets, setPresets] = useState<GraphPreset[]>([]);
   /** The saved view has been read, so changes from here on are kept. */
@@ -33,7 +42,7 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
   const [selected, setSelected] = useState<string | null>(focus);
   const request = useRef(0);
   /** What was last drawn; a reload that finds the same graph changes nothing. */
-  const signature = useRef('');
+  const signature = useRef(remembered?.signature ?? '');
   useEffect(() => {
     let live = true;
     void ctx.storage
@@ -73,6 +82,7 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
               signature.current = next;
               setData(snapshot);
             }
+            lastRead = { vault: ctx.vault, data: snapshot, signature: next };
             setLoading(false);
             setError('');
           }
@@ -294,6 +304,7 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
           model={model}
           style={style}
           fit={fit}
+          viewKey={local && focus ? focus : '*'}
           selected={selected}
           onSelect={(id) => {
             setSelected(id);
@@ -451,7 +462,7 @@ export function GraphView({ ctx, focus }: { ctx: ModuleContext; focus: string | 
             {(
               [
                 ['live', 'Moving layout'],
-                ['motion', 'Signals along links'],
+                ['signals', 'Signals along links'],
                 ['focus', 'Smooth focus on a note'],
                 ['entrance', 'Grow in, and glide to a note'],
               ] as const

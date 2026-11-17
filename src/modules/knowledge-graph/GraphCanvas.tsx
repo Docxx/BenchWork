@@ -11,6 +11,18 @@ const PALETTES = {
 const ENTRANCE_MS = 900;
 const GLIDE_MS = 500;
 
+/**
+ * What the graph remembers between showings: a side dock draws it afresh
+ * for every page, so without this it would grow in and rearrange each time.
+ */
+const memory = {
+  places: new Map<string, { x: number; y: number }>(),
+  spacing: null as number | null,
+  views: new Map<string, { x: number; y: number; zoom: number }>(),
+  /** It has grown in once this session; it does not again. */
+  entered: false,
+};
+
 const ease = (t: number) => 1 - (1 - Math.min(1, Math.max(0, t))) ** 3;
 
 /**
@@ -20,15 +32,16 @@ const ease = (t: number) => 1 - (1 - Math.min(1, Math.max(0, t))) ** 3;
  * signals along the links, smooth focus on a note's neighbours, and an
  * entrance with a view that glides. None run where motion is reduced.
  *
- * It keeps still while you work elsewhere: the drift and the signals run
- * only while the pointer is over the graph or it has the keyboard, and a
- * new model (a note saved, a filter changed) keeps the places of the nodes
- * it already had, and the view, rather than starting again.
+ * It keeps still unless you move it: there is no drift, signals (if chosen)
+ * run only while the pointer is on it, and a new model or a fresh showing
+ * keeps the places of the nodes it already had, and the view for the same
+ * page, rather than starting again.
  */
 export function GraphCanvas({
   model,
   style,
   fit,
+  viewKey,
   selected,
   onSelect,
   onOpen,
@@ -36,6 +49,8 @@ export function GraphCanvas({
   model: GraphModel;
   style: GraphStyle;
   fit: number;
+  /** Which view this is, such as the graph around one page, so each keeps its own. */
+  viewKey: string;
   selected: string | null;
   onSelect: (id: string | null) => void;
   onOpen: (path: string) => void;
@@ -44,9 +59,6 @@ export function GraphCanvas({
   const invalidateRef = useRef<(() => void) | null>(null);
   const live = useRef({ onSelect, onOpen, selected, style });
   /** Where each node was last drawn, and the view, kept across new models. */
-  const places = useRef(new Map<string, { x: number; y: number }>());
-  const placesSpacing = useRef<number | null>(null);
-  const view = useRef<{ x: number; y: number; zoom: number } | null>(null);
   const lastFit = useRef(fit);
   useEffect(() => {
     live.current = { onSelect, onOpen, selected, style };
@@ -153,22 +165,24 @@ export function GraphCanvas({
         Math.max(60, Math.floor(24000 / Math.max(1, model.nodes.length))),
       );
       for (let i = 0; i < rounds; i++) step(model, look().spacing);
-      energy = 0.15;
+      energy = 0; // settled before it is drawn: it moves only when dragged
     }
     // Places from before are kept unless the spacing changed; Fit only moves the view.
     const refit = fit !== lastFit.current;
     lastFit.current = fit;
-    const placeMap = places.current;
-    if (placesSpacing.current !== look().spacing) placeMap.clear();
-    placesSpacing.current = look().spacing;
+    const placeMap = memory.places;
+    if (memory.spacing !== look().spacing) placeMap.clear();
+    memory.spacing = look().spacing;
     const kept = keepPlaces(model, placeMap, look().spacing);
-    /** Already on show before this model, so it does not grow in again. */
-    const shown = kept > 0;
-    if (shown) energy = 0.05;
+    /** Already shown this session, so it does not grow in again. */
+    const shown = kept > 0 || memory.entered;
+    memory.entered = true;
+    if (kept > 0) energy = 0;
     else settle();
     /** The view stays where it was, unless this is the first look or Fit was pressed. */
-    let placedView = view.current !== null && !refit;
-    if (placedView && view.current) camera = { ...view.current };
+    const savedView = memory.views.get(viewKey);
+    let placedView = savedView !== undefined && !refit;
+    if (placedView && savedView) camera = { ...savedView };
     /** The pointer is over the graph, or it has the keyboard: only then does it drift. */
     let engaged = false;
     function resize() {
@@ -279,22 +293,9 @@ export function GraphCanvas({
         return 1 - (1 - l) * 0.8 * focusMix;
       };
 
-      const flow = s.motion && can && engaged;
+      const flow = s.signals && can && engaged;
       if (flow) busy = true;
-      // A slow drift while you are looking at it, so it feels alive; still otherwise.
-      const drift = s.live && can && engaged;
-      if (drift) busy = true;
-      const sway = (n: GraphPoint) => {
-        if (!drift || n === held) return { x: 0, y: 0 };
-        const ph = (phases.get(n.id) ?? 0) * 40;
-        const t = (now * speed) / 2600;
-        return { x: Math.sin(t + ph) * 2.2, y: Math.cos(t * 0.8 + ph * 1.3) * 2.2 };
-      };
-      const at = (n: GraphPoint) => {
-        const p = project(n);
-        const w = sway(n);
-        return { x: p.x + w.x, y: p.y + w.y };
-      };
+      const at = project;
 
       if (busy || dirty || selectedId !== lastSelection) {
         dirty = false;
@@ -544,7 +545,7 @@ export function GraphCanvas({
       cancelAnimationFrame(frame);
       invalidateRef.current = null;
       for (const n of model.nodes) placeMap.set(n.id, { x: n.x, y: n.y });
-      view.current = glide?.to ?? camera;
+      memory.views.set(viewKey, glide?.to ?? camera);
       canvas.removeEventListener('pointerenter', enter);
       canvas.removeEventListener('focus', enter);
       canvas.removeEventListener('blur', leave);
@@ -562,7 +563,7 @@ export function GraphCanvas({
       canvas.removeEventListener('keydown', key);
     };
     // How it looks is read as it draws; only a new model, or Fit, starts it afresh.
-  }, [model, fit]);
+  }, [model, fit, viewKey]);
   return (
     <canvas
       ref={canvasRef}

@@ -54,9 +54,11 @@ colours, node size, spacing, connection brightness, labels, glow, shared tags,
 unconnected files and optional animated signals. **Save style** stores the settings
 in `.benchwork/modules/knowledge-graph/appearance.json`. The graph never changes
 notes or documents. Motion respects the app setting, reduced-motion preference and
-page visibility. The gentle drift and the signals along links run only while the
-pointer is over the graph or it has the keyboard, so it keeps still while you work
-elsewhere.
+page visibility. The graph keeps still: it is laid out before it is drawn, and
+nodes move only while you drag one. Signals along links are off unless you turn them
+on, and then run only while the pointer is over the graph. It grows in once per
+session; a side dock showing it beside each page keeps node places and each page's
+view, so moving between pages does not rearrange it.
 
 Refresh reloads the graph, including metadata changes from outside the app.
 Ordinary vault file changes also refresh automatically, but only links, tags and

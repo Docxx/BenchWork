@@ -7,9 +7,12 @@ export interface GraphStyle {
   tags: boolean;
   orphans: boolean;
   glow: boolean;
-  /** Signals flowing along the links. */
-  motion: boolean;
-  /** The layout keeps moving: nodes drift, settle, and answer a drag. */
+  /**
+   * Signals flowing along the links, while the pointer is on the graph. Off
+   * unless chosen; it replaced `motion`, which was on for everyone.
+   */
+  signals: boolean;
+  /** The layout settles new notes, and answers a drag. */
   live: boolean;
   /** A note's neighbours light up smoothly, and the rest dim. */
   focus: boolean;
@@ -28,7 +31,7 @@ export const DEFAULT_STYLE: GraphStyle = {
   tags: true,
   orphans: true,
   glow: true,
-  motion: true,
+  signals: false,
   live: true,
   focus: true,
   entrance: true,
@@ -50,7 +53,7 @@ export function parseStyle(value: unknown): GraphStyle {
     'tags',
     'orphans',
     'glow',
-    'motion',
+    'signals',
     'live',
     'focus',
     'entrance',

@@ -51,7 +51,8 @@ test('tags notes and documents, finds tagged documents, and opens them through t
   await expect(page.locator('.graph-corner')).toHaveText('3 nodes · 3 connections');
   await page.getByRole('button', { name: 'Graph appearance', exact: true }).click();
   await page.getByLabel('Atmosphere').selectOption('violet');
-  await page.getByRole('checkbox', { name: 'Signals along links' }).uncheck();
+  await expect(page.getByRole('checkbox', { name: 'Signals along links' })).not.toBeChecked();
+  await page.getByRole('checkbox', { name: 'Signals along links' }).check();
   // Options are kept as they change, and are there when the graph is opened again.
   await expect
     .poll(() =>
@@ -62,7 +63,7 @@ test('tags notes and documents, finds tagged documents, and opens them through t
           ] ?? '',
       ),
     )
-    .toMatch(/"palette": "violet"[\s\S]*"motion": false[\s\S]*"tag": "project\/flies"/);
+    .toMatch(/"palette": "violet"[\s\S]*"signals": true[\s\S]*"tag": "project\/flies"/);
   // Hidden again, it says the graph is filtered.
   await page.getByRole('button', { name: 'Graph options', exact: true }).click();
   await expect(page.getByLabel('Filter graph by tag')).toHaveCount(0);
@@ -141,4 +142,36 @@ test('keeps still while a page is saved elsewhere', async ({ page }) => {
   );
   await page.waitForTimeout(1500);
   expect((await graph.screenshot()).equals(before)).toBe(true);
+});
+
+test('a docked graph keeps still while moving between pages and scrolling', async ({ page }) => {
+  await page
+    .getByRole('navigation', { name: 'Vault' })
+    .getByRole('button', { name: 'Knowledge graph', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Dock tool', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Right side, top', exact: true }).click();
+  const dock = page.getByRole('region', { name: 'Right side, top' });
+  const graph = dock.getByRole('img', { name: /^Interactive knowledge graph/ });
+  const tree = page.getByRole('tree', { name: 'Notebooks' });
+  await tree.getByRole('treeitem', { name: 'Research', exact: true }).click();
+  await tree.getByRole('treeitem', { name: 'Study 1', exact: true }).click();
+  await expect(graph).toBeVisible();
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(3000);
+  const first = await graph.screenshot();
+  // Another page and back: the graph for Study 1 comes back as it was, without growing in.
+  await tree.getByRole('treeitem', { name: 'Study 2', exact: true }).click();
+  await page.waitForTimeout(1500);
+  await tree.getByRole('treeitem', { name: 'Study 1', exact: true }).click();
+  await page.mouse.move(5, 5);
+  // Long enough for the page's own highlight to ease in, far too short to grow in and settle.
+  await page.waitForTimeout(1000);
+  expect((await graph.screenshot()).equals(first), 'same after coming back').toBe(true);
+  // Scrolling the page and moving the pointer over it leaves the graph alone.
+  await page.mouse.move(500, 400);
+  await page.mouse.wheel(0, 400);
+  await page.mouse.move(600, 300, { steps: 10 });
+  await page.waitForTimeout(800);
+  expect((await graph.screenshot()).equals(first), 'same after scrolling').toBe(true);
 });
