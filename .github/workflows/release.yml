@@ -1,0 +1,115 @@
+# Builds the Windows installer for a version tag, such as v0.25.0, and puts
+# it in a draft GitHub release with its checksum. You write the notes and
+# publish the draft. Publishing to the relay's update catalogue stays a
+# manual step (scripts/publish-update.ps1), as it needs the server's key.
+#
+# Run it by hand from the Actions tab for a dry run: the same checks and
+# build, kept as a download on the run, with no release made.
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PNPM_VERSION: 12.14.0
+  NODE_VERSION: 24
+
+jobs:
+  windows:
+    name: Windows installer
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the tag matches the version files
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            tag="${GITHUB_REF_NAME#v}"
+          else
+            # A dry run builds whatever version the files say.
+            tag="$(node -p 'require("./package.json").version')"
+          fi
+          echo "VERSION=$tag" >> "$GITHUB_ENV"
+          node -e '
+            const fs = require("fs");
+            const tag = process.argv[1];
+            const found = {
+              "package.json": require("./package.json").version,
+              "src-tauri/tauri.conf.json": require("./src-tauri/tauri.conf.json").version,
+              "src-tauri/Cargo.toml": /^version\s*=\s*"([^"]+)"/m.exec(fs.readFileSync("src-tauri/Cargo.toml", "utf8"))?.[1],
+            };
+            const wrong = Object.entries(found).filter(([, v]) => v !== tag);
+            for (const [file, v] of wrong) console.error(`::error::${file} says ${v}, but the tag is v${tag}`);
+            if (wrong.length) process.exit(1);
+          ' "$tag"
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: pnpm install --frozen-lockfile
+
+      # A release is only built from a commit that passes its checks.
+      - name: Lint
+        run: pnpm lint
+      - name: Unit tests
+        run: pnpm exec vitest run
+      - name: Rust tests
+        run: |
+          mkdir -p dist && [ -f dist/index.html ] || echo '<!doctype html>' > dist/index.html
+          cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Build the installer
+        run: pnpm tauri build --bundles nsis
+
+      - name: Collect the installer and its checksum
+        run: |
+          name="BenchWork_${VERSION}_x64-setup.exe"
+          mkdir -p out
+          cp "src-tauri/target/release/bundle/nsis/$name" "out/$name"
+          (cd out && sha256sum "$name" | sed 's/ \*/  /' > SHA256SUMS.txt)
+          cat out/SHA256SUMS.txt
+
+      - name: Keep the build for 30 days
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-installer
+          path: out/
+          retention-days: 30
+
+      - name: Create a draft release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            # Never replace files on a release that already exists.
+            echo "::warning::A release for $GITHUB_REF_NAME already exists, so it was left alone. The build is attached to this run."
+            exit 0
+          fi
+          gh release create "$GITHUB_REF_NAME" out/* \
+            --draft \
+            --verify-tag \
+            --title "BenchWork $VERSION" \
+            --notes "Windows x64 installer. Built and checked by GitHub Actions from $GITHUB_SHA. Write the release notes here, then publish."

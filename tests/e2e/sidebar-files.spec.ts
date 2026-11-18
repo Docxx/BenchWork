@@ -78,6 +78,10 @@ test('tools stay compact, notebook sizing is adjustable, and folders accept file
   await page.setViewportSize({ width: 820, height: 1180 });
   await page.getByRole('button', { name: 'Show the sidebar', exact: true }).click();
   await expect(sidebar).toBeVisible();
+  // The sidebar slides in as a drawer; measure once it has stopped moving.
+  await sidebar.evaluate((el) =>
+    Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)),
+  );
   const pane = sidebar.locator('.notebook-pane');
   const areaBefore = await pane.boundingBox();
   const grip = await sizing.boundingBox();
