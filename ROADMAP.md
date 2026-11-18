@@ -335,6 +335,13 @@ Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([gu
 - [x] Search and filters behind a Graph options button, with a Filtered label when hidden
 - [ ] Checked on the tablet
 
+### Main app: still graph, folder sorting, clearer mind maps (0.24.0)
+
+- [x] Knowledge graph keeps still unless a node is dragged; signals off unless chosen; a side dock keeps its places and view between pages
+- [x] Sort button above the notebooks: your own order, name either way, last changed or date created either way; folders follow the folder above unless given their own
+- [x] Canvas text stays readable further out, and card colours are stronger in light themes
+- [ ] Checked on the tablet
+
 ## Phase 8: Apple port
 
 - [ ] macOS build (needs a Mac or macOS CI runner)
