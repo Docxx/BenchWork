@@ -168,7 +168,15 @@ export function cardStyle(look: CardLook): CSSProperties {
   };
   if (look.fill === SEE_THROUGH) style['--card-fill'] = 'transparent';
   else if (look.fill !== null) {
-    style['--card-fill'] = `color-mix(in srgb, ${colourVar(look.fill)} 24%, var(--surface))`;
+    // Fuller on a light page, where a pale tint looks washed out; softer on a dark one.
+    const c = colourVar(look.fill);
+    style['--card-fill'] =
+      `light-dark(color-mix(in srgb, ${c} 45%, var(--surface)), color-mix(in srgb, ${c} 30%, var(--surface)))`;
+    // A filled card is edged in its own colour, unless it has a border colour of its own.
+    if (look.borderColour === null) {
+      style['--card-border'] =
+        `light-dark(color-mix(in srgb, ${c} 80%, var(--text)), color-mix(in srgb, ${c} 70%, var(--surface)))`;
+    }
   }
   if (look.borderColour !== null) style['--card-border'] = colourVar(look.borderColour);
   return style;
@@ -179,6 +187,7 @@ export function cardClass(look: CardLook, kind: string): string {
     'canvas-card',
     kind,
     `shape-${look.shape}`,
+    `text-${look.textSize}`,
     `border-${look.border}`,
     look.fill === null ? '' : look.fill === SEE_THROUGH ? 'see-through' : 'filled',
   ]

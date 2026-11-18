@@ -68,8 +68,10 @@ import {
 export const USUAL_MIN_ZOOM = 0.1;
 /** Never further than this, however big the canvas. */
 const FURTHEST_ZOOM = 0.002;
-/** Below this zoom, cards show as plain blocks: their words are too small to read. */
-export const FAR_ZOOM = 0.2;
+/** Below this zoom, small and normal words are too small to read, so they are not drawn. */
+export const FAR_ZOOM = 0.1;
+/** Below this zoom, large and huge words go too, and cards show as plain blocks. */
+export const FARTHER_ZOOM = 0.04;
 
 interface Box {
   x: number;
@@ -460,7 +462,8 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [changedElsewhere, setChangedElsewhere] = useState(false);
   const [reads, setReads] = useState(0);
-  const [far, setFar] = useState(false);
+  /** How far out the view is: near, far (small words hidden) or farther (all words hidden). */
+  const [distance, setDistance] = useState<'near' | 'far' | 'farther'>('near');
   /** Whether the overview map shows; null until chosen, when it shows for big canvases. */
   const [overview, setOverview] = useState<boolean | null>(null);
   const board = useRef<HTMLDivElement>(null);
@@ -870,7 +873,11 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
         {saveError !== null && (
           <p className="notice">This canvas could not be saved. {saveError}</p>
         )}
-        <div ref={board} className={far ? 'canvas-board far' : 'canvas-board'} aria-label="Canvas">
+        <div
+          ref={board}
+          className={distance === 'near' ? 'canvas-board' : `canvas-board ${distance}`}
+          aria-label="Canvas"
+        >
           <ReactFlow
             nodes={nodes}
             edges={shownEdges}
@@ -888,8 +895,13 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
             minZoom={minZoom}
             onlyRenderVisibleElements
             onMove={(_e, viewport) => {
-              const isFar = viewport.zoom < FAR_ZOOM;
-              if (isFar !== far) setFar(isFar);
+              const next =
+                viewport.zoom < FARTHER_ZOOM
+                  ? 'farther'
+                  : viewport.zoom < FAR_ZOOM
+                    ? 'far'
+                    : 'near';
+              if (next !== distance) setDistance(next);
             }}
             proOptions={{ hideAttribution: true }}
             onPaneClick={(e) => {

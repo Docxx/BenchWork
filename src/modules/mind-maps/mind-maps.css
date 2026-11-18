@@ -394,11 +394,15 @@ button.canvas-swatch[aria-pressed='true'] {
   font-weight: 600;
 }
 
-/* Far out, cards are plain blocks: their words would be too small to read, and drawing them is slow. */
-.canvas-board.far .canvas-card .card-text,
-.canvas-board.far .canvas-card .card-title,
+/*
+ * Far out, words too small to read are not drawn, which also keeps a big
+ * canvas quick: small and normal words first, then large and huge ones too.
+ */
+.canvas-board.far .canvas-card:not(.text-large, .text-huge) .card-text,
 .canvas-board.far .canvas-card .card-preview,
-.canvas-board.far .canvas-card .card-link {
+.canvas-board.far .canvas-card .card-link,
+.canvas-board.farther .canvas-card .card-text,
+.canvas-board.farther .canvas-card .card-title {
   visibility: hidden;
 }
 

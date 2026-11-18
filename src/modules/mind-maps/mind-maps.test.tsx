@@ -259,20 +259,25 @@ describe('Mind maps: canvas styles', () => {
       textSize: 'huge',
     });
     expect(cardClass(look, 'text-card')).toBe(
-      'canvas-card text-card shape-pill border-dashed filled',
+      'canvas-card text-card shape-pill text-huge border-dashed filled',
     );
     expect(cardStyle(look)).toEqual({
       fontSize: '1.5rem',
-      '--card-fill': 'color-mix(in srgb, var(--section-green) 24%, var(--surface))',
+      '--card-fill':
+        'light-dark(color-mix(in srgb, var(--section-green) 45%, var(--surface)), color-mix(in srgb, var(--section-green) 30%, var(--surface)))',
       '--card-border': 'var(--section-red)',
     });
+    // Filled, with no border colour: edged in its own colour.
+    expect(cardStyle(cardLook({ ...card, fill: 'yellow' }))['--card-border' as 'color']).toContain(
+      'var(--section-yellow) 80%',
+    );
   });
 
   it('can be see-through, so a ring over a picture shows the picture', () => {
     const look = cardLook({ ...card, fill: 'none', borderColour: 'pink' });
     expect(look).toMatchObject({ fill: 'none', borderColour: 'pink' });
     expect(cardClass(look, 'text-card')).toBe(
-      'canvas-card text-card shape-rounded border-solid see-through',
+      'canvas-card text-card shape-rounded text-normal border-solid see-through',
     );
     expect(cardStyle(look)).toMatchObject({
       '--card-fill': 'transparent',
