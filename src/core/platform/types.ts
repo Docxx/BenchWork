@@ -139,6 +139,11 @@ export interface PlatformAdapter {
    */
   removeSnapshot(path: string): Promise<void>;
   /**
+   * Deletes one encrypted piece that Cloud sync has finished uploading.
+   * Refuses anything that is not a file in `.benchwork/relay/outbox/`.
+   */
+  removeSyncOutbox(path: string): Promise<void>;
+  /**
    * Calls `listener` with paths that changed in the open vault, from any
    * source, BenchWork included. Returns a function that stops listening.
    */

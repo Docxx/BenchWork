@@ -1,6 +1,7 @@
 //! File operations inside an open vault. Every path goes through
 //! `path_guard::resolve`. There is deliberately no delete operation for
-//! user files: only `remove_snapshot`, for BenchWork's own snapshot files.
+//! user files: only `remove_snapshot` and `remove_sync_outbox`, for
+//! BenchWork's own snapshot and sync outbox files.
 
 use std::fs;
 use std::io::Write;
@@ -387,30 +388,43 @@ pub fn exists(root: &Path, rel: &str) -> VaultResult<bool> {
 /// Where BenchWork keeps its recovery copies of pages.
 pub const SNAPSHOT_DIR: &str = ".benchwork/snapshots";
 
+/// Where Cloud sync keeps encrypted pieces waiting to upload.
+pub const SYNC_OUTBOX_DIR: &str = ".benchwork/relay/outbox";
+
 /// Deletes one of BenchWork's own snapshot files, for keeping only recent
-/// ones. The only delete there is: it refuses anything that is not a file
-/// inside `.benchwork/snapshots/`, so it can never reach a user's files.
+/// ones. It refuses anything that is not a file inside
+/// `.benchwork/snapshots/`, so it can never reach a user's files.
 pub fn remove_snapshot(root: &Path, rel: &str) -> VaultResult<()> {
+    remove_internal(root, rel, SNAPSHOT_DIR, "snapshot")
+}
+
+/// Deletes one encrypted piece Cloud sync has finished uploading. It refuses
+/// anything that is not a file inside `.benchwork/relay/outbox/`.
+pub fn remove_sync_outbox(root: &Path, rel: &str) -> VaultResult<()> {
+    remove_internal(root, rel, SYNC_OUTBOX_DIR, "sync outbox file")
+}
+
+fn remove_internal(root: &Path, rel: &str, dir: &str, what: &str) -> VaultResult<()> {
     let normal = normalise(rel)?;
     let inside = normal
-        .strip_prefix(SNAPSHOT_DIR)
+        .strip_prefix(dir)
         .is_some_and(|rest| rest.starts_with('/') && rest.len() > 1);
     if !inside {
         return Err(VaultError::new(
             ErrorKind::InvalidPath,
-            format!("'{normal}' is not a snapshot"),
+            format!("'{normal}' is not a {what}"),
         ));
     }
     let path = resolve(root, &normal)?;
-    let meta =
-        fs::symlink_metadata(&path).map_err(|e| VaultError::io("Cannot find snapshot", &e))?;
+    let meta = fs::symlink_metadata(&path)
+        .map_err(|e| VaultError::io(&format!("Cannot find {what}"), &e))?;
     if !meta.is_file() {
         return Err(VaultError::new(
             ErrorKind::NotAFile,
             format!("'{normal}' is not a file"),
         ));
     }
-    fs::remove_file(&path).map_err(|e| VaultError::io("Cannot remove snapshot", &e))
+    fs::remove_file(&path).map_err(|e| VaultError::io(&format!("Cannot remove {what}"), &e))
 }
 
 #[cfg(test)]
@@ -755,5 +769,33 @@ mod phase1_tests {
         }
         assert!(exists(&root, "Page.md").unwrap());
         assert!(exists(&root, ".benchwork/config.json").unwrap());
+    }
+
+    #[test]
+    fn removes_only_sync_outbox_files() {
+        let (_dir, root) = vault();
+        ensure_dir(&root, ".benchwork/relay/outbox").unwrap();
+        write_text_atomic(&root, ".benchwork/relay/outbox/000001.json", "{}").unwrap();
+        write_text_atomic(&root, ".benchwork/relay/checkpoint.json", "{}").unwrap();
+        write_text_atomic(&root, "Page.md", "mine").unwrap();
+
+        remove_sync_outbox(&root, ".benchwork/relay/outbox/000001.json").unwrap();
+        assert!(!exists(&root, ".benchwork/relay/outbox/000001.json").unwrap());
+
+        for refused in [
+            "Page.md",
+            ".benchwork/relay/checkpoint.json",
+            ".benchwork/relay/outbox",
+            ".benchwork/relay/outboxX/a.json",
+            ".benchwork/relay/outbox/../checkpoint.json",
+            ".benchwork/snapshots/p1/a.md",
+        ] {
+            assert!(
+                remove_sync_outbox(&root, refused).is_err(),
+                "{refused} was removed"
+            );
+        }
+        assert!(exists(&root, "Page.md").unwrap());
+        assert!(exists(&root, ".benchwork/relay/checkpoint.json").unwrap());
     }
 }

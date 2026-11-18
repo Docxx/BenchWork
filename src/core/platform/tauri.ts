@@ -545,6 +545,10 @@ export class TauriAdapter implements PlatformAdapter {
     return call('remove_snapshot', () => ({ path: normaliseVaultPath(path) }));
   }
 
+  removeSyncOutbox(path: string): Promise<void> {
+    return call('remove_sync_outbox', () => ({ path: normaliseVaultPath(path) }));
+  }
+
   watch(listener: (change: VaultChange) => void): () => void {
     let stopped = false;
     let unlisten: (() => void) | null = null;

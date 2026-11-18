@@ -702,6 +702,22 @@ export class MemoryAdapter implements PlatformAdapter {
     });
   }
 
+  /** Same rules as `remove_sync_outbox` in src-tauri/src/vault_fs.rs. */
+  removeSyncOutbox(path: string): Promise<void> {
+    return this.run(() => {
+      const nodes = this.vault();
+      const file = normaliseVaultPath(path);
+      if (!file.startsWith('.benchwork/relay/outbox/')) {
+        throw new PlatformError('InvalidPath', `'${file}' is not a sync outbox file`);
+      }
+      const node = nodes.get(file);
+      if (!node) throw new PlatformError('NotFound', `'${file}' does not exist`);
+      if (node.kind !== 'file') throw new PlatformError('NotAFile', `'${file}' is not a file`);
+      nodes.delete(file);
+      this.changed(file);
+    });
+  }
+
   /** Acts as if Pandoc is installed with this version, or (with null) not installed. */
   setPandoc(version: string | null): void {
     this.pandoc = version;
