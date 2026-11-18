@@ -166,6 +166,10 @@ describe('files shown in the sidebar', () => {
     expect(previewed('Climbing.docx')).toBe(true);
     expect(previewed('~$imbing.docx')).toBe(false);
     expect(previewed('.hidden.pdf')).toBe(false);
+    // Receipts saved with no ending, or with a dot only in the price.
+    expect(previewed('Lebara £12 16-10-2026 ADI')).toBe(true);
+    expect(previewed('Amazon £66.40 01-11-2026 ADI')).toBe(true);
+    expect(previewed('Notes.exe')).toBe(false);
   });
 });
 

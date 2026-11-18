@@ -2,7 +2,7 @@
 import * as XLSX from 'xlsx';
 import { MemoryAdapter } from '../platform/memory';
 import { guessDelimiter, parseCsv } from './csv';
-import { fileKind, formatSize, kindLabel } from './fileKinds';
+import { fileKind, formatSize, kindLabel, sniff } from './fileKinds';
 import { checkLinkedFile, linkFile, readLinkRecord } from './linkedFiles';
 import { readSpreadsheet } from './spreadsheet';
 
@@ -47,6 +47,17 @@ describe('file kinds', () => {
     expect(formatSize(2458)).toBe('2.4 KB');
     expect(formatSize(52 * 1024 * 1024)).toBe('52 MB');
     expect(formatSize(1.3 * 1024 ** 3)).toBe('1.3 GB');
+  });
+});
+
+describe('files saved without an ending', () => {
+  const bytes = (...b: number[]) => new Uint8Array([...b, ...Array<number>(32).fill(0)]);
+  it('tells images and PDFs from their first bytes', () => {
+    expect(sniff(bytes(0x89, 0x50, 0x4e, 0x47))?.ending).toBe('.png');
+    expect(sniff(bytes(0xff, 0xd8, 0xff, 0xe0))?.ending).toBe('.jpg');
+    expect(sniff(new TextEncoder().encode('%PDF-1.7'))?.kind).toBe('pdf');
+    expect(sniff(new TextEncoder().encode('BM is not a bitmap, just text here'))).toBeNull();
+    expect(sniff(new TextEncoder().encode('plain notes'))).toBeNull();
   });
 });
 

@@ -52,6 +52,42 @@ export function fileKind(path: string): FileKind {
   return 'other';
 }
 
+/** What a file with no ending holds, read from its first bytes. */
+export interface Sniffed {
+  kind: 'image' | 'pdf';
+  /** The ending it should have, such as `.jpg`. */
+  ending: string;
+  /** Its media type, for showing it. */
+  type: string;
+}
+
+const starts = (b: Uint8Array, sig: readonly number[], at = 0) =>
+  sig.every((v, i) => b[at + i] === v);
+
+/** Looks at a file's first bytes for an image or PDF. */
+export function sniff(bytes: Uint8Array): Sniffed | null {
+  if (starts(bytes, [0x89, 0x50, 0x4e, 0x47])) {
+    return { kind: 'image', ending: '.png', type: 'image/png' };
+  }
+  if (starts(bytes, [0xff, 0xd8, 0xff])) {
+    return { kind: 'image', ending: '.jpg', type: 'image/jpeg' };
+  }
+  if (starts(bytes, [0x47, 0x49, 0x46, 0x38])) {
+    return { kind: 'image', ending: '.gif', type: 'image/gif' };
+  }
+  if (starts(bytes, [0x52, 0x49, 0x46, 0x46]) && starts(bytes, [0x57, 0x45, 0x42, 0x50], 8)) {
+    return { kind: 'image', ending: '.webp', type: 'image/webp' };
+  }
+  // `BM`, then a header size only bitmaps use, so text starting "BM" is not taken.
+  if (starts(bytes, [0x42, 0x4d]) && [12, 40, 108, 124].includes(bytes[14] ?? 0)) {
+    return { kind: 'image', ending: '.bmp', type: 'image/bmp' };
+  }
+  // `%PDF`, which may come after a little junk at the start.
+  const head = new TextDecoder('latin1').decode(bytes.subarray(0, 1024));
+  if (head.includes('%PDF-')) return { kind: 'pdf', ending: '.pdf', type: 'application/pdf' };
+  return null;
+}
+
 /** Short words for a kind, for labels such as "CSV table". */
 export function kindLabel(path: string): string {
   const kind = fileKind(path);

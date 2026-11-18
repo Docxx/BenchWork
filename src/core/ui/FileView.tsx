@@ -2,13 +2,13 @@ import { TagEditor } from './TagEditor';
 import { Component, useEffect, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
 import type { TableData } from '../files/csv';
 import { parseCsv } from '../files/csv';
-import { fileKind, kindLabel } from '../files/fileKinds';
+import { fileKind, kindLabel, sniff } from '../files/fileKinds';
 import { renderDocx } from '../files/docx';
 import { openPdf, type PdfDocument, type PdfRender } from '../files/pdf';
 import { readSpreadsheet, type SheetData } from '../files/spreadsheet';
 import { handlerFor } from '../modules/contributions';
 import { PenTools } from './PenTools';
-import { CANVAS_EXTENSION } from '../notebooks/notebookTree';
+import { CANVAS_EXTENSION, hasNoEnding } from '../notebooks/notebookTree';
 import { baseName, PlatformError } from '../platform';
 import { parseRecord, recordName } from '../records/records';
 import { useApp } from './AppStoreContext';
@@ -84,7 +84,11 @@ function Preview({ path }: { path: string }) {
         </p>
       );
     default:
-      return <p className="hint">There is no preview for this kind of file.</p>;
+      return hasNoEnding(baseName(path)) ? (
+        <UnnamedPreview path={path} />
+      ) : (
+        <p className="hint">There is no preview for this kind of file.</p>
+      );
   }
 }
 
@@ -188,6 +192,55 @@ function Status({ result }: { result: Loaded<unknown> }) {
     );
   }
   return null;
+}
+
+/**
+ * A file saved without an ending, such as a receipt photo: looks inside, shows
+ * it if it is an image or PDF, and offers to add the ending so other programs
+ * open it too.
+ */
+function UnnamedPreview({ path }: { path: string }) {
+  const readFileBytes = useApp((s) => s.readFileBytes);
+  const renameItem = useApp((s) => s.renameItem);
+  const result = useLoad(async () => {
+    const bytes = await readFileBytes(path);
+    const found = sniff(bytes);
+    if (found === null) return null;
+    if (found.kind === 'pdf') return { found, pdf: await openPdf(bytes), url: null };
+    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: found.type }));
+    return { found, pdf: null, url };
+  });
+  const value = result.state === 'ready' ? result.value : null;
+  useEffect(
+    () => () => {
+      if (value?.url != null) URL.revokeObjectURL(value.url);
+      value?.pdf?.destroy();
+    },
+    [value],
+  );
+  if (result.state !== 'ready') return <Status result={result} />;
+  if (value === null) return <p className="hint">There is no preview for this kind of file.</p>;
+  const { found } = value;
+  return (
+    <>
+      <p className="hint unnamed-file">
+        This {found.kind === 'pdf' ? 'PDF' : 'image'} was saved without {found.ending} at the end of
+        its name, so other programs may not open it.{' '}
+        <button
+          type="button"
+          className="quiet"
+          onClick={() => void renameItem(path, `${baseName(path)}${found.ending}`)}
+        >
+          Add {found.ending}
+        </button>
+      </p>
+      {value.pdf !== null ? (
+        <PdfPages doc={value.pdf} />
+      ) : (
+        <img className="image-preview" src={value.url} alt={baseName(path)} />
+      )}
+    </>
+  );
 }
 
 function ImagePreview({ path }: { path: string }) {

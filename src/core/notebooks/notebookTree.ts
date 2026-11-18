@@ -92,7 +92,19 @@ const PREVIEWED = /\.(csv|tsv|xlsx|xlsm|xls|ods|pdf|docx|png|jpe?g|gif|webp|svg|
 export function isPreviewed(name: string): boolean {
   // Word and Excel keep `~$name` lock files beside documents while they are open.
   if (name.startsWith('.') || name.startsWith('~$')) return false;
-  return PREVIEWED.test(name) || isRecord(name);
+  return PREVIEWED.test(name) || isRecord(name) || hasNoEnding(name);
+}
+
+/**
+ * Whether a file's name has no ending such as `.jpg`: no dot, or only a dot
+ * inside the name, as in `Taxi £3.61 23-10-2026`. Such files are often
+ * images or PDFs saved without one, so the sidebar shows them and the file
+ * view looks inside to see what they are.
+ */
+export function hasNoEnding(name: string): boolean {
+  if (name.startsWith('.') || name.startsWith('~$')) return false;
+  const dot = name.lastIndexOf('.');
+  return dot <= 0 || !/^[a-z0-9]{1,5}$/i.test(name.slice(dot + 1));
 }
 
 /**
