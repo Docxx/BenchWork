@@ -56,7 +56,8 @@ export interface NotebookSlice {
   /** An emoji or symbol beside a notebook or section's name; null for none. */
   setFolderIcon: (folder: string, icon: string | null) => Promise<void>;
   /** How a folder's contents are sorted. */
-  setFolderSort: (folder: string, sort: FolderSort) => Promise<void>;
+  /** A folder's own sort, or null to sort as the folder above it does. */
+  setFolderSort: (folder: string, sort: FolderSort | null) => Promise<void>;
   /** Notebooks, sections and pages listed under Favourites, kept in the vault so they sync. */
   favourites: () => string[];
   setFavourite: (path: string, on: boolean) => Promise<void>;

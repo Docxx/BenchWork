@@ -26,7 +26,8 @@ import type {
 import { baseName, normaliseVaultPath, parentVaultPath } from './vaultPath';
 
 type MemoryNode =
-  { kind: 'dir'; modified: number } | { kind: 'file'; bytes: Uint8Array; modified: number };
+  | { kind: 'dir'; modified: number; created?: number }
+  | { kind: 'file'; bytes: Uint8Array; modified: number; created?: number };
 
 /** The parts of a Map the adapter uses, so a subfolder can stand in for a whole folder. */
 interface NodeStore extends Iterable<[string, MemoryNode]> {
@@ -538,6 +539,7 @@ export class MemoryAdapter implements PlatformAdapter {
           isDir: node.kind === 'dir',
           size: node.kind === 'file' ? node.bytes.length : 0,
           modified: node.modified,
+          created: node.created ?? node.modified,
         });
       }
       // Byte order, like the Rust backend.
@@ -572,7 +574,15 @@ export class MemoryAdapter implements PlatformAdapter {
       if (nodes.get(file)?.kind === 'dir') {
         throw new PlatformError('NotAFile', 'Cannot write over a folder');
       }
-      nodes.set(file, { kind: 'file', bytes: data.slice(), modified: this.tick() });
+      const was = nodes.get(file);
+      const now = this.tick();
+      // Writing over a file keeps when it was made.
+      nodes.set(file, {
+        kind: 'file',
+        bytes: data.slice(),
+        modified: now,
+        created: was ? (was.created ?? was.modified) : now,
+      });
       this.changed(file);
     });
   }

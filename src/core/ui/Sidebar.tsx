@@ -1,4 +1,5 @@
 import {
+  ArrowDownUp,
   ArrowLeftRight,
   CalendarDays,
   Columns2,
@@ -16,6 +17,7 @@ import {
 import { useRef, useState } from 'react';
 import type { OpenVault } from '../vault/vaultService';
 import { useApp } from './AppStoreContext';
+import { FOLDER_SORT_NAMES, FOLDER_SORTS } from '../notebooks/sectionMeta';
 import { dockContents } from '../settings/layout';
 import { Dock, DockSplitter } from './Dock';
 import { Logo } from './Logo';
@@ -46,6 +48,10 @@ const ICON = { size: 17, strokeWidth: 1.75, 'aria-hidden': true } as const;
 
 export function Sidebar({ vault, onCollapse }: { vault: OpenVault; onCollapse: () => void }) {
   const refreshTree = useApp((s) => s.refreshTree);
+  const rootFolder = useApp((s) => s.tree.folders['']);
+  const setFolderSort = useApp((s) => s.setFolderSort);
+  const rootSort = (rootFolder?.status === 'loaded' ? rootFolder.meta?.sort : null) ?? 'manual';
+  const [sortMenu, setSortMenu] = useState<{ x: number; y: number } | null>(null);
   const closeVault = useApp((s) => s.closeVault);
   const view = useApp((s) => s.view);
   const showView = useApp((s) => s.showView);
@@ -164,6 +170,21 @@ export function Sidebar({ vault, onCollapse }: { vault: OpenVault; onCollapse: (
         >
           <SlidersHorizontal size={14} strokeWidth={1.75} aria-hidden />
         </button>
+        {results === null && (
+          <button
+            type="button"
+            className="icon-button"
+            title="Sort notebooks and sections (a folder can have its own: right-click it, then Sort)"
+            aria-label="Sort notebooks and sections"
+            aria-haspopup="menu"
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setSortMenu({ x: rect.left, y: rect.bottom });
+            }}
+          >
+            <ArrowDownUp size={14} strokeWidth={1.75} aria-hidden />
+          </button>
+        )}
         <button
           type="button"
           className="icon-button"
@@ -192,6 +213,23 @@ export function Sidebar({ vault, onCollapse }: { vault: OpenVault; onCollapse: (
           <Plus size={15} strokeWidth={1.75} aria-hidden />
         </button>
       </div>
+      {sortMenu !== null && (
+        <Menu
+          label="Sort notebooks and sections"
+          x={sortMenu.x}
+          y={sortMenu.y}
+          items={[
+            ...FOLDER_SORTS.map((by) => ({
+              label: FOLDER_SORT_NAMES[by],
+              checked: rootSort === by,
+              onSelect: () => void setFolderSort('', by),
+            })),
+          ]}
+          onClose={() => {
+            setSortMenu(null);
+          }}
+        />
+      )}
       {lookMenu !== null && (
         <Menu
           label="List options"

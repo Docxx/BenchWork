@@ -24,7 +24,13 @@ import {
   type NotebookNode,
   type NotebookRow,
 } from '../notebooks/notebookTree';
-import { type FolderSort, SECTION_COLOURS } from '../notebooks/sectionMeta';
+import {
+  effectiveSort,
+  FOLDER_SORT_NAMES,
+  FOLDER_SORTS,
+  type FolderSort,
+  SECTION_COLOURS,
+} from '../notebooks/sectionMeta';
 import { parentVaultPath } from '../platform';
 import { isRecord } from '../records/records';
 import { useApp } from './AppStoreContext';
@@ -63,13 +69,6 @@ export function colourValue(colour: string): string {
     ? `var(--section-${colour})`
     : colour;
 }
-
-const SORTS: readonly (readonly [FolderSort, string])[] = [
-  ['manual', 'your own order'],
-  ['name', 'name, A to Z'],
-  ['name-desc', 'name, Z to A'],
-  ['changed', 'last changed'],
-];
 
 const KIND_LABEL: Record<NotebookNode['kind'], string> = {
   notebook: 'notebook',
@@ -246,7 +245,8 @@ export function NotebookTree() {
       })),
       ...commandItems('folder', node.path),
     ];
-    const sort = sortOf(node.path);
+    const sort = ownSortOf(node.path);
+    const inherited = effectiveSort(parentOf(node.path), metaOf);
     return [
       {
         label: 'New page',
@@ -271,11 +271,18 @@ export function NotebookTree() {
       {
         label: 'Sort',
         group: 'Organise',
-        children: SORTS.map(([by, label]) => ({
-          label: `Sort: ${label}`,
-          checked: sort === by,
-          onSelect: () => void setFolderSort(node.path, by),
-        })),
+        children: [
+          {
+            label: `Same as the folder above (${FOLDER_SORT_NAMES[inherited]})`,
+            checked: sort === null,
+            onSelect: () => void setFolderSort(node.path, null),
+          },
+          ...FOLDER_SORTS.map((by) => ({
+            label: FOLDER_SORT_NAMES[by],
+            checked: sort === by,
+            onSelect: () => void setFolderSort(node.path, by),
+          })),
+        ],
       },
       { label: 'Add files…', group: 'Files', onSelect: () => void pickFilesIntoFolder(node.path) },
       ...(folderActionsAvailable
@@ -312,10 +319,19 @@ export function NotebookTree() {
       .map((c) => ({ label: c.title, onSelect: () => void runCommand(c.id, { folder }) }));
   }
 
-  /** How a loaded folder is sorted now. */
-  function sortOf(path: string): FolderSort {
+  function metaOf(path: string) {
     const folder = tree.folders[path];
-    return folder?.status === 'loaded' ? (folder.meta?.sort ?? 'manual') : 'manual';
+    return folder?.status === 'loaded' ? folder.meta : null;
+  }
+
+  /** A folder's own sort, or null when it sorts as the folder above it does. */
+  function ownSortOf(path: string): FolderSort | null {
+    return metaOf(path)?.sort ?? null;
+  }
+
+  function parentOf(path: string): string {
+    const slash = path.lastIndexOf('/');
+    return slash === -1 ? '' : path.slice(0, slash);
   }
 
   function colourSwatches(node: NotebookNode) {

@@ -3,7 +3,7 @@ import { isConflictCopy } from '../sync/conflicts';
 import type { DirEntry } from '../platform';
 import { isRecord, recordName } from '../records/records';
 import { compareEntries, type TreeState } from '../vault/fileTree';
-import { SECTION_FILE, type FolderSort } from './sectionMeta';
+import { effectiveSort, SECTION_FILE, type FolderSort } from './sectionMeta';
 
 /**
  * How the vault looks in the sidebar: top-level folders are notebooks,
@@ -115,9 +115,23 @@ export function orderEntries(
         if (aDaily !== bDaily) return aDaily ? -1 : 1;
       }
       if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
-      if (sort === 'changed') return (b.modified ?? 0) - (a.modified ?? 0) || compareEntries(a, b);
+      const changed = (e: DirEntry) => e.modified ?? 0;
+      const made = (e: DirEntry) => e.created ?? e.modified ?? 0;
       const byName = compareEntries(a, b);
-      return sort === 'name-desc' ? -byName : byName;
+      switch (sort) {
+        case 'changed':
+          return changed(b) - changed(a) || byName;
+        case 'changed-old':
+          return changed(a) - changed(b) || byName;
+        case 'created':
+          return made(b) - made(a) || byName;
+        case 'created-old':
+          return made(a) - made(b) || byName;
+        case 'name-desc':
+          return -byName;
+        default:
+          return byName;
+      }
     });
   }
   const position = new Map(order.map((name, i) => [name, i]));
@@ -181,7 +195,11 @@ export function folderNodes(
   if (folder?.status !== 'loaded') return null;
   const atRoot = path === '';
   const shown = folder.entries.filter((e) => isShown(e, atRoot, options));
-  return orderEntries(shown, folder.meta?.order ?? [], atRoot, folder.meta?.sort).map((e) =>
+  const sort = effectiveSort(path, (p) => {
+    const f = tree.folders[p];
+    return f?.status === 'loaded' ? f.meta : null;
+  });
+  return orderEntries(shown, folder.meta?.order ?? [], atRoot, sort).map((e) =>
     nodeFor(
       e,
       depth,

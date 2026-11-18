@@ -23,21 +23,35 @@ export const SECTION_COLOURS = [
 
 export type SectionColour = (typeof SECTION_COLOURS)[number];
 
-/** How a folder's contents are sorted: its own order, by name either way, or last changed first. */
-export type FolderSort = 'manual' | 'name' | 'name-desc' | 'changed';
-export const FOLDER_SORTS: readonly FolderSort[] = ['manual', 'name', 'name-desc', 'changed'];
+/**
+ * How a folder's contents are sorted: its own order, by name either way, by
+ * when they last changed, or by when they were made (newest first, or `-old`
+ * for oldest first).
+ */
+export type FolderSort =
+  'manual' | 'name' | 'name-desc' | 'changed' | 'changed-old' | 'created' | 'created-old';
+export const FOLDER_SORTS: readonly FolderSort[] = [
+  'manual',
+  'name',
+  'name-desc',
+  'changed',
+  'changed-old',
+  'created',
+  'created-old',
+];
 
 export interface SectionMeta {
   colour: string | null;
   /** An emoji or a short symbol shown beside the folder's name. */
   icon: string | null;
-  sort: FolderSort;
+  /** Its own sort, or null to sort as the folder above it does. */
+  sort: FolderSort | null;
   /** File and folder names in the order to show them; others follow, sorted. */
   order: string[];
 }
 
 export function emptySectionMeta(): SectionMeta {
-  return { colour: null, icon: null, sort: 'manual', order: [] };
+  return { colour: null, icon: null, sort: null, order: [] };
 }
 
 const SAFE_COLOUR = /^(#[0-9a-f]{3,8}|[a-z]{3,20})$/i;
@@ -67,7 +81,7 @@ export function parseSectionMeta(text: string): SectionMeta {
   const sortValue = record['sort'];
   const sort = (FOLDER_SORTS as readonly unknown[]).includes(sortValue)
     ? (sortValue as FolderSort)
-    : 'manual';
+    : null;
   return { colour, icon, sort, order };
 }
 
@@ -89,13 +103,42 @@ export function serialiseSectionMeta(existing: string | null, meta: SectionMeta)
   else doc.set('colour', meta.colour);
   if (meta.icon === null) remove('icon');
   else doc.set('icon', meta.icon);
-  if (meta.sort === 'manual') remove('sort');
+  if (meta.sort === null) remove('sort');
   else doc.set('sort', meta.sort);
   if (meta.order.length === 0) remove('order');
   else doc.set('order', meta.order);
 
   if (!isMap(doc.contents) || doc.contents.items.length === 0) return null;
   return doc.toString({ lineWidth: 0, flowCollectionPadding: false });
+}
+
+/** How each sort is named in menus. */
+export const FOLDER_SORT_NAMES: Record<FolderSort, string> = {
+  manual: 'Your own order (drag to move)',
+  name: 'Name, A to Z',
+  'name-desc': 'Name, Z to A',
+  changed: 'Last changed, newest first',
+  'changed-old': 'Last changed, oldest first',
+  created: 'Date created, newest first',
+  'created-old': 'Date created, oldest first',
+};
+
+/**
+ * The sort a folder uses: its own, or the nearest folder above it with one,
+ * or your own order. `metaOf` gives a folder's settings, if they are known.
+ */
+export function effectiveSort(
+  path: string,
+  metaOf: (folder: string) => SectionMeta | null | undefined,
+): FolderSort {
+  let folder = path;
+  for (;;) {
+    const own = metaOf(folder)?.sort;
+    if (own) return own;
+    if (folder === '') return 'manual';
+    const slash = folder.lastIndexOf('/');
+    folder = slash === -1 ? '' : folder.slice(0, slash);
+  }
 }
 
 /** Moves `name` in an order list to `index`, adding it if missing. */

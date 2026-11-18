@@ -271,7 +271,7 @@ export async function setIcon(
 export async function setSort(
   platform: PlatformAdapter,
   folder: string,
-  sort: FolderSort,
+  sort: FolderSort | null,
 ): Promise<void> {
   await updateSectionMeta(platform, folder, (m) => ({ ...m, sort }));
 }

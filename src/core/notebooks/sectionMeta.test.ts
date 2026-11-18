@@ -1,5 +1,6 @@
 // @vitest-environment node
 import {
+  effectiveSort,
   emptySectionMeta,
   parseSectionMeta,
   placeInOrder,
@@ -31,7 +32,8 @@ describe('section settings', () => {
     }
     expect(parseSectionMeta('colour: "#2e6b5e"').colour).toBe('#2e6b5e');
     expect(parseSectionMeta('order: [a, a, 3, b]').order).toEqual(['a', 'b']);
-    expect(parseSectionMeta('sort: sideways\nicon: a very long icon indeed').sort).toBe('manual');
+    // An unknown sort is no sort of its own: the folder follows the one above.
+    expect(parseSectionMeta('sort: sideways\nicon: a very long icon indeed').sort).toBeNull();
     expect(parseSectionMeta('icon: a very long icon indeed').icon).toBeNull();
   });
 
@@ -56,5 +58,20 @@ describe('section settings', () => {
     expect(placeInOrder(['a', 'b'], 'new', 1)).toEqual(['a', 'new', 'b']);
     expect(placeInOrder(['a', 'b'], 'a', 99)).toEqual(['b', 'a']);
     expect(renameInOrder(['a', 'b', 'c'], 'b', 'B')).toEqual(['a', 'B', 'c']);
+  });
+
+  it('sorts a folder as the nearest folder above with a sort of its own', () => {
+    const metas: Record<string, SectionMeta> = {
+      '': meta({ sort: 'created' }),
+      Lab: meta({ sort: 'name-desc' }),
+      'Lab/Week 1': meta(),
+    };
+    const of = (p: string) => metas[p];
+    expect(effectiveSort('Lab/Week 1/Day 1', of)).toBe('name-desc');
+    expect(effectiveSort('Admin', of)).toBe('created');
+    expect(effectiveSort('Admin', () => null)).toBe('manual');
+    // Your own order, set on purpose, is kept rather than followed from above.
+    expect(serialiseSectionMeta(null, meta({ sort: 'manual' }))).toBe('sort: manual\n');
+    expect(parseSectionMeta('sort: created-old\n').sort).toBe('created-old');
   });
 });

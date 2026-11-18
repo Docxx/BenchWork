@@ -519,4 +519,6 @@ export interface DirEntry {
   size: number;
   /** Milliseconds since the Unix epoch, or null if unknown. */
   modified: number | null;
+  /** When it was made, in milliseconds since the Unix epoch, or null if the system does not say. */
+  created?: number | null;
 }

@@ -132,10 +132,38 @@ test('notebooks get icons and a sort, and favourites sit at the top', async ({ p
   await expect(row(page, 'Experiments')).toBeVisible();
   await row(page, 'LPS model').click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Sort', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Sort: name, Z to A' }).click();
+  await page.getByRole('menuitem', { name: 'Name, Z to A' }).click();
   await expect
     .poll(async () => (await snapshot(page))['LPS model/_section.yaml'])
     .toContain('sort: name-desc');
+  await expect(tree(page).getByRole('treeitem')).toHaveText([
+    /Archive/,
+    /LPS model/,
+    /Experiments/,
+    /Plan/,
+  ]);
+
+  // The whole vault, from the Sort button: notebooks Z to A; LPS model keeps its own.
+  await page.getByRole('button', { name: 'Sort notebooks and sections' }).click();
+  await page.getByRole('menuitem', { name: 'Name, Z to A' }).click();
+  await expect
+    .poll(async () => (await snapshot(page))['_section.yaml'])
+    .toContain('sort: name-desc');
+  await expect(tree(page).getByRole('treeitem')).toHaveText([
+    /LPS model/,
+    /Experiments/,
+    /Plan/,
+    /Archive/,
+  ]);
+  // LPS model back to following the vault; your own order, A to Z, for the vault.
+  await row(page, 'LPS model').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Sort', exact: true }).click();
+  await page.getByRole('menuitem', { name: /^Same as the folder above/ }).click();
+  await expect
+    .poll(async () => (await snapshot(page))['LPS model/_section.yaml'] ?? '')
+    .not.toContain('sort:');
+  await page.getByRole('button', { name: 'Sort notebooks and sections' }).click();
+  await page.getByRole('menuitem', { name: 'Name, A to Z' }).click();
   await expect(tree(page).getByRole('treeitem')).toHaveText([
     /Archive/,
     /LPS model/,

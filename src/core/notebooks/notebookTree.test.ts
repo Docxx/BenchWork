@@ -49,6 +49,42 @@ describe('orderEntries', () => {
     ]);
   });
 
+  it('sorts by when things changed or were made, either way, folders first', () => {
+    const dated: DirEntry[] = [
+      { ...entry('old.md'), modified: 3000, created: 1000 },
+      { ...entry('new.md'), modified: 1000, created: 3000 },
+      { ...entry('mid.md'), modified: 2000, created: 2000 },
+      { ...entry('Notes', true), modified: 0, created: 0 },
+    ];
+    expect(names(orderEntries(dated, [], false, 'created'))).toEqual([
+      'Notes',
+      'new.md',
+      'mid.md',
+      'old.md',
+    ]);
+    expect(names(orderEntries(dated, [], false, 'created-old'))).toEqual([
+      'Notes',
+      'old.md',
+      'mid.md',
+      'new.md',
+    ]);
+    expect(names(orderEntries(dated, [], false, 'changed'))).toEqual([
+      'Notes',
+      'old.md',
+      'mid.md',
+      'new.md',
+    ]);
+    expect(names(orderEntries(dated, [], false, 'changed-old'))).toEqual([
+      'Notes',
+      'new.md',
+      'mid.md',
+      'old.md',
+    ]);
+    // Without a made date, when it last changed stands in.
+    const undated = dated.map((e) => ({ ...e, created: null }));
+    expect(names(orderEntries(undated, [], false, 'created'))[1]).toBe('old.md');
+  });
+
   it('ignores names in the order that no longer exist', () => {
     expect(names(orderEntries(entries, ['gone.md', 'a.md'], false))[0]).toBe('a.md');
   });

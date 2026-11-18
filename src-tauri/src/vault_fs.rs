@@ -23,6 +23,8 @@ pub struct DirEntry {
     pub size: u64,
     /// Milliseconds since the Unix epoch, if the OS reports it.
     pub modified: Option<u64>,
+    /// When the file was made, in milliseconds since the Unix epoch, if the OS reports it.
+    pub created: Option<u64>,
 }
 
 fn join_rel(dir: &str, name: &str) -> String {
@@ -66,7 +68,12 @@ pub fn list_dir(root: &Path, rel: &str) -> VaultResult<Vec<DirEntry>> {
                 .as_ref()
                 .map_or(0, |m| if m.is_dir() { 0 } else { m.len() }),
             modified: meta
+                .as_ref()
                 .and_then(|m| m.modified().ok())
+                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as u64),
+            created: meta
+                .and_then(|m| m.created().ok())
                 .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
                 .map(|d| d.as_millis() as u64),
         });
@@ -483,6 +490,9 @@ mod tests {
             ]
         );
         assert!(entries.iter().all(|e| e.modified.is_some()));
+        // Windows, macOS and Android all report when a file was made.
+        #[cfg(any(windows, target_os = "macos"))]
+        assert!(entries.iter().all(|e| e.created.is_some()));
     }
 
     #[test]
