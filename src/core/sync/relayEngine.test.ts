@@ -1,9 +1,9 @@
 // @vitest-environment node
 import { MemoryAdapter } from '../platform/memory';
 import type { PlatformAdapter, RelayAdapter } from '../platform/types';
-import { RelayEngine } from './relayEngine';
+import { RelayEngine, describeProgress } from './relayEngine';
 import type { RelayConnection } from './relayClient';
-import { fromBase64, randomKey, seal, unseal } from './relayCrypto';
+import { MAX_FILE as MAX, fromBase64, randomKey, seal, sha256, unseal } from './relayCrypto';
 
 function backend() {
   const events: { seq: number; id: string; payload: string }[] = [],
@@ -238,4 +238,203 @@ it('reassembles multi-part updates, verifies multi-chunk attachments and safely 
   expect(await b.memory.readText('Large.md')).toBe(await a.memory.readText('Large.md'));
   ea.destroy();
   eb.destroy();
+});
+
+const OUTBOX = '.benchwork/relay/outbox';
+const CHECKPOINT = '.benchwork/relay/checkpoint.json';
+function picture(seed: number, size = 600 * 1024): Uint8Array {
+  const bytes = new Uint8Array(size);
+  for (let i = 0; i < size; i += 1) bytes[i] = (i * 7 + seed) % 251;
+  return bytes;
+}
+function outboxFiles(memory: MemoryAdapter): string[] {
+  return Object.entries(memory.snapshot())
+    .filter(([p, v]) => v !== null && p.startsWith(`${OUTBOX}/`))
+    .map(([p]) => p);
+}
+
+describe('large first uploads', { timeout: 60000 }, () => {
+  afterEach(() => {
+    RelayEngine.batchBytes = 64 * 1024 * 1024;
+  });
+
+  it('keeps envelopes out of the checkpoint, sends in batches and empties the outbox', async () => {
+    RelayEngine.batchBytes = 2 * 1024 * 1024;
+    const server = backend(),
+      key = randomKey();
+    const a = await device(server, { 'Notes.md': '# Notes\n' });
+    await a.memory.ensureDir('Images');
+    for (let i = 0; i < 12; i += 1)
+      await a.memory.writeBytes(`Images/p${String(i)}.png`, picture(i));
+    const ea = await RelayEngine.open(a.platform, connection(key, true), true);
+    const progress: string[] = [];
+    ea.onProgress = (p) => {
+      progress.push(`${String(p.files)}/${String(p.total)}/${String(p.sent)}`);
+    };
+    const checkpoints: number[] = [];
+    const write = a.memory.writeTextAtomic.bind(a.memory);
+    vi.spyOn(a.memory, 'writeTextAtomic').mockImplementation(async (path, text) => {
+      if (path === CHECKPOINT) {
+        checkpoints.push(text.length);
+        for (const payload of server.blobs.values()) expect(text).not.toContain(payload);
+      }
+      await write(path, text);
+    });
+    await ea.sync();
+    // 12 pictures of two pieces each, sent in several batches with their catalogue updates.
+    expect(server.blobs.size).toBe(24);
+    expect(server.events.length).toBeGreaterThan(2);
+    expect(Math.max(...checkpoints)).toBeLessThan(100 * 1024);
+    expect(outboxFiles(a.memory)).toEqual([]);
+    expect(progress.at(-1)).toBe(`13/13/${String(24 + server.events.length)}`);
+    const b = await device(server);
+    const eb = await RelayEngine.open(b.platform, connection(key, false), true);
+    await eb.sync();
+    for (let i = 0; i < 12; i += 1)
+      expect(await b.memory.readBytes(`Images/p${String(i)}.png`, MAX)).toEqual(picture(i));
+    ea.destroy();
+    eb.destroy();
+  });
+
+  it('resumes after a crash mid-upload, sends nothing twice and removes leftover files', async () => {
+    RelayEngine.batchBytes = 2 * 1024 * 1024;
+    const server = backend(),
+      key = randomKey();
+    const a = await device(server);
+    await a.memory.ensureDir('Data');
+    for (let i = 0; i < 8; i += 1) await a.memory.writeBytes(`Data/d${String(i)}.bin`, picture(i));
+    let ea = await RelayEngine.open(a.platform, connection(key, true), true);
+    const original = a.relay.request;
+    let puts = 0;
+    a.relay.request = async (endpoint, cert, body) => {
+      // The first batch is 4 files (8 pieces and an update); fail inside the second.
+      if ((JSON.parse(body) as { action: string }).action === 'put' && ++puts === 11)
+        throw new Error('Connection lost');
+      return original(endpoint, cert, body);
+    };
+    await expect(ea.sync()).rejects.toThrow('Connection lost');
+    ea.destroy();
+    // A piece written just before a crash, with no checkpoint listing it.
+    const folder = (outboxFiles(a.memory)[0] ?? `${OUTBOX}/x/y`).split('/').slice(0, -1).join('/');
+    await a.memory.writeTextAtomic(`${folder}/orphan.txt`, 'left over');
+    // A device that received the first batch gets whole, verified files only.
+    const b = await device(server);
+    const eb = await RelayEngine.open(b.platform, connection(key, false), true);
+    await eb.sync();
+    const early = Object.keys(b.memory.snapshot()).filter((p) => p.startsWith('Data/'));
+    expect(early.length).toBeGreaterThan(0);
+    for (const path of early)
+      expect(await b.memory.readBytes(path, MAX)).toEqual(picture(Number(path.slice(6, -4))));
+    a.relay.request = original;
+    ea = await RelayEngine.open(a.platform, connection(key, true));
+    expect(await a.memory.exists(`${folder}/orphan.txt`)).toBe(false);
+    await ea.sync();
+    expect(server.blobs.size).toBe(16);
+    expect(new Set(server.events.map((e) => e.id)).size).toBe(server.events.length);
+    expect(outboxFiles(a.memory)).toEqual([]);
+    await eb.sync();
+    for (let i = 0; i < 8; i += 1)
+      expect(await b.memory.readBytes(`Data/d${String(i)}.bin`, MAX)).toEqual(picture(i));
+    ea.destroy();
+    eb.destroy();
+  });
+
+  it('still sends envelopes kept inside a checkpoint from before the outbox folder', async () => {
+    const server = backend(),
+      key = randomKey();
+    const a = await device(server, { 'Notes.md': 'Old style\n' });
+    await a.memory.writeBytes('old.png', picture(3));
+    let ea = await RelayEngine.open(a.platform, connection(key, true), true);
+    server.setOnline(false);
+    await expect(ea.sync()).rejects.toThrow('Offline');
+    ea.destroy();
+    // Rewrite the checkpoint as 0.24.0 kept it: envelopes inline, no outbox folder.
+    const state = JSON.parse(await a.memory.readText(CHECKPOINT)) as {
+      pending: { id: string; kind: string; file?: string; payload?: string }[];
+      outbox?: string;
+    };
+    for (const item of state.pending) {
+      item.payload = await a.memory.readText(item.file ?? '');
+      await a.memory.removeSyncOutbox(item.file ?? '');
+      delete item.file;
+    }
+    delete state.outbox;
+    await a.memory.writeTextAtomic(CHECKPOINT, JSON.stringify(state));
+    server.setOnline(true);
+    ea = await RelayEngine.open(a.platform, connection(key, true));
+    await ea.sync();
+    const b = await device(server);
+    const eb = await RelayEngine.open(b.platform, connection(key, false), true);
+    await eb.sync();
+    expect(await b.memory.readText('Notes.md')).toBe('Old style\n');
+    expect(await b.memory.readBytes('old.png', MAX)).toEqual(picture(3));
+    ea.destroy();
+    eb.destroy();
+  });
+
+  it('refuses a checkpoint that points outside the outbox folder', async () => {
+    const server = backend(),
+      key = randomKey();
+    const a = await device(server, { 'Notes.md': 'Text\n' });
+    const ea = await RelayEngine.open(a.platform, connection(key, true), true);
+    server.setOnline(false);
+    await expect(ea.sync()).rejects.toThrow('Offline');
+    ea.destroy();
+    const state = JSON.parse(await a.memory.readText(CHECKPOINT)) as {
+      pending: { file?: string }[];
+    };
+    const first = state.pending[0];
+    if (first) first.file = 'Notes.md';
+    await a.memory.writeTextAtomic(CHECKPOINT, JSON.stringify(state));
+    await expect(RelayEngine.open(a.platform, connection(key, true))).rejects.toThrow('damaged');
+  });
+
+  it('sends files up to 50 MB and skips larger ones', async () => {
+    const server = backend(),
+      key = randomKey();
+    const a = await device(server);
+    // Over the old 32 MB limit: 68 pieces.
+    const big = picture(5, 34 * 1024 * 1024);
+    await a.memory.ensureDir('Literature');
+    await a.memory.writeBytes('Literature/big.pdf', big);
+    await a.memory.writeBytes('Literature/huge.pdf', picture(6, 1024));
+    // Report the second file as 51 MB rather than holding that much in memory.
+    const list = a.memory.listDir.bind(a.memory);
+    vi.spyOn(a.memory, 'listDir').mockImplementation(async (path) =>
+      (await list(path)).map((e) =>
+        e.path === 'Literature/huge.pdf' ? { ...e, size: 51 * 1024 * 1024 } : e,
+      ),
+    );
+    const ea = await RelayEngine.open(a.platform, connection(key, true), true);
+    const report = await ea.sync();
+    expect(report.skipped).toEqual(['Literature/huge.pdf']);
+    const b = await device(server);
+    const eb = await RelayEngine.open(b.platform, connection(key, false), true);
+    await eb.sync();
+    expect(await b.memory.hashFile('Literature/big.pdf')).toBe(await sha256(big));
+    expect(await b.memory.exists('Literature/huge.pdf')).toBe(false);
+    ea.destroy();
+    eb.destroy();
+  });
+});
+
+it('deletes only files in the sync outbox folder', async () => {
+  const memory = new MemoryAdapter({
+    folders: {
+      'C:/Vault': { 'Page.md': 'mine', [`${OUTBOX}/h/1.txt`]: 'piece', [CHECKPOINT]: '{}' },
+    },
+  });
+  await memory.setVaultRoot('C:/Vault');
+  await memory.removeSyncOutbox(`${OUTBOX}/h/1.txt`);
+  expect(await memory.exists(`${OUTBOX}/h/1.txt`)).toBe(false);
+  for (const refused of ['Page.md', CHECKPOINT, `${OUTBOX}/h`, '.benchwork/relay/outboxX/a.txt'])
+    await expect(memory.removeSyncOutbox(refused)).rejects.toThrow();
+  expect(await memory.readText('Page.md')).toBe('mine');
+});
+
+it('describes sync progress in plain words', () => {
+  expect(describeProgress({ files: 120, total: 1019, sent: 1312 })).toBe(
+    'Sending files: 120 of 1,019 read, 1,312 pieces sent',
+  );
+  expect(describeProgress({ files: 0, total: 0, sent: 1 })).toBe('Sending changes: 1 piece sent');
 });

@@ -1,7 +1,8 @@
 /** Versioned opaque envelopes. The relay receives neither paths nor plaintext hashes. */
 export const PROTOCOL = 1;
 export const CHUNK = 512 * 1024;
-export const MAX_FILE = 32 * 1024 * 1024;
+/** Largest file Cloud sync sends, matching the default size above which files are linked. */
+export const MAX_FILE = 50 * 1024 * 1024;
 const encoder = new TextEncoder();
 export function toBase64(bytes: Uint8Array): string {
   let text = '';

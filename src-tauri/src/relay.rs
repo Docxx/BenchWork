@@ -3,6 +3,10 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::Deserialize;
 use std::{net::IpAddr, time::Duration};
 
+/// Largest file Cloud sync writes, matching MAX_FILE in src/core/sync/relayCrypto.ts.
+/// Desktop Sync keeps its own, smaller limit in native_sync::files.
+pub const MAX_FILE: usize = 50 * 1024 * 1024;
+
 #[derive(Deserialize)]
 pub struct Request {
     endpoint: String,
@@ -106,7 +110,7 @@ pub fn apply(
                 .map_err(|_| "Invalid file bytes".to_string())
         })
         .transpose()?;
-    if next.as_ref().is_some_and(|b| b.len() > files::MAX_FILE) {
+    if next.as_ref().is_some_and(|b| b.len() > MAX_FILE) {
         return Err("File exceeds sync size limit".into());
     }
     if let Some(old) = &previous {

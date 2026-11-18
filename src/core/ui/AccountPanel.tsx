@@ -277,7 +277,7 @@ export function AccountSettings() {
     );
   const busy = account.busy;
   const status = relay.busy
-    ? 'Syncing'
+    ? relay.progress || 'Syncing'
     : relay.error
       ? 'Not syncing'
       : relay.lastSync
@@ -306,6 +306,7 @@ export function AccountSettings() {
           ) : (
             <>
               <p>This vault does not sync with your account yet.</p>
+              {relay.progress && <p role="status">{relay.progress}</p>}
               <label className="choice">
                 <input
                   type="checkbox"

@@ -5,7 +5,7 @@ import {
   type RelayAddress,
   type RelayConnection,
 } from '../sync/relayClient';
-import { RelayEngine, type RelayReport } from '../sync/relayEngine';
+import { RelayEngine, describeProgress, type RelayReport } from '../sync/relayEngine';
 import { sha256 } from '../sync/relayCrypto';
 import { allowed } from '../sync/relayModel';
 import { describeError, type StoreContext } from './context';
@@ -25,6 +25,8 @@ export interface RelaySyncSlice {
     confirmed: boolean;
     endpoint: string;
     message: string;
+    /** What a running sync is doing, such as files read and pieces sent. */
+    progress: string;
   };
   confirmRelaySync: (value: boolean) => void;
   createCloudSync: (setup: string, name: string) => Promise<void>;
@@ -68,6 +70,7 @@ export function createRelaySyncSlice(ctx: StoreContext): RelaySyncSlice {
     confirmed: false,
     endpoint: '',
     message: '',
+    progress: '',
   });
   const patch = (value: Partial<RelaySyncSlice['relaySync']>) => {
     set((s) => ({ relaySync: { ...s.relaySync, ...value } }));
@@ -99,7 +102,7 @@ export function createRelaySyncSlice(ctx: StoreContext): RelaySyncSlice {
       })
       .finally(() => {
         active = null;
-        patch({ busy: false });
+        patch({ busy: false, progress: '' });
         schedule(Math.min(60000, 3000 * 2 ** Math.min(failures, 5)));
       });
     await active;
@@ -140,6 +143,9 @@ export function createRelaySyncSlice(ctx: StoreContext): RelaySyncSlice {
       recovery: value.owner ? JSON.stringify({ recovery: 1, connection: value }) : '',
     });
     const next = await RelayEngine.open(platform, value, initialise, rebuild);
+    next.onProgress = (progress) => {
+      patch({ progress: describeProgress(progress) });
+    };
     next.beforeProject = async () => {
       await get().savePageNow();
       if (get().saveState !== 'saved' || get().pageConflict)

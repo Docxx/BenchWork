@@ -62,6 +62,7 @@ export function RelaySyncSettings() {
         <section className="desktop-sync-card">
           <h4>{busy ? 'Syncing…' : sync.lastSync ? 'Connected' : 'Waiting to sync'}</h4>
           <p className="hint">{sync.endpoint}</p>
+          {busy && sync.progress && <p role="status">{sync.progress}</p>}
           {sync.lastSync && (
             <p>Last synced {new Date(sync.lastSync).toLocaleTimeString('en-GB')}</p>
           )}
@@ -69,7 +70,7 @@ export function RelaySyncSettings() {
             <p role="status">Competing versions were kept: {sync.report.conflicts.join('; ')}</p>
           ) : null}
           {sync.report?.skipped.length ? (
-            <p>Files over 32 MB were skipped: {sync.report.skipped.join(', ')}</p>
+            <p>Files over 50 MB were skipped: {sync.report.skipped.join(', ')}</p>
           ) : null}
           <button disabled={busy || !sync.confirmed} onClick={() => void now()}>
             Sync now

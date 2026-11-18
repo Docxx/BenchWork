@@ -17,6 +17,11 @@ import {
 
 const ROOT = '.benchwork/relay';
 const CHECKPOINT = `${ROOT}/checkpoint.json`;
+const OUTBOX = `${ROOT}/outbox`;
+/** New file content read before the engine saves its history and uploads. */
+const BATCH_BYTES = 64 * 1024 * 1024;
+/** Envelopes sent between checkpoints; a crash resends at most these (the relay deduplicates). */
+const SAVE_EVERY = 32;
 const enc = new TextEncoder();
 interface Projection {
   object: string;
@@ -25,8 +30,22 @@ interface Projection {
 }
 interface Pending {
   id: string;
-  payload: string;
   kind: 'put' | 'append';
+  /** A sealed envelope kept inline: only in checkpoints from before the outbox folder. */
+  payload?: string;
+  /** Vault path of the sealed envelope in the outbox folder. */
+  file?: string;
+}
+/** An envelope is either inline (older checkpoints) or a file in the outbox folder. */
+function validPending(value: Partial<Pending>): boolean {
+  return (
+    typeof value.id === 'string' &&
+    (value.kind === 'put' || value.kind === 'append') &&
+    (typeof value.payload === 'string' ||
+      (typeof value.file === 'string' &&
+        value.file.startsWith(`${OUTBOX}/`) &&
+        !value.file.split('/').includes('..')))
+  );
 }
 interface Inbox {
   count: number;
@@ -45,6 +64,21 @@ interface Checkpoint {
   bootstrapped: boolean;
   projection: Record<string, string> | null;
   basis: string | null;
+  /** This history's own outbox subfolder, so an archived history keeps its envelopes. */
+  outbox?: string;
+}
+/** How far a sync has got, for the status line. */
+export interface RelayProgress {
+  files: number;
+  total: number;
+  sent: number;
+}
+/** A short status line, such as "Sending files: 120 of 1,019 read, 312 pieces sent". */
+export function describeProgress(progress: RelayProgress): string {
+  const n = (value: number) => value.toLocaleString('en-GB');
+  const pieces = `${n(progress.sent)} ${progress.sent === 1 ? 'piece' : 'pieces'} sent`;
+  if (!progress.total) return `Sending changes: ${pieces}`;
+  return `Sending files: ${n(progress.files)} of ${n(progress.total)} read, ${pieces}`;
 }
 export interface RelayReport {
   uploaded: number;
@@ -61,15 +95,24 @@ interface Target {
 
 /**
  * Network-independent file history. One atomic checkpoint contains the Yjs state,
- * exact encrypted outbox, received partial updates, cursor and file baselines.
- * Files are projections; the checkpoint is durable replication history.
+ * the ordered list of encrypted envelopes still to send, received partial updates,
+ * cursor and file baselines. Each sealed envelope is its own file in the outbox
+ * folder, written before the checkpoint that lists it, so the checkpoint stays
+ * small whatever the size of the vault. Files are projections; the checkpoint is
+ * durable replication history.
  */
 export class RelayEngine {
+  /** New file content read before saving history and sending; smaller in tests. */
+  static batchBytes = BATCH_BYTES;
   beforeProject: () => Promise<void> = () => Promise.resolve();
+  onProgress: (progress: RelayProgress) => void = () => undefined;
   readonly doc = new Y.Doc();
   readonly client: RelayClient;
   private state!: Checkpoint;
   private updates: Uint8Array[] = [];
+  /** The encoded Yjs state, kept until the document changes. */
+  private encoded: { state: string; checksum: string } | null = null;
+  private progress: RelayProgress = { files: 0, total: 0, sent: 0 };
   private stopWatching: () => void = () => undefined;
   private scanHashes = new Map<
     string,
@@ -81,6 +124,7 @@ export class RelayEngine {
   ) {
     this.client = new RelayClient(platform, connection);
     this.doc.on('update', (update: Uint8Array, origin: unknown) => {
+      this.encoded = null;
       if (origin !== 'remote') this.updates.push(update);
     });
   }
@@ -123,7 +167,15 @@ export class RelayEngine {
         throw new Error('Sync history is damaged. Restore its backup before reconnecting.');
       Y.applyUpdate(engine.doc, bytes, 'remote');
       validate(engine.doc);
+      if (!state.pending.every(validPending))
+        throw new Error('Sync history is damaged. Restore its backup before reconnecting.');
       engine.state = state as Checkpoint;
+      engine.encoded = { state: state.state, checksum: state.checksum };
+      if (!engine.state.outbox) {
+        engine.state.outbox = crypto.randomUUID();
+        await engine.persist();
+      }
+      await engine.removeOrphans();
     } else {
       if (!initialise)
         throw new Error(
@@ -142,6 +194,7 @@ export class RelayEngine {
         bootstrapped: connection.owner && !rebuild,
         projection: null,
         basis: null,
+        outbox: crypto.randomUUID(),
       };
       await platform.ensureDir(ROOT);
       await engine.persist();
@@ -156,10 +209,38 @@ export class RelayEngine {
     this.doc.destroy();
   }
   private async persist(): Promise<void> {
-    const bytes = Y.encodeStateAsUpdate(this.doc);
-    this.state.state = toBase64(bytes);
-    this.state.checksum = await sha256(bytes);
+    if (!this.encoded) {
+      const bytes = Y.encodeStateAsUpdate(this.doc);
+      this.encoded = { state: toBase64(bytes), checksum: await sha256(bytes) };
+    }
+    this.state.state = this.encoded.state;
+    this.state.checksum = this.encoded.checksum;
     await this.platform.writeTextAtomic(CHECKPOINT, JSON.stringify(this.state));
+  }
+  private folder(): string {
+    return `${OUTBOX}/${this.state.outbox ?? 'legacy'}`;
+  }
+  /** Writes a sealed envelope to the outbox folder. A checkpoint lists it afterwards. */
+  private async queue(kind: Pending['kind'], id: string, payload: string): Promise<Pending> {
+    const folder = this.folder();
+    if (!(await this.platform.exists(folder))) await this.platform.ensureDir(folder);
+    const file = `${folder}/${id}.txt`;
+    await this.platform.writeTextAtomic(file, payload);
+    return { kind, id, file };
+  }
+  /** Removes outbox files no checkpoint lists, left by a crash before a checkpoint. */
+  private async removeOrphans(): Promise<void> {
+    const folder = this.folder();
+    if (!(await this.platform.exists(folder))) return;
+    const listed = new Set(this.state.pending.map((p) => p.file));
+    for (const entry of await this.platform.listDir(folder))
+      if (!entry.isDir && !listed.has(entry.path))
+        await this.platform.removeSyncOutbox(entry.path).catch(() => undefined);
+  }
+  /** Removes sent envelopes' files once a saved checkpoint no longer lists them. */
+  private async discard(sent: Pending[]): Promise<void> {
+    for (const item of sent)
+      if (item.file) await this.platform.removeSyncOutbox(item.file).catch(() => undefined);
   }
   /** Atomically record unsent edits and their exact envelope identities before networking. */
   private async journal(): Promise<void> {
@@ -179,11 +260,13 @@ export class RelayEngine {
             bytes: toBase64(update.slice(index * length, (index + 1) * length)),
           }),
         );
-        pending.push({
-          kind: 'append',
-          id,
-          payload: await seal(this.connection.key, this.connection.vault, id, 'update', bytes),
-        });
+        pending.push(
+          await this.queue(
+            'append',
+            id,
+            await seal(this.connection.key, this.connection.vault, id, 'update', bytes),
+          ),
+        );
       }
       this.state.pending.push(...pending);
       this.updates = [];
@@ -192,14 +275,30 @@ export class RelayEngine {
   }
   private async upload(report: RelayReport): Promise<void> {
     // Each file's chunks are queued before the catalogue revision that references them.
-    while (this.state.pending.length) {
-      const item = this.state.pending[0];
-      if (!item) break;
-      await this.client.call(item.kind, { id: item.id, payload: item.payload });
-      this.state.pending.shift();
-      // A crash before this checkpoint resends the same envelope; the server deduplicates.
+    let sent: Pending[] = [];
+    const save = async () => {
+      if (!sent.length) return;
       await this.persist();
-      report.uploaded += 1;
+      // Outbox files go only once the saved checkpoint no longer lists them.
+      await this.discard(sent);
+      sent = [];
+    };
+    try {
+      while (this.state.pending.length) {
+        const item = this.state.pending[0];
+        if (!item) break;
+        const payload = item.payload ?? (await this.platform.readText(item.file ?? ''));
+        await this.client.call(item.kind, { id: item.id, payload });
+        this.state.pending.shift();
+        sent.push(item);
+        report.uploaded += 1;
+        this.progress.sent += 1;
+        this.onProgress({ ...this.progress });
+        // A crash before the next checkpoint resends these envelopes; the server deduplicates.
+        if (sent.length >= SAVE_EVERY) await save();
+      }
+    } finally {
+      await save();
     }
   }
   private async pull(report: RelayReport): Promise<void> {
@@ -369,17 +468,19 @@ export class RelayEngine {
     for (let index = 0; index < bytes.length; index += CHUNK) {
       const id = crypto.randomUUID();
       chunks.push(id);
-      pending.push({
-        kind: 'put',
-        id,
-        payload: await seal(
-          this.connection.key,
-          this.connection.vault,
+      pending.push(
+        await this.queue(
+          'put',
           id,
-          'blob',
-          bytes.slice(index, index + CHUNK),
+          await seal(
+            this.connection.key,
+            this.connection.vault,
+            id,
+            'blob',
+            bytes.slice(index, index + CHUNK),
+          ),
         ),
-      });
+      );
     }
     this.state.pending.push(...pending);
     return { deleted: false, parents: [], chunks, hash: await sha256(bytes), size: bytes.length };
@@ -391,8 +492,18 @@ export class RelayEngine {
     const missing = Object.entries(this.state.projected).filter(
       ([p]) => !current.has(p) && !skipped.has(p),
     );
-    for (const [path, hash] of current) {
-      if (this.state.observed[path] === hash) continue;
+    const changed = [...current].filter(([path, hash]) => this.state.observed[path] !== hash);
+    this.progress = { files: 0, total: changed.length, sent: 0 };
+    let queued = 0;
+    for (const [path, hash] of changed) {
+      // A large first sync saves and sends as it goes, so the outbox stays small.
+      if (queued >= RelayEngine.batchBytes) {
+        await this.journal();
+        await this.upload(report);
+        queued = 0;
+      }
+      this.progress.files += 1;
+      this.onProgress({ ...this.progress });
       const before = this.state.projected[path];
       // Conflict projections become their own file when changed, rather than editing the winner.
       const old = before && files(this.doc).get(before.object);
@@ -411,6 +522,7 @@ export class RelayEngine {
       const bytes = await this.platform.readBytes(path, MAX_FILE);
       if ((await sha256(bytes)) !== hash)
         throw new Error(`File changed during sync; retrying: ${path}`);
+      queued += bytes.length;
       const textual = /\.md$/i.test(path) && bytes.length <= 4 * 1024 * 1024;
       if (!file) {
         // An unchanged received copy does not create another independently seeded document.

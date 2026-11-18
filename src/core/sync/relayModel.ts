@@ -2,6 +2,7 @@ import * as Y from 'yjs';
 import diff from 'fast-diff';
 import { parsePage, pageProperties, serialisePage, updateProperties } from '../pages/frontmatter';
 import { normaliseVaultPath } from '../platform/vaultPath';
+import { CHUNK, MAX_FILE } from './relayCrypto';
 
 export interface Revision {
   parents: string[];
@@ -130,12 +131,12 @@ export function validate(doc: Y.Doc): void {
         !v.deleted &&
         kind === 'binary' &&
         (!Array.isArray(v.chunks) ||
-          v.chunks.length > 64 ||
+          v.chunks.length > Math.ceil(MAX_FILE / CHUNK) ||
           !v.chunks.every((c) => /^[\da-f-]{36}$/i.test(c)) ||
           !/^[\da-f]{64}$/.test(v.hash ?? '') ||
           !Number.isInteger(v.size) ||
           (v.size ?? -1) < 0 ||
-          (v.size ?? Infinity) > 32 * 1024 * 1024)
+          (v.size ?? Infinity) > MAX_FILE)
       )
         throw new Error('Invalid attachment revision.');
     }
