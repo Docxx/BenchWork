@@ -140,6 +140,8 @@ test('Graph filters and presets keep the research view focused', async ({ page }
   await open(page);
   await page.getByRole('button', { name: 'Knowledge graph', exact: true }).click();
   await expect(page.getByRole('img', { name: /^Interactive knowledge graph/ })).toBeVisible();
+  // Search and filters sit behind the Graph options button.
+  await page.getByRole('button', { name: 'Graph options', exact: true }).click();
   await page.getByLabel('Graph folder').selectOption('Research');
   await page.getByLabel('Graph file types').selectOption('note');
   await page.getByRole('button', { name: 'Graph appearance' }).click();

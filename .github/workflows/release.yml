@@ -2,11 +2,15 @@
 # it in a draft GitHub release with its checksum. You write the notes and
 # publish the draft. Publishing to the relay's update catalogue stays a
 # manual step (scripts/publish-update.ps1), as it needs the server's key.
+#
+# Run it by hand from the Actions tab for a dry run: the same checks and
+# build, kept as a download on the run, with no release made.
 name: Release
 
 on:
   push:
     tags: ['v*.*.*']
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -28,11 +32,17 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check the tag matches the version files
         run: |
-          tag="${GITHUB_REF_NAME#v}"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            tag="${GITHUB_REF_NAME#v}"
+          else
+            # A dry run builds whatever version the files say.
+            tag="$(node -p 'require("./package.json").version')"
+          fi
+          echo "VERSION=$tag" >> "$GITHUB_ENV"
           node -e '
             const fs = require("fs");
             const tag = process.argv[1];
@@ -46,10 +56,10 @@ jobs:
             if (wrong.length) process.exit(1);
           ' "$tag"
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -75,25 +85,24 @@ jobs:
 
       - name: Collect the installer and its checksum
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          name="BenchWork_${version}_x64-setup.exe"
+          name="BenchWork_${VERSION}_x64-setup.exe"
           mkdir -p out
           cp "src-tauri/target/release/bundle/nsis/$name" "out/$name"
           (cd out && sha256sum "$name" | sed 's/ \*/  /' > SHA256SUMS.txt)
           cat out/SHA256SUMS.txt
 
       - name: Keep the build for 30 days
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-installer
           path: out/
           retention-days: 30
 
       - name: Create a draft release
+        if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
           if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
             # Never replace files on a release that already exists.
             echo "::warning::A release for $GITHUB_REF_NAME already exists, so it was left alone. The build is attached to this run."
@@ -102,5 +111,5 @@ jobs:
           gh release create "$GITHUB_REF_NAME" out/* \
             --draft \
             --verify-tag \
-            --title "BenchWork $version" \
+            --title "BenchWork $VERSION" \
             --notes "Windows x64 installer. Built and checked by GitHub Actions from $GITHUB_SHA. Write the release notes here, then publish."

@@ -38,6 +38,10 @@ for 14 days.
 If a release for that tag already exists, the workflow leaves it alone and
 keeps the build as a download on the run's page instead.
 
+To try a release build without making a release, open **Actions >
+Release > Run workflow** on GitHub. It runs the same checks and build for
+the version in the files and keeps the installer as a download on the run.
+
 Publishing to the relay's update catalogue, for the in-app updater, stays a
 manual step with `scripts/publish-update.ps1`, because it needs the
 server's SSH key. Download the installer from the release (or the run) to

@@ -238,4 +238,6 @@ it('reassembles multi-part updates, verifies multi-chunk attachments and safely 
   expect(await b.memory.readText('Large.md')).toBe(await a.memory.readText('Large.md'));
   ea.destroy();
   eb.destroy();
-});
+  // Encrypts and moves a large page and a 1.1 MB file: about 3 s on a desktop,
+  // longer on a shared CI runner, so it gets more than the 5 s default.
+}, 30_000);
