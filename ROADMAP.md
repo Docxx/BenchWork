@@ -254,6 +254,8 @@ Planned and approved 17 Nov 2026 (Argon2id chosen for password keys).
 - [x] Relay accounts: closed sign-up (vault owner or SSH sign-up code), sign-in limits, device removal, password change and recovery key
 - [x] Existing Cloud sync vaults move into an account with their history; paired devices keep working
 - [x] Deploy the account relay; the tablet signs in and syncs a PC vault with no other steps (17 Nov 2026)
+- [x] Large vaults sync: waiting pieces kept in an outbox folder, the first upload sent in batches with progress, and files up to 50 MB (18 Nov 2026)
+- [ ] Checked on the PC and the tablet with the 700 MB research vault
 
 ### In-app updates (0.19.0)
 

@@ -95,14 +95,20 @@ available. Changes must be saved locally before they are uploaded.
 - A delete concurrent with an edit retains the edited content. Matching moves
   preserve the file's object ID and history. Divergent path collisions retain
   separate copies; file-versus-folder collisions stop projection visibly.
-- Files up to 32 MB transfer in verified, encrypted 512 KB chunks. Larger files
+- Files up to 50 MB transfer in verified, encrypted 512 KB chunks. Larger files
   are listed as skipped and must use linked datasets or Cloud storage. Markdown
-  CRDT merging is limited to 4 MB per note.
+  CRDT merging is limited to 4 MB per note. Devices on 0.24.0 or earlier accept
+  files only up to 32 MB, so update every device before syncing a larger file.
 - Ordinary vault files, `.benchwork/modules/` shared module data and
   `.benchwork/file-tags.json` sync. Device settings, account credentials, indexes,
   local recovery data, hidden folders and temporary files do not.
-- Atomic checkpoints under `.benchwork/relay/` retain the Yjs state, encrypted
-  outbox, received fragments, cursor, import baselines and pending projections.
+- Atomic checkpoints under `.benchwork/relay/` retain the Yjs state, the list of
+  encrypted envelopes still to send, received fragments, cursor, import baselines
+  and pending projections. Each sealed envelope is its own file in
+  `.benchwork/relay/outbox/`, written before the checkpoint that lists it and
+  removed after the relay accepts it, so the checkpoint stays small for any vault
+  size. A large first sync reads, saves and sends about 64 MB at a time, and
+  Settings shows how many files have been read and pieces sent.
   Uploads are retried with the same identities. Acknowledgements mean durable
   receipt by the relay, not that another device has downloaded the change.
 - Before replacing or deleting a file, native projection saves its old bytes and
