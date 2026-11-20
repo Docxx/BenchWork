@@ -42,7 +42,7 @@ export function LibraryPanel({ ctx, library }: { ctx: ModuleContext; library: Li
     return (
       <p className="hint">
         No library yet. Choose the file Better BibTeX keeps up to date in Settings &gt; Modules &gt;
-        References.
+        Reading and writing.
       </p>
     );
   }

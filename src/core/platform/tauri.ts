@@ -406,6 +406,10 @@ export class TauriAdapter implements PlatformAdapter {
     if (result.error) throw new Error(result.error);
   }
 
+  async downloadPaper(url: string): Promise<Uint8Array> {
+    return new Uint8Array(await call<ArrayBuffer>('download_paper', () => ({ url })));
+  }
+
   fetchText(url: string): Promise<string> {
     return fetchWebText(url);
   }

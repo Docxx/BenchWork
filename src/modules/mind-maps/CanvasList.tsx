@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { DirEntry, ModuleContext } from '@core/api';
+import { starterCanvas, starters } from './boardTools';
 import { CANVAS_ENDING, emptyCanvas, isCanvas, serialiseCanvas } from './canvasFile';
 
 /** How deep into folders to look for canvases. */
@@ -10,10 +11,11 @@ export async function createCanvas(
   ctx: ModuleContext,
   folder: string,
   name: string,
+  doc = emptyCanvas(),
 ): Promise<void> {
   const file = await ctx.vault.freeName(folder, name.trim(), CANVAS_ENDING);
   const path = folder === '' ? file : `${folder}/${file}`;
-  await ctx.vault.createNew(path, serialiseCanvas(emptyCanvas()));
+  await ctx.vault.createNew(path, serialiseCanvas(doc));
   await ctx.app.open(path);
 }
 
@@ -52,6 +54,7 @@ export function CanvasList({ ctx }: { ctx: ModuleContext }) {
   const [notebooks, setNotebooks] = useState<string[]>([]);
   const [folder, setFolder] = useState('');
   const [name, setName] = useState('');
+  const [template, setTemplate] = useState<keyof typeof starters | ''>('');
   const [reads, setReads] = useState(0);
 
   useEffect(() => {
@@ -79,7 +82,7 @@ export function CanvasList({ ctx }: { ctx: ModuleContext }) {
 
   const create = () => {
     if (name.trim() === '') return;
-    void createCanvas(ctx, folder, name).then(() => {
+    void createCanvas(ctx, folder, name, starterCanvas(name.trim(), template)).then(() => {
       setName('');
     });
   };
@@ -116,6 +119,20 @@ export function CanvasList({ ctx }: { ctx: ModuleContext }) {
               <option key={n} value={n}>
                 {n}
               </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Template
+          <select
+            value={template}
+            onChange={(e) => {
+              setTemplate(e.target.value as typeof template);
+            }}
+          >
+            <option value="">Blank board</option>
+            {Object.keys(starters).map((key) => (
+              <option key={key}>{key}</option>
             ))}
           </select>
         </label>

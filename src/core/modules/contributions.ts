@@ -121,7 +121,12 @@ export function handlerFor(handlers: readonly FileHandler[], path: string): File
   let best: { handler: FileHandler; length: number } | null = null;
   for (const handler of handlers) {
     for (const ext of handler.extensions) {
-      if (name.endsWith(ext) && (best === null || ext.length > best.length)) {
+      if (
+        name.endsWith(ext) &&
+        (best === null ||
+          ext.length > best.length ||
+          (ext.length === best.length && !!best.handler.fallback && !handler.fallback))
+      ) {
         best = { handler, length: ext.length };
       }
     }

@@ -8,7 +8,8 @@ import { assemble, partTargets, wordCount, type Part } from './assemble';
 
 export const MANUSCRIPT = 'manuscript';
 export const EXPORTS = 'exports';
-const SETTINGS_FILE = 'settings.json';
+const SETTINGS_FOLDER = '.benchwork/modules/manuscript';
+const SETTINGS_FILE = SETTINGS_FOLDER + '/settings.json';
 
 export interface ManuscriptSettings {
   /** A `.csl` citation style in the vault, or null for Pandoc's own (Chicago author-date). */
@@ -16,8 +17,9 @@ export interface ManuscriptSettings {
 }
 
 export async function readSettings(ctx: ModuleContext): Promise<ManuscriptSettings> {
-  const saved = await ctx.storage
-    .read<Partial<ManuscriptSettings>>(SETTINGS_FILE)
+  const saved = await ctx.vault
+    .readText(SETTINGS_FILE)
+    .then((raw) => JSON.parse(raw) as Partial<ManuscriptSettings>)
     .catch(() => null);
   return { style: typeof saved?.style === 'string' ? saved.style : null };
 }
@@ -26,7 +28,8 @@ export async function saveSettings(
   ctx: ModuleContext,
   settings: ManuscriptSettings,
 ): Promise<void> {
-  await ctx.storage.write(SETTINGS_FILE, settings);
+  await ctx.vault.ensureDir(SETTINGS_FOLDER);
+  await ctx.vault.writeText(SETTINGS_FILE, JSON.stringify(settings, null, 2) + '\n');
 }
 
 export function manuscriptType(): PageTypeSpec {

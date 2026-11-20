@@ -1754,6 +1754,12 @@ export function ModuleGallery({
       <div className="nx-engine-tools">
         {[
           {
+            title: 'Reading and writing',
+            text: 'Collect papers, annotate figures and passages, and write with evidence organised by subject.',
+            icon: BookOpen,
+            id: 'references.reading',
+          },
+          {
             title: 'An endless whiteboard',
             text: 'Sketch, write and arrange thoughts with BenchWork’s native canvas.',
             icon: PanelsTopLeft,

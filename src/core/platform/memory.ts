@@ -459,6 +459,12 @@ export class MemoryAdapter implements PlatformAdapter {
     return this.fetchText(request.url).then((body) => ({ status: 200, body, retryAfter: null }));
   }
 
+  async downloadPaper(url: string): Promise<Uint8Array> {
+    const response = await fetch(url, { credentials: 'omit', referrerPolicy: 'no-referrer' });
+    if (!response.ok) throw new Error('Could not download this paper.');
+    return new Uint8Array(await response.arrayBuffer());
+  }
+
   fetchText(url: string): Promise<string> {
     return this.run(() => {
       this.fetched.push(url);

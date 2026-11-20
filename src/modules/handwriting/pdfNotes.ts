@@ -17,6 +17,7 @@ export interface Box {
 }
 
 export interface PdfHighlight {
+  figure?: string;
   id: string;
   colour: string;
   /** Fractions of the page, 0 to 1. */
@@ -117,6 +118,7 @@ export function parseNotes(text: string): PdfNotes | null {
           return [
             {
               id: r['id'],
+              ...(typeof r['figure'] === 'string' ? { figure: r['figure'] } : {}),
               colour: typeof r['colour'] === 'string' ? r['colour'] : '#ffd84d',
               rects,
               text: typeof r['text'] === 'string' ? r['text'] : '',

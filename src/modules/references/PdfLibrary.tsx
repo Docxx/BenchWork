@@ -1,35 +1,16 @@
-import { useEffect, useState } from 'react';
+export { parsePdfLibrary, paperPaths } from './filePaper';
+import { filePaper, parsePdfLibrary, paperPaths, type PdfLibrarySettings } from './filePaper';
+import { useRef, useEffect, useState } from 'react';
 import type { ModuleContext } from '@core/api';
-
-export interface PdfLibrarySettings {
-  folder: string | null;
-  recursive: boolean;
-}
-export function parsePdfLibrary(value: unknown): PdfLibrarySettings {
-  const data = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
-  return {
-    folder: typeof data['folder'] === 'string' ? data['folder'] : null,
-    recursive: data['recursive'] !== false,
-  };
-}
-export async function paperPaths(
-  ctx: ModuleContext,
-  folder: string,
-  recursive: boolean,
-): Promise<string[]> {
-  const result: string[] = [];
-  for (const entry of await ctx.vault.listDir(folder)) {
-    if (entry.name.startsWith('.')) continue;
-    const path = folder ? `${folder}/${entry.name}` : entry.name;
-    if (entry.isDir && recursive) result.push(...(await paperPaths(ctx, path, true)));
-    else if (!entry.isDir && /\.pdf$/i.test(entry.name)) result.push(path);
-  }
-  return result.sort((a, b) => a.localeCompare(b));
-}
 
 export function PdfLibrary({ ctx }: { ctx: ModuleContext }) {
   const [settings, setSettings] = useState<PdfLibrarySettings>({ folder: null, recursive: true });
   const [paths, setPaths] = useState<string[]>([]);
+  const [url, setUrl] = useState('');
+  const [title, setTitle] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState('');
+  const picker = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [choosing, setChoosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +70,64 @@ export function PdfLibrary({ ctx }: { ctx: ModuleContext }) {
       setError(String(err));
     }
   };
+  const collect = async (files?: File[]) => {
+    if (busy || loading) return;
+    setBusy(true);
+    setError(null);
+    setNotice('');
+    const folder = settings.folder ?? 'Papers';
+    try {
+      const added: string[] = [];
+      if (files) {
+        for (const file of files) {
+          if (file.size > 64 * 1024 * 1024)
+            throw new Error('The PDF exceeds the reader limit of 64 MB.');
+          added.push(
+            await filePaper(
+              ctx,
+              folder,
+              settings.recursive,
+              file.name,
+              new Uint8Array(await file.arrayBuffer()),
+            ),
+          );
+        }
+      } else {
+        const address = new URL(url);
+        const basename = decodeURIComponent(address.pathname.split('/').at(-1) || 'Paper');
+        added.push(
+          await filePaper(
+            ctx,
+            folder,
+            settings.recursive,
+            title.trim() || basename,
+            await ctx.files.downloadPaper(address.href),
+          ),
+        );
+        const [path] = added;
+        if (path) {
+          const sources =
+            (await ctx.storage.read<Record<string, string>>('paper-references.json')) ?? {};
+          if (!sources[path])
+            await ctx.storage.write('paper-references.json', {
+              ...sources,
+              [path]: title.trim()
+                ? title.trim() + ' · ' + address.origin + address.pathname
+                : address.origin + address.pathname,
+            });
+        }
+        setUrl('');
+        setTitle('');
+      }
+      if (settings.folder === null) await save({ ...settings, folder });
+      setPaths(await paperPaths(ctx, folder, settings.recursive));
+      setNotice('In your library: ' + added.join(', '));
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
   const shown = paths.filter((p) => p.toLowerCase().includes(query.toLowerCase()));
   return (
     <div className="pdf-library">
@@ -106,6 +145,55 @@ export function PdfLibrary({ ctx }: { ctx: ModuleContext }) {
           Choose papers folder
         </button>
       </div>
+      <form
+        className="paper-import"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void collect();
+        }}
+      >
+        <label>
+          Direct PDF link
+          <input
+            type="url"
+            required
+            placeholder="https://..."
+            value={url}
+            onChange={(e) => {
+              setUrl(e.target.value);
+            }}
+          />
+        </label>
+        <label>
+          Paper title (optional)
+          <input
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value);
+            }}
+          />
+        </label>
+        <button type="submit" disabled={!url.trim() || busy || loading}>
+          Download PDF
+        </button>
+        <button type="button" disabled={busy || loading} onClick={() => picker.current?.click()}>
+          Import downloaded PDFs
+        </button>
+        <input
+          ref={picker}
+          type="file"
+          hidden
+          multiple
+          accept=".pdf,application/pdf"
+          aria-label="Import PDFs"
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []);
+            e.target.value = '';
+            if (files.length) void collect(files);
+          }}
+        />
+      </form>
+      {(busy || notice) && <p role="status">{busy ? 'Adding papers...' : notice}</p>}
       {choosing && (
         <FolderChooser
           ctx={ctx}

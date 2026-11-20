@@ -22,10 +22,12 @@
 .tools-toggle .folded {
   transform: rotate(-90deg);
 }
-.sidebar .tools-scroll {
-  max-height: 156px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+.sidebar .tools-heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flow-root;
+  background: var(--sidebar-bg);
 }
 .tools-search {
   display: flex;
@@ -118,7 +120,7 @@
 }
 
 /* The Tools list: pinned tools, kinds, and a pin on each row. */
-.tools-scroll ul {
+.tools-list ul {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -158,5 +160,73 @@
 @media (hover: none) {
   .sidebar button.tool-pin {
     opacity: 0.6;
+  }
+}
+
+.tools-heading-row {
+  display: flex;
+  align-items: center;
+}
+.tools-heading-row .tools-toggle {
+  flex: 1;
+  min-width: 0;
+}
+.sidebar .tool-bar-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  padding: 4px 6px;
+  color: var(--sidebar-muted);
+  background: transparent;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 5px;
+  font-size: 0.75rem;
+}
+.sidebar .tool-bar-choice[aria-pressed='true'] {
+  background: var(--sidebar-active);
+  color: var(--sidebar-text);
+}
+.tool-icon-bar {
+  --rail-width: 50px;
+  box-sizing: border-box;
+  width: var(--rail-width);
+  flex: 0 0 var(--rail-width);
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0;
+  border-right: 1px solid var(--sidebar-border);
+  background: var(--sidebar-bg);
+}
+.tool-icon-bar button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sidebar-text);
+}
+.tool-icon-bar button:hover {
+  background: var(--sidebar-hover);
+}
+.tool-icon-bar button[aria-current='page'] {
+  background: var(--sidebar-active);
+  box-shadow: inset 3px 0 var(--accent);
+}
+.tool-icon-bar ~ .sidebar-reveal {
+  left: calc(50px + 0.75rem);
+}
+@media (pointer: coarse) {
+  .tool-icon-bar button {
+    width: 44px;
+    height: 44px;
   }
 }

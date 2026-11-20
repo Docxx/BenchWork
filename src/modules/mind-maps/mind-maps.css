@@ -420,3 +420,25 @@ button.canvas-swatch[aria-pressed='true'] {
 .canvas-toolbar button[aria-pressed='true'] {
   background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
+
+.canvas-batch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+  padding: 0.65rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.canvas-batch label {
+  display: grid;
+  gap: 0.25rem;
+  flex: 1 1 16rem;
+}
+.canvas-batch textarea {
+  resize: vertical;
+}
+.canvas-arrange .hint {
+  margin-right: auto;
+}

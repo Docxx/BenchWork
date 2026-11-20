@@ -5,7 +5,15 @@ import { attachSection, createSection, createWriting, SECTION, WRITING } from '.
 import { SectionDesk } from './SectionDesk';
 import './writing.css';
 
-export function WritingWorkspace({ ctx, path }: { ctx: ModuleContext; path: string | null }) {
+export function WritingWorkspace({
+  ctx,
+  path,
+  combined = false,
+}: {
+  ctx: ModuleContext;
+  path: string | null;
+  combined?: boolean;
+}) {
   const [items, setItems] = useState<VaultItem[]>([]);
   const [manuscript, setManuscript] = useState(path ?? '');
   const [info, setInfo] = useState<ManuscriptInfo | null>(null);
@@ -117,7 +125,8 @@ export function WritingWorkspace({ ctx, path }: { ctx: ModuleContext; path: stri
             onClick={() =>
               void act(async () => {
                 const created = await createWriting(ctx, title, kind);
-                if (created) await ctx.app.openView(WRITING, created);
+                if (created)
+                  await ctx.app.openView(combined ? 'references.writing' : WRITING, created);
               })
             }
           >
@@ -134,7 +143,12 @@ export function WritingWorkspace({ ctx, path }: { ctx: ModuleContext; path: stri
             <button
               type="button"
               className="quiet"
-              onClick={() => void ctx.app.openView('manuscript.overview', info.path)}
+              onClick={() =>
+                void ctx.app.openView(
+                  combined ? 'references.overview' : 'manuscript.overview',
+                  info.path,
+                )
+              }
             >
               Word counts and export
             </button>

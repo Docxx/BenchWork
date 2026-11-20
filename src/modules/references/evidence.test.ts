@@ -18,7 +18,7 @@ it('preserves a verbatim excerpt, PDF page, highlight identity, citation and res
     'abc',
   );
   expect(note.properties).toMatchObject({
-    source: '[[Papers/Tau.pdf#page=3]]',
+    source: '[[Papers/Tau.pdf#page=3&highlight=h1]]',
     page: '3',
     sourceSha256: 'abc',
     highlightId: 'h1',

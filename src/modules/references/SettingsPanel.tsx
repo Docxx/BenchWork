@@ -42,7 +42,7 @@ export function ReferencesSettings({
       <p>
         Library: <span className="path">{snap.path}</span>
       </p>
-      <p role="status">
+      <p role="status" aria-label="Reference library status">
         {snap.status === 'loading' && 'Reading the library…'}
         {snap.status === 'ready' &&
           `${String(snap.count)} ${snap.count === 1 ? 'reference' : 'references'}, last changed ${when(snap.modified)}.`}

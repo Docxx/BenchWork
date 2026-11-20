@@ -6,6 +6,7 @@ import type {
   PdfDocument,
   ReadingAction,
 } from '@core/api';
+import { FigureSelector } from './FigureSelector';
 import { newStrokeId } from '@core/api';
 import {
   emptyNotes,
@@ -26,7 +27,7 @@ const ZOOMS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 3];
 const THUMB_WIDTH = 96;
 const HIGHLIGHT = '#ffd84d';
 
-type Mode = 'write' | 'select';
+type Mode = 'write' | 'select' | 'figure';
 
 interface PageSize {
   width: number;
@@ -106,6 +107,8 @@ function Page({
   size,
   width,
   mode,
+  colour,
+  target,
   notes,
   onInk,
   onHighlight,
@@ -119,6 +122,8 @@ function Page({
   size: PageSize;
   width: number;
   mode: Mode;
+  colour: string;
+  target: string | null;
   notes: PdfNotes;
   onInk: (n: number, strokes: InkStroke[]) => void;
   onHighlight: (n: number, highlight: PdfHighlight) => void;
@@ -135,14 +140,30 @@ function Page({
   const scale = width / size.width;
   const height = size.height * scale;
   const here = pageNotes(notes, n);
-  const [chosen, setChosen] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<string | null>(target);
+  const selected = here.highlights.find((h) => h.id === chosen);
+  const [drawn, setDrawn] = useState(false);
 
   // The page drawn, and its text laid over it, once near the screen and at each zoom.
   useEffect(() => {
     if (!near || !canvas.current || !text.current) return;
     const r = doc.render(n, canvas.current, width);
-    void doc.text(n, text.current, width).catch(() => undefined);
+    setDrawn(false);
+    let live = true;
+    void r.done
+      .then((ok) => {
+        if (live) setDrawn(ok);
+      })
+      .catch(() => {
+        if (live) setDrawn(false);
+      });
+    const layer = document.createElement('div');
+    layer.className = 'pdf-text';
+    text.current.replaceChildren(layer);
+    void doc.text(n, layer, width).catch(() => undefined);
     return () => {
+      layer.remove();
+      live = false;
       r.cancel();
     };
   }, [near, doc, n, width]);
@@ -199,6 +220,7 @@ function Page({
           h.rects.map((r, i) => (
             <span
               key={`${h.id}-${String(i)}`}
+              data-highlight={h.id}
               role="img"
               className={chosen === h.id ? 'pdf-highlight chosen' : 'pdf-highlight'}
               aria-label={`Highlight: ${h.text}`}
@@ -213,10 +235,24 @@ function Page({
           )),
         )}
       </div>
-      <div ref={text} className="pdf-text" />
+      <div ref={text} />
       <div ref={ink} className="pdf-ink" />
-      {chosen !== null && (
-        <div className="pdf-remove-highlight">
+      {mode === 'figure' && drawn && (
+        <FigureSelector
+          ctx={ctx}
+          canvas={canvas}
+          colour={colour}
+          onSelect={(h) => {
+            onHighlight(n, h);
+            setChosen(h.id);
+          }}
+        />
+      )}
+      {chosen !== null && selected && (
+        <div
+          className="pdf-remove-highlight"
+          style={{ top: String(Math.min(90, (selected.rects[0]?.y ?? 0) * 100)) + '%' }}
+        >
           <button
             type="button"
             onClick={() => {
@@ -243,6 +279,7 @@ function Page({
       <SelectionHighlighter
         n={n}
         box={box}
+        colour={colour}
         active={mode === 'select'}
         onHighlight={onHighlight}
         actions={actions}
@@ -257,6 +294,7 @@ function SelectionHighlighter({
   n,
   box,
   active,
+  colour,
   onHighlight,
   actions,
   onRead,
@@ -264,6 +302,7 @@ function SelectionHighlighter({
   n: number;
   box: React.RefObject<HTMLDivElement | null>;
   active: boolean;
+  colour: string;
   onHighlight: (n: number, highlight: PdfHighlight) => void;
   actions: readonly ReadingAction[];
   onRead: (action: ReadingAction, n: number, h: PdfHighlight) => void;
@@ -305,7 +344,7 @@ function SelectionHighlighter({
     if (boxes.length > 0) {
       const h = {
         id: newStrokeId(),
-        colour: HIGHLIGHT,
+        colour,
         rects: boxes,
         text: sel.toString().replace(/\s+/g, ' ').trim(),
       };
@@ -372,7 +411,10 @@ export function PdfReader({ ctx, path }: { ctx: ModuleContext; path: string }) {
   const [zoom, setZoom] = useState<number | 'fit'>('fit');
   const [fitWidth, setFitWidth] = useState(800);
   const [mode, setMode] = useState<Mode>(ctx.platform === 'tablet' ? 'write' : 'select');
-  const [thumbs, setThumbs] = useState(ctx.platform === 'desktop');
+  const [thumbs, setThumbs] = useState(false);
+  const [colour, setColour] = useState(HIGHLIGHT);
+  const requested = ctx.reading.highlight(path);
+  const located = useRef<string | null>(null);
   const pagesRef = useRef<HTMLDivElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const written = useRef<string | null>(null);
@@ -400,41 +442,54 @@ export function PdfReader({ ctx, path }: { ctx: ModuleContext; path: string }) {
         ?.scrollIntoView({ block: 'start' });
   }, [ctx, path, doc]);
   useEffect(() => {
+    if (!requested || located.current === requested) return;
+    const marker = pagesRef.current?.querySelector(
+      '[data-highlight="' + CSS.escape(requested) + '"]',
+    );
+    if (marker) {
+      marker.scrollIntoView({ block: 'center' });
+      located.current = requested;
+    }
+  }, [requested, doc, notes, sizes, fitWidth]);
+  useEffect(() => {
     latestNotes.current = notes;
   }, [notes]);
 
   // The PDF, and its notes.
   useEffect(() => {
-    // Read through an object: the clean-up changes it while these wait.
-    const run = { live: true };
+    // Navigation can close the reader while the document or annotations are loading.
+    let live = true;
+    const isLive = () => live;
     let opened: PdfDocument | null = null;
     void (async () => {
       try {
         opened = await ctx.files.openPdf(await ctx.vault.readBytes(path));
+        if (!isLive()) {
+          opened.destroy();
+          return;
+        }
         const all = await Promise.all(
           Array.from({ length: opened.pages }, (_, i) => (opened as PdfDocument).size(i + 1)),
         );
-        if (!run.live) return;
+        const file = notesPath(path);
+        if (await ctx.vault.exists(file)) {
+          const text = await ctx.vault.readText(file);
+          if (!isLive()) return;
+          const parsed = parseNotes(text);
+          if (parsed) {
+            written.current = text;
+            setNotes(parsed);
+          } else setUnreadable(true);
+        }
+        if (!isLive()) return;
         setSizes(all);
         setDoc(opened);
       } catch (err) {
-        if (run.live) setError(err instanceof Error ? err.message : String(err));
-      }
-    })();
-    void (async () => {
-      const file = notesPath(path);
-      if (!(await ctx.vault.exists(file))) return;
-      const text = await ctx.vault.readText(file);
-      const parsed = parseNotes(text);
-      if (!run.live) return;
-      if (parsed === null) setUnreadable(true);
-      else {
-        written.current = text;
-        setNotes(parsed);
+        if (isLive()) setError(err instanceof Error ? err.message : String(err));
       }
     })();
     return () => {
-      run.live = false;
+      live = false;
       opened?.destroy();
     };
   }, [ctx, path]);
@@ -599,6 +654,16 @@ export function PdfReader({ ctx, path }: { ctx: ModuleContext; path: string }) {
           <button
             type="button"
             role="radio"
+            aria-checked={mode === 'figure'}
+            onClick={() => {
+              setMode('figure');
+            }}
+          >
+            Select figure
+          </button>
+          <button
+            type="button"
+            role="radio"
             aria-checked={mode === 'write'}
             onClick={() => {
               setMode('write');
@@ -607,6 +672,27 @@ export function PdfReader({ ctx, path }: { ctx: ModuleContext; path: string }) {
             Write on pages
           </button>
         </span>
+        <label>
+          Highlight colour{' '}
+          <select
+            value={colour}
+            onChange={(e) => {
+              setColour(e.target.value);
+            }}
+          >
+            {Object.entries({
+              Yellow: HIGHLIGHT,
+              Green: '#8cdb86',
+              Blue: '#85c8ff',
+              Pink: '#ff9fc8',
+              Orange: '#ffb66b',
+            }).map(([name, value]) => (
+              <option key={value} value={value}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
         <span className="hint">{doc.pages} pages</span>
       </div>
       {unreadable && (
@@ -633,11 +719,21 @@ export function PdfReader({ ctx, path }: { ctx: ModuleContext; path: string }) {
               size={s}
               width={width(i + 1)}
               mode={mode}
+              colour={colour}
+              target={ctx.reading.page(path) === i + 1 ? requested : null}
               notes={notes}
               actions={unreadable ? [] : actions}
               onRead={(action, n, h) => {
                 void flush()
-                  .then(() => action.run({ path, page: n, highlightId: h.id, text: h.text }))
+                  .then(() =>
+                    action.run({
+                      path,
+                      page: n,
+                      highlightId: h.id,
+                      text: h.text,
+                      ...(h.figure ? { figure: h.figure } : {}),
+                    }),
+                  )
                   .catch((err: unknown) => {
                     setSaveError(String(err));
                   });

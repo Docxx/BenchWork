@@ -68,7 +68,7 @@ test('Home calendar has compact days and saves view and appearance choices', asy
 
 test('Reading desk limits PDFs to the folder the user chooses', async ({ page }) => {
   await open(page);
-  await page.getByRole('button', { name: 'Reading desk', exact: true }).click();
+  await page.getByRole('button', { name: 'Reading and writing', exact: true }).click();
   const library = page.getByRole('region', { name: 'PDF library' });
   await expect(library.getByRole('button', { name: /paper.pdf/ })).toBeVisible();
   await expect(library.getByText('Invoice.pdf', { exact: true })).toHaveCount(0);

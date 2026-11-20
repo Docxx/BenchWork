@@ -40,7 +40,7 @@ vi.mock('markmap-view', () => ({
         node.children.forEach(add);
       };
       add(data);
-      return { destroy: () => undefined };
+      return { destroy: () => undefined, zoom: { extent: vi.fn() } };
     },
   },
 }));
@@ -403,9 +403,18 @@ describe('Mind maps: canvases', () => {
     expect(screen.getByRole('button', { name: /Board/ })).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Plans' } });
+    fireEvent.change(screen.getByLabelText('Template'), { target: { value: 'Project plan' } });
     fireEvent.click(screen.getByRole('button', { name: 'New canvas' }));
     await settle();
-    expect(platform.snapshot()['Lab/Plans.canvas.json']).toBeDefined();
+    const doc = parseCanvas(platform.snapshot()['Lab/Plans.canvas.json'] ?? '');
+    expect(doc.items.map((item) => item.text)).toEqual([
+      'Plans',
+      'Goals',
+      'Milestones',
+      'Resources',
+      'Risks',
+    ]);
+    expect(doc.links.map((link) => link.to)).toEqual(doc.items.slice(1).map((item) => item.id));
     expect(state().openFile).toBe('Lab/Plans.canvas.json');
   });
 

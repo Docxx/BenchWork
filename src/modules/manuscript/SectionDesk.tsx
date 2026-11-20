@@ -1,3 +1,4 @@
+import { FigureImage } from '../references/EvidenceShelf';
 import { useEffect, useState } from 'react';
 import type { ModuleContext, VaultItem } from '@core/api';
 import { linkedPaths, saveSectionLinks, STATUSES } from './workspace';
@@ -28,6 +29,8 @@ export function SectionDesk({
     source: string;
     page: string;
     citekey: string;
+    highlight: string;
+    figure: string;
   } | null>(null);
   useEffect(() => {
     void ctx.app
@@ -158,6 +161,8 @@ export function SectionDesk({
                   source: linkedPaths([props?.['source']])[0]?.split('#')[0] ?? '',
                   page: propertyText(props?.['page'], '1'),
                   citekey: propertyText(props?.['citekey'], ''),
+                  highlight: propertyText(props?.['highlightId'], ''),
+                  figure: propertyText(props?.['figure'], ''),
                 });
               })
               .catch((err: unknown) => {
@@ -181,12 +186,19 @@ export function SectionDesk({
       {preview && (
         <aside className="writing-evidence">
           <h3>{preview.title}</h3>
+          {preview.figure && <FigureImage ctx={ctx} path={preview.figure} />}
           <blockquote>{preview.text}</blockquote>
           <div className="actions">
             <button
               type="button"
               disabled={!preview.source}
-              onClick={() => void ctx.app.open(preview.source, { heading: `page=${preview.page}` })}
+              onClick={() =>
+                void ctx.app.open(preview.source, {
+                  heading:
+                    `page=${preview.page}` +
+                    (preview.highlight ? '&highlight=' + preview.highlight : ''),
+                })
+              }
             >
               Open source PDF
             </button>

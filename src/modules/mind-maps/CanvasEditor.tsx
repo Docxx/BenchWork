@@ -27,6 +27,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   useState,
@@ -46,6 +47,8 @@ import {
   type CanvasLink,
   type KnownKind,
 } from './canvasFile';
+import { CanvasSearch, type BoardMatch } from './CanvasSearch';
+import { captureScreen, imageExtensions } from './captureScreen';
 import { plainText } from './outline';
 import { CanvasStyleBar } from './CanvasStyleBar';
 import {
@@ -387,7 +390,23 @@ function PageCard({ data, selected }: NodeProps<CardNode>) {
 function ImageCard({ data, selected }: NodeProps<CardNode>) {
   const { ctx } = useActions();
   const path = data.item.path ?? '';
-  const url = ctx.vault.fileUrl(path);
+  // Keep one source while dragging or resizing. Browser-backed vaults allocate
+  // a fresh blob URL on every call to fileUrl.
+  const showImage = useCallback(
+    (image: HTMLImageElement | null) => {
+      if (!image) return;
+      const url = ctx.vault.fileUrl(path);
+      if (url === null) {
+        image.alt = fileName(path) + ' could not be found.';
+        return;
+      }
+      image.src = url;
+      return () => {
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+      };
+    },
+    [ctx, path],
+  );
   return (
     <CardFrame
       item={data.item}
@@ -397,11 +416,7 @@ function ImageCard({ data, selected }: NodeProps<CardNode>) {
       title="Double-click to open"
       onDoubleClick={() => void ctx.app.open(path)}
     >
-      {url === null ? (
-        <p className="card-preview">{fileName(path)} could not be found.</p>
-      ) : (
-        <img src={url} alt={fileName(path)} draggable={false} />
-      )}
+      <img ref={showImage} alt={fileName(path)} draggable={false} />
     </CardFrame>
   );
 }
@@ -448,7 +463,7 @@ const NODE_TYPES = {
 export default function CanvasEditor({ ctx, path }: { ctx: ModuleContext; path: string }) {
   return (
     <ReactFlowProvider>
-      <Board ctx={ctx} path={path} />
+      <Board key={path} ctx={ctx} path={path} />
     </ReactFlowProvider>
   );
 }
@@ -466,6 +481,17 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
   const [distance, setDistance] = useState<'near' | 'far' | 'farther'>('near');
   /** Whether the overview map shows; null until chosen, when it shows for big canvases. */
   const [overview, setOverview] = useState<boolean | null>(null);
+  const [snap, setSnap] = useState(false);
+  const [batch, setBatch] = useState<string | null>(null);
+  const [search, setSearch] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+  const active = useRef(false);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
   const board = useRef<HTMLDivElement>(null);
 
   const base = useRef<CanvasDoc | null>(null);
@@ -713,7 +739,10 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
   /** Adds a card in the middle of the view, or at `at`. */
   const add = (kind: KnownKind, fields: Partial<CanvasItem>, at?: { x: number; y: number }) => {
     const rect = board.current?.getBoundingClientRect();
-    const size = DEFAULT_SIZE[kind];
+    const size = {
+      width: fields.width ?? DEFAULT_SIZE[kind].width,
+      height: fields.height ?? DEFAULT_SIZE[kind].height,
+    };
     const centre =
       at ??
       flow.screenToFlowPosition({
@@ -752,8 +781,192 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
     ];
     setNodes(next);
     changed({ ...latest.current, nodes: next });
+    return item;
   };
 
+  const insertImage = async (blob: Blob, name: string) => {
+    const ext = imageExtensions[blob.type];
+    if (!ext) throw new Error('Paste a PNG, JPEG, WebP, GIF or BMP image.');
+    const bitmap = await createImageBitmap(blob);
+    const scale = Math.min(1, 480 / bitmap.width, 360 / bitmap.height);
+    const width = Math.max(60, Math.round(bitmap.width * scale));
+    const height = Math.max(40, Math.round(bitmap.height * scale));
+    bitmap.close();
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const canInsert = () => active.current && !blocked.current;
+    if (!canInsert()) return;
+    await ctx.vault.ensureDir('attachments');
+    const path = 'attachments/' + name + ' ' + crypto.randomUUID() + '.' + ext;
+    await ctx.vault.writeBytes(path, bytes);
+    if (canInsert()) add('image', { path, width, height });
+  };
+
+  const takeScreenshot = async () => {
+    setCapturing(true);
+    try {
+      const image = await captureScreen();
+      await insertImage(image, 'Screenshot');
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'NotAllowedError')) {
+        ctx.app.notify(error instanceof Error ? error.message : String(error));
+      }
+    } finally {
+      setCapturing(false);
+    }
+  };
+
+  const pasteImage = useEffectEvent((event: ClipboardEvent) => {
+    if (!loaded || blocked.current || !board.current || !(event.target instanceof Element)) return;
+    if (event.target.closest('input, textarea, [contenteditable="true"], [role="dialog"]')) return;
+    if (
+      event.target !== document.body &&
+      !board.current.closest('.canvas-view')?.contains(event.target)
+    )
+      return;
+    const images = Array.from(event.clipboardData?.files ?? []).filter((file) =>
+      file.type.startsWith('image/'),
+    );
+    if (!images.length) return;
+    event.preventDefault();
+    void (async () => {
+      for (const image of images) await insertImage(image, 'Pasted image');
+    })().catch((error: unknown) => {
+      ctx.app.notify(String(error));
+    });
+  });
+
+  useEffect(() => {
+    function onPaste(event: ClipboardEvent) {
+      pasteImage(event);
+    }
+    document.addEventListener('paste', onPaste);
+    return () => {
+      document.removeEventListener('paste', onPaste);
+    };
+  }, []);
+
+  useEffect(() => {
+    function find(event: KeyboardEvent) {
+      if (
+        !(event.ctrlKey || event.metaKey) ||
+        event.altKey ||
+        event.shiftKey ||
+        event.key.toLowerCase() !== 'f'
+      )
+        return;
+      const view = board.current?.closest('.canvas-view');
+      if (!view || !(event.target instanceof Element) || event.target.closest('[role="dialog"]'))
+        return;
+      if (event.target !== document.body && !view.contains(event.target)) return;
+      event.preventDefault();
+      setSearch(true);
+      view.querySelector<HTMLInputElement>('input[type="search"]')?.select();
+    }
+    document.addEventListener('keydown', find);
+    return () => {
+      document.removeEventListener('keydown', find);
+    };
+  }, []);
+  const locate = (match: BoardMatch) => {
+    const state = latest.current;
+    const next = {
+      nodes: state.nodes.map((node) => ({
+        ...node,
+        selected: !match.edge && node.id === match.id,
+      })),
+      edges: state.edges.map((edge) => ({
+        ...edge,
+        selected: !!match.edge && edge.id === match.id,
+      })),
+    };
+    latest.current = next;
+    setNodes(next.nodes);
+    setEdges(next.edges);
+    void flow.fitView({
+      nodes: match.nodes.map((id) => ({ id })),
+      maxZoom: 1.3,
+      padding: 0.35,
+      duration: 180,
+    });
+  };
+  const sticky = { width: 160, height: 150, shape: 'rectangle', fill: 'yellow', border: 'none' };
+
+  const addBranch = (parent: CardNode) => {
+    const item = add(
+      'text',
+      { text: '', height: 90, fill: cardLook(parent.data.item).fill },
+      {
+        x: parent.position.x + (parent.width ?? parent.data.item.width) + 190,
+        y: parent.position.y + (parent.height ?? parent.data.item.height) / 2,
+      },
+    );
+    const next = [...latest.current.edges, toEdge({ id: newId(), from: parent.id, to: item.id })];
+    setEdges(next);
+    changed({ ...latest.current, edges: next });
+    void flow.fitView({
+      nodes: [{ id: parent.id }, { id: item.id }],
+      maxZoom: flow.getZoom(),
+      duration: 200,
+    });
+  };
+
+  const arrange = (action: string) => {
+    const state = latest.current;
+    const selected = state.nodes.filter((n) => n.selected);
+    if (!selected.length) return;
+    if (action === 'duplicate') {
+      const entries = selected.map((node) => ({ node, id: newId() }));
+      const ids = new Map(entries.map(({ node, id }) => [node.id, id]));
+      const copies = entries.map(({ node: n, id }) => ({
+        ...toNode({
+          ...n.data.item,
+          id,
+          x: n.position.x + 36,
+          y: n.position.y + 36,
+          width: n.width ?? n.data.item.width,
+          height: n.height ?? n.data.item.height,
+        }),
+        selected: true,
+      }));
+      const links = state.edges.flatMap((edge) => {
+        const from = ids.get(edge.source);
+        const to = ids.get(edge.target);
+        return from && to ? [toEdge({ ...linkOf(edge), id: newId(), from, to })] : [];
+      });
+      const next = {
+        nodes: [...state.nodes.map((n) => ({ ...n, selected: false })), ...copies],
+        edges: [...state.edges.map((e) => ({ ...e, selected: false })), ...links],
+      };
+      setNodes(next.nodes);
+      setEdges(next.edges);
+      changed(next);
+      return;
+    }
+    const axis = action === 'left' || action === 'space-x' ? 'x' : 'y';
+    const size = axis === 'x' ? 'width' : 'height';
+    selected.sort((a, b) => a.position[axis] - b.position[axis]);
+    const first = selected[0];
+    const last = selected.at(-1);
+    if (!first || !last) return;
+    const extent = (n: CardNode) => n[size] ?? n.data.item[size];
+    let cursor = first.position[axis];
+    const gap =
+      (last.position[axis] +
+        extent(last) -
+        cursor -
+        selected.reduce((sum, n) => sum + extent(n), 0)) /
+      Math.max(1, selected.length - 1);
+    const positions = new Map(
+      selected.map((n) => {
+        const position = { ...n.position, [axis]: Math.round(cursor) };
+        if (action.startsWith('space-')) cursor += extent(n) + Math.max(0, gap);
+        return [n.id, position];
+      }),
+    );
+    const next = state.nodes.map((n) => ({ ...n, position: positions.get(n.id) ?? n.position }));
+    setNodes(next);
+    changed({ ...state, nodes: next });
+  };
   const addPage = async () => {
     const name = await ctx.app.askText({ title: 'Add a page', label: 'Page name' });
     if (name === null || name.trim() === '') return;
@@ -816,12 +1029,71 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
           <button type="button" disabled={changedElsewhere} onClick={() => void addPage()}>
             Add page…
           </button>
+          <button
+            type="button"
+            aria-expanded={search}
+            onClick={() => {
+              setSearch(!search);
+            }}
+          >
+            Find on canvas
+          </button>
+          <button
+            type="button"
+            disabled={changedElsewhere || capturing}
+            title="Choose a screen, window or tab to capture. You can also paste an image onto this board."
+            onClick={() => void takeScreenshot()}
+          >
+            {capturing ? 'Taking screenshot…' : 'Take screenshot'}
+          </button>
           <button type="button" disabled={changedElsewhere} onClick={() => void addFiles()}>
             Add image or file…
           </button>
-          <span className="hint">
-            Drag from a dot to draw an arrow. Select cards or arrows to change their look.
-          </span>
+          <button
+            type="button"
+            disabled={changedElsewhere}
+            onClick={() => add('text', { ...sticky, text: '' })}
+          >
+            Sticky note
+          </button>
+          <button
+            type="button"
+            disabled={changedElsewhere}
+            aria-expanded={batch !== null}
+            onClick={() => {
+              setBatch(batch === null ? '' : null);
+            }}
+          >
+            Bulk notes…
+          </button>
+          <button
+            type="button"
+            disabled={changedElsewhere}
+            onClick={() =>
+              add('text', { text: '', fill: 'none', border: 'none', textSize: 'large', height: 60 })
+            }
+          >
+            Text label
+          </button>
+          <button
+            type="button"
+            disabled={changedElsewhere || selectedCards.length !== 1}
+            onClick={() => {
+              if (selectedCards[0]) addBranch(selectedCards[0]);
+            }}
+          >
+            Add branch
+          </button>
+          <button
+            type="button"
+            className="quiet"
+            aria-pressed={snap}
+            onClick={() => {
+              setSnap(!snap);
+            }}
+          >
+            Snap to grid
+          </button>{' '}
           <button
             type="button"
             className="quiet"
@@ -834,6 +1106,122 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
             Overview
           </button>
         </div>
+        {search && (
+          <CanvasSearch
+            items={nodes.map((node) => node.data.item)}
+            links={edges.map(linkOf)}
+            locate={locate}
+            close={() => {
+              setSearch(false);
+            }}
+          />
+        )}
+        {batch !== null && !changedElsewhere && (
+          <form
+            className="canvas-batch"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const lines = batch
+                .split(/\r?\n/)
+                .map((line) => line.trim())
+                .filter(Boolean);
+              const rect = board.current?.getBoundingClientRect();
+              if (!rect || !lines.length) return;
+              const start = flow.screenToFlowPosition({
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2,
+              });
+              const columns = Math.ceil(Math.sqrt(lines.length));
+              const state = latest.current;
+              const right = state.nodes.reduce(
+                (edge, node) =>
+                  Math.max(edge, node.position.x + (node.width ?? node.data.item.width) + 48),
+                start.x,
+              );
+              const items = lines.map((text, i) => ({
+                ...toNode({
+                  ...sticky,
+                  kind: 'text',
+                  id: newId(),
+                  text,
+                  x: right + (i % columns) * 190,
+                  y: start.y + Math.floor(i / columns) * 180,
+                }),
+                selected: true,
+              }));
+              const next = {
+                nodes: [...state.nodes.map((n) => ({ ...n, selected: false })), ...items],
+                edges: state.edges.map((edge) => ({ ...edge, selected: false })),
+              };
+              setNodes(next.nodes);
+              setEdges(next.edges);
+              changed(next);
+              setBatch(null);
+              void flow.fitView({ nodes: items, maxZoom: 1, duration: 250 });
+            }}
+          >
+            <label>
+              One sticky note per line
+              <textarea
+                autoFocus
+                rows={4}
+                value={batch}
+                onChange={(e) => {
+                  setBatch(e.target.value);
+                }}
+              />
+            </label>
+            <button type="submit" disabled={!batch.trim()}>
+              Add notes
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setBatch(null);
+              }}
+            >
+              Cancel
+            </button>
+          </form>
+        )}
+        <div className="canvas-toolbar canvas-arrange">
+          <span className="hint">
+            Shift-drag to select cards. Drag between dots to connect them.
+          </span>
+          {selectedCards.length > 0 && !changedElsewhere && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  arrange('duplicate');
+                }}
+              >
+                Duplicate
+              </button>
+              {selectedCards.length > 1 && (
+                <select
+                  aria-label="Arrange selected cards"
+                  value=""
+                  onChange={(e) => {
+                    arrange(e.target.value);
+                  }}
+                >
+                  <option value="" disabled>
+                    Arrange…
+                  </option>
+                  <option value="left">Align left</option>
+                  <option value="top">Align top</option>
+                  <option value="space-x" disabled={selectedCards.length < 3}>
+                    Space horizontally
+                  </option>
+                  <option value="space-y" disabled={selectedCards.length < 3}>
+                    Space vertically
+                  </option>
+                </select>
+              )}
+            </>
+          )}
+        </div>{' '}
         {!changedElsewhere && (
           <CanvasStyleBar
             cards={selectedCards.map((n) => n.data.item)}
@@ -881,6 +1269,8 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
           <ReactFlow
             nodes={nodes}
             edges={shownEdges}
+            snapToGrid={snap}
+            snapGrid={[24, 24]}
             nodeTypes={NODE_TYPES}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}

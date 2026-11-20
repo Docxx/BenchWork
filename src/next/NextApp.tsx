@@ -670,6 +670,8 @@ export function NextApp({ runtime }: { runtime: NextRuntime }) {
               openEngine={(id) => {
                 void (async () => {
                   if (!(await runtime.store.getState().closePage())) return;
+                  if (id === 'references.reading')
+                    await runtime.store.getState().setModuleEnabled('references', true);
                   await runtime.store.getState().openModuleView(id);
                   setView('engine');
                 })().catch((err: unknown) => {

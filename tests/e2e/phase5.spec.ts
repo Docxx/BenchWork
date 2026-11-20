@@ -238,6 +238,19 @@ test('cards on a canvas are written, moved and joined by arrows', async ({ page 
   await expect
     .poll(async () => (await canvas()).links)
     .toEqual([expect.objectContaining({ from: 'q', to: 'p' })]);
+  const edgePath = board.locator('.react-flow__edge-path');
+  const before = await edgePath.getAttribute('d');
+  const box = await question.boundingBox();
+  if (!box) throw new Error('Missing question card');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2 + 65, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(() => edgePath.getAttribute('d')).not.toBe(before);
+  await tree(page).getByRole('treeitem', { name: 'Pilot', exact: true }).click();
+  await tree(page).getByRole('treeitem', { name: 'Board' }).click();
+  await expect(edgePath).toHaveCount(1);
+  expect((await canvas()).links).toEqual([expect.objectContaining({ from: 'q', to: 'p' })]);
 });
 
 test('cards and arrows can be coloured and shaped, and arrows turned round', async ({ page }) => {
@@ -394,4 +407,131 @@ test('cards can be see-through, and card text is formatted', async ({ page }) =>
     .poll(async () => (await canvas()).items[0])
     .toMatchObject({ text: '**Start here**', format: 'markdown' });
   await expect(board.locator('.react-flow__node[data-id="a"] strong')).toHaveText('Start here');
+});
+
+test('bulk sticky notes can be arranged, duplicated and reopened', async ({ page }) => {
+  await tree(page).getByRole('treeitem', { name: 'Lab' }).click();
+  const board = tree(page).getByRole('treeitem', { name: 'Board' });
+  await board.click();
+  await page.getByRole('button', { name: 'Bulk notes…' }).click();
+  await page.getByLabel('One sticky note per line').fill('Measure\nDiscuss\nDecide');
+  await page.getByRole('button', { name: 'Add notes' }).click();
+  await page.getByLabel('Arrange selected cards').selectOption('top');
+  await page.getByRole('button', { name: 'Duplicate', exact: true }).click();
+  const saved = () =>
+    page.evaluate(
+      () =>
+        JSON.parse(window.__benchworkMemory?.snapshot()['Lab/Board.canvas.json'] ?? '{}') as {
+          items: { text?: string; y: number }[];
+        },
+    );
+  await expect.poll(async () => (await saved()).items.length).toBe(8);
+  const notes = (await saved()).items.slice(2);
+  expect(new Set(notes.slice(0, 3).map((note) => note.y)).size).toBe(1);
+  expect(notes.filter((note) => note.text === 'Decide')).toHaveLength(2);
+  await tree(page).getByRole('treeitem', { name: 'Pilot', exact: true }).click();
+  await board.click();
+  await expect(page.getByRole('button', { name: 'Bulk notes…' })).toBeVisible();
+  await expect(page.locator('.react-flow__node').filter({ hasText: 'Decide' })).toHaveCount(2);
+});
+
+test('a page mind map becomes a canvas with editable branches', async ({ page }) => {
+  await tree(page).getByRole('treeitem', { name: 'Lab' }).click();
+  await tree(page).getByRole('treeitem', { name: 'Fly climbing' }).click();
+  await page.getByRole('button', { name: 'Mind map', exact: true }).click();
+  await page.getByRole('button', { name: 'Create editable canvas' }).click();
+  const node = page.locator('.react-flow__node').filter({ hasText: 'Mixed model' });
+  await node.click();
+  await page.getByRole('button', { name: 'Add branch' }).click();
+  await page.getByRole('textbox', { name: 'Card text' }).fill('Follow-up analysis');
+  await page.locator('.react-flow__pane').click({ position: { x: 12, y: 12 } });
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const doc = JSON.parse(
+          window.__benchworkMemory?.snapshot()['Lab/Fly climbing.canvas.json'] ?? '{}',
+        ) as { items?: { id: string; text: string }[]; links?: { from: string; to: string }[] };
+        const parent = doc.items?.find((item) => item.text === 'Mixed model');
+        const child = doc.items?.find((item) => item.text === 'Follow-up analysis');
+        return doc.links?.some((link) => link.from === parent?.id && link.to === child?.id);
+      }),
+    )
+    .toBe(true);
+});
+
+test('capture, find, resize and paste images on a canvas', async ({ page }) => {
+  await tree(page).getByRole('treeitem', { name: 'Lab' }).click();
+  await tree(page).getByRole('treeitem', { name: 'Board' }).click();
+  await page.evaluate(() => {
+    const source = document.createElement('canvas');
+    source.width = 240;
+    source.height = 160;
+    const pen = source.getContext('2d');
+    if (!pen) throw new Error('Canvas context unavailable');
+    pen.fillStyle = 'tomato';
+    pen.fillRect(0, 0, 240, 160);
+    Object.defineProperty(navigator.mediaDevices, 'getDisplayMedia', {
+      value: () => {
+        const stream = source.captureStream(12);
+        requestAnimationFrame(() => {
+          pen.fillRect(0, 0, 240, 160);
+        });
+        return Promise.resolve(stream);
+      },
+    });
+  });
+  await page.getByRole('button', { name: 'Take screenshot' }).click();
+  const read = () =>
+    page.evaluate(
+      () =>
+        JSON.parse(window.__benchworkMemory?.snapshot()['Lab/Board.canvas.json'] ?? '{}') as {
+          items: { id: string; kind: string; width: number; height: number; path?: string }[];
+        },
+    );
+  await expect
+    .poll(async () => (await read()).items.filter((item) => item.kind === 'image').length)
+    .toBe(1);
+  await page.getByRole('button', { name: 'Find on canvas' }).focus();
+  await page.keyboard.press('Control+f');
+  await page.getByRole('searchbox', { name: 'Search this canvas' }).fill('screenshot');
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page.getByRole('search')).toContainText('1 of 1');
+  const image = page
+    .locator('.react-flow__node.selected')
+    .filter({ has: page.locator('.image-card') });
+  await expect(image).toBeVisible();
+  await expect
+    .poll(() =>
+      image
+        .locator('img')
+        .evaluate((img) => (img instanceof HTMLImageElement ? img.naturalWidth : 0)),
+    )
+    .toBe(240);
+  await page.getByRole('button', { name: 'Close search' }).click();
+  const handle = image.locator('.react-flow__resize-control.handle.bottom.right');
+  await handle.hover();
+  const pos = await handle.boundingBox();
+  if (!pos) throw new Error('Missing resize handle');
+  await page.mouse.move(pos.x + pos.width / 2, pos.y + pos.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(pos.x + 60, pos.y + 40, { steps: 10 });
+  await page.mouse.up();
+  await expect
+    .poll(async () => (await read()).items.find((item) => item.kind === 'image')?.width)
+    .toBeGreaterThan(240);
+  await page.evaluate(async () => {
+    const source = document.createElement('canvas');
+    const blob = await new Promise<Blob | null>((resolve) => {
+      source.toBlob(resolve);
+    });
+    if (!blob) throw new Error('No image');
+    const data = new DataTransfer();
+    data.items.add(new File([blob], 'clipboard.png', { type: 'image/png' }));
+    document.body.dispatchEvent(
+      new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }),
+    );
+  });
+  await expect
+    .poll(async () => (await read()).items.filter((item) => item.kind === 'image').length)
+    .toBe(2);
 });

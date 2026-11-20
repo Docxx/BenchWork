@@ -234,6 +234,7 @@ export interface CommandTarget {
 // ---- File handlers ----
 
 export interface ModuleFiles {
+  downloadPaper(url: string): Promise<Uint8Array>;
   importFile(source: string, folder: string): Promise<string>;
   importPowerPoint(source: string, folder: string): Promise<ImportedSlides>;
   register(spec: FileHandlerSpec): Disposable;
@@ -243,6 +244,7 @@ export interface ModuleFiles {
 
 /** A source selection, kept independent of any particular reference manager. */
 export interface PdfExcerpt {
+  figure?: string;
   path: string;
   page: number;
   highlightId: string;
@@ -260,11 +262,13 @@ export interface ModuleReading {
   actions(): readonly ReadingAction[];
   subscribe(listener: () => void): Disposable;
   /** Requested source page when opening a PDF link. */
+  highlight(path: string): string | null;
   page(path: string): number | null;
 }
 
 /** Shows files of a custom type when they are opened from the sidebar. */
 export interface FileHandlerSpec {
+  fallback?: boolean;
   /** Must start with the module id and a dot. */
   id: string;
   /** File endings it handles, lower case, such as `.dataset.yaml`. */

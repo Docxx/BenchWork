@@ -1,4 +1,4 @@
-import { createElement } from 'react';
+import { createElement, Fragment } from 'react';
 import { defineModule } from '@core/api';
 import { describe, searchLibrary } from './library';
 import { LibraryPanel } from './LibraryPanel';
@@ -7,6 +7,12 @@ import { ReferencesSettings } from './SettingsPanel';
 import { LibraryState } from './state';
 import { ReadingDesk } from './ReadingDesk';
 import { evidenceType, READING, type CaptureMode } from './evidence';
+import { manuscriptType } from '../manuscript/manuscripts';
+import { sectionType } from '../manuscript/workspace';
+import { ManuscriptSettings } from '../manuscript/SettingsPanel';
+import { Overview } from '../manuscript/Overview';
+import { PdfReader } from '../handwriting/PdfReader';
+import '../handwriting/handwriting.css';
 import { BookOpen } from 'lucide-react';
 
 /**
@@ -19,10 +25,32 @@ export default defineModule({
   async activate(ctx) {
     const library = new LibraryState(ctx);
     ctx.pageTypes.register(evidenceType());
+    ctx.pageTypes.register(manuscriptType());
+    ctx.pageTypes.register(sectionType());
+    ctx.files.register({
+      id: 'references.pdf',
+      extensions: ['.pdf'],
+      fallback: true,
+      name: 'PDF',
+      watchesFile: true,
+      penTools: true,
+      render: ({ path }) => createElement(PdfReader, { ctx, path }),
+    });
+    ctx.views.registerPageView({
+      id: 'references.writing',
+      title: 'Reading and writing',
+      render: (path) =>
+        createElement(ReadingDesk, { ctx, library, param: null, writing: path ?? '' }),
+    });
+    ctx.views.registerPageView({
+      id: 'references.overview',
+      title: 'Manuscript',
+      render: (path) => createElement(Overview, { ctx, path }),
+    });
     ctx.views.registerPageView({
       id: READING,
-      title: 'Reading desk',
-      render: (param) => createElement(ReadingDesk, { ctx, library, param }),
+      title: 'Reading and writing',
+      render: (param) => createElement(ReadingDesk, { key: param, ctx, library, param }),
       tool: {
         icon: createElement(BookOpen, { size: 18 }),
         hint: 'PDFs, highlights and linked evidence notes',
@@ -85,7 +113,13 @@ export default defineModule({
 
     ctx.views.registerSettingsPanel({
       id: 'references.settings',
-      render: () => createElement(ReferencesSettings, { ctx, library }),
+      render: () =>
+        createElement(
+          Fragment,
+          null,
+          createElement(ReferencesSettings, { ctx, library }),
+          createElement(ManuscriptSettings, { ctx }),
+        ),
     });
 
     await library.start();

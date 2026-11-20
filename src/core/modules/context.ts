@@ -20,6 +20,7 @@ import { defaultAppearance, type Appearance } from '../settings/appearance';
 export interface AppBridge extends ModuleApp {
   appearance?(): Appearance;
   applyAppearance?(value: Appearance): Promise<void>;
+  pdfHighlight?(path: string): string | null;
   pdfPage?(path: string): number | null;
   vaultRoot(): string | null;
   /** The pen tools, filters and module tools, for a writing surface a module attaches. */
@@ -173,6 +174,7 @@ export function createModuleContext(
             if (next.readingActions !== prev.readingActions) listener();
           }),
         ),
+      highlight: (path) => app().pdfHighlight?.(path) ?? null,
       page: (path) => app().pdfPage?.(path) ?? null,
     },
     timers: {
@@ -395,6 +397,17 @@ export function createModuleContext(
       },
     },
     files: {
+      downloadPaper: async (url) => {
+        const address = new URL(url);
+        if (
+          id !== 'references' ||
+          address.protocol !== 'https:' ||
+          address.username ||
+          address.password
+        )
+          throw new Error('Enter a direct HTTPS link to a PDF.');
+        return deps.platform.downloadPaper(address.href);
+      },
       importFile: (source, folder) => {
         if (!deps.platform.materials)
           return Promise.reject(new Error('Import files from the desktop app.'));
@@ -415,7 +428,9 @@ export function createModuleContext(
         return contribute(
           'fileHandlers',
           { ...spec, extensions, moduleId: id },
-          (h) => h.id === spec.id || h.extensions.some((e) => extensions.includes(e)),
+          (h) =>
+            h.id === spec.id ||
+            (!!h.fallback === !!spec.fallback && h.extensions.some((e) => extensions.includes(e))),
           `A file handler for ${extensions.join(', ')}`,
         );
       },

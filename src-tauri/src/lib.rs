@@ -811,6 +811,50 @@ async fn launch_program(window: tauri::WebviewWindow, path: String) -> VaultResu
     web_link::launch_program(std::path::Path::new(&path))
 }
 
+/// Fetch a user-selected public PDF without browser cookies or credentials.
+#[tauri::command]
+async fn download_paper(
+    window: tauri::WebviewWindow,
+    url: String,
+) -> Result<tauri::ipc::Response, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    let address = reqwest::Url::parse(&url).map_err(|_| "Enter a direct HTTPS PDF link.")?;
+    if address.scheme() != "https" || !address.username().is_empty() || address.password().is_some()
+    {
+        return Err("Enter a direct HTTPS PDF link.".into());
+    }
+    let client = reqwest::Client::builder()
+        .https_only(true)
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let mut response = client
+        .get(address)
+        .header("Accept", "application/pdf")
+        .send()
+        .await
+        .and_then(|r| r.error_for_status())
+        .map_err(|e| e.to_string())?;
+    const LIMIT: usize = 64 * 1024 * 1024;
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response.chunk().await.map_err(|e| e.to_string())? {
+        if bytes.len() + chunk.len() > LIMIT {
+            return Err("The PDF exceeds the reader's 64 MB limit.".into());
+        }
+        bytes.extend_from_slice(&chunk);
+        if bytes.len() >= 1024 && !bytes[..1024].windows(5).any(|s| s == b"%PDF-") {
+            return Err("The link returned a web page. Use its direct PDF download link.".into());
+        }
+    }
+    if !bytes[..bytes.len().min(1024)]
+        .windows(5)
+        .any(|s| s == b"%PDF-")
+    {
+        return Err("The link did not return a PDF.".into());
+    }
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
 /// Opens a web address in the system's browser.
 #[tauri::command]
 async fn open_web_link(url: String) -> VaultResult<()> {
@@ -1203,6 +1247,7 @@ pub fn run() {
             snapshot_program_file,
             stop_program,
             open_web_link,
+            download_paper,
             launch_program,
             open_feedback_email,
             open_vault_file,

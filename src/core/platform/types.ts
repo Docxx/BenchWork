@@ -62,6 +62,7 @@ export interface PlatformAdapter {
    * manifest reach this, through ctx.web. Fails with a plain message when
    * offline or when the site answers with an error.
    */
+  downloadPaper(url: string): Promise<Uint8Array>;
   fetchText(url: string): Promise<string>;
 
   /** Opens a web address in the device's browser. */

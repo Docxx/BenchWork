@@ -31,9 +31,16 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
       if (state().settingsError)
         throw new Error(state().settingsError ?? 'Appearance could not be saved');
     },
+    pdfHighlight: (path) =>
+      state().openFile === path
+        ? (/^page=\d+&highlight=([\w-]+)$/.exec(state().revealHeading ?? '')?.[1] ?? null)
+        : null,
     pdfPage: (path) => {
       const s = state();
-      const match = s.openFile === path ? /^page=(\d+)$/.exec(s.revealHeading ?? '') : null;
+      const match =
+        s.openFile === path
+          ? /^page=(\d+)(?:&highlight=[\w-]+)?$/.exec(s.revealHeading ?? '')
+          : null;
       return match ? Math.max(1, Number(match[1])) : null;
     },
     graph: () => state().vaultGraph(),

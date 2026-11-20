@@ -15,6 +15,7 @@ import { ResizeEdge } from './ResizeEdge';
 import { SettingsPage } from './SettingsPage';
 import { SidePanel } from './SidePanel';
 import { RecoveryKeyDialog } from './AccountPanel';
+import { ToolIconBar } from './SidebarTools';
 import { Sidebar } from './Sidebar';
 import { WindowControls } from './WindowControls';
 
@@ -107,6 +108,7 @@ export function Shell({ vault }: { vault: OpenVault }) {
   return (
     <div className={['shell', compact ? 'compact' : '', framed ? 'framed' : ''].join(' ').trim()}>
       <WindowControls />
+      <ToolIconBar />
       {compact && drawer !== null && (
         <button
           type="button"

@@ -31,7 +31,9 @@ export function evidenceType(): PageTypeSpec {
     fields: [
       { key: 'source', label: 'Source PDF', kind: 'link' },
       { key: 'page', label: 'Source page', kind: 'text' },
+      { key: 'reference', label: 'Paper reference', kind: 'text' },
       { key: 'citekey', label: 'Citation key', kind: 'text' },
+      { key: 'subjects', label: 'Subjects', kind: 'list' },
       { key: 'related', label: 'Research links', kind: 'links' },
       { key: 'tags', label: 'Tags', kind: 'list' },
     ],
@@ -44,12 +46,16 @@ export function evidenceContent(
   citekey: string,
   links: string[],
   hash: string,
+  subjects: string[] = [],
+  reference = '',
 ): NewPageContent {
-  const source = `[[${capture.path}#page=${String(capture.page)}]]`;
+  const source = `[[${capture.path}#page=${String(capture.page)}&highlight=${capture.highlightId}]]`;
   const body = [
     source,
+    reference.trim(),
     citekey ? `[@${citekey}]` : '',
     '',
+    ...(capture.figure ? [`![[${capture.figure}]]`, ''] : []),
     ...capture.text.split('\n').map((line) => `> ${line}`),
     '',
     '## Notes',
@@ -64,6 +70,9 @@ export function evidenceContent(
     properties: {
       source,
       page: String(capture.page),
+      subjects,
+      reference: reference.trim(),
+      ...(capture.figure ? { figure: capture.figure } : {}),
       highlightId: capture.highlightId,
       sourceSha256: hash,
       excerpt: capture.text,
@@ -81,6 +90,8 @@ export async function saveEvidence(
   comment: string,
   citekey: string,
   links: string[],
+  subjects: string[] = [],
+  reference = '',
 ): Promise<string | null> {
   if (!title.trim() || !capture.text.trim())
     throw new Error('Add a title and select some source text.');
@@ -91,6 +102,6 @@ export async function saveEvidence(
     folder,
     title.trim(),
     EVIDENCE,
-    evidenceContent(capture, comment, citekey, links, hash),
+    evidenceContent(capture, comment, citekey, links, hash, subjects, reference),
   );
 }

@@ -207,3 +207,19 @@ button.pdf-thumb:first-child {
   gap: 4px;
   max-width: min(100%, 580px);
 }
+.pdf-figure-selection {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+.pdf-figure-selection span {
+  position: absolute;
+  border: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.pdf-reader .pdf-text :is(span, br) {
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+}

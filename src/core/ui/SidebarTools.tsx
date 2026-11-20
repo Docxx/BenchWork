@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, Pin, PinOff, Search } from 'lucide-react';
+import { ChevronDown, Columns2, Pin, PinOff, Search } from 'lucide-react';
 import { moduleCategory } from '../modules/categories';
 import { useApp } from './AppStoreContext';
 
@@ -12,6 +12,7 @@ export function SidebarTools() {
   const tools = useApp((s) => s.pageViews).filter((v) => v.tool !== undefined);
   const current = useApp((s) => s.moduleView);
   const open = useApp((s) => s.openModuleView);
+  const showIcons = useApp((s) => s.settings.appearance.toolIconBar);
   const collapsed = useApp((s) => s.settings.appearance.toolsCollapsed);
   const pinned = useApp((s) => s.settings.appearance.pinnedTools);
   const appearance = useApp((s) => s.setAppearance);
@@ -67,33 +68,46 @@ export function SidebarTools() {
 
   return (
     <li className="nav-group sidebar-tools" aria-label="Tools">
-      <button
-        type="button"
-        className="tools-toggle"
-        aria-expanded={!collapsed}
-        aria-controls="sidebar-tool-list"
-        onClick={() => void appearance({ toolsCollapsed: !collapsed })}
-      >
-        <ChevronDown size={15} className={collapsed ? 'folded' : ''} aria-hidden />
-        Tools <span>{tools.length}</span>
-      </button>
+      <div className="tools-heading">
+        <div className="tools-heading-row">
+          <button
+            type="button"
+            className="tools-toggle"
+            aria-expanded={!collapsed}
+            aria-controls="sidebar-tool-list"
+            onClick={() => void appearance({ toolsCollapsed: !collapsed })}
+          >
+            <ChevronDown size={15} className={collapsed ? 'folded' : ''} aria-hidden />
+            Tools <span>{tools.length}</span>
+          </button>
+          <button
+            type="button"
+            className="tool-bar-choice"
+            aria-pressed={showIcons}
+            title="Show a side bar with an icon for each tool"
+            onClick={() => void appearance({ toolIconBar: !showIcons })}
+          >
+            <Columns2 size={14} aria-hidden /> Icon bar
+          </button>
+        </div>
+        {!collapsed && tools.length > 6 && (
+          <label className="tools-search">
+            <Search size={14} aria-hidden />
+            <input
+              type="search"
+              aria-label="Find a tool"
+              placeholder="Find a tool…"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+              }}
+            />
+          </label>
+        )}
+      </div>
       {!collapsed && (
         <div id="sidebar-tool-list">
-          {tools.length > 6 && (
-            <label className="tools-search">
-              <Search size={14} aria-hidden />
-              <input
-                type="search"
-                aria-label="Find a tool"
-                placeholder="Find a tool…"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                }}
-              />
-            </label>
-          )}
-          <div className="tools-scroll">
+          <div className="tools-list">
             {top.length > 0 && (
               <ul aria-label="Pinned tools" className="tools-pinned">
                 {top.map(row)}
@@ -114,5 +128,34 @@ export function SidebarTools() {
         </div>
       )}
     </li>
+  );
+}
+
+export function ToolIconBar() {
+  const views = useApp((s) => s.pageViews);
+  const enabled = useApp((s) => s.settings.appearance.toolIconBar);
+  const pinned = useApp((s) => s.settings.appearance.pinnedTools);
+  const current = useApp((s) => (s.view === 'files' ? s.moduleView?.id : null));
+  const open = useApp((s) => s.openModuleView);
+  if (!enabled) return null;
+  const tools = views
+    .filter((v) => v.tool)
+    .sort((a, b) => Number(pinned.includes(b.id)) - Number(pinned.includes(a.id)));
+  if (!tools.length) return null;
+  return (
+    <nav className="tool-icon-bar" aria-label="Tool shortcuts">
+      {tools.map((v) => (
+        <button
+          key={v.id}
+          type="button"
+          aria-label={v.title}
+          title={v.title}
+          aria-current={current === v.id ? 'page' : undefined}
+          onClick={() => void open(v.id)}
+        >
+          {v.tool?.icon}
+        </button>
+      ))}
+    </nav>
   );
 }

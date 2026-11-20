@@ -1,8 +1,8 @@
 {
   "id": "references",
-  "name": "References",
+  "name": "Reading and writing",
   "version": "0.1.0",
-  "description": "Citations from Zotero through Better BibTeX, and literature notes",
+  "description": "Read and annotate papers, collect evidence by subject, and draft manuscripts with citations",
   "dependsOn": [],
   "platforms": ["desktop", "tablet"],
   "defaultEnabled": false

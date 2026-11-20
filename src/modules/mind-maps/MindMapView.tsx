@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ModuleContext } from '@core/api';
 import type { Markmap } from 'markmap-view';
+import { createCanvas } from './CanvasList';
+import { outlineCanvas } from './boardTools';
 import { countNodes, outlineOf, type OutlineNode } from './outline';
 
 type MarkmapNode = NonNullable<Parameters<typeof Markmap.create>[2]>;
@@ -65,7 +67,8 @@ export function MindMapView({ ctx, path }: { ctx: ModuleContext; path: string | 
 
     const onClick = (event: MouseEvent) => {
       const target = event.target instanceof Element ? event.target.closest('[data-node]') : null;
-      const node = nodes[Number(target?.getAttribute('data-node'))];
+      if (!target) return;
+      const node = nodes[Number(target.getAttribute('data-node'))];
       if (!node) return;
       void ctx.app.open(path, node.heading === null ? undefined : { heading: node.heading });
     };
@@ -88,6 +91,17 @@ export function MindMapView({ ctx, path }: { ctx: ModuleContext; path: string | 
           },
           data,
         );
+        // A zoom transition may finish after navigation detaches this SVG.
+        const zoom = map.zoom as unknown as {
+          extent: (getBounds: () => [[number, number], [number, number]]) => void;
+        };
+        zoom.extent(
+          () =>
+            [
+              [0, 0],
+              [element.clientWidth, element.clientHeight],
+            ] as [[number, number], [number, number]],
+        );
       })
       .catch((err: unknown) => {
         if (current) setProblem(err instanceof Error ? err.message : String(err));
@@ -106,6 +120,21 @@ export function MindMapView({ ctx, path }: { ctx: ModuleContext; path: string | 
 
   return (
     <div className="mind-map">
+      <div className="canvas-toolbar">
+        <button
+          type="button"
+          onClick={() => {
+            const folder = path.split('/').slice(0, -1).join('/');
+            void createCanvas(ctx, folder, outline.text, outlineCanvas(outline)).catch(
+              (error: unknown) => {
+                ctx.app.notify(String(error));
+              },
+            );
+          }}
+        >
+          Create editable canvas
+        </button>
+      </div>
       {countNodes(outline) === 0 ? (
         <p className="page-empty">
           This page has no headings or bullet points yet. Add some to see them as a mind map.

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { ModuleContext, VaultItem } from '@core/api';
 import type { LibraryState } from './state';
-import { EVIDENCE, parseCapture, saveEvidence } from './evidence';
+import { parseCapture, saveEvidence } from './evidence';
+import { WritingWorkspace } from '../manuscript/WritingWorkspace';
+import { EvidenceShelf, FigureImage } from './EvidenceShelf';
 import { PdfLibrary } from './PdfLibrary';
 import './reading.css';
 
@@ -9,11 +11,16 @@ export function ReadingDesk({
   ctx,
   library,
   param,
+  writing,
 }: {
   ctx: ModuleContext;
   library: LibraryState;
   param: string | null;
+  writing?: string;
 }) {
+  const [tab, setTab] = useState(writing !== undefined ? 'Writing' : 'Reading');
+  const [reference, setReference] = useState('');
+  const [subjects, setSubjects] = useState('');
   const capture = useMemo(() => parseCapture(param), [param]);
   const snapshot = useSyncExternalStore(library.subscribe, library.current);
   const [items, setItems] = useState<VaultItem[]>([]);
@@ -24,7 +31,7 @@ export function ReadingDesk({
             .split('/')
             .at(-1)
             ?.replace(/\.pdf$/i, '') ?? 'Evidence'
-        } · p. ${String(capture.page)}`
+        } Â· p. ${String(capture.page)}`
       : '',
   );
   const [comment, setComment] = useState('');
@@ -43,6 +50,14 @@ export function ReadingDesk({
   useEffect(() => {
     if (!capture) return;
     void ctx.storage
+      .read<Record<string, string>>('paper-references.json')
+      .then((saved) => {
+        setReference(saved?.[capture.path] ?? '');
+      })
+      .catch((err: unknown) => {
+        setError(String(err));
+      });
+    void ctx.storage
       .read<Record<string, string>>('pdf-citations.json')
       .then((saved) => {
         setCitekey(saved?.[capture.path] ?? '');
@@ -58,7 +73,29 @@ export function ReadingDesk({
     try {
       const saved = (await ctx.storage.read<Record<string, string>>('pdf-citations.json')) ?? {};
       await ctx.storage.write('pdf-citations.json', { ...saved, [capture.path]: citekey });
-      await saveEvidence(ctx, capture, title, comment, citekey, links);
+      const references =
+        (await ctx.storage.read<Record<string, string>>('paper-references.json')) ?? {};
+      await ctx.storage.write('paper-references.json', {
+        ...references,
+        [capture.path]: reference.trim(),
+      });
+      await saveEvidence(
+        ctx,
+        capture,
+        title,
+        comment,
+        citekey,
+        links,
+        [
+          ...new Set(
+            subjects
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean),
+          ),
+        ],
+        reference,
+      );
     } catch (err) {
       setError(String(err));
     } finally {
@@ -67,16 +104,26 @@ export function ReadingDesk({
   };
   return (
     <div className="reading-desk">
-      <p className="hint">
-        Read a PDF, select a passage and choose an evidence action. Evidence notes keep the excerpt,
-        source page, citation and your own observations together.
-      </p>
+      <nav className="actions" aria-label="Reading and writing">
+        {['Reading', 'Evidence', 'Writing'].map((name) => (
+          <button
+            type="button"
+            key={name}
+            aria-pressed={tab === name}
+            onClick={() => {
+              setTab(name);
+            }}
+          >
+            {name}
+          </button>
+        ))}
+      </nav>
       {error && (
         <p className="notice" role="alert">
           {error}
         </p>
       )}
-      {capture && (
+      {capture && tab === 'Reading' && (
         <section className="reading-capture" aria-label="Capture evidence">
           <h2>
             {capture.mode === 'structured'
@@ -86,8 +133,19 @@ export function ReadingDesk({
                 : 'Excerpt and comment'}
           </h2>
           <p>
-            {capture.path} · Page {capture.page}
+            {capture.path} Â· Page {capture.page}
           </p>
+          {capture.figure && <FigureImage ctx={ctx} path={capture.figure} />}
+          <label className="label">
+            Subjects (comma-separated)
+            <input
+              placeholder="Alzheimer’s, inflammation"
+              value={subjects}
+              onChange={(e) => {
+                setSubjects(e.target.value);
+              }}
+            />
+          </label>
           <blockquote>{capture.text}</blockquote>
           <label className="label">
             Evidence title
@@ -115,10 +173,20 @@ export function ReadingDesk({
               ))}
             </select>
           </label>
+          <label className="label">
+            Paper reference (optional)
+            <input
+              value={reference}
+              placeholder="Authors, title, year or DOI"
+              onChange={(e) => {
+                setReference(e.target.value);
+              }}
+            />
+          </label>
           {snapshot.status !== 'ready' && (
             <p className="hint">
-              Choose your Zotero Better BibTeX CSL JSON library in References settings to add
-              citations. You can still save evidence.
+              Choose your Zotero Better BibTeX CSL JSON library in Reading and writing settings to
+              add citations. You can still save evidence.
             </p>
           )}
           <label className="label">
@@ -160,38 +228,18 @@ export function ReadingDesk({
             <p className="hint">Optional. Use Ctrl or Command to select several on a computer.</p>
           </fieldset>
           <button type="button" disabled={busy || !title.trim()} onClick={() => void save()}>
-            {busy ? 'Saving…' : 'Save evidence note'}
+            {busy ? 'Savingâ€¦' : 'Save evidence note'}
           </button>
         </section>
       )}
-      <div className="reading-columns">
-        <section aria-label="Evidence notes">
-          <h2>Evidence notes</h2>
-          {items.filter((i) => i.type === EVIDENCE).length === 0 && (
-            <p className="hint">Your saved excerpts will appear here.</p>
-          )}
-          {items
-            .filter((i) => i.type === EVIDENCE)
-            .map((i) => (
-              <button
-                className="reading-item quiet"
-                key={i.path}
-                type="button"
-                onClick={() => void ctx.app.open(i.path)}
-              >
-                {i.title}
-                <small>{i.path}</small>
-              </button>
-            ))}
-        </section>
+      {tab === 'Reading' && (
         <section aria-label="PDF library">
           <h2>PDF library</h2>
-          <p className="hint">
-            Enable Handwriting for PDF text selection, highlighting and evidence capture.
-          </p>
           <PdfLibrary ctx={ctx} />
         </section>
-      </div>
+      )}
+      {tab === 'Evidence' && <EvidenceShelf ctx={ctx} library={library} />}
+      {tab === 'Writing' && <WritingWorkspace ctx={ctx} path={writing || null} combined />}
     </div>
   );
 }

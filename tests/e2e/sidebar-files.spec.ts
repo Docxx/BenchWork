@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('tools stay compact, notebook sizing is adjustable, and folders accept files and Explorer actions', async ({
+test('tools expand in the sidebar, notebook sizing is adjustable, and folders accept files and Explorer actions', async ({
   page,
 }, info) => {
   await page.goto('/');
@@ -33,16 +33,33 @@ test('tools stay compact, notebook sizing is adjustable, and folders accept file
   const sidebar = page.getByRole('navigation', { name: 'Vault' });
   const tools = sidebar.getByRole('listitem', { name: 'Tools', exact: true });
   await expect(tools.getByRole('button', { name: 'Cloud storage', exact: true })).toBeVisible();
-  expect(
-    await tools.locator('.tools-scroll').evaluate((el) => el.clientHeight),
-  ).toBeLessThanOrEqual(156);
+  const list = tools.locator('.tools-list');
+  const size = await list.evaluate((el) => ({ height: el.clientHeight, content: el.scrollHeight }));
+  expect(size.height).toBeGreaterThan(156);
+  expect(size.height).toBe(size.content);
+  await list.getByRole('button').last().scrollIntoViewIfNeeded();
+  await expect(tools.getByRole('searchbox')).toBeInViewport();
   await tools.getByRole('searchbox', { name: 'Find a tool' }).fill('cloud');
-  await expect(tools.locator('.tools-scroll .nav-item')).toHaveCount(1);
+  await expect(tools.locator('.tools-list .nav-item')).toHaveCount(1);
   await tools.getByRole('searchbox', { name: 'Find a tool' }).fill('');
   const toggle = tools.getByRole('button', { name: /^Tools/ });
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await expect(tools.getByRole('button', { name: 'Cloud storage', exact: true })).toHaveCount(0);
+  const iconBar = page.getByRole('navigation', { name: 'Tool shortcuts' });
+  await expect(iconBar).toHaveCount(0);
+  await tools.getByRole('button', { name: 'Icon bar' }).click();
+  const shortcut = iconBar.getByRole('button', { name: 'Cloud storage', exact: true });
+  await expect(shortcut).toBeVisible();
+  await sidebar.getByRole('button', { name: 'Hide the sidebar' }).click();
+  await shortcut.click();
+  await expect(shortcut).toHaveAttribute('aria-current', 'page');
+  await page.getByRole('button', { name: 'Show the sidebar' }).click();
+  await expect
+    .poll(() => page.evaluate(async () => await window.__benchworkMemory?.loadAppSettings()))
+    .toMatchObject({ appearance: { toolIconBar: true } });
+  await tools.getByRole('button', { name: 'Icon bar' }).click();
+  await expect(iconBar).toHaveCount(0);
   const sizing = sidebar.getByRole('separator', { name: 'Notebook area height' });
   const before = Number(await sizing.getAttribute('aria-valuenow'));
   await sizing.focus();

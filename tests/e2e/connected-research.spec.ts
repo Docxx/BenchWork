@@ -63,7 +63,7 @@ test('PDF evidence, an R run and a writing section share durable source links', 
   const recordPath = Object.keys(snapshot).find((p) => p.endsWith('.analysis.yaml')) ?? '';
   expect(snapshot[recordPath]).toContain('runtime: Rscript test runtime');
   expect(snapshot[recordPath]).toContain('scriptSha256:');
-  await page.getByRole('button', { name: 'Reading desk', exact: true }).click();
+  await page.getByRole('button', { name: 'Reading and writing', exact: true }).click();
   await page
     .getByRole('region', { name: 'PDF library' })
     .getByRole('button', { name: /paper.pdf/ })
@@ -89,6 +89,7 @@ test('PDF evidence, an R run and a writing section share durable source links', 
   await capture.getByRole('button', { name: 'Save evidence note' }).click();
   await expect(page.locator('.page-editor')).toContainText('Compare with our day 7 result.');
   expect((await files(page))['Papers/paper.pdf.annot.json']).toContain('Tau spreads');
+  await page.getByRole('button', { name: 'Reading and writing', exact: true }).click();
   await page.getByRole('button', { name: 'Writing', exact: true }).click();
   await page.getByText('New thesis or paper', { exact: true }).click();
   await page.getByLabel('Manuscript title').fill('Tau paper');
@@ -151,4 +152,76 @@ test('a source link opens the requested PDF page', async ({ page }) => {
   await page.locator('.page-editor').getByText('the methods page', { exact: true }).click();
   await expect(page.locator('.pdf-page[data-page="2"]')).toBeInViewport();
   await expect(page.locator('.pdf-page[data-page="1"]')).not.toBeInViewport({ ratio: 0.5 });
+});
+
+test('one reading and writing module downloads, deduplicates and files figure evidence by subject', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.evaluate(() => {
+    const vault = window.__benchworkMemory;
+    if (!vault) throw new Error('Memory vault unavailable');
+    vault.addFolder('C:/Vault', {
+      '.benchwork/config.json': JSON.stringify({
+        version: 1,
+        modules: { references: { enabled: true } },
+      }),
+    });
+    vault.queuePick('C:/Vault');
+  });
+  await page.getByRole('button', { name: 'Open vault' }).click();
+  const desk = page.getByRole('button', { name: 'Reading and writing', exact: true });
+  await desk.click();
+  const bytes = readFileSync(new URL('./fixtures/paper.pdf', import.meta.url));
+  await page.route('https://papers.example/paper.pdf', (route) =>
+    route.fulfill({
+      contentType: 'application/pdf',
+      body: bytes,
+      headers: { 'access-control-allow-origin': '*' },
+    }),
+  );
+  await page.getByLabel('Direct PDF link').fill('https://papers.example/paper.pdf');
+  await page.getByRole('button', { name: 'Download PDF' }).click();
+  const paper = page
+    .getByRole('region', { name: 'PDF library' })
+    .getByRole('button', { name: /paper.pdf/ });
+  await expect(paper).toHaveCount(1);
+  await page
+    .getByLabel('Import PDFs', { exact: true })
+    .setInputFiles({ name: 'another name.pdf', mimeType: 'application/pdf', buffer: bytes });
+  await expect(page.getByText('In your library: Papers/paper.pdf', { exact: true })).toBeVisible();
+  await expect
+    .poll(async () => Object.keys(await files(page)).filter((p) => p.endsWith('.pdf')))
+    .toEqual(['Papers/paper.pdf']);
+  await paper.click();
+  await page.getByRole('radio', { name: 'Select figure' }).click();
+  const surface = page.locator('.pdf-figure-selection').first();
+  await surface.scrollIntoViewIfNeeded();
+  const box = await surface.boundingBox();
+  if (!box) throw new Error('Missing PDF');
+  await page.mouse.move(box.x + 40, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 150, box.y + box.height / 2 + 75, { steps: 6 });
+  await page.mouse.up();
+  await expect(page.getByRole('button', { name: 'Excerpt + comment' })).toBeVisible();
+  await desk.click();
+  await page.getByRole('button', { name: 'Evidence', exact: true }).click();
+  await page.getByRole('button', { name: 'Add subjects or comment' }).click();
+  await page.getByLabel('Subjects (comma-separated)').fill("Alzheimer's, Inflammation");
+  await page.getByLabel('Evidence title').fill('Inflammation figure');
+  await page.getByLabel('Your observations').fill('Compare this panel with the other paper.');
+  await page.getByRole('button', { name: 'Save evidence note' }).click();
+  await expect(page.locator('.page-editor')).toContainText('Compare this panel');
+  await desk.click();
+  await page.getByRole('button', { name: 'Evidence', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Subject', exact: true }).selectOption('inflammation');
+  const entry = page
+    .getByRole('article')
+    .filter({ has: page.getByRole('heading', { name: 'Inflammation figure' }) })
+    .last();
+  await expect(entry).toContainText('Compare this panel');
+  await expect(entry.getByRole('img', { name: 'Selected figure' })).toBeVisible();
+  await entry.getByRole('button', { name: /Open source/ }).click();
+  await expect(page.locator('.pdf-highlight.chosen')).toBeInViewport();
+  await expect(page.locator('.pdf-reader')).toHaveCount(1);
 });
