@@ -41,6 +41,9 @@ export function PageView() {
   const saveNow = useApp((s) => s.savePageNow);
   const openFile = useApp((s) => s.openFile);
   const moduleView = useApp((s) => s.moduleView);
+  const aside = useApp(
+    (s) => s.pageTypes.find((t) => t.type === s.pageProperties?.['type'])?.renderAside,
+  );
   const [showHistory, setShowHistory] = useState(false);
   const sidePanel = useApp((s) => s.settings.appearance.sidePanel);
   const free = useApp((s) => s.pageProperties?.['layout']) === 'free';
@@ -106,7 +109,16 @@ export function PageView() {
             )}
             <PropertiesPanel />
             {/* A new document after a reload from disk starts a fresh editor. */}
-            <PageEditor key={page.ydoc.guid} page={page} />
+            {aside ? (
+              <div className="draft-with-evidence">
+                <div>
+                  <PageEditor key={page.ydoc.guid} page={page} />
+                </div>
+                <aside key={page.path}>{aside(page.path)}</aside>
+              </div>
+            ) : (
+              <PageEditor key={page.ydoc.guid} page={page} />
+            )}
             {!sidePanel && <Backlinks />}
           </>
         )}

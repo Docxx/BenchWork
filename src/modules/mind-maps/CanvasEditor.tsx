@@ -1,3 +1,5 @@
+import { FigureImage as EvidenceFigure } from '../references/FigureImage';
+import { branchOutline } from './branchOutline';
 import {
   addEdge,
   applyEdgeChanges,
@@ -47,6 +49,7 @@ import {
   type CanvasLink,
   type KnownKind,
 } from './canvasFile';
+import { MapBackground } from './MapBackground';
 import { CanvasSearch, type BoardMatch } from './CanvasSearch';
 import { captureScreen, imageExtensions } from './captureScreen';
 import { plainText } from './outline';
@@ -290,6 +293,20 @@ function CardFrame({
       <NodeResizer isVisible={selected} minWidth={min.width} minHeight={min.height} />
       <Handles />
       {children}
+      {typeof item['source'] === 'string' && typeof item['heading'] === 'string' && (
+        <button
+          type="button"
+          className="nodrag"
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+          }}
+          onClick={() =>
+            void ctx.app.open(String(item['source']), { heading: String(item['heading']) })
+          }
+        >
+          Open PDF · p. {item['heading'].slice(5).split('&')[0]}
+        </button>
+      )}
       {link !== null && (
         <button
           type="button"
@@ -382,7 +399,22 @@ function PageCard({ data, selected }: NodeProps<CardNode>) {
       onDoubleClick={() => void ctx.app.open(path)}
     >
       <strong className="card-title">{fileName(path).replace(/\.md$/i, '')}</strong>
-      <p className="card-preview">{preview ?? 'This page could not be found.'}</p>
+      {typeof data.item['evidence'] === 'string' ? (
+        <>
+          <p className="card-preview">
+            {typeof data.item['excerpt'] === 'string' ? data.item['excerpt'] : ''}
+          </p>
+          {Boolean(data.item['figure']) && (
+            <EvidenceFigure ctx={ctx} path={String(data.item['figure'])} />
+          )}
+          <small>{typeof data.item['citation'] === 'string' ? data.item['citation'] : ''}</small>
+          <p className="card-preview">
+            {typeof data.item['comment'] === 'string' ? data.item['comment'] : ''}
+          </p>
+        </>
+      ) : (
+        <p className="card-preview">{preview ?? 'This page could not be found.'}</p>
+      )}
     </CardFrame>
   );
 }
@@ -481,6 +513,7 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
   const [distance, setDistance] = useState<'near' | 'far' | 'farther'>('near');
   /** Whether the overview map shows; null until chosen, when it shows for big canvases. */
   const [overview, setOverview] = useState<boolean | null>(null);
+  const [background, setBackground] = useState<string | null>(null);
   const [snap, setSnap] = useState(false);
   const [batch, setBatch] = useState<string | null>(null);
   const [search, setSearch] = useState(false);
@@ -510,6 +543,8 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
         if (!current) return;
         const doc = parseCanvas(text);
         base.current = doc;
+        const colour = doc['background'];
+        setBackground(typeof colour === 'string' && /^#[0-9a-f]{6}$/i.test(colour) ? colour : null);
         const next = { nodes: doc.items.map(toNode), edges: doc.links.map(toEdge) };
         latest.current = next;
         setNodes(next.nodes);
@@ -1008,6 +1043,10 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
 
   const shownEdges = routed(edges, nodes);
   const selectedCards = nodes.filter((n) => n.selected === true);
+  const incoming =
+    selectedCards.length === 1 ? edges.filter((e) => e.target === selectedCards[0]?.id) : [];
+  const parent =
+    incoming.length === 1 ? nodes.find((n) => n.id === incoming[0]?.source) : undefined;
   const selectedArrows = edges.filter((e) => e.selected === true);
 
   if (problem !== null) return <p className="notice">This canvas could not be read. {problem}</p>;
@@ -1017,6 +1056,50 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
     <Actions.Provider value={{ ctx, setText }}>
       <div className="canvas-view">
         <div className="canvas-toolbar">
+          <button
+            type="button"
+            title={
+              ctx.views.hasPageView('references.branchOutline')
+                ? 'Build sections from this branch'
+                : 'Enable Reading and writing in Settings → Modules'
+            }
+            disabled={
+              !ctx.views.hasPageView('references.branchOutline') ||
+              selectedCards.length !== 1 ||
+              changedElsewhere
+            }
+            onClick={() => {
+              const root = selectedCards[0];
+              if (root && base.current)
+                void ctx.app
+                  .openView(
+                    'references.branchOutline',
+                    JSON.stringify(
+                      branchOutline(toDoc(base.current, nodes, edges), root.data.item),
+                    ),
+                  )
+                  .catch((err: unknown) => {
+                    ctx.app.notify(String(err));
+                  });
+            }}
+          >
+            Create writing outline
+          </button>
+          {selectedArrows.length > 0 && !changedElsewhere && (
+            <select
+              aria-label="Relationship"
+              value=""
+              onChange={(e) => {
+                const label = e.target.value;
+                relink((link) => ({ ...link, label }));
+              }}
+            >
+              <option value="">Label relationship…</option>
+              {['activates', 'inhibits', 'supports', 'contradicts', 'test next'].map((l) => (
+                <option key={l}>{l}</option>
+              ))}
+            </select>
+          )}
           <button
             type="button"
             disabled={changedElsewhere}
@@ -1084,6 +1167,62 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
           >
             Add branch
           </button>
+          <button
+            type="button"
+            disabled={changedElsewhere || !parent}
+            title="Add another branch to the same parent"
+            onClick={() => {
+              if (parent) addBranch(parent);
+            }}
+          >
+            Add sibling
+          </button>
+          <select
+            aria-label="Insert shape"
+            disabled={changedElsewhere}
+            value=""
+            onChange={(e) => {
+              add('text', { text: '', shape: e.target.value, height: 100 });
+            }}
+          >
+            <option value="" disabled>
+              Insert shape…
+            </option>
+            <option value="rectangle">Rectangle</option>
+            <option value="ellipse">Oval</option>
+            <option value="diamond">Decision diamond</option>
+            <option value="pill">Pill</option>
+          </select>
+          <button
+            type="button"
+            disabled={changedElsewhere || selectedCards.length !== 2}
+            title="Draw an arrow between the selected cards"
+            onClick={() => {
+              const [from, to] = selectedCards;
+              if (from && to)
+                onConnect({
+                  source: from.id,
+                  target: to.id,
+                  sourceHandle: null,
+                  targetHandle: null,
+                });
+            }}
+          >
+            Connect cards
+          </button>
+          <MapBackground
+            value={background}
+            disabled={changedElsewhere}
+            onChange={(colour) => {
+              if (!base.current) return;
+              const doc = { ...base.current };
+              if (colour) doc['background'] = colour;
+              else delete doc['background'];
+              base.current = doc;
+              setBackground(colour);
+              changed({ ...latest.current });
+            }}
+          />
           <button
             type="button"
             className="quiet"
@@ -1269,6 +1408,7 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
           <ReactFlow
             nodes={nodes}
             edges={shownEdges}
+            style={background ? { backgroundColor: background } : undefined}
             snapToGrid={snap}
             snapGrid={[24, 24]}
             nodeTypes={NODE_TYPES}
@@ -1308,7 +1448,7 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
               nameArrow(edge);
             }}
           >
-            <Background gap={24} />
+            <Background gap={24} bgColor={background ?? 'var(--bg)'} />
             <Controls showInteractive={false} />
             {showOverview && (
               <MiniMap

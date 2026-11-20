@@ -156,6 +156,8 @@ export interface ModulePageTypes {
  * its properties are kept as they are.
  */
 export interface PageTypeSpec {
+  /** Optional companion shown beside this type’s editor. */
+  renderAside?: (path: string) => ReactNode;
   /** The frontmatter `type` value, such as `experiment`. */
   type: string;
   /** Shown in menus, as in "New experiment". */
@@ -380,7 +382,7 @@ export interface ModuleApp {
   /** Creates a notebook (with `folder` empty) or a section. Returns its path, or null. */
   createFolder(folder: string, title: string): Promise<string | null>;
   /**
-   * Creates a page, optionally of a registered type, and opens it. With
+   * Creates a page, optionally of a registered type. Set background to keep the current editor open. With
    * `content`, the page starts with that, instead of a typed page's usual
    * start. Returns its path, or null.
    */
@@ -389,14 +391,15 @@ export interface ModuleApp {
     title: string,
     type?: string,
     content?: NewPageContent,
+    options?: { background?: boolean },
   ): Promise<string | null>;
   /** The page open in the editor, or null. */
   openPage(): string | null;
   /**
-   * Types plain text into the open page at the cursor, as if typed there.
+   * Inserts text at the cursor, optionally followed by a Pandoc citation (its inner text).
    * False if no page is open in the editor.
    */
-  insertText(text: string): boolean;
+  insertText(text: string, citation?: string): boolean;
   /** Every item with dates, from every schedule source, for the planner. */
   scheduled(): Promise<ScheduledItem[]>;
   /** Gives an item new dates, through the source it came from. */
@@ -439,6 +442,7 @@ export interface ModuleApp {
 }
 
 export interface ModuleViews {
+  hasPageView(id: string): boolean;
   registerSidebarPanel(spec: SidebarPanelSpec): Disposable;
   /** The module's own options, shown under it in Settings > Modules while it is on. */
   registerSettingsPanel(spec: SettingsPanelSpec): Disposable;

@@ -439,7 +439,26 @@ test('a page mind map becomes a canvas with editable branches', async ({ page })
   await tree(page).getByRole('treeitem', { name: 'Lab' }).click();
   await tree(page).getByRole('treeitem', { name: 'Fly climbing' }).click();
   await page.getByRole('button', { name: 'Mind map', exact: true }).click();
+  await page.getByLabel('Map background colour').fill('#ede4d0');
   await page.getByRole('button', { name: 'Create editable canvas' }).click();
+  await expect(page.getByLabel('Map background colour')).toHaveValue('#ede4d0');
+  const board = page.locator('.canvas-board');
+  await expect
+    .poll(() =>
+      board.evaluate((el) =>
+        Math.abs(
+          el.getBoundingClientRect().bottom -
+            (el.closest('main')?.getBoundingClientRect().bottom ?? NaN),
+        ),
+      ),
+    )
+    .toBeLessThan(4);
+  await page.getByLabel('Map background colour').fill('#ddddee');
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__benchworkMemory?.snapshot()['Lab/Fly climbing.canvas.json']),
+    )
+    .toContain('#ddddee');
   const node = page.locator('.react-flow__node').filter({ hasText: 'Mixed model' });
   await node.click();
   await page.getByRole('button', { name: 'Add branch' }).click();

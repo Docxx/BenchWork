@@ -3,8 +3,10 @@ import type { ModuleContext, VaultItem } from '@core/api';
 import type { LibraryState } from './state';
 import { parseCapture, saveEvidence } from './evidence';
 import { WritingWorkspace } from '../manuscript/WritingWorkspace';
-import { EvidenceShelf, FigureImage } from './EvidenceShelf';
+import { EvidenceShelf, FigureImage, useEvidence } from './EvidenceShelf';
 import { PdfLibrary } from './PdfLibrary';
+import { SendToMap } from './SendToMap';
+import { LibraryPanel } from './LibraryPanel';
 import './reading.css';
 
 export function ReadingDesk({
@@ -12,11 +14,13 @@ export function ReadingDesk({
   library,
   param,
   writing,
+  sendToMap = false,
 }: {
   ctx: ModuleContext;
   library: LibraryState;
   param: string | null;
   writing?: string;
+  sendToMap?: boolean;
 }) {
   const [tab, setTab] = useState(writing !== undefined ? 'Writing' : 'Reading');
   const [reference, setReference] = useState('');
@@ -34,6 +38,7 @@ export function ReadingDesk({
         } Â· p. ${String(capture.page)}`
       : '',
   );
+  const [caption, setCaption] = useState('');
   const [comment, setComment] = useState('');
   const [citekey, setCitekey] = useState('');
   const [links, setLinks] = useState<string[]>([]);
@@ -81,7 +86,7 @@ export function ReadingDesk({
       });
       await saveEvidence(
         ctx,
-        capture,
+        caption.trim() && capture.figure ? { ...capture, text: caption.trim() } : capture,
         title,
         comment,
         citekey,
@@ -105,7 +110,7 @@ export function ReadingDesk({
   return (
     <div className="reading-desk">
       <nav className="actions" aria-label="Reading and writing">
-        {['Reading', 'Evidence', 'Writing'].map((name) => (
+        {['Reading', 'Zotero references', 'Evidence', 'Writing'].map((name) => (
           <button
             type="button"
             key={name}
@@ -135,7 +140,20 @@ export function ReadingDesk({
           <p>
             {capture.path} Â· Page {capture.page}
           </p>
-          {capture.figure && <FigureImage ctx={ctx} path={capture.figure} />}
+          {capture.figure && (
+            <>
+              <FigureImage ctx={ctx} path={capture.figure} />
+              <label>
+                Figure caption{' '}
+                <textarea
+                  value={caption}
+                  onChange={(e) => {
+                    setCaption(e.target.value);
+                  }}
+                />
+              </label>
+            </>
+          )}
           <label className="label">
             Subjects (comma-separated)
             <input
@@ -227,6 +245,28 @@ export function ReadingDesk({
             </select>
             <p className="hint">Optional. Use Ctrl or Command to select several on a computer.</p>
           </fieldset>
+          {sendToMap && (
+            <SendToMap
+              ctx={ctx}
+              entry={{
+                capture:
+                  caption.trim() && capture.figure ? { ...capture, text: caption.trim() } : capture,
+                path: capture.path,
+                source: capture.path,
+                heading: 'page=' + String(capture.page) + '&highlight=' + capture.highlightId,
+                title: title || capture.path,
+                subjects: subjects
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+                comment,
+                reference,
+                citekey,
+                excerpt: caption.trim() || capture.text,
+                figure: capture.figure ?? '',
+              }}
+            />
+          )}
           <button type="button" disabled={busy || !title.trim()} onClick={() => void save()}>
             {busy ? 'Savingâ€¦' : 'Save evidence note'}
           </button>
@@ -239,7 +279,38 @@ export function ReadingDesk({
         </section>
       )}
       {tab === 'Evidence' && <EvidenceShelf ctx={ctx} library={library} />}
+      {tab === 'Zotero references' && <LibraryPanel ctx={ctx} library={library} fullPage />}
       {tab === 'Writing' && <WritingWorkspace ctx={ctx} path={writing || null} combined />}
     </div>
   );
+}
+
+export function HighlightToMap({
+  ctx,
+  library,
+  param,
+}: {
+  ctx: ModuleContext;
+  library: LibraryState;
+  param: string | null;
+}) {
+  const { entries, error, loading } = useEvidence(ctx);
+  const capture = parseCapture(param);
+  if (error) return <p role="alert">{error}</p>;
+  if (loading) return <p>Reading evidence…</p>;
+  if (!capture) return <p>Select a highlight or figure in the PDF reader.</p>;
+  const heading = 'page=' + String(capture.page) + '&highlight=' + capture.highlightId;
+  const filed = entries.find(
+    (e) => !e.capture && e.source === capture.path && e.heading === heading,
+  );
+  if (filed)
+    return (
+      <section>
+        <h2>{filed.title}</h2>
+        {filed.figure && <FigureImage ctx={ctx} path={filed.figure} />}
+        <blockquote>{filed.excerpt}</blockquote>
+        <SendToMap ctx={ctx} entry={filed} />
+      </section>
+    );
+  return <ReadingDesk ctx={ctx} library={library} param={param} sendToMap />;
 }

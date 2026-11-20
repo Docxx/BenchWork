@@ -13,6 +13,7 @@ export function SidebarTools() {
   const current = useApp((s) => s.moduleView);
   const open = useApp((s) => s.openModuleView);
   const showIcons = useApp((s) => s.settings.appearance.toolIconBar);
+  const height = useApp((s) => s.settings.appearance.toolsHeight);
   const collapsed = useApp((s) => s.settings.appearance.toolsCollapsed);
   const pinned = useApp((s) => s.settings.appearance.pinnedTools);
   const appearance = useApp((s) => s.setAppearance);
@@ -107,7 +108,11 @@ export function SidebarTools() {
       </div>
       {!collapsed && (
         <div id="sidebar-tool-list">
-          <div className="tools-list">
+          <ToolsHeightChoice />
+          <div
+            className="tools-list"
+            style={height ? { maxHeight: height, overflowY: 'auto' } : undefined}
+          >
             {top.length > 0 && (
               <ul aria-label="Pinned tools" className="tools-pinned">
                 {top.map(row)}
@@ -157,5 +162,32 @@ export function ToolIconBar() {
         </button>
       ))}
     </nav>
+  );
+}
+
+export function ToolsHeightChoice() {
+  const height = useApp((s) => s.settings.appearance.toolsHeight);
+  const save = useApp((s) => s.setAppearance);
+  return (
+    <label className="tools-height-choice">
+      List height
+      <select
+        aria-label="Tools list height"
+        value={height}
+        onChange={(e) => void save({ toolsHeight: Number(e.target.value) })}
+      >
+        {[
+          [0, 'Full list'],
+          [160, 'Short'],
+          [320, 'Medium'],
+          [520, 'Tall'],
+          [800, 'Extra tall'],
+        ].map(([value, name]) => (
+          <option key={value} value={value}>
+            {name}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

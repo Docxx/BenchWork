@@ -92,6 +92,7 @@ export async function saveEvidence(
   links: string[],
   subjects: string[] = [],
   reference = '',
+  background = false,
 ): Promise<string | null> {
   if (!title.trim() || !capture.text.trim())
     throw new Error('Add a title and select some source text.');
@@ -100,8 +101,20 @@ export async function saveEvidence(
   await ctx.vault.ensureDir(folder);
   return ctx.app.createPage(
     folder,
-    title.trim(),
+    background
+      ? (
+          await ctx.vault.freeName(
+            folder,
+            title
+              .replace(/[<>:"/\\|?*]/g, ' ')
+              .trim()
+              .slice(0, 110) || 'Evidence',
+            '.md',
+          )
+        ).slice(0, -3)
+      : title.trim(),
     EVIDENCE,
     evidenceContent(capture, comment, citekey, links, hash, subjects, reference),
+    { background },
   );
 }

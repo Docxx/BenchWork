@@ -191,7 +191,7 @@ export function WritingWorkspace({
                 onClick={() =>
                   void act(async () => {
                     await createSection(ctx, manuscript, sectionTitle);
-                    await ctx.app.openView(WRITING, manuscript);
+                    await ctx.app.openView(combined ? 'references.writing' : WRITING, manuscript);
                   })
                 }
               >

@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { FigureImage } from './FigureImage';
+export { FigureImage } from './FigureImage';
+import { SendToMap } from './SendToMap';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { ModuleContext } from '@core/api';
 import { fullReference } from './library';
 import type { LibraryState } from './state';
@@ -6,7 +9,8 @@ import { parseNotes, notesPath } from '../handwriting/pdfNotes';
 import { paperPaths, parsePdfLibrary } from './filePaper';
 import { EVIDENCE, READING, type Capture } from './evidence';
 
-interface Entry {
+export interface Entry {
+  finding?: string;
   capture?: Capture;
   title: string;
   path: string;
@@ -21,11 +25,10 @@ interface Entry {
 }
 const string = (value: unknown) => (typeof value === 'string' ? value : '');
 
-export function EvidenceShelf({ ctx, library }: { ctx: ModuleContext; library: LibraryState }) {
+export function useEvidence(ctx: ModuleContext) {
+  const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [subject, setSubject] = useState('');
   const [error, setError] = useState('');
-  const snapshot = useSyncExternalStore(library.subscribe, library.current);
   useEffect(() => {
     let active = true;
     let request = 0;
@@ -44,6 +47,11 @@ export function EvidenceShelf({ ctx, library }: { ctx: ModuleContext; library: L
           const subjects = props?.['subjects'];
           return {
             ...item,
+            finding:
+              markdown
+                .split(/^## Main finding[ \t]*\r?$/m)[1]
+                ?.split(/^## /m)[0]
+                ?.trim() ?? '',
             subjects: Array.isArray(subjects)
               ? subjects.filter((s): s is string => typeof s === 'string')
               : [],
@@ -65,6 +73,10 @@ export function EvidenceShelf({ ctx, library }: { ctx: ModuleContext; library: L
       const folder = settings.folder ?? 'Papers';
       const references = await ctx.storage.read<Record<string, string>>('paper-references.json');
       const citations = await ctx.storage.read<Record<string, string>>('pdf-citations.json');
+      for (const row of rows) {
+        if (!row.citekey) row.citekey = citations?.[row.source] ?? '';
+        if (!row.reference) row.reference = references?.[row.source] ?? '';
+      }
       const filed = new Set(rows.map((row) => row.source + '#' + row.heading));
       if (!folder || (await ctx.vault.exists(folder))) {
         for (const source of await paperPaths(ctx, folder, settings.recursive)) {
@@ -101,12 +113,16 @@ export function EvidenceShelf({ ctx, library }: { ctx: ModuleContext; library: L
       }
       if (active && request === token) {
         setEntries(rows);
+        setLoading(false);
         setError('');
       }
     }
     const refresh = () => {
       void load().catch((err: unknown) => {
-        if (active) setError(String(err));
+        if (active) {
+          setError(String(err));
+          setLoading(false);
+        }
       });
     };
     const sub = ctx.vault.watch((change) => {
@@ -123,6 +139,14 @@ export function EvidenceShelf({ ctx, library }: { ctx: ModuleContext; library: L
       sub.dispose();
     };
   }, [ctx]);
+  return { entries, error, loading };
+}
+
+export function EvidenceShelf({ ctx, library }: { ctx: ModuleContext; library: LibraryState }) {
+  const { entries, error } = useEvidence(ctx);
+  const [subject, setSubject] = useState('');
+  const [sending, setSending] = useState('');
+  const snapshot = useSyncExternalStore(library.subscribe, library.current);
   const subjects = new Map<string, string>();
   for (const entry of entries)
     for (const tag of entry.subjects) subjects.set(tag.toLocaleLowerCase(), tag);
@@ -170,6 +194,15 @@ export function EvidenceShelf({ ctx, library }: { ctx: ModuleContext; library: L
             <div className="actions">
               <button
                 type="button"
+                onClick={() => {
+                  setSending(sending === e.path ? '' : e.path);
+                }}
+              >
+                Send to mind map
+              </button>
+              {sending === e.path && <SendToMap ctx={ctx} entry={e} />}
+              <button
+                type="button"
                 onClick={() => void ctx.app.open(e.source, { heading: e.heading })}
                 disabled={!e.source}
               >
@@ -191,16 +224,4 @@ export function EvidenceShelf({ ctx, library }: { ctx: ModuleContext; library: L
       })}
     </section>
   );
-}
-
-export function FigureImage({ ctx, path }: { ctx: ModuleContext; path: string }) {
-  const image = useRef<HTMLImageElement>(null);
-  useEffect(() => {
-    const src = ctx.vault.fileUrl(path);
-    if (src && image.current) image.current.src = src;
-    return () => {
-      if (src?.startsWith('blob:')) URL.revokeObjectURL(src);
-    };
-  }, [ctx, path]);
-  return <img ref={image} className="evidence-figure" alt="Selected figure" />;
 }

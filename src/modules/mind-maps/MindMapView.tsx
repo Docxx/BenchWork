@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ModuleContext } from '@core/api';
 import type { Markmap } from 'markmap-view';
+import { MapBackground } from './MapBackground';
 import { createCanvas } from './CanvasList';
 import { outlineCanvas } from './boardTools';
 import { countNodes, outlineOf, type OutlineNode } from './outline';
@@ -27,6 +28,7 @@ export function MindMapView({ ctx, path }: { ctx: ModuleContext; path: string | 
   const [outline, setOutline] = useState<OutlineNode | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [reads, setReads] = useState(0);
+  const [background, setBackground] = useState(() => ctx.appearance.current().mapBackground);
   const svg = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -125,15 +127,27 @@ export function MindMapView({ ctx, path }: { ctx: ModuleContext; path: string | 
           type="button"
           onClick={() => {
             const folder = path.split('/').slice(0, -1).join('/');
-            void createCanvas(ctx, folder, outline.text, outlineCanvas(outline)).catch(
-              (error: unknown) => {
-                ctx.app.notify(String(error));
-              },
-            );
+            void createCanvas(ctx, folder, outline.text, {
+              ...outlineCanvas(outline),
+              ...(background ? { background } : {}),
+            }).catch((error: unknown) => {
+              ctx.app.notify(String(error));
+            });
           }}
         >
           Create editable canvas
         </button>
+        <MapBackground
+          value={background}
+          onChange={(colour) => {
+            setBackground(colour);
+            void ctx.appearance
+              .apply({ ...ctx.appearance.current(), mapBackground: colour })
+              .catch((err: unknown) => {
+                ctx.app.notify(String(err));
+              });
+          }}
+        />
       </div>
       {countNodes(outline) === 0 ? (
         <p className="page-empty">
@@ -142,7 +156,26 @@ export function MindMapView({ ctx, path }: { ctx: ModuleContext; path: string | 
       ) : (
         <>
           <p className="hint">Click a branch to go to it in the page. Click a circle to fold it.</p>
-          <svg ref={svg} className="mind-map-area" role="img" aria-label="Mind map" />
+          <svg
+            ref={svg}
+            style={
+              background
+                ? {
+                    backgroundColor: background,
+                    color:
+                      parseInt(background.slice(1, 3), 16) * 0.299 +
+                        parseInt(background.slice(3, 5), 16) * 0.587 +
+                        parseInt(background.slice(5, 7), 16) * 0.114 >
+                      145
+                        ? '#191919'
+                        : '#ffffff',
+                  }
+                : undefined
+            }
+            className="mind-map-area"
+            role="img"
+            aria-label="Mind map"
+          />
         </>
       )}
     </div>

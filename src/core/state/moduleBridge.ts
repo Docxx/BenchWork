@@ -60,10 +60,10 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
     open: (path, options) => state().openPath(path, options?.heading),
     createFolder: (folder, title) =>
       folder === '' ? state().createNotebook(title) : state().createSection(folder, title),
-    createPage: (folder, title, type, content) =>
+    createPage: (folder, title, type, content, options) =>
       type === undefined
-        ? state().createPage(folder, title, content)
-        : state().createTypedPage(folder, type, title, content),
+        ? state().createPage(folder, title, content, options?.background)
+        : state().createTypedPage(folder, type, title, content, options?.background),
     openPage: () => state().page?.path ?? null,
     todayPage: () => state().ensureDay(dayOf(new Date())),
     scheduled: async () => {
@@ -111,10 +111,17 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
       const gap = text === '' || text.endsWith('\n') ? '' : '\n';
       await platform.writeTextAtomic(path, `${text}${gap}${line}`);
     },
-    insertText: (text) => {
+    insertText: (text, citation) => {
       const editor = state().pageEditor?.editor;
       if (!editor || editor.isDestroyed || !editor.isEditable) return false;
-      return editor.chain().focus().insertContent({ type: 'text', text }).run();
+      return editor
+        .chain()
+        .focus()
+        .insertContent([
+          ...(text ? [{ type: 'text', text }] : []),
+          ...(citation ? [{ type: 'citation', attrs: { inner: citation } }] : []),
+        ])
+        .run();
     },
     openView: (id, param) => state().openModuleView(id, param ?? null),
     pageProperties: async (path) => {

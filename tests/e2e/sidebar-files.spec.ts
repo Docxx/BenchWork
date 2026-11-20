@@ -37,6 +37,9 @@ test('tools expand in the sidebar, notebook sizing is adjustable, and folders ac
   const size = await list.evaluate((el) => ({ height: el.clientHeight, content: el.scrollHeight }));
   expect(size.height).toBeGreaterThan(156);
   expect(size.height).toBe(size.content);
+  await tools.getByLabel('Tools list height').selectOption('160');
+  await expect.poll(() => list.evaluate((el) => el.clientHeight)).toBe(160);
+  await tools.getByLabel('Tools list height').selectOption('0');
   await list.getByRole('button').last().scrollIntoViewIfNeeded();
   await expect(tools.getByRole('searchbox')).toBeInViewport();
   await tools.getByRole('searchbox', { name: 'Find a tool' }).fill('cloud');

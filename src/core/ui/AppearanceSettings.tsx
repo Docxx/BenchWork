@@ -1,4 +1,5 @@
-import { useState, type CSSProperties } from 'react';
+import { ToolsHeightChoice } from './SidebarTools';
+import { useRef, useEffect, useState, type CSSProperties } from 'react';
 import { playTimerSound } from '../audio/timerSound';
 import { THEME_EXPERIENCES } from '../settings/themeExperience';
 import { ThemeScene } from './ThemeScene';
@@ -108,6 +109,18 @@ export function AppearanceSettings() {
           <p>{experience?.description ?? 'Your colours, your fonts, your space to think.'}</p>
         </div>
       </section>
+      <fieldset className="field">
+        <legend>Tools menu</legend>
+        <label className="choice">
+          <input
+            type="checkbox"
+            checked={appearance.toolIconBar}
+            onChange={(e) => void setAppearance({ toolIconBar: e.target.checked })}
+          />
+          Show mini tool buttons in the left icon bar
+        </label>
+        <ToolsHeightChoice />
+      </fieldset>
       <PresetPicker />
 
       <fieldset className="field theme-experience-controls">
@@ -410,7 +423,20 @@ export function PresetPicker() {
   const appearance = useApp((s) => s.settings.appearance);
   const setAppearance = useApp((s) => s.setAppearance);
 
-  const choosePreset = (id: ThemePreset) => {
+  const anchor = useRef<{ card: HTMLElement; top: number } | null>(null);
+  useEffect(() => {
+    const target = anchor.current;
+    if (!target) return;
+    const frame = requestAnimationFrame(() => {
+      const pane = target.card.closest('.shell-main');
+      if (pane) pane.scrollTop += target.card.getBoundingClientRect().top - target.top;
+      anchor.current = null;
+    });
+    return () => { cancelAnimationFrame(frame); };
+  }, [appearance.preset]);
+  const choosePreset = (id: ThemePreset, input: HTMLInputElement) => {
+    const card = input.closest('label');
+    if (card) anchor.current = { card, top: card.getBoundingClientRect().top };
     const spec = PRESETS[id];
     void setAppearance({
       preset: id,
@@ -443,8 +469,8 @@ export function PresetPicker() {
                       name="preset"
                       value={id}
                       checked={appearance.preset === id}
-                      onChange={() => {
-                        choosePreset(id);
+                      onChange={(e) => {
+                        choosePreset(id, e.currentTarget);
                       }}
                     />
                     <span

@@ -130,6 +130,24 @@ const settle = () =>
   });
 
 describe('References module', () => {
+  it('lists beyond the sidebar limit and offers the selected reference’s PDF attachment', async () => {
+    const books = Array.from({ length: 105 }, (_, i) => ({
+      id: 'paper' + String(i),
+      title: 'Paper ' + String(i),
+      URL: 'https://example.org/article',
+      attachments: [{ contentType: 'application/pdf', url: 'https://example.org/fulltext' }],
+    }));
+    const { state } = await openVault({ 'references/library.json': JSON.stringify(books) });
+    const view = state().pageViews.find((v) => v.id === 'references.zoteroLibrary');
+    if (!view) throw new Error('Missing Zotero references page');
+    render(<>{view.render(null)}</>);
+    expect(screen.getAllByRole('listitem')).toHaveLength(105);
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'paper104' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+    expect(screen.getByLabelText<HTMLInputElement>('PDF link').value).toBe(
+      'https://example.org/fulltext',
+    );
+  });
   it('names cited works from the library in the vault', async () => {
     const { provider } = await openVault({ 'references/library.json': LIBRARY });
     expect(provider().describe('smith2024')).toEqual({

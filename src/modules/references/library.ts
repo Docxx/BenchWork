@@ -21,6 +21,7 @@ export interface Reference {
   container: string;
   doi: string;
   url: string;
+  pdfUrl?: string;
 }
 
 export interface Library {
@@ -77,6 +78,17 @@ export function parseLibrary(source: string): Library {
       : Array.isArray(item['editor'])
         ? item['editor']
         : [];
+    const attachment = Array.isArray(item['attachments'])
+      ? item['attachments'].find((entry: unknown): entry is Record<string, unknown> => {
+          if (!entry || typeof entry !== 'object') return false;
+          const data = entry as Record<string, unknown>;
+          return (
+            /^https:\/\//i.test(text(data['url'])) &&
+            (data['contentType'] === 'application/pdf' ||
+              /\.pdf(?:[?#]|$)/i.test(text(data['url'])))
+          );
+        })
+      : undefined;
     refs.set(key, {
       key,
       title: text(item['title']),
@@ -85,6 +97,7 @@ export function parseLibrary(source: string): Library {
       container: text(item['container-title']),
       doi: text(item['DOI']),
       url: text(item['URL']),
+      ...(attachment ? { pdfUrl: text(attachment['url']) } : {}),
     });
   }
   return { refs, error: null };

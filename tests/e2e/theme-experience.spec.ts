@@ -83,3 +83,19 @@ test('system reduced motion wins over theme motion and sound previews work', asy
     .poll(() => page.evaluate(() => window.__benchworkMemory?.loadAppSettings()))
     .toMatchObject({ appearance: { preset: 'wizard', timerSound: 'classic' } });
 });
+
+test('selecting Jacaranda keeps its card in place and exposes the mini buttons setting', async ({
+  page,
+}) => {
+  await appearanceSettings(page);
+  await page.getByLabel('Show mini tool buttons in the left icon bar').check();
+  await expect(page.getByRole('navigation', { name: 'Tool shortcuts' })).toBeVisible();
+  const card = page.locator('label.preset-card').filter({ hasText: 'Jacaranda & Indigo' });
+  await card.evaluate((el) => { el.scrollIntoView({ block: 'center' }); });
+  const before = await card.boundingBox();
+  await card.click();
+  await expect(page.locator('html')).toHaveAttribute('data-preset', 'jacaranda');
+  await expect
+    .poll(async () => Math.abs(((await card.boundingBox())?.y ?? 0) - (before?.y ?? 0)))
+    .toBeLessThan(4);
+});

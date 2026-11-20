@@ -230,3 +230,16 @@
     height: 44px;
   }
 }
+
+.tools-height-choice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+}
+.tools-height-choice select {
+  font: inherit;
+  padding: 0.15rem 0.35rem;
+}

@@ -1,11 +1,14 @@
 import { createElement, Fragment } from 'react';
 import { defineModule } from '@core/api';
 import { describe, searchLibrary } from './library';
+import { OutlineBuilder } from './OutlineBuilder';
+import type { BranchOutline } from '../mind-maps/branchOutline';
+import { DraftEvidence } from './DraftEvidence';
 import { LibraryPanel } from './LibraryPanel';
 import { openNote, referenceType } from './notes';
 import { ReferencesSettings } from './SettingsPanel';
 import { LibraryState } from './state';
-import { ReadingDesk } from './ReadingDesk';
+import { ReadingDesk, HighlightToMap } from './ReadingDesk';
 import { evidenceType, READING, type CaptureMode } from './evidence';
 import { manuscriptType } from '../manuscript/manuscripts';
 import { sectionType } from '../manuscript/workspace';
@@ -13,7 +16,7 @@ import { ManuscriptSettings } from '../manuscript/SettingsPanel';
 import { Overview } from '../manuscript/Overview';
 import { PdfReader } from '../handwriting/PdfReader';
 import '../handwriting/handwriting.css';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Library } from 'lucide-react';
 
 /**
  * The References module: citations from a Zotero library, through the CSL
@@ -24,9 +27,29 @@ import { BookOpen } from 'lucide-react';
 export default defineModule({
   async activate(ctx) {
     const library = new LibraryState(ctx);
+    ctx.views.registerPageView({
+      id: 'references.branchOutline',
+      title: 'Branch to writing outline',
+      render: (param) =>
+        param
+          ? createElement(OutlineBuilder, { ctx, outline: JSON.parse(param) as BranchOutline })
+          : 'Select a branch in an editable mind map.',
+    });
+    ctx.views.registerPageView({
+      id: 'references.zoteroLibrary',
+      title: 'Zotero references',
+      render: () => createElement(LibraryPanel, { ctx, library, fullPage: true }),
+      tool: {
+        icon: createElement(Library, { size: 18 }),
+        hint: 'Browse references and download papers',
+      },
+    });
     ctx.pageTypes.register(evidenceType());
     ctx.pageTypes.register(manuscriptType());
-    ctx.pageTypes.register(sectionType());
+    ctx.pageTypes.register({
+      ...sectionType(),
+      renderAside: (path) => createElement(DraftEvidence, { ctx, path }),
+    });
     ctx.files.register({
       id: 'references.pdf',
       extensions: ['.pdf'],
@@ -55,6 +78,17 @@ export default defineModule({
         icon: createElement(BookOpen, { size: 18 }),
         hint: 'PDFs, highlights and linked evidence notes',
       },
+    });
+    ctx.views.registerPageView({
+      id: 'references.mapEvidence',
+      title: 'Send to mind map',
+      render: (param) => createElement(HighlightToMap, { ctx, library, param }),
+    });
+    ctx.reading.register({
+      id: 'references.sendToMap',
+      title: 'Send to mind map',
+      run: (excerpt) =>
+        ctx.app.openView('references.mapEvidence', JSON.stringify({ ...excerpt, mode: 'excerpt' })),
     });
     const modes: [CaptureMode, string][] = [
       ['excerpt', 'Excerpt + comment'],

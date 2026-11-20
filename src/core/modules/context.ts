@@ -199,6 +199,7 @@ export function createModuleContext(
     platform: deps.device,
     log,
     views: {
+      hasPageView: (viewId) => deps.contributions.getState().pageViews.some((v) => v.id === viewId),
       registerSidebarPanel(spec) {
         checkId('Panel', spec.id);
         return contribute(
@@ -488,9 +489,10 @@ export function createModuleContext(
       graph: () => app().graph(),
       open: (path, options) => app().open(path, options),
       createFolder: (folder, title) => app().createFolder(folder, title),
-      createPage: (folder, title, type, content) => app().createPage(folder, title, type, content),
+      createPage: (folder, title, type, content, options) =>
+        app().createPage(folder, title, type, content, options),
       openPage: () => app().openPage(),
-      insertText: (text) => app().insertText(text),
+      insertText: (text, citation) => app().insertText(text, citation),
       todayPage: () => app().todayPage(),
       scheduled: () => app().scheduled(),
       reschedule: (key, start, end) => app().reschedule(key, start, end),

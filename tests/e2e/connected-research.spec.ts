@@ -162,9 +162,13 @@ test('one reading and writing module downloads, deduplicates and files figure ev
     const vault = window.__benchworkMemory;
     if (!vault) throw new Error('Memory vault unavailable');
     vault.addFolder('C:/Vault', {
+      'references/library.json': JSON.stringify([
+        { id: 'figA', title: 'Annotated paper' },
+        { id: 'figB', title: 'Follow-up paper' },
+      ]),
       '.benchwork/config.json': JSON.stringify({
         version: 1,
-        modules: { references: { enabled: true } },
+        modules: { references: { enabled: true }, 'mind-maps': { enabled: true } },
       }),
     });
     vault.queuePick('C:/Vault');
@@ -209,6 +213,8 @@ test('one reading and writing module downloads, deduplicates and files figure ev
   await page.getByRole('button', { name: 'Add subjects or comment' }).click();
   await page.getByLabel('Subjects (comma-separated)').fill("Alzheimer's, Inflammation");
   await page.getByLabel('Evidence title').fill('Inflammation figure');
+  await page.getByLabel('Figure caption').fill('Panel B, tissue section');
+  await page.getByLabel('Citation', { exact: true }).selectOption('figA');
   await page.getByLabel('Your observations').fill('Compare this panel with the other paper.');
   await page.getByRole('button', { name: 'Save evidence note' }).click();
   await expect(page.locator('.page-editor')).toContainText('Compare this panel');
@@ -224,4 +230,109 @@ test('one reading and writing module downloads, deduplicates and files figure ev
   await entry.getByRole('button', { name: /Open source/ }).click();
   await expect(page.locator('.pdf-highlight.chosen')).toBeInViewport();
   await expect(page.locator('.pdf-reader')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Send to mind map' }).click();
+  await page.getByLabel('Map name').fill('Findings');
+  await page.getByRole('button', { name: 'Add evidence card' }).click();
+  const card = page.locator('.react-flow__node').first();
+  await expect(card.getByRole('img', { name: 'Selected figure' })).toBeVisible();
+  await card.getByRole('button', { name: /Open PDF/ }).click();
+  await expect(page.locator('.pdf-highlight.chosen')).toBeInViewport();
+  await desk.click();
+  await page
+    .getByRole('navigation', { name: 'Reading and writing' })
+    .getByRole('button', { name: 'Zotero references' })
+    .click();
+  await page.getByLabel('Compare Annotated paper').check();
+  await page.getByLabel('Compare Follow-up paper').check();
+  await page.getByRole('button', { name: /Compare papers/ }).click();
+  const comparison = page.getByRole('region', { name: 'Paper comparison' });
+  await expect(comparison.getByRole('img', { name: 'Selected figure' })).toBeVisible();
+  await expect(comparison).toContainText('Panel B, tissue section');
+});
+
+test('compare cited figures, map a finding and quote it at the draft cursor', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate((pdf) => {
+    const vault = window.__benchworkMemory;
+    if (!vault) throw new Error('Missing vault');
+    vault.addFolder('C:/Vault', {
+      '.benchwork/config.json': JSON.stringify({
+        version: 1,
+        modules: { references: { enabled: true }, 'mind-maps': { enabled: true } },
+      }),
+      'Papers/article.pdf': pdf,
+      'references/library.json': JSON.stringify([
+        { id: 'a2024', title: 'First paper' },
+        { id: 'b2024', title: 'Second paper' },
+      ]),
+      '.benchwork/modules/references/pdf-citations.json': JSON.stringify({
+        'Papers/article.pdf': 'a2024',
+        'Papers/missing.pdf': 'b2024',
+      }),
+      'Research/Evidence/Observation.md':
+        '---\ntype: evidence\nsource: "[[Papers/article.pdf#page=2&highlight=h]]"\npage: "2"\nhighlightId: h\ncitekey: a2024\nexcerpt: Strong signal in panel B\nsubjects: [inflammation]\n---\n## Notes\nReplicate this finding.\n## Main finding\nThe groups differ.\n',
+      'Lab/Ideas.canvas.json': JSON.stringify({
+        items: [
+          { id: 'r', kind: 'text', text: 'Discussion', x: 0, y: 0 },
+          { id: 's', kind: 'text', text: 'Inflammation', x: 300, y: 0 },
+          { id: 'n', kind: 'text', text: 'Limitations', x: 300, y: 190 },
+        ],
+        links: [
+          { from: 'r', to: 's' },
+          { from: 'r', to: 'n' },
+        ],
+      }),
+    });
+    vault.queuePick('C:/Vault');
+  }, PDF);
+  await page.getByRole('button', { name: 'Open vault' }).click();
+  const desk = page.getByRole('button', { name: 'Reading and writing', exact: true });
+  await desk.click();
+  await page
+    .getByRole('navigation', { name: 'Reading and writing' })
+    .getByRole('button', { name: 'Zotero references' })
+    .click();
+  const list = page.getByRole('list', { name: 'References' }).last();
+  await expect(list.getByRole('button', { name: 'Open PDF' })).toBeVisible();
+  await page.getByLabel('Needs PDF').check();
+  await expect(list.getByRole('listitem')).toHaveCount(1);
+  await expect(list).toContainText('Second paper');
+  await page.getByLabel('Needs PDF').uncheck();
+  await page.getByLabel('Compare First paper').check();
+  await page.getByLabel('Compare Second paper').check();
+  await page.getByRole('button', { name: /Compare papers/ }).click();
+  await expect(page.getByRole('region', { name: 'Paper comparison' })).toContainText(
+    'The groups differ.',
+  );
+  await page.getByRole('button', { name: 'Evidence', exact: true }).click();
+  await page.getByRole('button', { name: 'Send to mind map' }).click();
+  await page
+    .getByRole('combobox', { name: 'Map', exact: true })
+    .selectOption('Lab/Ideas.canvas.json');
+  await page.getByRole('combobox', { name: 'Branch', exact: true }).selectOption('s');
+  await page.getByRole('button', { name: 'Add evidence card' }).click();
+  await expect(page.locator('.react-flow__node').filter({ hasText: 'Observation' })).toContainText(
+    'Replicate this finding.',
+  );
+  await page.locator('.react-flow__node').filter({ hasText: 'Discussion' }).click();
+  await page.getByRole('button', { name: 'Create writing outline' }).click();
+  await page.getByRole('button', { name: 'Move Limitations up' }).click();
+  await page.getByRole('button', { name: 'Create manuscript outline' }).click();
+  await page.getByRole('button', { name: /2\. Inflammation/ }).click();
+  await page.getByRole('button', { name: 'Write section' }).click();
+  const editor = page.locator('.page-editor .tiptap, .page-editor.tiptap').first();
+  await editor.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Before after');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  await page.getByRole('button', { name: 'Insert quotation' }).click();
+  await expect(editor.locator('[data-citation]')).toContainText('First paper');
+  await expect
+    .poll(async () => (await files(page))['Writing/Sections/Inflammation.md'])
+    .toContain('Before “Strong signal in panel B” [@a2024, p. 2]after');
 });

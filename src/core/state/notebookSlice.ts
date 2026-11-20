@@ -37,7 +37,12 @@ export interface NotebookSlice {
   createSection: (parent: string, title?: string) => Promise<string | null>;
   /** With no title, the page is called "Untitled page" (or "Untitled page 2", and so on). */
   /** With `content`, the page starts with those properties and that text. */
-  createPage: (folder: string, title?: string, content?: NewPageContent) => Promise<string | null>;
+  createPage: (
+    folder: string,
+    title?: string,
+    content?: NewPageContent,
+    background?: boolean,
+  ) => Promise<string | null>;
   /**
    * Creates a page of a type a module registered, such as an experiment,
    * and opens it. With no title it is "Untitled experiment", numbered.
@@ -48,6 +53,7 @@ export interface NotebookSlice {
     type: string,
     title?: string,
     content?: NewPageContent,
+    background?: boolean,
   ) => Promise<string | null>;
   renameItem: (path: string, title: string) => Promise<string | null>;
   /** Moves into `folder`; with `index`, also places it there in the folder's order. */
@@ -195,7 +201,7 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
         return path;
       }),
 
-    createPage: (folder, title, content) =>
+    createPage: (folder, title, content, background) =>
       attempt(async () => {
         const path = await createPage(platform, folder, {
           ...(title === undefined ? {} : { title }),
@@ -204,12 +210,14 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
             : { text: (id: string, created: string) => typedPageText(null, content, id, created) }),
           layout: newPageLayout(),
         });
-        await reveal(path);
-        await get().openPage(path);
+        if (!background) {
+          await reveal(path);
+          await get().openPage(path);
+        }
         return path;
       }),
 
-    createTypedPage: (folder, type, title, given) =>
+    createTypedPage: (folder, type, title, given, background) =>
       attempt(async () => {
         const spec = get().pageTypes.find((t) => t.type === type);
         if (!spec) {
@@ -229,8 +237,10 @@ export function createNotebookSlice(ctx: StoreContext): NotebookSlice {
           text: (id, created) => typedPageText(type, content, id, created),
           layout: newPageLayout(),
         });
-        await reveal(path);
-        await get().openPage(path);
+        if (!background) {
+          await reveal(path);
+          await get().openPage(path);
+        }
         return path;
       }),
 

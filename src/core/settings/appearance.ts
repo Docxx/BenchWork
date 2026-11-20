@@ -42,7 +42,8 @@ export type ThemePreset =
   | 'mixtape'
   | 'memphis'
   | 'disco'
-  | 'indian-ocean';
+  | 'indian-ocean'
+  | 'jacaranda';
 export type Scheme = 'light' | 'dark';
 export type SidebarStyle = 'dark' | 'light';
 export type FontChoice = 'serif' | 'sans' | 'mono';
@@ -95,6 +96,8 @@ export interface Appearance {
   treeDensity: Density;
   toolsCollapsed: boolean;
   toolIconBar: boolean;
+  toolsHeight: number;
+  mapBackground: string | null;
   /** Tools kept at the top of the sidebar's Tools list, by view id. */
   pinnedTools: string[];
   notebookHeight: number;
@@ -1613,6 +1616,45 @@ export const PRESETS: Record<ThemePreset, PresetSpec> = {
   memphis: MEMPHIS,
   disco: DISCO,
   'indian-ocean': INDIAN_OCEAN,
+  jacaranda: {
+    name: 'Jacaranda & Indigo',
+    light: {
+      bg: '#faf6f0',
+      surface: '#f1eaf1',
+      border: '#cfc4d1',
+      text: '#272438',
+      muted: '#61596e',
+      accent: '#614490',
+      warnBg: '#fff0d4',
+      warnText: '#714917',
+    },
+    dark: {
+      bg: '#202138',
+      surface: '#2d2c46',
+      border: '#514c69',
+      text: '#faf2ec',
+      muted: '#c4b6d0',
+      accent: '#cdb0fc',
+      warnBg: '#423326',
+      warnText: '#ffcf96',
+    },
+    sidebar: 'dark',
+    darkSidebar: {
+      bg: '#262642',
+      hover: '#363550',
+      active: '#494267',
+      text: '#faf3ed',
+      muted: '#c0b4ce',
+      border: '#49445e',
+    },
+    accents: [
+      { name: 'Jacaranda', value: '#835ca3' },
+      { name: 'Indigo', value: '#566baa' },
+      { name: 'Marigold', value: '#a35016' },
+    ],
+    headingFont: 'serif',
+    bodyFont: 'sans',
+  },
 };
 
 /** The scheme a preset is shown in: its own fixed one, or the one asked for. */
@@ -1680,6 +1722,8 @@ export function defaultAppearance(preset: ThemePreset = 'forest'): Appearance {
     treeDensity: 'roomy',
     toolsCollapsed: false,
     toolIconBar: false,
+    toolsHeight: 0,
+    mapBackground: null,
     pinnedTools: [],
     notebookHeight: 360,
     treeLines: false,
@@ -1767,6 +1811,17 @@ export function parseAppearance(data: unknown): Appearance {
     result.timerVolume = Math.round(Math.min(100, Math.max(0, volume)));
   if (oneOf(record['treeDensity'], ['compact', 'comfortable', 'roomy'] as const))
     result.treeDensity = record['treeDensity'];
+  if (
+    typeof record['toolsHeight'] === 'number' &&
+    Number.isFinite(record['toolsHeight']) &&
+    record['toolsHeight'] > 0
+  )
+    result.toolsHeight = clampWidth(record['toolsHeight'], { min: 120, max: 900 });
+  if (
+    typeof record['mapBackground'] === 'string' &&
+    /^#[0-9a-f]{6}$/i.test(record['mapBackground'])
+  )
+    result.mapBackground = record['mapBackground'];
   if (typeof record['notebookHeight'] === 'number' && Number.isFinite(record['notebookHeight']))
     result.notebookHeight = clampWidth(record['notebookHeight'], { min: 140, max: 900 });
   if (Array.isArray(record['pinnedTools']))
