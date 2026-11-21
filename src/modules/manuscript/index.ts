@@ -2,7 +2,6 @@ import { createElement } from 'react';
 import { defineModule, type ModuleContext } from '@core/api';
 import { exportManuscript, exportMessage, MANUSCRIPT } from './manuscripts';
 import { Overview } from './Overview';
-import { ManuscriptSettings } from './SettingsPanel';
 import { WritingWorkspace } from './WritingWorkspace';
 import { WRITING } from './workspace';
 
@@ -77,9 +76,7 @@ export default defineModule({
       },
     });
 
-    ctx.views.registerSettingsPanel({
-      id: 'manuscript.settings',
-      render: () => createElement(ManuscriptSettings, { ctx }),
-    });
+    // Its settings (Pandoc and citation style) show under Reading and writing,
+    // which this module needs, so they are not listed twice.
   },
 });

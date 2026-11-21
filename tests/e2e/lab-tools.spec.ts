@@ -27,7 +27,7 @@ test('a buffer recipe is scaled and added to the page beside it', async ({ page 
   await tree.getByRole('treeitem', { name: 'Lab' }).click();
   await tree.getByRole('treeitem', { name: 'Plan' }).click();
   await page.getByRole('tab', { name: 'Lab tools' }).click();
-  await page.getByRole('combobox', { name: 'Tool' }).selectOption('recipes');
+  await page.getByRole('combobox', { name: 'Tool', exact: true }).selectOption('recipes');
   await page.getByLabel('Volume to make', { exact: true }).fill('500');
   await page.getByRole('combobox', { name: 'Volume to make unit' }).selectOption('mL');
   const answer = page.getByRole('status', { name: 'Ingredients' });

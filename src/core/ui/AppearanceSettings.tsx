@@ -432,7 +432,9 @@ export function PresetPicker() {
       if (pane) pane.scrollTop += target.card.getBoundingClientRect().top - target.top;
       anchor.current = null;
     });
-    return () => { cancelAnimationFrame(frame); };
+    return () => {
+      cancelAnimationFrame(frame);
+    };
   }, [appearance.preset]);
   const choosePreset = (id: ThemePreset, input: HTMLInputElement) => {
     const card = input.closest('label');

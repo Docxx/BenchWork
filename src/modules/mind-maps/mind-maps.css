@@ -480,6 +480,9 @@ svg.mind-map-area.markmap[style*='background-color'] {
 .shell-main .canvas-board,
 .shell-main .mind-map-area {
   flex: 1;
-  min-height: 180px;
+  /* Fills the space under the tools, but never so little that cards are hard to
+     work with: on a short screen the view scrolls instead. */
+  flex-shrink: 0;
+  min-height: min(480px, 70vh);
   height: auto;
 }

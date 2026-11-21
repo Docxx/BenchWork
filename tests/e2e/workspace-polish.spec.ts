@@ -86,13 +86,13 @@ test('Modules settings offers categories, search and status filters', async ({ p
   await page.getByRole('tab', { name: 'Modules', exact: true }).click();
   await page.getByLabel('Search modules').fill('cloud');
   await expect(page.getByRole('switch', { name: /Cloud storage/ })).toBeVisible();
-  await expect(page.getByRole('switch', { name: /References/ })).toHaveCount(0);
+  await expect(page.getByRole('switch', { name: /Reading and writing/ })).toHaveCount(0);
   await page.getByLabel('Module status').selectOption('off');
   await expect(page.getByText('No modules match these filters.')).toBeVisible();
   await page.getByLabel('Module status').selectOption('all');
   await page.getByLabel('Search modules').fill('');
   await page.getByLabel('Module category').selectOption('Reading and writing');
-  await expect(page.getByRole('switch', { name: /References/ })).toBeVisible();
+  await expect(page.getByRole('switch', { name: /Reading and writing/ })).toBeVisible();
   await expect(page.getByRole('switch', { name: /Cloud storage/ })).toHaveCount(0);
 });
 

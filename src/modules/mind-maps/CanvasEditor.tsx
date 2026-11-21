@@ -816,6 +816,17 @@ function Board({ ctx, path }: { ctx: ModuleContext; path: string }) {
     ];
     setNodes(next);
     changed({ ...latest.current, nodes: next });
+    // A short board, or other cards in the way, can put it out of sight, where it
+    // is not drawn and cannot be written in: bring it into view.
+    if (rect) {
+      const corner = flow.screenToFlowPosition({ x: rect.left, y: rect.top });
+      const far = flow.screenToFlowPosition({ x: rect.right, y: rect.bottom });
+      const seen =
+        x >= corner.x && y >= corner.y && x + size.width <= far.x && y + size.height <= far.y;
+      if (!seen) {
+        void flow.setCenter(x + size.width / 2, y + size.height / 2, { zoom: flow.getZoom() });
+      }
+    }
     return item;
   };
 

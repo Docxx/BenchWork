@@ -130,7 +130,7 @@ test('a chapter draft is exported to Word with its citations', async ({ page }) 
 test('the Manuscript settings say whether Pandoc is installed', async ({ page }) => {
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('tab', { name: 'Modules' }).click();
-  await page.getByText('Configure Manuscript', { exact: true }).click();
+  await page.getByText('Configure Reading and writing', { exact: true }).click();
   await expect(page.getByText('Pandoc 3.6 (in memory) is installed.')).toBeVisible();
   await expect(page.getByText('Chicago author-date (Pandoc’s own)')).toBeVisible();
 });
@@ -294,6 +294,7 @@ test('cards and arrows can be coloured and shaped, and arrows turned round', asy
   );
 
   // The arrow dashed, with heads at both ends, then turned round.
+  await board.locator('.react-flow__edge[data-id="l"]').scrollIntoViewIfNeeded();
   const middle = await board
     .locator('.react-flow__edge[data-id="l"] path.react-flow__edge-path')
     .evaluate((path: SVGPathElement) => {
@@ -445,11 +446,12 @@ test('a page mind map becomes a canvas with editable branches', async ({ page })
   const board = page.locator('.canvas-board');
   await expect
     .poll(() =>
-      board.evaluate((el) =>
-        Math.abs(
-          el.getBoundingClientRect().bottom -
-            (el.closest('main')?.getBoundingClientRect().bottom ?? NaN),
-        ),
+      // It reaches the bottom of the window, leaving no gap; on a short window it
+      // keeps a working height and the view scrolls.
+      board.evaluate(
+        (el) =>
+          (el.closest('main')?.getBoundingClientRect().bottom ?? NaN) -
+          el.getBoundingClientRect().bottom,
       ),
     )
     .toBeLessThan(4);

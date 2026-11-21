@@ -36,6 +36,12 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('a PDF opens with its pages, and text chosen on a page is highlighted', async ({ page }) => {
+  // The page list starts hidden, leaving room to read, and opens from the bar.
+  await expect(page.getByRole('navigation', { name: 'Pages' })).toHaveCount(0);
+  await page
+    .getByRole('toolbar', { name: 'Reading' })
+    .getByRole('button', { name: 'Pages', exact: true })
+    .click();
   await expect(page.getByRole('navigation', { name: 'Pages' }).getByRole('button')).toHaveCount(2);
   // Choose the first line of text, as dragging over it would.
   await page.evaluate(() => {

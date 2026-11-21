@@ -91,7 +91,9 @@ test('selecting Jacaranda keeps its card in place and exposes the mini buttons s
   await page.getByLabel('Show mini tool buttons in the left icon bar').check();
   await expect(page.getByRole('navigation', { name: 'Tool shortcuts' })).toBeVisible();
   const card = page.locator('label.preset-card').filter({ hasText: 'Jacaranda & Indigo' });
-  await card.evaluate((el) => { el.scrollIntoView({ block: 'center' }); });
+  await card.evaluate((el) => {
+    el.scrollIntoView({ block: 'center' });
+  });
   const before = await card.boundingBox();
   await card.click();
   await expect(page.locator('html')).toHaveAttribute('data-preset', 'jacaranda');
