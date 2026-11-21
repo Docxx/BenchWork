@@ -294,6 +294,11 @@ test('compare cited figures, map a finding and quote it at the draft cursor', as
     .click();
   const list = page.getByRole('list', { name: 'References' }).last();
   await expect(list.getByRole('button', { name: 'Open PDF' })).toBeVisible();
+  // Each reference reads as plain text, not filled as a main button.
+  await expect(list.locator('.library-item').first()).toHaveCSS(
+    'background-color',
+    'rgba(0, 0, 0, 0)',
+  );
   await page.getByLabel('Needs PDF').check();
   await expect(list.getByRole('listitem')).toHaveCount(1);
   await expect(list).toContainText('Second paper');

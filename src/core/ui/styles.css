@@ -2925,7 +2925,9 @@ button.backlink:focus-visible {
   padding: 0;
 }
 
-.library-item {
+/* Also as the first button in its row, which would otherwise be filled as the main action. */
+.library-item,
+.library-item:first-child {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
