@@ -28,12 +28,12 @@ test('supports off-edge alignment, clean fonts, save as and portable lab illustr
   await expect(page.getByLabel('Template name', { exact: true })).toHaveValue('Drug treatment');
   await page.getByRole('button', { name: 'Lab images', exact: true }).click();
   const gallery = page.getByRole('dialog', { name: 'Add lab image', exact: true });
-  await expect(gallery.getByRole('button', { name: 'Add Fruit fly', exact: true })).toBeVisible();
+  await expect(gallery.getByRole('button', { name: 'Add DNA helix', exact: true })).toBeVisible();
   await page.screenshot({
     path: info.outputPath('lab-illustration-collection.png'),
     fullPage: true,
   });
-  await gallery.getByRole('button', { name: 'Add Fruit fly', exact: true }).click();
+  await gallery.getByRole('button', { name: 'Add DNA helix', exact: true }).click();
   await expect(gallery).not.toBeVisible();
   await page.getByRole('button', { name: 'Save template', exact: true }).click();
   const saved = await page.evaluate(
@@ -57,7 +57,7 @@ test('supports off-edge alignment, clean fonts, save as and portable lab illustr
     await image.decode();
     return image.naturalWidth;
   });
-  expect(editorWidth).toBeGreaterThan(1500);
+  expect(editorWidth).toBe(384);
   await page.getByRole('button', { name: 'Select Text: OreR drug treatment', exact: true }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
   await page.screenshot({ path: info.outputPath('smooth-font-and-selection.png'), fullPage: true });

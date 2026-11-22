@@ -4,7 +4,6 @@ import {
   LayoutGrid,
   Palette,
   Puzzle,
-  RefreshCw,
   Search,
   Sparkles,
   Wrench,
@@ -176,13 +175,6 @@ function HowItWorks() {
           can open it and nothing is locked away.
         </span>
       </li>
-      <li>
-        <RefreshCw aria-hidden />
-        <span>
-          <strong>Your devices, kept in step.</strong> Sync the vault folder with Syncthing, or any
-          folder sync, to have it on your computer and tablet.
-        </span>
-      </li>
     </ul>
   );
 }
@@ -205,10 +197,7 @@ function VaultStep() {
   }
   return (
     <>
-      <p>
-        Make a new vault in an empty folder, or open one you already have, such as one synced from
-        another device.
-      </p>
+      <p>Make a new vault in an empty folder, or open one you already have.</p>
       {notice !== null && (
         <p className="notice" role="alert">
           {notice}

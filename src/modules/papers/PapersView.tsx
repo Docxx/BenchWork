@@ -118,7 +118,7 @@ function TopicForm({
       <input
         id={`${id}-name`}
         value={name}
-        placeholder="Tau in flies"
+        placeholder="Circadian rhythms"
         onChange={(e) => {
           setName(e.target.value);
         }}
@@ -127,7 +127,7 @@ function TopicForm({
       <input
         id={`${id}-query`}
         value={query}
-        placeholder="tau AND (Drosophila OR fly)"
+        placeholder="circadian AND sleep"
         onChange={(e) => {
           setQuery(e.target.value);
         }}

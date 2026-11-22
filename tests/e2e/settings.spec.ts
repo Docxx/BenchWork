@@ -95,3 +95,10 @@ test('more themes, the page colour and pattern, and widths can be chosen', async
   await page.keyboard.press('Home');
   await expect.poll(() => token('--sidebar-width')).toBe('260px');
 });
+
+test('Sync shows only the development placeholder', async ({ page }) => {
+  await page.getByRole('tab', { name: 'Sync' }).click();
+  const panel = page.getByRole('tabpanel');
+  await expect(panel).toHaveText('Under development');
+  await expect(panel.locator('button, input, summary')).toHaveCount(0);
+});

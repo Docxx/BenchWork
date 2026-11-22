@@ -98,7 +98,7 @@ function ToolsWidget() {
   if (tools.length === 0) {
     return (
       <>
-        <p className="hint">No tools yet. Modules add them, such as Tasks and Inventory.</p>
+        <p className="hint">No tools yet. Modules add them, such as Tasks and Lab Tools.</p>
         <button
           type="button"
           className="quiet"

@@ -21,22 +21,12 @@ test('choosing Research switches on the research modules', async ({ page }) => {
     () => window.__benchworkMemory?.snapshot()['.benchwork/config.json'] ?? '',
   );
   const modules = (JSON.parse(config) as { modules: Record<string, { enabled: boolean }> }).modules;
-  for (const id of [
-    'lab-notebook',
-    'research',
-    'references',
-    'inventory',
-    'tasks',
-    'handwriting',
-  ]) {
+  for (const id of ['lab-notebook', 'research', 'references', 'tasks', 'handwriting']) {
     expect(modules[id]?.enabled).toBe(true);
   }
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('tab', { name: 'Modules' }).click();
-  await expect(page.getByRole('switch', { name: /Inventory/ })).toHaveAttribute(
-    'aria-checked',
-    'true',
-  );
+  await expect(page.getByRole('switch', { name: /Inventory|Fly Room/i })).toHaveCount(0);
 });
 
 test('Just notes switches nothing on, and packs are there later in Settings', async ({ page }) => {

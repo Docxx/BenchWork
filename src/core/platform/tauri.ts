@@ -4,12 +4,6 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open } from '@tauri-apps/plugin-dialog';
 import { PlatformError } from './errors';
 import type {
-  NativeSyncAdapter,
-  SyncConnection,
-  SyncHostStatus,
-  SyncInvitation,
-  SyncPairing,
-  SyncReport,
   HttpRequest,
   HttpResponse,
   DeviceKind,
@@ -254,21 +248,6 @@ export class TauriAdapter implements PlatformAdapter {
       if (result.error) throw new Error(result.error);
     },
   };
-  readonly relay: import('./types').RelayAdapter = {
-    exportDetails: (text) => call<string>('relay_export_details', () => ({ text })),
-    request: (endpoint, certificate, body) =>
-      call<string>('relay_request', () => ({ input: { endpoint, certificate, body } })),
-    apply: (path, expected, bytes) =>
-      call<boolean>('relay_apply', () => ({ path: normaliseVaultPath(path), expected, bytes })),
-    account: {
-      relay: () => call<{ endpoint: string; certificate: string; device: string }>('account_relay'),
-      deriveKey: (password, salt, kdf) =>
-        call<string>('account_derive_key', () => ({
-          input: { password, salt, m: kdf.m, t: kdf.t, p: kdf.p },
-        })),
-      prepareFolder: (name) => call<string>('account_prepare_folder', () => ({ name })),
-    },
-  };
   readonly labelBluetooth = nativeLabelBluetooth();
   async openFeedbackEmail(subject: string, body: string): Promise<void> {
     const bridge = window.BenchWorkAndroid;
@@ -277,36 +256,6 @@ export class TauriAdapter implements PlatformAdapter {
       if (result.error) throw new Error(result.error);
     } else await call<undefined>('open_feedback_email', () => ({ subject, body }));
   }
-  readonly nativeSync: NativeSyncAdapter = {
-    localAddress: () => call<string>('native_sync_ip'),
-    start: (ip, otherSyncStopped) =>
-      call<SyncHostStatus>('native_sync_start', () => ({ ip, otherSyncStopped })),
-    stop: async () => {
-      await call('native_sync_stop');
-    },
-    status: () => call<SyncHostStatus>('native_sync_status'),
-    invitation: () => call<SyncPairing>('native_sync_invitation'),
-    exportInvitation: (text) => call<string>('native_sync_export_invitation', () => ({ text })),
-    readInvitation: (source) => {
-      if (source.startsWith('content:') && window.BenchWorkAndroid) {
-        const result = JSON.parse(window.BenchWorkAndroid.readSyncPairing(source)) as {
-          invitation?: SyncInvitation;
-          error?: string;
-        };
-        if (result.error || !result.invitation)
-          return Promise.reject(new Error(result.error ?? 'Invalid pairing file'));
-        return Promise.resolve(result.invitation);
-      }
-      return call<SyncInvitation>('native_sync_read_invitation', () => ({ source }));
-    },
-    join: (invitation, name) =>
-      call<SyncConnection>('native_sync_join', () => ({ invitation, name })),
-    sync: (connection, otherSyncStopped) =>
-      call<SyncReport>('native_sync_run', () => ({ connection, otherSyncStopped })),
-    revoke: async () => {
-      await call('native_sync_revoke');
-    },
-  };
   readonly materials: MaterialFiles = {
     importFile: (source, folder) =>
       call<string>('import_material_file', () => ({ source, folder: normaliseVaultPath(folder) })),

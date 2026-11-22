@@ -198,7 +198,7 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
     if (imageGalleryOpen && !imageDialog.current?.open) imageDialog.current?.showModal();
     if (!imageGalleryOpen) imageDialog.current?.close();
   }, [imageGalleryOpen]);
-  const act = async (run: () => Promise<void>) => {
+  const act = async (run: () => void | Promise<void>) => {
     setBusy(true);
     setError('');
     setNotice('');
@@ -1670,14 +1670,14 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                 aria-label={`Add ${image.name}`}
                 disabled={busy}
                 onClick={() =>
-                  void act(async () => {
+                  void act(() => {
                     const element = {
                       ...newLabelElement('image'),
                       x: Math.max(0, design.width - 12),
                       y: Math.max(0, (design.height - 10) / 2),
                       width: Math.min(10, design.width),
                       height: Math.min(10, design.height),
-                      image: await labImagePng(image.id),
+                      image: labImagePng(image.id),
                     };
                     change({ elements: [...design.elements, element] });
                     setSelected(element.id);

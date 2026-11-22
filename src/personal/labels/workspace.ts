@@ -50,17 +50,7 @@ export function labelWorkspace(ctx: ModuleContext): LabelWorkspace {
     records: async () => {
       const items = (await ctx.app.items())
         .filter((i) =>
-          [
-            'sample',
-            'reagent',
-            'antibody',
-            'stock',
-            'dataset',
-            'experiment',
-            'fly-stock',
-            'flystock',
-            'flycross',
-          ].includes(i.type),
+          ['sample', 'reagent', 'antibody', 'stock', 'dataset', 'experiment'].includes(i.type),
         )
         .slice(0, 500);
       return Promise.all(

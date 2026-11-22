@@ -26,7 +26,7 @@ test('guides someone new from welcome to Home, and runs again from Settings', as
   await guide.getByRole('button', { name: /^Research/ }).click();
   await expect(guide.getByRole('status')).toHaveText('Research switched on.');
   await guide.getByRole('button', { name: 'Choose one by one' }).click();
-  await expect(guide.getByRole('switch', { name: 'Inventory' })).toHaveAttribute(
+  await expect(guide.getByRole('switch', { name: 'Tasks' })).toHaveAttribute(
     'aria-checked',
     'true',
   );

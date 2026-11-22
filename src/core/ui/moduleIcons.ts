@@ -1,12 +1,10 @@
 import {
   BookOpen,
   BookMarked,
-  Boxes,
   CalendarDays,
   ChartNoAxesCombined,
   ClipboardList,
   Cloud,
-  Dna,
   FilePenLine,
   FlaskConical,
   FolderKanban,
@@ -36,7 +34,6 @@ const ICONS: Record<string, LucideIcon> = {
   'protocol-runner': ClipboardList,
   'sample-tracker': TestTubes,
   'equipment-planner': Wrench,
-  inventory: Boxes,
   'lab-tools': Timer,
   references: BookMarked,
   papers: BookOpen,
@@ -57,7 +54,6 @@ const ICONS: Record<string, LucideIcon> = {
   teaching: Presentation,
   'study-arcade': GraduationCap,
   'theme-studio': Palette,
-  flyroom: Dna,
   labels: LayoutDashboard,
 };
 

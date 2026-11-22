@@ -1,18 +1,4 @@
-/** Offline lab artwork: original paths and the user-provided fruit-fly silhouette. */
-import fruitFly from './images/fruit-fly.png?inline';
 export const labImages = [
-  {
-    id: 'fruit-fly',
-    name: 'Fruit fly',
-    category: 'Biology',
-    paths: [],
-  },
-  {
-    id: 'fly-vial',
-    name: 'Fly vial',
-    category: 'Biology',
-    paths: ['M21 10H43V17H21ZM23 17V49Q23 55 32 55Q41 55 41 49V17', 'M24 45H40M24 49H40'],
-  },
   {
     id: 'dna',
     name: 'DNA helix',
@@ -117,7 +103,6 @@ export const labImages = [
 ] as const;
 export function LabImage({ id }: { id: string }) {
   const image = labImages.find((i) => i.id === id);
-  if (id === 'fruit-fly') return <img src={fruitFly} alt="" aria-hidden="true" />;
   return (
     <svg
       viewBox="0 0 64 64"
@@ -128,15 +113,13 @@ export function LabImage({ id }: { id: string }) {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      {id === 'fly-vial' && <image href={fruitFly} x={24} y={25} width={16} height={11} />}
       {image?.paths.map((d, i) => (
         <path key={i} d={d} />
       ))}
     </svg>
   );
 }
-export async function labImagePng(id: string): Promise<string> {
-  if (id === 'fruit-fly') return fruitFly;
+export function labImagePng(id: string): string {
   const image = labImages.find((i) => i.id === id);
   if (!image) throw new Error('Unknown lab illustration.');
   const c = document.createElement('canvas');
@@ -150,11 +133,5 @@ export async function labImagePng(id: string): Promise<string> {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   for (const path of image.paths) ctx.stroke(new Path2D(path));
-  if (id === 'fly-vial') {
-    const fly = new Image();
-    fly.src = fruitFly;
-    await fly.decode();
-    ctx.drawImage(fly, 24, 25, 16, 11);
-  }
   return c.toDataURL('image/png');
 }

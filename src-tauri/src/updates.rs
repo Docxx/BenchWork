@@ -378,7 +378,7 @@ mod tests {
         std::fs::write(&path, b"verified").unwrap();
         *updates.ready.lock().unwrap() = Some(Ready {
             path: path.clone(),
-            hash: crate::native_sync::files::hash(b"verified"),
+            hash: crate::file_info::sha256(&path).unwrap(),
         });
         assert!(updates.installer().is_ok());
         std::fs::write(path, b"tampered").unwrap();

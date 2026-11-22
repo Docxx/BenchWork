@@ -6,9 +6,6 @@ import { AppearanceSettings } from './AppearanceSettings';
 import { BackupSettings } from './BackupSettings';
 import { useApp } from './AppStoreContext';
 import { ModulesPanel } from './ModulesPanel';
-import { DesktopSyncSettings } from './DesktopSyncSettings';
-import { RelaySyncSettings } from './RelaySyncSettings';
-import { AccountSettings } from './AccountPanel';
 import { AppUpdates } from './AppUpdates';
 import { APP_VERSION, BUILD_ID, PREVIEW_BUILD } from '../feedback/report';
 
@@ -94,19 +91,7 @@ export function SettingsPage({ vault }: { vault: OpenVault }) {
         {tab === 'general' && <SidebarSettings />}
         {tab === 'appearance' && <AppearanceSettings />}
         {tab === 'vault' && <VaultSettings vault={vault} />}
-        {tab === 'sync' && (
-          <>
-            <AccountSettings />
-            <details>
-              <summary>Advanced: Cloud sync set up by hand</summary>
-              <RelaySyncSettings />
-            </details>
-            <details open>
-              <summary>Local network Desktop Sync</summary>
-              <DesktopSyncSettings />
-            </details>
-          </>
-        )}
+        {tab === 'sync' && <p>Under development</p>}
         {tab === 'modules' && <ModulesPanel />}
       </div>
     </section>

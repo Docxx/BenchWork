@@ -33,6 +33,8 @@ describe('built-in modules', () => {
     const { registry } = await builtInRegistry();
     expect(registry.store.getState().broken).toEqual([]);
     const all = registry.store.getState().modules;
+    expect(registry.get('flyroom')).toBeUndefined();
+    expect(registry.get('inventory')).toBeUndefined();
     expect(all.length).toBeGreaterThan(5);
     expect(all.every((m) => m.status === 'off')).toBe(true);
   });
