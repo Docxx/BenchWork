@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { ModuleContext } from '@core/api';
+import { LinesTab } from './LinesTab';
 import { CrossesTab } from './CrossesTab';
 import { emptyPlan, PlannerTab, type Plan } from './PlannerTab';
 import { StocksTab } from './StocksTab';
@@ -10,6 +11,7 @@ const TABS = [
   { id: 'stocks', label: 'Stocks' },
   { id: 'planner', label: 'Cross planner' },
   { id: 'crosses', label: 'Crosses' },
+  { id: 'lines', label: 'Transgenic lines' },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
@@ -78,6 +80,7 @@ export function FlyRoomView({
             </label>
           </div>
         </div>
+        {tab === 'lines' && <LinesTab store={store} />}
         {tab === 'stocks' && (
           <StocksTab
             ctx={ctx}

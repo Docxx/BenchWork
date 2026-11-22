@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { ModuleContext } from '@core/api';
 import { DEFAULT_MARKERS, type Marker } from './genetics';
+import { LINE_FOLDER, LINE_KIND, readLine, type SavedLine, type LinePlan } from './lines';
 import { DEFAULT_LOOK, parseLook, type Look } from './look';
 import {
   CROSS_FOLDER,
@@ -76,14 +77,16 @@ export function parseSettings(raw: unknown): FlySettings {
 const SETTINGS = 'settings.json';
 
 interface Snapshot {
+  lines: SavedLine[];
   stocks: Stock[];
   crosses: Cross[];
   settings: FlySettings;
   loaded: boolean;
 }
 
-function kindOf(path: string): 'stock' | 'cross' | null {
+function kindOf(path: string): 'stock' | 'cross' | 'line' | null {
   const lower = path.toLowerCase();
+  if (lower.endsWith(`.${LINE_KIND}.yaml`)) return 'line';
   if (lower.endsWith(`.${STOCK_KIND}.yaml`)) return 'stock';
   if (lower.endsWith(`.${CROSS_KIND}.yaml`)) return 'cross';
   return null;
@@ -97,10 +100,17 @@ const byName = (a: { name: string }, b: { name: string }) =>
  * as their files change, and Fly room's settings.
  */
 export class FlyStore {
+  private lines = new Map<string, SavedLine>();
   private stocks = new Map<string, Stock>();
   private crosses = new Map<string, Cross>();
   private listeners = new Set<() => void>();
-  private snap: Snapshot = { stocks: [], crosses: [], settings: defaultSettings(), loaded: false };
+  private snap: Snapshot = {
+    lines: [],
+    stocks: [],
+    crosses: [],
+    settings: defaultSettings(),
+    loaded: false,
+  };
 
   constructor(private readonly ctx: ModuleContext) {}
 
@@ -116,6 +126,7 @@ export class FlyStore {
   private changed(patch: Partial<Snapshot> = {}): void {
     this.snap = {
       ...this.snap,
+      lines: [...this.lines.values()].sort(byName),
       stocks: [...this.stocks.values()].sort(byName),
       crosses: [...this.crosses.values()].sort(
         (a, b) => b.setUp.localeCompare(a.setUp) || byName(a, b),
@@ -141,7 +152,7 @@ export class FlyStore {
 
   private async read(path: string): Promise<void> {
     const kind = kindOf(path);
-    const map = kind === 'stock' ? this.stocks : this.crosses;
+    const map = kind === 'line' ? this.lines : kind === 'stock' ? this.stocks : this.crosses;
     try {
       if (!(await this.ctx.vault.exists(path))) {
         map.delete(path);
@@ -149,7 +160,8 @@ export class FlyStore {
       }
       const { data, error } = await this.ctx.vault.readRecord(path);
       if (error !== null) return;
-      if (kind === 'stock') this.stocks.set(path, readStock(path, data));
+      if (kind === 'line') this.lines.set(path, readLine(path, data));
+      else if (kind === 'stock') this.stocks.set(path, readStock(path, data));
       else this.crosses.set(path, readCross(path, data));
     } catch {
       map.delete(path);
@@ -165,6 +177,28 @@ export class FlyStore {
   async update(path: string, changes: Record<string, unknown>): Promise<void> {
     await this.ctx.vault.updateRecord(path, changes);
     await this.refresh([path]);
+  }
+
+  async saveLine(plan: LinePlan, path?: string): Promise<string> {
+    const data = {
+      template: !!plan.template,
+      name: plan.name.trim(),
+      start: plan.start,
+      steps: plan.steps,
+    };
+    if (path) {
+      await this.update(path, data);
+      return path;
+    }
+    await this.ctx.vault.ensureDir(LINE_FOLDER);
+    const created = await this.ctx.vault.createRecord(
+      LINE_FOLDER,
+      safeName(data.name),
+      LINE_KIND,
+      data,
+    );
+    await this.refresh([created]);
+    return created;
   }
 
   async createStock(name: string, data: Record<string, unknown>): Promise<string> {

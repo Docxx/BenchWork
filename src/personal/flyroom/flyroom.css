@@ -541,3 +541,30 @@ button.fly-tag-filter[aria-pressed='true'] {
 .genotype.line .genotype-one {
   white-space: nowrap;
 }
+.fly-line-form {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.fly-line-timeline {
+  list-style: none;
+  padding: 0;
+}
+.fly-line-timeline [aria-current='step'] {
+  border-left: 4px solid var(--accent);
+}
+.fly-line-timeline ul {
+  margin-bottom: 0.8rem;
+}
+.fly-line-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.fly-line-collection {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin: 0.75rem 0;
+  min-width: 0;
+}

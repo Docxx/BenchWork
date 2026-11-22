@@ -111,3 +111,50 @@ test('tags filter stocks, status changes from the list, and the views change', a
   await view.getByRole('tab', { name: 'Cards' }).click();
   await expect(view.getByRole('list', { name: 'Progeny' }).getByRole('listitem')).toHaveCount(8);
 });
+test('runs a sequential line plan, carries a shortfall and reuses a clean template', async ({
+  page,
+}) => {
+  await page.getByRole('tab', { name: 'Transgenic lines' }).click();
+  await page.getByRole('button', { name: 'New line plan' }).click();
+  await page.getByLabel('Line name').fill('Test line');
+  await page.getByLabel('Planned start').fill('2020-01-01');
+  await page.getByLabel('Step name').fill('First collection');
+  await page.getByRole('button', { name: 'Add step' }).click();
+  await page.getByLabel('Step name').nth(1).fill('Review');
+  await page.getByLabel('Estimated days').nth(1).fill('2');
+  await page.getByRole('button', { name: 'Add collection' }).first().click();
+  await page.getByLabel('Collect', { exact: true }).selectOption('Virgin females');
+  await page.getByLabel('Number needed').fill('5');
+  await page.getByLabel('Source stock or vial').fill('Vial A');
+  await page.getByLabel('Why collect these flies?').fill('For the review');
+  await page.getByLabel('Needed for step').selectOption({ label: 'Step 2 · Review' });
+  await page.getByRole('button', { name: 'Save plan', exact: true }).click();
+  const queue = page.getByRole('region', { name: 'Fly Room work queue' });
+  await expect(queue).toContainText('First collection');
+  await page.getByLabel('Actual collected').fill('3');
+  await page.getByRole('button', { name: 'Save counts' }).click();
+  await expect
+    .poll(() => file(page, 'Fly room/Transgenic lines/Test line.flyline.yaml'))
+    .toContain('actual:');
+  await page.getByLabel('Shortfall of 2').selectOption('carry');
+  await page.getByRole('button', { name: 'Mark step complete' }).click();
+  await expect(queue).toContainText('Review');
+  await expect(queue).not.toContainText('2020-01-01');
+  await page.getByLabel('Actual collected (target 2)').fill('1');
+  await page.getByLabel('Shortfall of 1').selectOption('note');
+  await page.getByLabel('Shortfall note').fill('Reviewed available flies');
+  await page.getByRole('button', { name: 'Mark step complete' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Plan complete' })).toBeVisible();
+  await expect(queue).toContainText('No pending line steps');
+  const timetable = page.getByRole('list', { name: 'Line timetable' });
+  await expect(timetable.getByRole('link', { name: 'Review' }).first()).toBeVisible();
+  await expect(timetable).toContainText('Collected 1 of 2');
+  await expect(timetable).toContainText('Reviewed available flies');
+  await page.getByRole('button', { name: 'Save as reusable template' }).click();
+  await page.getByRole('button', { name: 'Save template' }).click();
+  await page.getByRole('button', { name: 'Start plan from template' }).click();
+  await page.getByLabel('Line name').fill('Second line');
+  await page.getByRole('button', { name: 'Save plan', exact: true }).click();
+  await expect(queue).toContainText('Second line');
+  await expect(page.getByLabel('Actual collected (target 5)')).toHaveValue('');
+});
