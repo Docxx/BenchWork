@@ -89,6 +89,23 @@ class BackupTest(unittest.TestCase):
             ],
         )
 
+    def test_database_path_with_uri_characters(self):
+        database = Path(self.dir.name) / 'relay #1%.sqlite'
+        self.database.rename(database)
+        target = Path(self.dir.name) / 'copy.sqlite'
+        backup.consistent_copy(database, target)
+        copy = sqlite3.connect(target)
+        try:
+            self.assertEqual(copy.execute('SELECT COUNT(*) FROM events').fetchone()[0], 50)
+        finally:
+            copy.close()
+
+    def test_missing_database_is_not_created(self):
+        database = Path(self.dir.name) / 'missing.sqlite'
+        with self.assertRaises(sqlite3.OperationalError):
+            backup.consistent_copy(database, Path(self.dir.name) / 'copy.sqlite')
+        self.assertFalse(database.exists())
+
 
 if __name__ == '__main__':
     unittest.main()

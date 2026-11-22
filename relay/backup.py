@@ -33,7 +33,7 @@ SUFFIX = '.tar.gz'
 
 def consistent_copy(database: Path, target: Path) -> None:
     """Copies a live SQLite database with the online backup API, then checks it."""
-    source = sqlite3.connect(f'file:{database}?mode=ro', uri=True, timeout=30)
+    source = sqlite3.connect(f'{database.resolve().as_uri()}?mode=ro', uri=True, timeout=30)
     try:
         copy = sqlite3.connect(target)
         try:

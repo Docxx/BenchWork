@@ -1,6 +1,6 @@
 # Sharing BenchWork previews
 
-Share the Windows `BenchWork_0.15.0_x64-setup.exe` installer with testers. They do
+Share the Windows `BenchWork_<version>_x64-setup.exe` installer with testers. They do
 not need the source repository, Node, Rust or a development server. This build
 targets Windows x64 and uses WebView2. The installer can install the runtime if
 it is missing, which needs an internet connection. The installer is currently

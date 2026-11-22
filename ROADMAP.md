@@ -1,347 +1,84 @@
 # BenchWork roadmap
 
-Current phase: **Phase 7**
+Current phase: **Phase 7: Own sync and co-editing**.
 
-## Phase 0: Skeleton
-
-- [x] Tauri 2 + React + TypeScript project scaffold (pnpm, ESLint, Prettier, Vitest)
-- [x] Open or create a vault folder; remember last vault
-- [x] File tree sidebar
-- [x] Settings page (theme, vault options)
-- [x] Module registry, manifest format and src/core/api stub
-- [x] Modules panel with on/off toggles, saved to .benchwork/config.json
-- [x] Dummy module proving toggle on/off without touching vault files
-- [x] Exit check: app builds on desktop, dummy module toggles cleanly
-
-## Phase 1: Notes core
-
-- [x] Notebook > Section > Page sidebar (folders and files)
-- [x] TipTap block editor with slash menu, no visible Markdown, saved as Markdown
-- [x] Editor document model on Yjs from the start (co-editing ready, single user for now)
-- [x] Daily notebook: one page per day, linking into project notebooks
-- [x] Paste screenshots, drag in files, autosave
-- [x] Sample notebook created on first launch
-- [x] YAML frontmatter with stable UUIDs
-- [x] Wikilinks, backlinks, tags
-- [x] Templates and daily note
-- [x] SQLite index with FTS5 full-text search
-- [x] Local snapshots for recovery
-- [x] Spike: pen canvas prototype (pressure, palm rejection) to test ink latency (Go: see spikes/ink/RESULTS.md)
-- [x] Exit check: lab notes written and searched on desktop
-
-## Phase 2: Research core
-
-- [x] Projects (folder + project.md hub)
-- [x] Experiment note type
-- [x] Dataset records (.dataset.yaml) with SHA-256 checksums and external paths
-- [x] Attachments with copy-or-link prompt (size threshold in Settings, default 50 MB)
-- [x] CSV, Excel, image and PDF previews
-- [x] Exit check: an experiment links to its data and both appear in search
-
-## Phase 3: First modules
-
-- [x] Lab notebook module
-- [x] References module (Zotero)
-- [x] Exit check: daily pages with citations from the Zotero library
-
-## Phase 4: Android tablet and ink
-
-Back on 28 Oct 2026, after 0.6.0. Pen writing goes on free layout pages and in ink blocks, so there is no separate canvas page type.
-
-- [x] Ink files (`.ink.json`), stroke drawing and palm rejection
-- [x] Drawing surface and pen toolbar (pen, highlighter, eraser)
-- [x] Core pen writing: ink blocks in document pages, ink boxes on free layout pages
-- [x] Tablet layout: touch targets, sliding sidebar, quick capture
-- [x] Android tablet build (Galaxy Tab S10), with All files access and a vault folder browser
-- [x] Folder sync via Syncthing (PC and tablet) with conflict handling
-- [x] Handwriting module (advanced ink: lasso, shapes)
-- [x] Exit check: a note started on desktop is finished with a pen on the tablet
-
-## Phase 5: Writing and planning
-
-- [x] Manuscript (Pandoc export)
-- [x] Planner (Gantt)
-- [x] Mind maps and canvas
-- [x] Data viewer: CSV and Excel light editing (cells, columns, simple formulas), quick plots
-- [x] Exit check: a chapter draft exported to Word with formatted citations
-
-## Between phases: new look and free layout (0.6.0)
-
-- [x] New look: themes, accent colour, fonts, text size, spacing, page width, light or dark
-- [x] Sidebar and side panel (outline, linked from), both resizable
-- [x] Free layout pages: boxes placed anywhere, sticky notes, chosen per page with a per-vault default
-- [x] Toolbar above pages: Home and Insert, can be hidden
-- [x] Page colour and pattern (plain, dots, lines, grid)
-- [x] Short opening animation
+Only unfinished work is listed here. Completed work remains in Git history;
+architecture is in [SPEC.md](SPEC.md) and feature guides are in `docs/`.
 
 ## Phase 6: Lab tools and polish
 
-Planned 28 Oct 2026. Syncthing keeps devices in step, so BenchWork's own sync moves to Phase 7.
-
-- [x] 6a. References Library panel folded until opened
-- [x] 6a. Vault backups: dated copies of the whole vault on a schedule, and restore
-- [x] 6b. Tasks and Kanban module: checklists from every page, due dates, a board
-- [x] 6c. Inventory module: stocks, reagents, antibodies, fly stocks and crosses, flip reminders
-- [x] 6d. PDF reading with the pen: highlights and ink in a sidecar file, the PDF untouched
-- [x] 6e. Handwriting to text on the tablet (ML Kit), found by search on every device
-- [x] 6f. Analysis bridge module: run a Python script on a dataset and attach its outputs (PC only)
-- [x] 6g. First-run setup with module packs (Research, General notes)
 - [ ] Exit check: a week of lab work: flips and tasks on today's page, a paper annotated with the pen on the tablet and its notes found on the PC, analysis outputs attached to a dataset, and a backup restored
 
 ## Tweaks before Phase 7
 
-Planned 30 Oct 2026, released as 0.9.0.
-
-- [x] Home page, opened at start, with a Home button; cards can be moved and hidden
-- [x] Tools in the sidebar and on Home, a Canvases list, and a mind map button on every page
-- [x] Lab tools module: calculators for solutions, DNA, protein and cells, units, recipes and timers
-- [x] Latest papers module: topics followed through Europe PMC, the app's first use of the internet
-- [x] Canvas styles: colours, borders, shapes and links for cards; colours, lines and heads for arrows
 - [ ] Checked on the tablet: Home, Lab tools beside a page, and papers fetched over the tablet's connection
 
 ## Polish before Phase 7
 
-Planned 30 Oct 2026, released as 0.10.0.
-
-- [x] No system title bar on the computer: the app's own window buttons, dragged by its top
-- [x] A new logo: the app icon, the sidebar's mark and the opening animation
-- [x] Widgets placed on Home, under the notebooks, or in either half of the right side
-- [x] Calendar, reminders and a large timer for Home and the docks
-- [x] Six fun themes, from Starship bridge to Red planet
-- [x] Word documents open in BenchWork, and in Word
-- [x] Richer tasks (start, priority, progress, people, waiting, subtasks) and a planner chart of BenchWork's own
 - [ ] Checked on the PC: no title bar, resizing the window, papers fetched, Word opened
 - [ ] Checked on the tablet: widgets, themes and the planner with the pen
 
-## More polish before Phase 7
+## Research workflow additions requested 31 October 2026 (0.12.0)
 
-Planned 31 Oct 2026, released as 0.11.0.
-
-- [x] The window moves by pressing anywhere on the top bars, and maximises with a double press
-- [x] Home's cards move and resize by dragging in Edit home, and stay put when done
-- [x] Seven more themes, from Galaxy far away to Deep ocean
-- [x] A first-run guide: how it works, a vault, modules, a theme and Home; again from Settings
-- [x] The Hello module is gone
-- [x] The notebooks list: icons, sorting, page counts, Favourites, row sizes and lines
-- [x] The tablet no longer slows down re-reading its own files
-- [x] Checked on the PC: moving the window, Home's grid, the new themes and the guide
-- [x] Checked on the tablet: the planner opening quickly, Home's grid and the notebooks list
-
-## Phase 7: Own sync and co-editing
-
-### Research workflow additions requested 31 October 2026 (0.12.0)
-
-- [x] Experiment Hub with connected plans, notes, records, datasets and conclusions
-- [x] Protocol Runner with reusable steps, timers, deviations, repeat/carry-forward, comparison and reviewed date changes
-- [x] Sample Tracker with lineage, storage, treatments and aliquots
-- [x] Equipment Planner with local reservations, clashes, suggestions and maintenance dates
-- [x] Research Questions board linking hypotheses, evidence and next experiments
-- [x] Meeting Organiser with linked agendas, decisions and deduplicated follow-up tasks
 - [ ] Real tablet and week-of-lab-work acceptance check for the connected workflow
 
-See [workflow design and data](docs/research-workflows.md). New modules can be
-enabled separately, or together with the Research pack. Schedule changes require
-review; equipment reservations are local to the vault.
+## Outlook module (0.14.0)
 
-### Workspace and branding (0.13.0)
-
-- [x] Full-width responsive Home and previews, quieter Home editing, optional full-width notes
-- [x] Larger lab calculators and visible side-docking controls for tools
-- [x] Note and document tags with tag search, plus a customisable knowledge graph ([guide](docs/knowledge-graph.md))
-
-- [x] Open Record identity: shared vector notebook mark, blue and magenta inks, academic wordmark, startup writing animation, favicon and regenerated desktop/tablet app icons ([assets and rebuilding](docs/branding.md))
-
-### Outlook module (0.14.0)
-
-- [x] Microsoft 365 mail and calendar UI, explicit sending/replies, drafts and attachment exports
-- [x] Delegated device-code sign-in, token renewal and device-local encrypted recent cache
-- [x] Windows DPAPI and Android Keystore storage, constrained Microsoft HTTPS and sanitised email rendering
 - [ ] University IT app registration / consent and live-account acceptance check
 
-See [Outlook setup and scope](docs/outlook.md).
+## Connected reading, analysis and writing (0.14.0)
 
-### Connected reading, analysis and writing (0.14.0)
-
-- [x] Reading desk with PDF excerpt actions, source-linked evidence notes and Zotero citation choices
-- [x] Python/R presets and parameters, unique run folders, script snapshots, file hashes and persistent run history
-- [x] Writing workspace for paper/thesis sections, aims, status, word targets and linked evidence/results
 - [ ] Real Python/R environment and tablet acceptance checks for the connected workflow
 
-See [workflow scope and data](docs/reading-analysis-writing.md).
+## Workspace refinements and Cloud storage
 
-### Code maintenance
-
-- [x] Split Outlook, analysis setup and writing section forms into focused components; isolate email rendering helpers
-- [x] Remove obsolete Gantt build settings, refresh comments and fix page-history React keys and the Android Pandoc warning
-- [x] Keep writing sections and evidence choices current when file indexing catches up
-
-### Workspace refinements and Cloud storage
-
-- [x] Home calendar with saved month/week/agenda, density, weekday, colour and marker preferences
-- [x] Reading desk papers-folder selection, subfolder control and library search
-- [x] Knowledge graph separated groups, deduplicated connections, label collision handling, filters and presets
-- [x] Categorised module settings with search and status filters
-- [x] Cloud folder connections, chunked verified copies, linked records and explicit local-space management
 - [ ] Live provider sync and large-dataset acceptance check
 
-- [x] Collapsible searchable Tools list, larger notebook rows and adjustable notebook area
-- [x] Direct notebook file drops and Add files, with large-file choices and duplicate preservation
-- [x] Notebook folder Explorer actions and clearer cloud data-folder and stored-file access
+## Teaching and Creative pack
 
-See [workspace options](docs/workspace-customisation.md) and [Cloud storage](docs/cloud-storage.md).
-
-### Teaching and Creative pack
-
-- [x] Lesson Studio with reusable sequences and PDF, image, note and static PowerPoint imports
-- [x] Presenter Desk with public-only audience display, private notes and reveals
-- [x] Rehearsal Room with section timings, bookmarks and saved practice notes
-- [x] Study Arcade with personal image quizzes, flashcards and practice history
-- [x] Theme Studio with local media, optional motion, named profiles and theme packs
 - [ ] Desktop projector and tablet acceptance checks
 
-See [Teaching and Creative guide](docs/teaching-creative.md).
+## Label Studio
 
-### Label Studio
-
-- [x] Windows B3S Bluetooth discovery, identity query and a single acknowledged calibration print
-- [x] User-verified 50 × 15 mm stacked-pair calibration: gap 0, vertical offset −0.75 mm
-- [x] Shared designer, templates, QR/barcodes, images and spreadsheet/inventory batches
-- [x] Simplified Design, Library, Batch data and Printer settings views; live dates, drag resizing and searchable saved-label previews
-- [x] Off-edge label alignment, neutral selection grip, smooth editor previews and offline font choices
-- [x] Save as variations and portable lab illustration collection
-- [x] Brighter label companion styling and larger, full-width phone library previews
-- [x] Canvas-adjacent text editing, copy/delete with undo, compact phone editor and extended styling controls
-- [x] Label library folders, bulk moves and portable packs with embedded media and saved field values
-- [x] BenchWork-to-phone export/import preserving the phone calibration for matching paper
-- [x] Remembered native printer auto-reconnection, with pause during printing and explicit opt-out
-- [x] Lightweight standalone Android companion and portable BenchWork label files
 - [ ] Automatic companion library synchronisation with the desktop
-- [x] Installed Samsung S26 companion, real Bluetooth classic printing and user-confirmed phone calibration
 - [ ] Native tablet Bluetooth acceptance check
 
-See [Label Studio and calibration](docs/label-studio.md).
+## Sync work
 
-### Preview testing and feedback (0.15.0)
-
-- [x] Visible temporary feedback toolbar with per-device hiding and a finished-build off switch
-- [x] Reviewed email drafts to the feedback inbox, optional app details and copy-report fallback
-- [x] Manual latest-installer link, build identification and preview-sharing instructions
-- [x] Publish the first downloadable preview release after review ([0.15.0](https://github.com/Docxx/BenchWork/releases/tag/v0.15.0))
-
-See [preview testing](docs/preview-testing.md).
-
-### Sync work
-
-- [x] Desktop-hosted local HTTPS file sync, certificate-based pairing, device revocation and offline reconnects ([guide](docs/desktop-sync.md))
-- [x] Preserve concurrent file versions and deletion/edit conflicts, with local recovery snapshots
 - [ ] Native desktop-to-tablet local-network acceptance check
 
-### Private encrypted cloud relay (0.18.0)
+## Private encrypted cloud relay (0.18.0)
 
-- [x] Persistent Yjs Markdown history, encrypted outbox, crash recovery and file projection
-- [x] Private HTTPS relay, device enrolment, encrypted attachments and automatic reconnect
-- [x] Settings setup, pairing, recovery and full-group revocation/key rotation workflow
 - [ ] Full research-vault acceptance, including ink erasure, rename/delete and backup restoration
-- [x] Native PC/tablet smoke test: paired through the relay, bidirectional note edits and offline tablet restart
 
-See [Cloud sync setup, protocol and operational limits](docs/cloud-sync.md).
+## Account sign-in and automatic device sync
 
-### Account sign-in and automatic device sync
-
-Planned and approved 17 Nov 2026 (Argon2id chosen for password keys).
-
-- [x] Account sign-in with automatic device sync: username and password, keys made on the device, an end-to-end encrypted keyring, and no pairing codes or server details
-- [x] Relay accounts: closed sign-up (vault owner or SSH sign-up code), sign-in limits, device removal, password change and recovery key
-- [x] Existing Cloud sync vaults move into an account with their history; paired devices keep working
-- [x] Deploy the account relay; the tablet signs in and syncs a PC vault with no other steps (17 Nov 2026)
-- [x] Large vaults sync: waiting pieces kept in an outbox folder, the first upload sent in batches with progress, and files up to 50 MB (18 Nov 2026)
 - [ ] Checked on the PC and the tablet with the 700 MB research vault
 
-### In-app updates (0.19.0)
+## Sync planning
 
-- [x] Manual update checks and optional per-device startup checks
-- [x] Pinned server feed, verified downloads, progress and explicit install action
-- [x] Save before Windows installer or Android package-installer handoff
-- [x] Update publishing script with remote checksums and atomic catalogue activation
-
-- [x] Theme atmosphere: stronger fun themes, decorative scenes, optional motion and themed timer cues with volume, preview and silent mode ([guide](docs/themes.md))
-- [x] Save-failure recovery: keep edits open when navigation or shutdown cannot save them, with a retry action and regression tests
-- [x] Draft sync design review ([proposal](docs/phase7-sync-design.md)); protocol decisions still need review
-- [x] Native CRDT sync (Yjs) with end-to-end encryption, without Syncthing: Markdown merging and preserved competing versions for other files
 - [ ] Live co-editing with accounts
 - [ ] Choose the server host (self-hosted or a low-cost cloud host)
 
-### Personal modules: Fly room
+## Personal modules: Fly room
 
-Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([guide](docs/flyroom.md)).
-
-- [x] Personal modules in src/personal, left out of other builds; Label Studio moved there
-- [x] Fly stocks with genotypes by chromosome, status, flips and CSV import
-- [x] Cross planner: progeny by sex with shares, sorting markers, balancers and lethals
-- [x] Crosses with a timetable by temperature, ticked off, on Home and the calendar, and crossed on
-- [x] FlyBase and Bloomington links, what each stock carries, status from the list, and tags
-- [x] Genotypes as fractions or one line, coloured by chromosome, and progeny as cards
 - [ ] Stocks imported from the Drosophila Lab Manager export
 - [ ] Checked on the PC and the tablet
 
-### Tweaks, 13 Nov 2026 (0.17.0)
+## Tweaks, 13 Nov 2026 (0.17.0)
 
-- [x] Scratching out is the pen's own, with no module needed (it had stopped on the tablet)
-- [x] Commands off the sidebar; Ctrl+K still lists them
-- [x] Folder menu under headings with fold-outs; Tools list with pins and kinds; pen bar with favourite pens
-- [x] Programs on Home: shortcuts to other programs on the computer
-- [x] Cloud storage connections kept with the vault, so every device has them
-- [x] Knowledge graph: options kept as they change, named looks, and four kinds of motion
-- [x] Whiteboards: endless boards with pens, shapes, text, sticky notes, images and PDF pages ([guide](docs/whiteboard.md))
 - [ ] Checked on the PC and the tablet
 
-### Figures
+## Main app: big canvases and richer cards (0.23.0)
 
-- [x] A page of real size with a panel grid; images dropped in, cropped, turned and zoomed
-- [x] Labels for rows, columns and headers, panel letters and channel names, in Arial
-- [x] TIFFs from FIJI (16-bit, channels, pixel size), scale bars, and brightness set evenly
-- [x] Arrows, arrowheads, asterisks and text pinned to the image, and zoomed insets
-- [x] Export to PNG and TIFF at 300 or 600 dpi, SVG and PDF, and a methods note ([guide](docs/figures.md))
-- [x] Checked on the PC and the tablet
-
-### Figures: parts on a page
-
-- [x] Retry failed figure saves before leaving, valid SVG images, and more canvas space
-
-- [x] Parts placed freely on the page: images, grids of images and text, snapping to each other
-- [x] Letters in reading order, or a letter of its own; brightness tucked away under Adjust
-- [x] Headers and side labels with brackets, blot labels, and lines and arrows anywhere
-- [x] Graphs from Prism, Excel or R (SVG, PDF or PNG), kept sharp in exports
-- [x] Bar, line and scatter graphs from data, with error bars and significance
-- [x] Guide, tests, and a check on the PC and the tablet
-
-### Main app: module picker and project workspaces (0.22.0)
-
-- [x] Theme-aware module cards with icons, descriptions, filters and existing dependency checks
-- [x] Projects list with separate notes, experiments, files and checklist views
-- [x] Existing project hubs and folders reused, including linked items and nested projects
-- [x] New project notes and experiments linked to their hub; task source pages retained
-- [x] Final regression and layout checks ([guide](docs/projects.md))
-
-### Main app: big canvases and richer cards (0.23.0)
-
-- [x] A canvas zooms out far enough to show all of it, with an overview map; far out, cards draw as plain blocks
-- [x] See-through card fill, and pink among the card and arrow colours (mixed from each theme's red and purple)
-- [x] Formatted card text (bold, italic, links, lists), kept as Markdown; older plain cards unchanged until edited
-- [x] Six mind map PDFs imported onto one canvas (converter kept outside the app)
 - [ ] Checked on the tablet
 
-### Main app: a calmer knowledge graph (0.23.0)
+## Main app: a calmer knowledge graph (0.23.0)
 
-- [x] Keeps still while you work elsewhere: no redraw unless links or tags change, places and view kept, drift and signals only while in use
-- [x] Search and filters behind a Graph options button, with a Filtered label when hidden
 - [ ] Checked on the tablet
 
-### Main app: still graph, folder sorting, clearer mind maps (0.24.0)
+## Main app: still graph, folder sorting, clearer mind maps (0.24.0)
 
-- [x] Knowledge graph keeps still unless a node is dragged; signals off unless chosen; a side dock keeps its places and view between pages
-- [x] Sort button above the notebooks: your own order, name either way, last changed or date created either way; folders follow the folder above unless given their own
-- [x] Canvas text stays readable further out, and card colours are stronger in light themes
 - [ ] Checked on the tablet
 
 ## Phase 8: Apple port
@@ -349,15 +86,3 @@ Planned 4 Nov 2026. Built in only where `.env.local` sets `VITE_PERSONAL=1` ([gu
 - [ ] macOS build (needs a Mac or macOS CI runner)
 - [ ] iPad build with Apple Pencil support
 - [ ] Apple developer account, signing and TestFlight
-
-## Experimental edition: BenchWork Next
-
-A separately authorised exploration alongside the main roadmap; it does not replace BenchWork.
-
-- [x] Separate entry point, output directory and Windows application identity
-- [x] New responsive studio, project board, evidence library and interactive constellation
-- [x] Existing rich-text editor, figures, whiteboards, canvases and lab tools reused
-- [x] Guided protocol runs and notebook reports; immersive focus room and session history
-- [x] Durable isolated storage, complete exports, reviewed imports and save-failure recovery
-- [x] Light/dark themes, command palette, full-text note search and reduced-motion support
-- [x] Final native smoke test and regression checks ([guide](docs/benchwork-next.md))

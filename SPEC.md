@@ -182,7 +182,7 @@ MyVault/
 **Sync, in two stages**
 
 1. **Folder sync (phase 4):** the vault syncs between PC and Android tablet with Syncthing. The app excludes `index.sqlite`, detects conflict copies created by the sync service and offers a side-by-side merge.
-2. **Native sync (phase 7):** begin with a desktop-hosted local HTTPS service for saved vault files, authenticated device pairing and preserve-both conflict handling. The PC stays awake with BenchWork running; Android reconnects while the app runs. Hidden/device-local files and large datasets are excluded. This first transport keeps ordinary files authoritative and does not claim CRDT merging. Next, add durable Yjs history and reviewed end-to-end encrypted envelopes before a cloud relay, followed by live co-editing and accounts. Accounts now connect devices to the relay: a username and password, with keys made on the device, so a new device signs in and syncs with no pairing step ([Cloud sync](docs/cloud-sync.md)). See [Desktop Sync](docs/desktop-sync.md) and the [history and encryption proposal](docs/phase7-sync-design.md).
+2. **Native sync (phase 7):** begin with a desktop-hosted local HTTPS service for saved vault files, authenticated device pairing and preserve-both conflict handling. The PC stays awake with BenchWork running; Android reconnects while the app runs. Hidden/device-local files and large datasets are excluded. This first transport keeps ordinary files authoritative and does not claim CRDT merging. Next, add durable Yjs history and reviewed end-to-end encrypted envelopes before a cloud relay, followed by live co-editing and accounts. Accounts now connect devices to the relay: a username and password, with keys made on the device, so a new device signs in and syncs with no pairing step ([Cloud sync](docs/cloud-sync.md)). See [Desktop Sync](docs/desktop-sync.md) for the local-network transport.
 
 **Large data:** raw imaging, DAM and video files stay on lab or university storage. The vault holds a dataset record with path, checksum and metadata, so notes link to data without copying it into sync.
 
@@ -240,33 +240,25 @@ Nine phases, each ending in something usable. Phase 2 is the first point of dail
 7. **Own sync and co-editing.** Native Yjs sync with end-to-end encryption, then live co-editing with accounts. Comes before the Apple port, as iPads cannot run Syncthing. _Exit: two devices edit the same vault without conflict copies._
 8. **Apple port.** macOS and iPad builds with Apple Pencil, signing and TestFlight. _Exit: BenchWork runs on an iPad from the same codebase._
 
-## Working with Claude Code
+## Development
 
-`SPEC.md` (this file), `CLAUDE.md` (conventions) and `ROADMAP.md` (checklist) sit in the repo root. Build one phase at a time.
+Project conventions are in `CLAUDE.md`; unfinished work is tracked in `ROADMAP.md`.
 
-**Setup**
+Install Node.js, pnpm, Rust and the Tauri 2 prerequisites (on Windows, Visual
+Studio Build Tools with the C++ workload). Android builds also need Android
+Studio, the SDK, NDK and JDK, plus USB debugging enabled on the device.
 
-- [ ] Install Node.js LTS, pnpm, Rust and the Tauri 2 prerequisites (Visual Studio Build Tools with the C++ workload)
-- [ ] Create a private GitHub repo and connect it to Claude Code
-- [ ] Add `SPEC.md`, `CLAUDE.md` and `ROADMAP.md`
-- [ ] Before phase 4: install Android Studio (SDK, NDK, JDK) and enable USB debugging on the tablet
+- `pnpm install`: install JavaScript dependencies.
+- `pnpm dev`: run the browser development server.
+- `pnpm tauri dev`: run the desktop application.
+- `pnpm test`: run the TypeScript and Rust tests.
+- `pnpm lint`: check types, lint rules and formatting.
+- `pnpm test:e2e`: run browser workflow tests.
+- `pnpm build`: check types and build the web application.
 
-**Workflow per phase**
-
-1. Ask Claude Code to plan the phase against `SPEC.md` (plan mode) and review the plan before code.
-2. Build feature by feature on a branch, with tests.
-3. Test by hand on real devices; report bugs with screenshots and steps.
-4. Merge, tick `ROADMAP.md`, tag a release.
-
-**First prompt**
-
-```
-Read SPEC.md and CLAUDE.md. Plan Phase 0: a Tauri 2 + React + TypeScript
-app that opens or creates a vault folder, shows a file tree, has a
-Settings page, and has a module registry with a Modules panel where
-modules toggle on and off. Include one dummy module to prove the toggle.
-Propose the folder structure and the module API before writing code.
-```
+Test device-specific workflows on real hardware before marking their acceptance
+checks complete. See [preview testing](docs/preview-testing.md) for distribution
+and feedback, and [BenchWork Next](docs/benchwork-next.md) for the experimental edition.
 
 ## Risks and open decisions
 

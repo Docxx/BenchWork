@@ -127,7 +127,6 @@ export function createAccountSlice(ctx: StoreContext): AccountSlice {
     await openVault(client, only);
   }
   async function begin(
-    client: AccountClient,
     login: string,
     wrap: string,
     result: { session: string; device: string; keyring: string; version: number },
@@ -172,7 +171,7 @@ export function createAccountSlice(ctx: StoreContext): AccountSlice {
           keyring: string;
           version: number;
         }>('login', { login, auth: keys.auth, name: client.device });
-        await begin(client, login, keys.wrap, result);
+        await begin(login, keys.wrap, result);
         await arrive(client);
       }),
     createAccount: (loginText, password, again, signup) =>

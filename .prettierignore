@@ -6,6 +6,9 @@ src-tauri/gen
 playwright-report
 test-results
 .relay-private
+artifacts/
+outputs/
+.claude/worktrees/
 src/core/editor/markdown/fixtures
 
 dist-next/
