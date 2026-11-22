@@ -546,6 +546,32 @@ button.fly-tag-filter[aria-pressed='true'] {
   padding: 0;
   min-width: 0;
 }
+.fly-step-map,
+.fly-step-map > div,
+.fly-step-map a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.fly-step-map {
+  flex-wrap: wrap;
+}
+.fly-step-map a {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.75rem;
+  color: var(--text);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.fly-step-map a[aria-current],
+.fly-step-map a:hover {
+  border-color: var(--accent);
+}
+.fly-step-map small {
+  display: block;
+  color: var(--muted);
+}
 .fly-line-timeline {
   list-style: none;
   padding: 0;

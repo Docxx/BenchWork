@@ -25,6 +25,13 @@ export function LibraryPanel({
 }) {
   const snap = useSyncExternalStore(library.subscribe, library.current);
   const [filter, setFilter] = useState('');
+  const [subject, setSubject] = useState('');
+  const subjects = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const ref of snap.refs.values())
+      for (const label of ref.subjects ?? []) labels.set(label.toLowerCase(), label);
+    return [...labels].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [snap.refs]);
   const [withNotes, setWithNotes] = useState<ReadonlySet<string>>(new Set());
 
   // Which references already have a note; checked again after each reload
@@ -46,10 +53,16 @@ export function LibraryPanel({
   }, [ctx, snap.refs, notesChecked]);
 
   // An empty filter lists the newest; typing narrows it.
-  const rows = useMemo(
-    () => searchLibrary(snap.refs, filter, fullPage ? snap.count : SHOWN),
-    [snap.refs, snap.count, filter, fullPage],
-  );
+  const rows = useMemo(() => {
+    const refs = subject
+      ? new Map(
+          [...snap.refs].filter(([, ref]) =>
+            ref.subjects?.some((s) => s.toLowerCase() === subject),
+          ),
+        )
+      : snap.refs;
+    return searchLibrary(refs, filter, fullPage ? snap.count : SHOWN);
+  }, [snap.refs, snap.count, filter, fullPage, subject]);
   const [activeKey, setActiveKey] = useState<string | null>(null);
 
   const [pdfs, setPdfs] = useState<Record<string, string>>({});
@@ -120,6 +133,22 @@ export function LibraryPanel({
           setFilter(e.target.value);
         }}
       />
+      {(subjects.length > 0 || subject) && (
+        <select
+          aria-label="Reference subject"
+          value={subject}
+          onChange={(e) => {
+            setSubject(e.target.value);
+          }}
+        >
+          <option value="">All subjects</option>
+          {subjects.map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </select>
+      )}
       {fullPage && (
         <div className="actions zotero-filters">
           <label>
@@ -216,7 +245,7 @@ export function LibraryPanel({
           })}
         </ul>
       )}
-      {!fullPage && snap.count > rows.length && filter.trim() === '' && (
+      {!fullPage && !subject && snap.count > rows.length && filter.trim() === '' && (
         <p className="hint">Showing the {String(rows.length)} newest. Type to find others.</p>
       )}
     </div>

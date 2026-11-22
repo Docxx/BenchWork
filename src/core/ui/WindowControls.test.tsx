@@ -75,6 +75,9 @@ describe('the window buttons', () => {
     // Pressing on the top of the sidebar moves the window; on its text too;
     // pressing twice maximises it; a button there works as a button.
     calls.length = 0;
+    const title = container.querySelector('.workspace-title');
+    if (!title) throw new Error('Missing desktop title bar');
+    fireEvent.mouseDown(title, { button: 0, detail: 1 });
     const header = container.querySelector('.sidebar-header');
     if (!header) throw new Error('No sidebar header');
     fireEvent.mouseDown(header, { button: 0, detail: 1 });
@@ -84,7 +87,7 @@ describe('the window buttons', () => {
       button: 0,
       detail: 1,
     });
-    expect(calls).toEqual(['drag', 'drag', 'maximise']);
+    expect(calls).toEqual(['drag', 'drag', 'drag', 'maximise']);
   });
 
   it('are left to the system where it draws the window, as on the tablet', async () => {

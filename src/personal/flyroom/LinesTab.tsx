@@ -1,3 +1,4 @@
+import { Check, Circle, CircleDot, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import {
   cleanCopy,
@@ -391,6 +392,27 @@ export function LinesTab({ store }: { store: FlyStore }) {
                     : `Next up · Step ${String(next + 1)} · ${plan.steps[next]?.title ?? ''}`}{' '}
                 · {plan.steps.filter((s) => s.done).length} of {plan.steps.length} complete
               </p>
+              <nav aria-label="Plan steps" className="fly-step-map">
+                {plan.steps.map((step, i) => {
+                  const current = !plan.template && i === next;
+                  const Icon = step.done ? Check : current ? CircleDot : Circle;
+                  return (
+                    <div key={step.id}>
+                      {i > 0 && <ArrowRight size={16} aria-hidden />}
+                      <a href={'#line-step-' + step.id} aria-current={current ? 'step' : undefined}>
+                        <Icon size={16} aria-hidden />
+                        <span>
+                          <small>
+                            Step {i + 1}
+                            {step.done ? ' · Complete' : current ? ' · Next up' : ''}
+                          </small>
+                          {step.title}
+                        </span>
+                      </a>
+                    </div>
+                  );
+                })}
+              </nav>
               <ol className="fly-line-timeline" aria-label="Line timetable">
                 {scheduleLine(plan).map(({ step, start, end }, i) => (
                   <li

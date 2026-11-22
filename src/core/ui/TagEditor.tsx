@@ -16,6 +16,8 @@ export function TagEditor({ path }: { path: string }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(true);
   const inputId = useId();
+  const suggest = useApp((s) => s.suggestedTags);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const note = /\.md$/i.test(path);
   useEffect(() => {
     let live = true;
@@ -91,6 +93,14 @@ export function TagEditor({ path }: { path: string }) {
         </label>
         <input
           id={inputId}
+          list={inputId + '-suggestions'}
+          onFocus={() => {
+            void suggest()
+              .then(setSuggestions)
+              .catch(() => {
+                setSuggestions([]);
+              });
+          }}
           placeholder="Add tags…"
           value={draft}
           disabled={busy || (note && broken)}
@@ -98,6 +108,13 @@ export function TagEditor({ path }: { path: string }) {
             setDraft(e.target.value);
           }}
         />
+        <datalist id={inputId + '-suggestions'}>
+          {suggestions
+            .filter((tag) => !tags.includes(tag))
+            .map((tag) => (
+              <option key={tag} value={tag} />
+            ))}
+        </datalist>
         {draft && (
           <button type="submit" disabled={busy}>
             Add

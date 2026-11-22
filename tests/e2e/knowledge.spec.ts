@@ -30,12 +30,12 @@ test('tags notes and documents, finds tagged documents, and opens them through t
   page.on('pageerror', (e) => errors.push(e.message));
   await page.getByRole('treeitem', { name: 'Lab', exact: true }).click();
   await page.getByRole('treeitem', { name: 'Plan', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Add tags', exact: true }).fill('project/flies');
-  await page.getByRole('textbox', { name: 'Add tags', exact: true }).press('Enter');
+  await page.getByRole('combobox', { name: 'Add tags', exact: true }).fill('project/flies');
+  await page.getByRole('combobox', { name: 'Add tags', exact: true }).press('Enter');
   await expect(page.getByRole('button', { name: 'Remove tag project/flies' })).toBeVisible();
   await page.getByRole('treeitem', { name: 'Measurements.csv', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Add tags', exact: true }).fill('project/flies');
-  await page.getByRole('textbox', { name: 'Add tags', exact: true }).press('Enter');
+  await page.getByRole('combobox', { name: 'Add tags', exact: true }).fill('project/flies');
+  await page.getByRole('combobox', { name: 'Add tags', exact: true }).press('Enter');
   await expect(page.getByRole('button', { name: 'Remove tag project/flies' })).toBeVisible();
   await page.getByRole('button', { name: '#project/flies', exact: true }).click();
   await expect(page.locator('.search-results')).toContainText('Measurements.csv');

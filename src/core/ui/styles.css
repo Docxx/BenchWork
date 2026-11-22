@@ -3924,14 +3924,27 @@ button.home-tool {
   height: 32px;
 }
 
-/* Room for the window buttons in the top row of whatever is at the right. */
-.shell.framed .side-panel .dock-top .dock-tabs,
-.shell.framed:not(:has(.side-panel)) .top-bar,
-.shell.framed .home-header,
-.shell.framed .module-view-header,
-.shell.framed .file-header,
-.shell.framed .settings-header {
-  padding-right: 150px;
+.shell.framed {
+  box-sizing: border-box;
+  padding-top: 32px;
+}
+
+.shell.framed .sidebar-reveal {
+  top: calc(32px + 0.75rem);
+}
+
+.shell.framed.compact :is(.sidebar, .side-panel) {
+  top: 32px;
+}
+
+.workspace-title {
+  display: grid;
+  place-items: center;
+  user-select: none;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--border);
 }
 
 /* Docks of widgets: under the notebooks, and the two on the right. */

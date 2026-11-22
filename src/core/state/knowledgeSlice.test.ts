@@ -36,6 +36,7 @@ it('stores document tags without changing documents, serialises writes and follo
   ]);
   expect(await platform.readText('Lab/Report.pdf')).toBe('original binary content');
   expect(await state().itemTags('Lab/Report.pdf')).toEqual(['lab/flies']);
+  expect(await state().suggestedTags()).toEqual(['existing', 'inline', 'lab/flies', 'meeting']);
   expect(await state().documentTagHits('LAB')).toEqual([
     { path: 'Lab/Report.pdf', title: 'Report.pdf', snippet: '#lab/flies' },
   ]);
@@ -73,16 +74,22 @@ it('builds note and document links, includes inline tags and skips vault interna
   const { state } = await setup({
     '.benchwork/hidden.md': 'secret',
     'Lab/Map.canvas.json': '{}',
+    'Lab/Measurements.tif': 'original',
+    'Lab/Scan': 'original',
     'Lab/Plan.md.ink.json': '{}',
     'Lab/_section.yaml': 'colour: blue',
   });
   await state().setItemTags('Lab/Report.pdf', ['evidence']);
+  await state().setItemTags('Lab/Measurements.tif', ['existing']);
   const graph = await state().vaultGraph();
+  expect(graph.nodes.find((n) => n.path.endsWith('.tif'))?.tags).toEqual(['existing']);
   expect(graph.nodes.map((n) => n.path).sort()).toEqual([
     'Lab/Map.canvas.json',
+    'Lab/Measurements.tif',
     'Lab/Other.md',
     'Lab/Plan.md',
     'Lab/Report.pdf',
+    'Lab/Scan',
   ]);
   expect(graph.nodes.find((n) => n.path.endsWith('Plan.md'))?.tags).toEqual(['existing', 'inline']);
   expect(graph.nodes.find((n) => n.kind === 'document' && n.path.endsWith('.pdf'))?.tags).toEqual([

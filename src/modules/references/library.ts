@@ -22,6 +22,7 @@ export interface Reference {
   doi: string;
   url: string;
   pdfUrl?: string;
+  subjects?: string[];
 }
 
 export interface Library {
@@ -89,7 +90,21 @@ export function parseLibrary(source: string): Library {
           );
         })
       : undefined;
+    const subjects = new Set<string>();
+    for (const field of [item['keyword'], item['tags']]) {
+      const entries: unknown[] = Array.isArray(field) ? field : text(field).split(/[,;]/);
+      for (const entry of entries) {
+        const label =
+          typeof entry === 'string'
+            ? entry.trim()
+            : entry && typeof entry === 'object' && 'tag' in entry
+              ? text(entry.tag)
+              : '';
+        if (label) subjects.add(label);
+      }
+    }
     refs.set(key, {
+      ...(subjects.size ? { subjects: [...subjects] } : {}),
       key,
       title: text(item['title']),
       authors: people.map(person).filter((p): p is Person => p !== null),
@@ -165,7 +180,9 @@ export function searchLibrary(
   for (const ref of refs.values()) {
     const key = fold(ref.key);
     const names = ref.authors.map((a) => fold(a.family));
-    const titleWords = fold(ref.title).split(/[^\p{L}\p{N}]+/u);
+    const titleWords = fold([ref.title, ...(ref.subjects ?? [])].join(' ')).split(
+      /[^\p{L}\p{N}]+/u,
+    );
     let score = 0;
     let all = true;
     for (const w of words) {

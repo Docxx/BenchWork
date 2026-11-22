@@ -16,6 +16,7 @@ type Registry = Record<string, string[]>;
 
 export interface KnowledgeSlice {
   tagRevision: number;
+  suggestedTags: () => Promise<string[]>;
   itemTags: (path: string) => Promise<string[]>;
   setItemTags: (path: string, tags: string[]) => Promise<void>;
   moveItemTags(from: string, to: string): Promise<void>;
@@ -65,6 +66,14 @@ export function createKnowledgeSlice(ctx: StoreContext): KnowledgeSlice {
   });
   return {
     tagRevision: 0,
+    suggestedTags: async () => {
+      await get().indexIdle();
+      const [notes, documents] = await Promise.all([platform.index.tags(), registry()]);
+      return cleanTags([
+        ...notes.map((entry) => entry.tag),
+        ...Object.values(documents).flat(),
+      ]).sort();
+    },
     itemTags: async (path) => {
       if (path.toLowerCase().endsWith('.md')) {
         if (get().page?.path === path) return cleanTags(strings(get().pageProperties?.['tags']));
@@ -125,7 +134,9 @@ export function createKnowledgeSlice(ctx: StoreContext): KnowledgeSlice {
           // Hidden files, ink and folder settings are not part of the graph.
           if (
             entry.name.startsWith('.') ||
+            entry.name.startsWith('~$') ||
             entry.name.endsWith('.ink.json') ||
+            entry.name.endsWith('.pdf.annot.json') ||
             entry.name === SECTION_FILE
           )
             continue;
@@ -133,12 +144,6 @@ export function createKnowledgeSlice(ctx: StoreContext): KnowledgeSlice {
             await walk(entry.path);
             continue;
           }
-          if (
-            !/\.(md|ya?ml|pdf|docx?|xlsx?|csv|tsv|png|jpe?g|gif|webp|svg|canvas\.json)$/i.test(
-              entry.name,
-            )
-          )
-            continue;
           const isNote = /\.md$/i.test(entry.name);
           if (/\.canvas\.json$/i.test(entry.name)) {
             // A canvas links to the pages, pictures and files placed on it.

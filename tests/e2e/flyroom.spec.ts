@@ -146,6 +146,11 @@ test('runs a sequential line plan, carries a shortfall and reuses a clean templa
   await page.getByRole('button', { name: 'Mark step complete' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Plan complete' })).toBeVisible();
   await expect(queue).toContainText('No pending line steps');
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Plan steps' })
+      .getByRole('link', { name: /Complete.*Review/ }),
+  ).toBeVisible();
   const timetable = page.getByRole('list', { name: 'Line timetable' });
   await expect(timetable.getByRole('link', { name: 'Review' }).first()).toBeVisible();
   await expect(timetable).toContainText('Collected 1 of 2');

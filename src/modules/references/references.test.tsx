@@ -52,6 +52,16 @@ describe('the library file', () => {
     });
   });
 
+  it('finds subjects in CSL keywords and Zotero tag objects', () => {
+    const library = parseLibrary(
+      JSON.stringify([
+        { id: 'article', keyword: 'Cell repair; Imaging', tags: [{ tag: 'Microscopy' }] },
+      ]),
+    );
+    expect(library.refs.get('article')?.subjects).toEqual(['Cell repair', 'Imaging', 'Microscopy']);
+    expect(searchLibrary(library.refs, 'micro repair').map((r) => r.key)).toEqual(['article']);
+  });
+
   it('says when it cannot be read', () => {
     expect(parseLibrary('not json').error).toContain('not valid JSON');
     expect(parseLibrary('{"a": 1}').error).toContain('not a CSL JSON list');
@@ -134,6 +144,7 @@ describe('References module', () => {
     const books = Array.from({ length: 105 }, (_, i) => ({
       id: 'paper' + String(i),
       title: 'Paper ' + String(i),
+      keyword: i === 104 ? 'Cell repair' : 'Imaging',
       URL: 'https://example.org/article',
       attachments: [{ contentType: 'application/pdf', url: 'https://example.org/fulltext' }],
     }));
@@ -142,6 +153,11 @@ describe('References module', () => {
     if (!view) throw new Error('Missing Zotero references page');
     render(<>{view.render(null)}</>);
     expect(screen.getAllByRole('listitem')).toHaveLength(105);
+    fireEvent.change(screen.getByLabelText('Reference subject'), {
+      target: { value: 'cell repair' },
+    });
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.getByRole('listitem').textContent).toContain('Paper 104');
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'paper104' } });
     fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
     expect(screen.getByLabelText<HTMLInputElement>('PDF link').value).toBe(

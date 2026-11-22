@@ -107,6 +107,11 @@ export function Shell({ vault }: { vault: OpenVault }) {
 
   return (
     <div className={['shell', compact ? 'compact' : '', framed ? 'framed' : ''].join(' ').trim()}>
+      {framed && (
+        <div className="window-drag-strip workspace-title" data-window-drag>
+          BenchWork
+        </div>
+      )}
       <WindowControls />
       <ToolIconBar />
       {compact && drawer !== null && (
