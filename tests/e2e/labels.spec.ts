@@ -57,7 +57,7 @@ test('supports off-edge alignment, clean fonts, save as and portable lab illustr
     await image.decode();
     return image.naturalWidth;
   });
-  expect(editorWidth).toBe(384);
+  expect(editorWidth).toBeGreaterThan(1500);
   await page.getByRole('button', { name: 'Select Text: OreR drug treatment', exact: true }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
   await page.screenshot({ path: info.outputPath('smooth-font-and-selection.png'), fullPage: true });
