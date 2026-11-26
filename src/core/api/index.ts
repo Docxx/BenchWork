@@ -8,12 +8,15 @@
  * and Pandoc. Block renderers and index hooks are added in the phases that
  * first need them.
  */
+import type { CardEntry, CardKind } from '../sync/cards';
 export { LabelStudio } from '../labels/load';
 export { checklistItems, type ChecklistItem } from '../pages/checklist';
 export { newLabelDesign, parseLabelDesign, labelFolder } from '../labels/model';
 export { appLink, isShortCode, newShortCode } from '../links/appLinks';
 export type { LabelDesign, LabelRow } from '../labels/model';
 export type { LabelWorkspace } from '../labels/workspace';
+export type { CardEntry, CardKind } from '../sync/cards';
+export { CARD_KINDS } from '../sync/cards';
 import type { ReactNode } from 'react';
 import type { PdfDocument } from '../files/pdf';
 import type { InkPoint, InkStroke, InkTool } from '../ink/inkFile';
@@ -94,6 +97,20 @@ export function defineModule(definition: ModuleDefinition): ModuleDefinition {
   return definition;
 }
 
+/**
+ * Cards the relay carries between the person's own devices in readable form,
+ * beside the encrypted vault: a fly stock a scanned vial shows on the phone,
+ * or a label design. Unavailable until Cloud sync is set up.
+ */
+export interface ModuleCards {
+  /** Whether there is a relay to send to. */
+  available(): boolean;
+  put(kind: CardKind, id: string, value: unknown): Promise<void>;
+  get<T>(kind: CardKind, id: string): Promise<T | null>;
+  list(kind: CardKind, since?: number): Promise<CardEntry[]>;
+  remove(kind: CardKind, id: string): Promise<void>;
+}
+
 export interface ModuleContext {
   readonly labelBluetooth: import('../platform/labelBluetooth').LabelBluetoothTransport | null;
   readonly appearance: { current(): Appearance; apply(value: Appearance): Promise<void> };
@@ -116,6 +133,8 @@ export interface ModuleContext {
   readonly programs: ProgramRunner | null;
   /** The internet: reading from the sites named in manifest.json, and opening links. */
   readonly web: ModuleWeb;
+  /** Readable cards carried to your own devices by the relay, such as fly stocks. */
+  readonly cards: ModuleCards;
   /** Converting Markdown with Pandoc, if it is installed. Desktop only. */
   readonly pandoc: ModulePandoc;
   /** JSON files in `.benchwork/modules/<id>/`, the module's private folder. */

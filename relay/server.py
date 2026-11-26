@@ -29,6 +29,12 @@ MAX_KEYRING = 262144
 LOGIN_LIMIT, LOGIN_WINDOW = 5, 900
 IP_LIMIT, IP_WINDOW = 20, 3600
 DEFAULT_KDF = '{"alg":"argon2id","m":65536,"t":3,"p":1}'
+CARD_ACTIONS = {"card_put", "card_get", "card_delete", "cards_list"}
+CARD_KINDS = {"stock", "label"}
+CARD_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
+MAX_CARD = 400000
+MAX_CARDS = 5000
+CARD_PAGE = 200
 ACCOUNT_ACTIONS = {"prelogin", "register", "logout", "keyring_get", "keyring_put",
                    "vault_create", "vault_join", "vault_attach", "account_devices",
                    "remove_device", "change_password"}
@@ -63,6 +69,12 @@ class Store:
                     created INTEGER, seen INTEGER);
                 CREATE TABLE IF NOT EXISTS attempts(key TEXT PRIMARY KEY, count INTEGER, start INTEGER);
                 CREATE TABLE IF NOT EXISTS signups(secret TEXT PRIMARY KEY, expires INTEGER);
+                -- Cards are readable, unlike blobs: fly stocks a phone shows when a vial
+                -- is scanned, and label designs the phone keeps in step. The owner chose
+                -- plain storage; a device credential is still required to read them.
+                CREATE TABLE IF NOT EXISTS cards(vault TEXT, kind TEXT, id TEXT, updated INTEGER,
+                    body TEXT, PRIMARY KEY(vault,kind,id));
+                CREATE INDEX IF NOT EXISTS card_updated ON cards(vault,kind,updated);
             """)
             # Older databases gain account columns in place; existing rows keep working.
             if "account" not in {r[1] for r in db.execute("PRAGMA table_info(vaults)")}:
@@ -151,6 +163,8 @@ class Store:
                     events.append({"seq": seq, "id": ident, "payload": payload})
                     size += len(payload)
                 return {"events": events}
+            if action in CARD_ACTIONS:
+                return self.cards(db, action, vault, data)
             ident = data.get("id", "")
             if not isinstance(ident, str) or not ID.fullmatch(ident):
                 raise RelayError(400, "Invalid object identifier")
@@ -179,6 +193,46 @@ class Store:
                 db.execute(f"INSERT INTO {table}(vault,id,payload) VALUES(?,?,?)", (vault, ident, payload))
                 return {"stored": True}
             raise RelayError(400, "Unsupported relay action")
+
+    def cards(self, db, action, vault, data):
+        """Readable cards: fly stocks for scanned vials, and labels for the phone."""
+        kind = data.get("kind", "")
+        if kind not in CARD_KINDS:
+            raise RelayError(400, "Unknown card kind")
+        if action == "cards_list":
+            since = data.get("since", 0)
+            if not isinstance(since, int) or isinstance(since, bool) or since < 0:
+                raise RelayError(400, "Invalid cursor")
+            rows = db.execute("SELECT id,updated FROM cards WHERE vault=? AND kind=? AND updated>?"
+                              " ORDER BY updated LIMIT ?", (vault, kind, since, CARD_PAGE)).fetchall()
+            return {"cards": [{"id": r[0], "updated": r[1]} for r in rows]}
+        ident = data.get("id", "")
+        if not isinstance(ident, str) or not CARD_ID.fullmatch(ident):
+            raise RelayError(400, "Invalid card identifier")
+        if action == "card_get":
+            row = db.execute("SELECT body,updated FROM cards WHERE vault=? AND kind=? AND id=?",
+                             (vault, kind, ident)).fetchone()
+            if not row:
+                raise RelayError(404, "Card unavailable")
+            return {"body": row[0], "updated": row[1]}
+        if action == "card_delete":
+            db.execute("DELETE FROM cards WHERE vault=? AND kind=? AND id=?", (vault, kind, ident))
+            return {"deleted": True}
+        body = data.get("body")
+        if not isinstance(body, str) or not 0 < len(body) <= MAX_CARD:
+            raise RelayError(413, "Card exceeds size limit")
+        try:
+            json.loads(body)
+        except ValueError as exc:
+            raise RelayError(400, "Card is not an object") from exc
+        held = db.execute("SELECT COUNT(*) FROM cards WHERE vault=? AND kind=?", (vault, kind)).fetchone()[0]
+        if held >= MAX_CARDS and not db.execute(
+                "SELECT 1 FROM cards WHERE vault=? AND kind=? AND id=?", (vault, kind, ident)).fetchone():
+            raise RelayError(507, "Too many cards of this kind")
+        db.execute("INSERT INTO cards(vault,kind,id,updated,body) VALUES(?,?,?,?,?)"
+                   " ON CONFLICT(vault,kind,id) DO UPDATE SET updated=excluded.updated, body=excluded.body",
+                   (vault, kind, ident, int(time.time() * 1000), body))
+        return {"stored": True}
 
     # Accounts. The relay keeps a SHA-256 of the sign-in key each device derives
     # from the password, and an encrypted keyring it cannot open. Passwords and

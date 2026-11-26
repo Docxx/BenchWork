@@ -1,3 +1,4 @@
+import { CardStore } from '../sync/cards';
 import {
   RelayClient,
   createRelay,
@@ -44,6 +45,11 @@ export interface RelaySyncSlice {
   adoptCloudSync: (connection: RelayConnection, fresh: boolean) => Promise<void>;
   /** The open vault's connection, for the account. Null when not set up. */
   cloudConnection: () => RelayConnection | null;
+  /**
+   * Readable cards on the relay: fly stocks a scanned vial shows on the phone,
+   * and labels the phone keeps in step. Null until Cloud sync is set up.
+   */
+  cloudCards: () => CardStore | null;
 }
 export function createRelaySyncSlice(ctx: StoreContext): RelaySyncSlice {
   const { platform, get, set } = ctx;
@@ -286,6 +292,7 @@ export function createRelaySyncSlice(ctx: StoreContext): RelaySyncSlice {
       if (failure) throw failure instanceof Error ? failure : new Error(describeError(failure));
     },
     cloudConnection: () => connection,
+    cloudCards: () => (connection === null ? null : new CardStore(platform, connection)),
     syncCloudNow: () => perform(run),
     pairCloudDevice: () =>
       perform(async () => {

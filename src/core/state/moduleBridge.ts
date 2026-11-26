@@ -53,6 +53,7 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
       filters: () => state().strokeFilters,
       tool: (id) => state().inkTools.find((t) => t.id === id) ?? null,
     }),
+    cloudCards: () => state().cloudCards(),
     vaultRoot: () => {
       const status = state().status;
       return status.kind === 'open' ? status.vault.root : null;

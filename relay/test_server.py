@@ -221,3 +221,51 @@ class UpdateDownloads(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class CardTests(unittest.TestCase):
+    """Readable cards: fly stocks for scanned vials, and labels for the phone."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(dir=Path(__file__).parent)
+        self.store = Store(Path(self.temp.name) / 'relay.sqlite', digest('setup'))
+        self.owner = self.store.handle({'action': 'create', 'setup': 'setup', 'name': 'PC'})
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def call(self, action, **data):
+        return self.store.handle({**self.owner, 'action': action, **data})
+
+    def test_stocks_and_labels_are_stored_listed_and_fetched(self):
+        self.call('card_put', kind='stock', id='K7M2Q9XA', body='{"name":"Myd88-KO-CyO"}')
+        self.assertEqual(self.call('card_get', kind='stock', id='K7M2Q9XA')['body'],
+                         '{"name":"Myd88-KO-CyO"}')
+        # A phone asks only for what changed since it last looked.
+        first = self.call('cards_list', kind='label')['cards']
+        self.assertEqual(first, [])
+        self.call('card_put', kind='label', id='a-label-id', body='{"name":"Vial label"}')
+        listed = self.call('cards_list', kind='label')['cards']
+        self.assertEqual([c['id'] for c in listed], ['a-label-id'])
+        self.assertEqual(self.call('cards_list', kind='label', since=listed[0]['updated'])['cards'], [])
+        # Saving again replaces the body and moves it later in the queue.
+        self.call('card_put', kind='label', id='a-label-id', body='{"name":"Renamed"}')
+        again = self.call('cards_list', kind='label', since=listed[0]['updated'])['cards']
+        self.assertEqual([c['id'] for c in again], ['a-label-id'])
+        self.assertEqual(self.call('card_get', kind='label', id='a-label-id')['body'], '{"name":"Renamed"}')
+        self.call('card_delete', kind='label', id='a-label-id')
+        with self.assertRaises(RelayError):
+            self.call('card_get', kind='label', id='a-label-id')
+
+    def test_cards_need_a_device_and_are_checked(self):
+        # Another vault's device cannot read these cards.
+        self.call('card_put', kind='stock', id='K7M2Q9XA', body='{"name":"Myd88"}')
+        with self.assertRaises(RelayError):
+            self.store.handle({'action': 'card_get', 'vault': self.owner['vault'],
+                               'token': 'not-a-real-token', 'kind': 'stock', 'id': 'K7M2Q9XA'})
+        for bad in [{'kind': 'other', 'id': 'K7M2Q9XA', 'body': '{}'},
+                    {'kind': 'stock', 'id': 'has spaces', 'body': '{}'},
+                    {'kind': 'stock', 'id': 'K7M2Q9XA', 'body': 'not json'},
+                    {'kind': 'stock', 'id': 'K7M2Q9XA', 'body': ''}]:
+            with self.assertRaises(RelayError):
+                self.call('card_put', **bad)

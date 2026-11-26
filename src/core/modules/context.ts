@@ -1,4 +1,5 @@
 import type { Disposable, ModuleApp, ModuleContext, ModuleLogger } from '../api';
+import type { CardStore } from '../sync/cards';
 import { openPdf } from '../files/pdf';
 import { InkSurface, type SurfaceHooks } from '../ink/surface';
 import { freeName } from '../notebooks/notebookService';
@@ -18,6 +19,8 @@ import { defaultAppearance, type Appearance } from '../settings/appearance';
 
 /** What the app gives modules: ModuleApp, plus the open vault's full path. */
 export interface AppBridge extends ModuleApp {
+  /** Readable cards on the relay; null until Cloud sync is set up. */
+  cloudCards?(): CardStore | null;
   appearance?(): Appearance;
   applyAppearance?(value: Appearance): Promise<void>;
   pdfHighlight?(path: string): string | null;
@@ -278,6 +281,25 @@ export function createModuleContext(
       },
       remove: async (name) => {
         await deps.platform.secureWrite(deviceKey(name), null);
+      },
+    },
+    cards: {
+      available: () => (app().cloudCards?.() ?? null) !== null,
+      put: async (kind, id, value) => {
+        const store = app().cloudCards?.() ?? null;
+        if (store) await store.put(kind, id, value);
+      },
+      get: async (kind, id) => {
+        const store = app().cloudCards?.() ?? null;
+        return store ? store.get(kind, id) : null;
+      },
+      list: async (kind, since) => {
+        const store = app().cloudCards?.() ?? null;
+        return store ? store.list(kind, since) : [];
+      },
+      remove: async (kind, id) => {
+        const store = app().cloudCards?.() ?? null;
+        if (store) await store.remove(kind, id);
       },
     },
     web: {
