@@ -414,7 +414,7 @@ test('the phone asks to connect, and shows a scanned stock once it is signed in'
   await expect(page.getByRole('button', { name: 'Library', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Connect to BenchWork', exact: true }).click();
   const connect = page.getByRole('region', { name: 'Connect to BenchWork' });
-  await expect(connect.getByLabel('Email')).toBeVisible();
+  await expect(connect.getByLabel('Username')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Sign in' })).toBeDisabled();
   await page.getByRole('button', { name: 'Back to labels', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Library', exact: true })).toBeVisible();

@@ -68,8 +68,8 @@ function Connect({
     <section className="phone-connect" aria-label="Connect to BenchWork">
       <h2>Connect to BenchWork</h2>
       <p className="hint">
-        Sign in with your BenchWork account and this phone keeps your labels in step, and shows a
-        fly stock when you scan its vial.
+        Sign in with the same username and password as BenchWork on your computer. This phone then
+        keeps your labels in step, and shows a fly stock when you scan its vial.
       </p>
       {session === null ? (
         <form
@@ -88,10 +88,11 @@ function Connect({
           }}
         >
           <label>
-            Email
+            Username
             <input
-              type="email"
               autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
               value={login}
               onChange={(e) => {
                 setLogin(e.target.value);
