@@ -10,6 +10,11 @@ test('supports off-edge alignment, clean fonts, save as and portable lab illustr
   await page.getByRole('textbox', { name: 'Content', exact: true }).fill('OreR stock');
   await page.getByRole('button', { name: 'Style and size', exact: true }).click();
   await page.getByLabel('Font', { exact: true }).selectOption('open-sans');
+  // Text size in points, as in Word: a common size, or any size typed in.
+  await page.getByLabel('Text size', { exact: true }).selectOption('14');
+  await expect(page.getByLabel('Custom text size in points')).toHaveValue('14');
+  await page.getByLabel('Custom text size in points').fill('9.5');
+  await expect(page.getByLabel('Text size', { exact: true })).toHaveValue('other');
   await page.getByText('Position and rotation', { exact: true }).click();
   await page.getByLabel('X (mm)', { exact: true }).fill('-1');
   await page.getByLabel('Y (mm)', { exact: true }).fill('-0.5');

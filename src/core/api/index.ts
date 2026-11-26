@@ -11,6 +11,7 @@
 export { LabelStudio } from '../labels/load';
 export { checklistItems, type ChecklistItem } from '../pages/checklist';
 export { newLabelDesign, parseLabelDesign, labelFolder } from '../labels/model';
+export { appLink, isShortCode, newShortCode } from '../links/appLinks';
 export type { LabelDesign, LabelRow } from '../labels/model';
 export type { LabelWorkspace } from '../labels/workspace';
 import type { ReactNode } from 'react';
@@ -457,6 +458,20 @@ export interface ModuleViews {
   registerCalendarSource(spec: CalendarSourceSpec): Disposable;
   /** Things with dates for the planner's chart, such as tasks or planned pages. */
   registerScheduleSource(spec: ScheduleSourceSpec): Disposable;
+  /**
+   * Opens `benchwork://<kind>/<code>` links, such as a QR code scanned on a
+   * label. One handler per kind.
+   */
+  registerLinkHandler(spec: LinkHandlerSpec): Disposable;
+}
+
+export interface LinkHandlerSpec {
+  /** Must start with the module id and a dot. */
+  id: string;
+  /** The first part of the link, lower-case letters, such as `s`. */
+  kind: string;
+  /** Called with the link's 8-character code, already checked and upper-case. */
+  open(code: string): void;
 }
 
 /** Something with dates, as a bar on the planner's chart. */

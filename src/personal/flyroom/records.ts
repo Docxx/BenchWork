@@ -38,6 +38,8 @@ export interface Stock {
   flipEvery: number | null;
   lastFlipped: string;
   notes: string;
+  /** The short code in its label's QR code, such as K7M2Q9XA, or empty. */
+  code: string;
 }
 
 export interface Cross {
@@ -107,6 +109,7 @@ export function readStock(path: string, data: Record<string, unknown>): Stock {
     flipEvery: Number.isFinite(every) && every > 0 ? Math.round(every) : null,
     lastFlipped: text(data['lastFlipped']).slice(0, 10),
     notes: text(data['notes']),
+    code: text(data['code']).toUpperCase(),
   };
 }
 

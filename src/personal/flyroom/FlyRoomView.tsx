@@ -23,10 +23,11 @@ export function FlyRoomView({
 }: {
   ctx: ModuleContext;
   store: FlyStore;
-  /** A tab to open at, such as `crosses` from the Home card. */
+  /** A tab to open at, such as `crosses` from the Home card, or `stock:<code>` from a label. */
   start?: string | null;
 }) {
   const [tab, setTab] = useState<Tab>(TABS.find((t) => t.id === start)?.id ?? 'stocks');
+  const labelCode = start?.startsWith('stock:') ? start.slice('stock:'.length) : null;
   const [plan, setPlan] = useState<Plan>(emptyPlan);
   const [openCross, setOpenCross] = useState<string | null>(null);
   const { settings } = useFly(store);
@@ -85,6 +86,7 @@ export function FlyRoomView({
           <StocksTab
             ctx={ctx}
             store={store}
+            labelCode={labelCode}
             onPlan={(stock, as) => {
               const parent = { stock: stock.name, genotype: stock.genotype };
               setPlan(as === 'mother' ? { ...plan, mother: parent } : { ...plan, father: parent });

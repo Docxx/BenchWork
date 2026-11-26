@@ -50,6 +50,7 @@ type ListKey =
   | 'widgets'
   | 'calendarSources'
   | 'scheduleSources'
+  | 'linkHandlers'
   | 'strokeFilters'
   | 'inkTools'
   | 'inkRecognisers'
@@ -252,6 +253,17 @@ export function createModuleContext(
           { ...spec, moduleId: id },
           (s) => s.id === spec.id,
           `A schedule source with id '${spec.id}'`,
+        );
+      },
+      registerLinkHandler(spec) {
+        checkId('Link handler', spec.id);
+        if (!/^[a-z]{1,12}$/.test(spec.kind))
+          throw new Error(`Link kind '${spec.kind}' must be 1 to 12 lower-case letters`);
+        return contribute(
+          'linkHandlers',
+          { ...spec, moduleId: id },
+          (h) => h.kind === spec.kind,
+          `A handler for '${spec.kind}' links`,
         );
       },
     },

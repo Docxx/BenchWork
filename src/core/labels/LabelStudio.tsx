@@ -26,12 +26,16 @@ import {
   newLabelOnPaper,
   newLabelElement,
   labelFolder,
+  mmToPoints,
+  pointsToMm,
+  POINT_SIZES,
   type LabelDesign,
   type LabelElement,
   type LabelKind,
   type LabelRow,
 } from './model';
-import { renderFeed, renderLabel } from './render';
+import { qrSizeWarning } from './qr';
+import { LABEL_DPI, renderFeed, renderLabel } from './render';
 import { labelFonts } from './fontOptions';
 import { labImages, LabImage, labImagePng } from './labImages';
 import { LabelPrinter } from './printer';
@@ -115,6 +119,14 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
   const imageInput = useRef<HTMLInputElement>(null);
   const active = design.elements.find((e) => e.id === selected);
   const shown = rows.length ? { ...row, ...rows[dataIndex] } : row;
+  const qrWarning =
+    active?.kind === 'qr'
+      ? qrSizeWarning(
+          labelText(active.text, shown, start + dataIndex),
+          Math.min(active.width, active.height),
+          LABEL_DPI,
+        )
+      : null;
   const total = rows.length || copies;
   const feeds = Math.ceil(total / design.perFeed);
   const fields = Array.from(new Set([...Object.keys(row), ...Object.keys(shown)])).slice(0, 24);
@@ -990,6 +1002,11 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
                         />
                       </label>
                     )}
+                    {active.kind === 'qr' && qrWarning && (
+                      <p role="alert" className="hint">
+                        {qrWarning}
+                      </p>
+                    )}
                   </>
                 ) : (
                   <p className="label-selection-hint">
@@ -1319,12 +1336,8 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
               </details>
               {active.kind === 'text' && (
                 <>
-                  <NumberField
-                    label="Text size (mm)"
-                    value={active.size}
-                    min={0.8}
-                    max={20}
-                    step={0.1}
+                  <TextSizeField
+                    size={active.size}
                     onChange={(size) => {
                       edit({ size });
                     }}
@@ -1789,6 +1802,55 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
           </button>
         </div>
       </dialog>
+    </div>
+  );
+}
+/** Text size in points, as in Word: pick a common size or type any size. */
+function TextSizeField({ size, onChange }: { size: number; onChange: (mm: number) => void }) {
+  const points = mmToPoints(size);
+  const [typed, setTyped] = useState<string | null>(null);
+  const standard = (POINT_SIZES as readonly number[]).includes(points);
+  const set = (pt: number) => {
+    if (Number.isFinite(pt) && pt > 0) onChange(Math.max(0.8, Math.min(20, pointsToMm(pt))));
+  };
+  return (
+    <div className="label-two label-text-size">
+      <label>
+        Text size
+        <select
+          aria-label="Text size"
+          value={standard ? String(points) : 'other'}
+          onChange={(e) => {
+            if (e.target.value !== 'other') set(Number(e.target.value));
+          }}
+        >
+          {POINT_SIZES.map((pt) => (
+            <option key={pt} value={String(pt)}>
+              {pt} pt
+            </option>
+          ))}
+          {!standard && <option value="other">{points} pt</option>}
+        </select>
+      </label>
+      <label>
+        Custom (pt)
+        <input
+          type="number"
+          aria-label="Custom text size in points"
+          inputMode="decimal"
+          min={3}
+          max={56}
+          step={0.5}
+          value={typed ?? String(points)}
+          onChange={(e) => {
+            setTyped(e.target.value);
+            if (e.target.value !== '') set(Number(e.target.value));
+          }}
+          onBlur={() => {
+            setTyped(null);
+          }}
+        />
+      </label>
     </div>
   );
 }

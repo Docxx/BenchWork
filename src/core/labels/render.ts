@@ -5,6 +5,7 @@ import '@fontsource-variable/inter/wght-italic.css';
 import '@fontsource-variable/source-serif-4';
 import '@fontsource-variable/source-serif-4/wght-italic.css';
 import './fonts.css';
+import { drawQr } from './qr';
 import { feedSize, labelText, type LabelDesign, type LabelRow } from './model';
 export const LABEL_DPI = 203;
 const dots = (mm: number, dpi = LABEL_DPI) => Math.round((mm * dpi) / 25.4);
@@ -84,23 +85,20 @@ export async function renderLabel(
         throw new Error(
           `Fill the data fields for ${e.kind === 'qr' ? 'the QR code' : 'the barcode'} before printing.`,
         );
-      const code = document.createElement('canvas');
-      bwip.toCanvas(code, {
-        bcid: e.kind === 'qr' ? 'qrcode' : 'code128',
-        text,
-        scale: 3,
-        paddingwidth: e.kind === 'qr' ? 4 : 10,
-        paddingheight: e.kind === 'qr' ? 4 : 2,
-      });
-      ctx.imageSmoothingEnabled = false;
-      const side = Math.min(e.width, e.height);
-      ctx.drawImage(
-        code,
-        0,
-        0,
-        e.kind === 'qr' ? side : e.width,
-        e.kind === 'qr' ? side : e.height,
-      );
+      if (e.kind === 'qr') {
+        drawQr(ctx, text, Math.min(e.width, e.height), LABEL_DPI);
+      } else {
+        const code = document.createElement('canvas');
+        bwip.toCanvas(code, {
+          bcid: 'code128',
+          text,
+          scale: 3,
+          paddingwidth: 10,
+          paddingheight: 2,
+        });
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(code, 0, 0, e.width, e.height);
+      }
     }
     ctx.restore();
   }

@@ -29,6 +29,7 @@ import type {
   ProgramRunner,
   PandocWordOptions,
   PlatformAdapter,
+  AppLinkSource,
   SearchIndex,
   VaultChange,
   VaultOwner,
@@ -71,6 +72,8 @@ interface AndroidBridge {
   askAllFilesAccess(): void;
   openLink(url: string): void;
   sharedStorage(): string;
+  /** The `benchwork://` link that opened the app, once; empty if none. */
+  takeAppLink?(): string;
 }
 
 declare global {
@@ -78,7 +81,24 @@ declare global {
     BenchWorkAndroid?: AndroidBridge;
     /** MainActivity.kt answers handwriting requests through this. */
     __benchworkInkReply?: (id: string, ok: boolean, value: unknown) => void;
+    /** MainActivity.kt passes `benchwork://` links opened while the app runs. */
+    __benchworkAppLink?: (url: string) => void;
   }
+}
+
+/** `benchwork://` links on Android, from the intent filter in AndroidManifest.xml. */
+function androidAppLinks(): AppLinkSource | null {
+  if (!window.BenchWorkAndroid?.takeAppLink) return null;
+  return {
+    listen(onLink) {
+      window.__benchworkAppLink = onLink;
+      const first = window.BenchWorkAndroid?.takeAppLink?.() ?? '';
+      if (first) onLink(first);
+      return () => {
+        if (window.__benchworkAppLink === onLink) delete window.__benchworkAppLink;
+      };
+    },
+  };
 }
 
 /** Handwriting to text with ML Kit, through MainActivity.kt; null off Android. */
@@ -270,6 +290,7 @@ export class TauriAdapter implements PlatformAdapter {
     },
   };
   readonly labelBluetooth = nativeLabelBluetooth();
+  readonly appLinks = androidAppLinks();
   async openFeedbackEmail(subject: string, body: string): Promise<void> {
     const bridge = window.BenchWorkAndroid;
     if (bridge) {

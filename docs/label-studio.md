@@ -79,6 +79,27 @@ Supported record kinds include samples, reagents, antibodies, stocks, datasets
 and experiments. Scalar properties become available as fields. Notes, raw data
 and linked files are not uploaded to any label service.
 
+Text size is in points, as in Word. Pick a common size from the list, or type
+any size from 3 to 56 pt.
+
+### QR codes for fly stocks
+
+Each fly stock gets a short label code, such as `K7M2Q9XA`, the first time its
+records are loaded here. The code is saved in the stock's file as `code:` and
+never changes, so labels already printed keep working. Two fields use it:
+
+- `{code}`: the code itself, worth printing as text beside the QR code.
+- `{link}`: `benchwork://s/<code>`, for the QR code.
+
+Scanning the QR code on a device with BenchWork opens the stock in Fly room.
+On the tablet, the camera app hands the link to BenchWork; some camera apps
+only offer to open web links, so the in-app scanner is the dependable route
+once it lands. A stock whose code is in another vault shows a short notice.
+
+The link is kept short so the code stays small: 25 by 25 modules. Each module
+prints as whole printer dots, and the designer warns when a QR code is too
+small to scan; at 203 dpi, 11 mm square is the smallest reliable size.
+
 ## Templates and the companion
 
 The **Library** tab shows searchable pair previews of templates and recent prints.

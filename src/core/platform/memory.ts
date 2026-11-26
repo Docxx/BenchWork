@@ -117,6 +117,20 @@ export class MemoryAdapter implements PlatformAdapter {
   /** Runs programs as `usePrograms` says; none until then. */
   programs: ProgramRunner | null = null;
   readonly audience = browserAudience();
+  private appLinkListeners = new Set<(url: string) => void>();
+  /** Scanned-label links, as Android passes them; tests send them with openAppLink. */
+  readonly appLinks = {
+    listen: (onLink: (url: string) => void) => {
+      this.appLinkListeners.add(onLink);
+      return () => {
+        this.appLinkListeners.delete(onLink);
+      };
+    },
+  };
+  /** Opens a `benchwork://` link as if a QR code had been scanned. */
+  openAppLink(url: string): void {
+    for (const listen of this.appLinkListeners) listen(url);
+  }
   private powerpointImporter: ((source: string, folder: string) => Promise<ImportedSlides>) | null =
     null;
   usePowerPointImporter(

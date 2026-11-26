@@ -40,6 +40,34 @@ class MainActivity : TauriActivity() {
       WindowInsetsCompat.CONSUMED
     }
     showBarsFor(resources.configuration)
+    pendingLink = appLinkFrom(intent)
+  }
+
+  /** A `benchwork://` link that started the app, kept until the page asks for it. */
+  @Volatile private var pendingLink: String? = null
+
+  /** Only short BenchWork links, such as `benchwork://s/K7M2Q9XA`, are passed on. */
+  private fun appLinkFrom(intent: Intent?): String? {
+    if (intent?.action != Intent.ACTION_VIEW) return null
+    val link = intent.dataString ?: return null
+    return if (link.matches(Regex("benchwork://[a-z]{1,12}/[0-9A-Za-z]{8}/?"))) link else null
+  }
+
+  /** A link opened while BenchWork is already running (launchMode is singleTask). */
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    val link = appLinkFrom(intent) ?: return
+    val view = webView
+    if (view == null) {
+      pendingLink = link
+      return
+    }
+    runOnUiThread {
+      view.evaluateJavascript(
+        "window.__benchworkAppLink ? window.__benchworkAppLink(${JSONObject.quote(link)}) : 0",
+        null,
+      )
+    }
   }
 
   override fun onConfigurationChanged(newConfig: Configuration) {
@@ -328,6 +356,14 @@ class MainActivity : TauriActivity() {
       } catch (e: Exception) {
         JSONObject().put("error", e.message ?: "Cannot read pairing file").toString()
       }
+    }
+
+    /** The link that opened the app, given once; empty if none. */
+    @JavascriptInterface
+    fun takeAppLink(): String {
+      val link = pendingLink ?: ""
+      pendingLink = null
+      return link
     }
 
     /** The shared storage folder, where vaults usually live. */

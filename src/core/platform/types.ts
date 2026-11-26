@@ -18,6 +18,12 @@ export interface HttpResponse {
   retryAfter: string | null;
 }
 
+/** Links that open BenchWork from outside. */
+export interface AppLinkSource {
+  /** Calls `onLink` for the link that started the app, if any, and each one after. Returns a stop function. */
+  listen(onLink: (url: string) => void): () => void;
+}
+
 export interface PlatformAdapter {
   readonly updates?: AppUpdates | null;
   readonly relay?: RelayAdapter | null;
@@ -28,6 +34,8 @@ export interface PlatformAdapter {
   readonly materials?: MaterialFiles;
   readonly audience?: AudienceDisplay | null;
   readonly fileTransfers?: FileTransfers | null;
+  /** `benchwork://` links opened from outside, such as a scanned QR code; null where unsupported. */
+  readonly appLinks?: AppLinkSource | null;
   /** Authenticated Microsoft HTTPS, without browser cookies or redirects. */
   microsoftRequest(request: HttpRequest): Promise<HttpResponse>;
   /** Device-local encrypted data, never written into a vault. */

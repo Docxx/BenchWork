@@ -1,3 +1,4 @@
+import { createAppLinkRouter } from '../links/appLinks';
 import { createKnowledgeSlice, type KnowledgeSlice } from './knowledgeSlice';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { createContributions } from '../modules/contributions';
@@ -107,6 +108,15 @@ export function createAppStore(
 
   registry.store.subscribe((modules) => {
     store.setState({ modules });
+  });
+
+  // Scanned label links wait until the module that opens them has loaded.
+  const links = createAppLinkRouter(() => registry.contributions.getState().linkHandlers);
+  registry.contributions.subscribe((now, before) => {
+    if (now.linkHandlers !== before.linkHandlers) links.handlersChanged();
+  });
+  platform.appLinks?.listen((url) => {
+    links.receive(url);
   });
   registry.contributions.subscribe(
     ({

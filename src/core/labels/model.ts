@@ -50,8 +50,8 @@ export function newLabelElement(kind: LabelKind): LabelElement {
     kind,
     x: 2,
     y: 2,
-    width: kind === 'qr' ? 10 : 40,
-    height: kind === 'qr' ? 10 : 5,
+    width: kind === 'qr' ? 12 : 40,
+    height: kind === 'qr' ? 12 : 5,
     text: kind === 'qr' || kind === 'barcode' ? '{id}' : '{name}',
     font: 'inter',
     size: 2.5,
@@ -162,6 +162,15 @@ export function parseLabelDesign(value: unknown): LabelDesign {
     ...(r['savedAs'] === 'printed' ? { savedAs: 'printed' as const } : {}),
     ...(typeof r['savedAt'] === 'string' ? { savedAt: r['savedAt'].slice(0, 40) } : {}),
   };
+}
+/** Text sizes offered in the designer, in points as in Word. */
+export const POINT_SIZES = [5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48] as const;
+/** Text sizes are stored in millimetres; the designer shows points (1 pt = 1/72 inch). */
+export function mmToPoints(mm: number): number {
+  return Math.round(((mm * 72) / 25.4) * 10) / 10;
+}
+export function pointsToMm(points: number): number {
+  return Math.round(((points * 25.4) / 72) * 1000) / 1000;
 }
 export function labelText(text: string, row: LabelRow, sequence: number, now = new Date()): string {
   return text.replace(/\{([^{}]+)\}/g, (_, key: string) =>

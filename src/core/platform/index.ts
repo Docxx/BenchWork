@@ -27,6 +27,7 @@ export type {
   PageRef,
   PandocWordOptions,
   PlatformAdapter,
+  AppLinkSource,
   SearchHit,
   SearchIndex,
   TagCount,

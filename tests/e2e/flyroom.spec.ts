@@ -163,3 +163,25 @@ test('runs a sequential line plan, carries a shortfall and reuses a clean templa
   await expect(queue).toContainText('Second line');
   await expect(page.getByLabel('Actual collected (target 5)')).toHaveValue('');
 });
+
+test('a scanned label link opens its stock', async ({ page }) => {
+  await page.evaluate(async () => {
+    const memory = window.__benchworkMemory;
+    await memory?.ensureDir('Fly room/Stocks');
+    await memory?.writeTextAtomic(
+      'Fly room/Stocks/OreR.flystock.yaml',
+      'genotype: + ; + ; + ; +\nstatus: Healthy\ncode: K7M2Q9XA\n',
+    );
+  });
+  await page.getByRole('button', { name: 'Home', exact: true }).click();
+  await page.evaluate(() => {
+    window.__benchworkMemory?.openAppLink('benchwork://s/k7m2q9xa');
+  });
+  const view = page.locator('.fly-view');
+  await expect(view.getByText('Label code K7M2Q9XA')).toBeVisible();
+  await expect(view.getByRole('row', { selected: true })).toContainText('OreR');
+  await page.evaluate(() => {
+    window.__benchworkMemory?.openAppLink('benchwork://s/ZZZZZZZZ');
+  });
+  await expect(view.getByRole('status')).toContainText('No stock has the label code ZZZZZZZZ');
+});

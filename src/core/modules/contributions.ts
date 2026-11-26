@@ -11,11 +11,16 @@ import type {
   ScheduleSourceSpec,
   PageTypeSpec,
   PageViewSpec,
+  LinkHandlerSpec,
   SettingsPanelSpec,
   SidebarPanelSpec,
   TimerProviderSpec,
   ReadingAction,
 } from '../api';
+
+export interface LinkHandler extends LinkHandlerSpec {
+  moduleId: string;
+}
 
 export interface SidebarPanel extends SidebarPanelSpec {
   moduleId: string;
@@ -82,6 +87,7 @@ export interface ContributionsState {
   widgets: Widget[];
   calendarSources: CalendarSource[];
   scheduleSources: ScheduleSource[];
+  linkHandlers: LinkHandler[];
   strokeFilters: StrokeFilter[];
   inkTools: InkToolContribution[];
   inkRecognisers: InkRecogniser[];
@@ -107,6 +113,7 @@ export function createContributions(): Contributions {
     widgets: [],
     calendarSources: [],
     scheduleSources: [],
+    linkHandlers: [],
     strokeFilters: [],
     inkTools: [],
     inkRecognisers: [],

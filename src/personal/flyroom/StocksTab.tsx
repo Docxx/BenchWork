@@ -145,6 +145,7 @@ export function StockEditor({
           Open file
         </button>
       </div>
+      {stock.code && <p className="hint">Label code {stock.code}</p>}
       <p className="hint">
         A slash separates a chromosome&apos;s two copies, as in Sco/CyO; one entry means both are
         the same.
@@ -387,16 +388,26 @@ function ImportButton({ store }: { store: FlyStore }) {
 export function StocksTab({
   ctx,
   store,
+  labelCode = null,
   onPlan,
 }: {
   ctx: ModuleContext;
   store: FlyStore;
+  /** A code from a scanned label: the stock with it opens. */
+  labelCode?: string | null;
   onPlan: (stock: Stock, as: 'mother' | 'father') => void;
 }) {
   const { stocks, loaded } = useFly(store);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('All');
+  const scanned = labelCode ? (stocks.find((s) => s.code === labelCode) ?? null) : null;
   const [open, setOpen] = useState<string | null>(null);
+  const [followed, setFollowed] = useState(false);
+  // Open the scanned stock once the stocks have been read.
+  if (scanned && !followed) {
+    setFollowed(true);
+    setOpen(scanned.path);
+  }
   const [tags, setTags] = useState<string[]>([]);
   const q = query.trim().toLowerCase();
   const day = today();
@@ -471,6 +482,11 @@ export function StocksTab({
             </button>
           ))}
         </div>
+      )}
+      {labelCode && !scanned && (
+        <p role="status" className="hint">
+          No stock has the label code {labelCode}. It may be in another vault.
+        </p>
       )}
       {current && <StockEditor ctx={ctx} store={store} stock={current} onPlan={onPlan} />}
       {shown.length === 0 ? (

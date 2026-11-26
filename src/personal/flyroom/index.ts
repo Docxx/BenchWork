@@ -33,6 +33,13 @@ export default defineModule({
       },
     });
 
+    // A stock's QR label, `benchwork://s/<code>`, opens it here.
+    ctx.views.registerLinkHandler({
+      id: 'flyroom.stock-links',
+      kind: 's',
+      open: (code) => void ctx.app.openView(VIEW, `stock:${code}`),
+    });
+
     ctx.views.registerWidget({
       id: 'flyroom.today',
       starts: { home: true },
