@@ -81,6 +81,14 @@ architecture is in [SPEC.md](SPEC.md) and feature guides are in `docs/`.
 
 - [ ] Checked on the tablet
 
+## Fly stocks and labels on the phone
+
+- [x] Relay carries readable cards: fly stocks and labels
+- [x] Fly room sends stocks; saving a label sends it
+- [x] The label app signs in to the account and brings in labels
+- [x] A scanned vial opens its stock in the label app
+- [ ] Checked in the fly room with real vials
+
 ## Phase 8: Apple port
 
 - [ ] macOS build (needs a Mac or macOS CI runner)

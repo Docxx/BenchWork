@@ -131,6 +131,24 @@ or All files access. Both apps accept individual `.label.json` files and
 images, styles and saved text-field values. No spreadsheet needs to accompany it.
 A live `{today}` element updates on the printing device.
 
+### Through the relay
+
+With Cloud sync set up, the phone need not be handed a pack at all. Choose
+**Connect to BenchWork** in the companion and sign in with your account: the
+phone is given a device credential of its own, kept on the phone. After that:
+
+- every label saved on the desktop is sent to the relay, and the companion
+  brings in whatever is new each time it opens;
+- deleting a label on the desktop takes it off the phone as well;
+- scanning a vial's QR code opens the companion on that fly stock, with its
+  genotype, stock centre and FlyBase links, status, where it is, flipping,
+  notes and reference.
+
+Designing and printing never need an account, and a phone that has not been
+connected simply misses these. Stocks and labels sent this way are readable on
+the relay, unlike the vault, which stays encrypted; both need the device
+credential to read. Only stocks with a label code are sent.
+
 ### Desktop to phone
 
 1. Create and save labels in BenchWork, and assign them to a folder if useful.
