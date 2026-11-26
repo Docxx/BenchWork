@@ -1,8 +1,23 @@
 // @vitest-environment node
 import { readStock } from './records';
-import { fitGenotype, labelGenotype, stockLabelDesign } from './stockLabel';
+import { fitGenotype, labelGenotype, stockLabelDesign, withTodaysDate } from './stockLabel';
 
 describe('stock labels', () => {
+  it('turns a date typed into an older label into the day it is printed', () => {
+    const stock = readStock('Fly room/Stocks/OreR.flystock.yaml', { genotype: '+ ; + ; + ; +' });
+    const design = stockLabelDesign(stock, 'RP', 'K7M2Q9XA', null);
+    const typed = {
+      ...design,
+      elements: design.elements.map((e) =>
+        e.text === '{today}' ? { ...e, text: '04/03/2026' } : e,
+      ),
+    };
+    expect(withTodaysDate(typed).elements.map((e) => e.text)).toContain('{today}');
+    // Words that are not a date are left alone.
+    const words = { ...design, elements: design.elements.map((e) => ({ ...e, text: 'Keep me' })) };
+    expect(withTodaysDate(words).elements.every((e) => e.text === 'Keep me')).toBe(true);
+  });
+
   it('writes the genotype as on a vial, without wild-type chromosomes at the end', () => {
     expect(labelGenotype('+ ; Sco/CyO ; TM3/TM6 ; +')).toBe('+; Sco/CyO; TM3/TM6');
     expect(labelGenotype('w ; + ; + ; +')).toBe('w');

@@ -6,6 +6,11 @@ export interface LabelWorkspace {
   createFolder?(name: string): Promise<void>;
   saveMany?(designs: readonly LabelDesign[]): Promise<void>;
   records?(): Promise<LabelRow[]>;
+  /**
+   * Asks, then removes a saved label. Resolves to whether it went. Missing
+   * where labels cannot be deleted.
+   */
+  remove?(design: LabelDesign): Promise<boolean>;
 }
 export function localLabelWorkspace(): LabelWorkspace {
   const key = 'benchwork.label-studio.templates';
@@ -48,6 +53,13 @@ export function localLabelWorkspace(): LabelWorkspace {
       const stored = await localLabelWorkspace().list();
       const next = [...stored.filter((d) => d.id !== design.id), design];
       localStorage.setItem(key, JSON.stringify(next));
+    },
+    remove: async (design) => {
+      if (!globalThis.confirm(`Delete the label "${design.name}"? This cannot be undone.`))
+        return false;
+      const stored = await localLabelWorkspace().list();
+      localStorage.setItem(key, JSON.stringify(stored.filter((d) => d.id !== design.id)));
+      return true;
     },
   };
 }

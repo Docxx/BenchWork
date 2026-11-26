@@ -38,6 +38,8 @@ export interface LabelDesign {
   savedAt?: string;
   folder?: string;
   data?: LabelRow;
+  /** A batch saved with the label: one row of field values per label. */
+  rows?: LabelRow[];
 }
 export type LabelRow = Record<string, string>;
 const n = (v: unknown, fallback: number, min: number, max: number) =>
@@ -162,6 +164,17 @@ export function parseLabelDesign(value: unknown): LabelDesign {
         .slice(0, 100)
         .map(([k, v]) => [k.slice(0, 100), str(v)]),
     ),
+    ...(Array.isArray(r['rows'])
+      ? {
+          rows: r['rows'].slice(0, 500).map((row) =>
+            Object.fromEntries(
+              Object.entries(obj(row))
+                .slice(0, 100)
+                .map(([k, v]) => [k.slice(0, 100), str(v)]),
+            ),
+          ),
+        }
+      : {}),
     ...(r['savedAs'] === 'printed' ? { savedAs: 'printed' as const } : {}),
     ...(typeof r['savedAt'] === 'string' ? { savedAt: r['savedAt'].slice(0, 40) } : {}),
   };
@@ -177,7 +190,8 @@ export function pointsToMm(points: number): number {
 }
 export function labelText(text: string, row: LabelRow, sequence: number, now = new Date()): string {
   return text.replace(/\{([^{}]+)\}/g, (_, key: string) =>
-    key === 'today'
+    // A date field with nothing to fill it in means the day it is printed.
+    key === 'today' || (key === 'date' && !Object.hasOwn(row, key))
       ? now.toLocaleDateString('en-GB')
       : key === 'n'
         ? String(sequence)

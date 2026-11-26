@@ -613,6 +613,31 @@ button.fly-tag-filter[aria-pressed='true'] {
   overflow-wrap: anywhere;
 }
 
+/* A stock's details read down the card: its labels in a column, values beside. */
+.fly-stock-card {
+  justify-items: stretch;
+  text-align: left;
+}
+
+.fly-stock-card dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.35rem 1rem;
+}
+
+.fly-stock-card dl > div {
+  display: contents;
+}
+
+.fly-stock-card dt {
+  white-space: nowrap;
+}
+
+.fly-stock-card dd {
+  margin: 0;
+}
+
 .fly-card-carries {
   display: grid;
   gap: 0.15rem;

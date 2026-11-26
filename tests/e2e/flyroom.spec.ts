@@ -253,3 +253,62 @@ test('makes a vial label for a stock and deletes a stock after asking', async ({
   await expect(view.getByRole('button', { name: 'Myd88-KO-CyO' })).toHaveCount(0);
   expect(await file(page, 'Fly room/Stocks/Myd88-KO-CyO.flystock.yaml')).toBeNull();
 });
+
+test('a stock card shows its centre, FlyBase and reference, and several stocks label at once', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('tab', { name: 'Modules', exact: true }).click();
+  await page.getByRole('switch', { name: /Label Studio/ }).click();
+  await page.getByRole('button', { name: 'Fly room', exact: true }).first().click();
+  const view = page.locator('.fly-view');
+  await view.getByLabel('CSV file of stocks').setInputFiles({
+    name: 'stocks.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(CSV),
+  });
+  await expect(view.getByRole('status')).toHaveText('3 stocks added.');
+
+  // Bloomington's own page and FlyBase are separate links, and a DOI opens.
+  await view.getByRole('button', { name: 'Myd88-KO-CyO' }).click();
+  const stock = view.getByRole('region', { name: 'Stock Myd88-KO-CyO' });
+  await stock.getByRole('button', { name: 'Edit', exact: true }).click();
+  await stock.getByLabel('Reference').fill('Smith et al. 2024, 10.1038/s41586-024-00001-2');
+  await stock.getByLabel('Reference').press('Enter');
+  await stock.getByRole('button', { name: 'Done', exact: true }).click();
+  const card = stock.getByLabel('Stock details');
+  await expect(card.getByRole('link', { name: 'Bloomington 12345' })).toHaveAttribute(
+    'href',
+    'https://bdsc.indiana.edu/Home/Search?presearch=12345',
+  );
+  await expect(card.getByRole('link', { name: 'FBst0012345' })).toHaveAttribute(
+    'href',
+    'https://flybase.org/reports/FBst0012345',
+  );
+  await expect(card.getByRole('link', { name: /Smith et al/ })).toHaveAttribute(
+    'href',
+    'https://doi.org/10.1038/s41586-024-00001-2',
+  );
+
+  // Two stocks picked, one sheet of labels carrying both.
+  await view.getByLabel('Pick Myd88-KO-CyO for labels').check();
+  await view.getByLabel('Pick elav-Gal4; tub-Gal80ts for labels').check();
+  await view.getByRole('button', { name: 'Make labels', exact: true }).click();
+  const prompt = page.getByRole('dialog', { name: 'Your initials' });
+  await prompt.getByLabel('Initials for labels').fill('RP');
+  await prompt.getByLabel('Initials for labels').press('Enter');
+  await expect(page.getByLabel('Template name', { exact: true })).toHaveValue(
+    'Vial labels, 2 stocks',
+  );
+  await page.getByRole('button', { name: 'Batch data', exact: true }).click();
+  await expect(page.getByLabel('Preview batch row').getByRole('option')).toHaveCount(2);
+  const batch = await page.evaluate(
+    () =>
+      Object.entries(window.__benchworkMemory?.snapshot() ?? {}).find(([p]) =>
+        p.endsWith('.label.json'),
+      )?.[1] ?? '',
+  );
+  expect(batch).toContain('"rows"');
+  expect(batch).toContain('Myd88-KO-CyO');
+  expect(batch).toContain('elav-Gal4; tub-Gal80ts');
+});

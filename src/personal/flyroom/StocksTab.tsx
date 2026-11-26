@@ -9,10 +9,13 @@ import {
   flybaseReport,
   flybaseSearch,
   parseTags,
+  referenceLink,
   stockCentreLink,
+  stockCentrePage,
+  type CentreLink,
 } from './links';
 import { addDays } from './schedule';
-import { makeStockLabel } from './stockLabel';
+import { makeStockLabel, makeStockLabels } from './stockLabel';
 import { today, useFly, type FlyStore } from './store';
 
 /** A date as people read it. */
@@ -121,6 +124,7 @@ function StockCard({
   about,
   report,
   centre,
+  page,
   next,
   open,
   onFlipped,
@@ -128,11 +132,15 @@ function StockCard({
   stock: Stock;
   about: Description;
   report: string | null;
+  /** Its FlyBase stock report, worked out from a Bloomington number. */
   centre: string | null;
+  /** The stock centre's own page, such as Bloomington's or VDRC's. */
+  page: CentreLink | null;
   next: string | null;
   open: (url: string) => void;
   onFlipped: () => void;
 }) {
+  const paper = referenceLink(stock.reference);
   const link = (url: string, label: string) => (
     <a
       href={url}
@@ -152,13 +160,17 @@ function StockCard({
   add('Source', stock.source, stock.source !== '');
   add(
     'Stock number',
-    centre !== null ? link(centre, `${stock.source || 'Stock'} ${stock.number}`) : stock.number,
+    page !== null ? link(page.url, `${page.centre} ${stock.number}`) : stock.number,
     stock.number !== '',
   );
   add(
     'FlyBase',
-    report !== null ? link(report, stock.flybase) : stock.flybase,
-    stock.flybase !== '',
+    report !== null
+      ? link(report, stock.flybase)
+      : centre !== null
+        ? link(centre, `FBst${stock.number.replace(/^#/, '').padStart(7, '0')}`)
+        : stock.flybase,
+    stock.flybase !== '' || centre !== null,
   );
   add(
     'Carries',
@@ -194,9 +206,14 @@ function StockCard({
     `Every ${String(stock.flipEvery)} days${stock.lastFlipped !== '' ? `, last ${dayLabel(stock.lastFlipped)}` : ''}`,
     stock.flipEvery !== null,
   );
+  add(
+    'Reference',
+    paper !== null ? link(paper, stock.reference) : stock.reference,
+    stock.reference !== '',
+  );
   add('Label code', stock.code, stock.code !== '');
   return (
-    <div className="fly-card" aria-label="Stock details">
+    <div className="fly-card fly-stock-card" aria-label="Stock details">
       <dl>
         {rows.map(([label, value]) => (
           <div key={label}>
@@ -250,6 +267,7 @@ export function StockEditor({
   const { settings } = useFly(store);
   const about = describe(pairs, settings.markers);
   const centre = stockCentreLink(stock.source, stock.number);
+  const page = stockCentrePage(stock.source, stock.number);
   const report = flybaseReport(stock.flybase);
   const open = (url: string) => void ctx.web.open(url);
 
@@ -331,6 +349,7 @@ export function StockEditor({
           about={about}
           report={report}
           centre={centre}
+          page={page}
           next={next}
           open={open}
           onFlipped={() => {
@@ -438,6 +457,14 @@ export function StockEditor({
               hint="FBst0093769"
               onSave={(v) => {
                 save('flybase', v);
+              }}
+            />
+            <Saved
+              label="Reference"
+              value={stock.reference}
+              hint="Smith et al. 2024, or 10.1038/s41586-024-00001-2"
+              onSave={(v) => {
+                save('reference', v);
               }}
             />
             <Saved
@@ -607,6 +634,9 @@ export function StocksTab({
     setOpen(scanned.path);
   }
   const [tags, setTags] = useState<string[]>([]);
+  /** Stocks ticked for a sheet of vial labels, by path. */
+  const [picked, setPicked] = useState<string[]>([]);
+  const [labelProblem, setLabelProblem] = useState<string | null>(null);
   const q = query.trim().toLowerCase();
   const day = today();
   const allTags = [...new Set(stocks.flatMap((s) => s.tags))].sort((a, b) =>
@@ -664,6 +694,39 @@ export function StocksTab({
         </button>
         <ImportButton store={store} />
       </div>
+      {picked.length > 0 && (
+        <div className="fly-bar fly-picked" role="group" aria-label="Stocks picked for labels">
+          <span>
+            {picked.length} {picked.length === 1 ? 'stock' : 'stocks'} picked
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setLabelProblem(null);
+              const chosen = stocks.filter((s) => picked.includes(s.path));
+              void makeStockLabels(ctx, store, chosen).catch((err: unknown) => {
+                setLabelProblem(err instanceof Error ? err.message : String(err));
+              });
+            }}
+          >
+            Make labels
+          </button>
+          <button
+            type="button"
+            className="quiet"
+            onClick={() => {
+              setPicked([]);
+            }}
+          >
+            Clear
+          </button>
+        </div>
+      )}
+      {labelProblem !== null && (
+        <p className="notice" role="alert">
+          {labelProblem}
+        </p>
+      )}
       {allTags.length > 0 && (
         <div className="fly-tags" role="group" aria-label="Show stocks tagged">
           {allTags.map((t) => (
@@ -707,6 +770,9 @@ export function StocksTab({
           <table className="fly-table">
             <thead>
               <tr>
+                <th>
+                  <span className="sr-only">Pick for labels</span>
+                </th>
                 <th>Name</th>
                 <th>Genotype</th>
                 <th>Source</th>
@@ -720,6 +786,20 @@ export function StocksTab({
                 const next = nextFlip(s);
                 return (
                   <tr key={s.path} aria-selected={s.path === open}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        aria-label={`Pick ${s.name} for labels`}
+                        checked={picked.includes(s.path)}
+                        onChange={(e) => {
+                          setPicked(
+                            e.target.checked
+                              ? [...picked, s.path]
+                              : picked.filter((p) => p !== s.path),
+                          );
+                        }}
+                      />
+                    </td>
                     <td>
                       <button
                         type="button"

@@ -155,6 +155,10 @@ export function LabelStudio({
           if (first) {
             setDesign(structuredClone(first));
             setRow({ ...seed(), ...first.data });
+            // A label saved with a batch, such as vial labels for several fly
+            // stocks, opens ready to print the whole batch.
+            setRows(first.rows ?? []);
+            setDataIndex(0);
           }
         }
       })
@@ -291,7 +295,10 @@ export function LabelStudio({
   function openDesign(d: LabelDesign) {
     setDesign(structuredClone(d));
     setRow({ ...seed(), ...d.data });
-    setRows([]);
+    // A label saved with a batch, such as vial labels for several fly stocks,
+    // opens ready to print the whole batch.
+    setRows(d.rows ?? []);
+    setDataIndex(0);
     setSelected(null);
     setShowProperties(!standalone);
     setTab('design');
@@ -568,6 +575,38 @@ export function LabelStudio({
                   setNotice('Labels moved.');
                 })
               }
+              onRename={(d, name) =>
+                act(async () => {
+                  await workspace.save({ ...d, name });
+                  if (d.id === design.id) change({ name });
+                  setTemplates(await workspace.list());
+                  setNotice(`Renamed to ${name}.`);
+                })
+              }
+              onDuplicate={(d) =>
+                act(async () => {
+                  const copy = {
+                    ...structuredClone(d),
+                    id: crypto.randomUUID(),
+                    name: `${d.name} copy`,
+                    savedAs: 'template' as const,
+                    savedAt: new Date().toISOString(),
+                  };
+                  await workspace.save(copy);
+                  setTemplates(await workspace.list());
+                  setNotice(`${copy.name} saved.`);
+                })
+              }
+              {...(workspace.remove
+                ? {
+                    onDelete: (d: LabelDesign) =>
+                      act(async () => {
+                        if (!(await workspace.remove?.(d))) return;
+                        setTemplates(await workspace.list());
+                        setNotice(`${d.name} deleted.`);
+                      }),
+                  }
+                : {})}
             />
           </div>
           <section hidden={tab !== 'printer'}>

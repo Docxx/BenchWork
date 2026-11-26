@@ -66,6 +66,11 @@ export function labelWorkspace(ctx: ModuleContext): LabelWorkspace {
         JSON.stringify([...new Set([...folders, labelFolder(name)])].filter(Boolean), null, 2),
       );
     },
+    remove: async (design) => {
+      const path = `Labels/${design.id}.label.json`;
+      if (!(await ctx.vault.exists(path))) return true;
+      return ctx.app.askToRecycle({ path, name: `${design.name} label` });
+    },
     records: async () => {
       const items = (await ctx.app.items())
         .filter((i) =>

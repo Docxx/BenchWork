@@ -26,12 +26,63 @@ export function flybaseSearch(term: string): string {
   return `${FLYBASE}/search/${encodeURIComponent(term.trim())}`;
 }
 
+/** A stock number as the centres write it: digits, with any leading # or v dropped. */
+function stockNumber(number: string): string | null {
+  const n = number.trim().replace(/^[#v]/i, '');
+  return /^\d{1,7}$/.test(n) ? n : null;
+}
+
 /** The FlyBase page of a stock centre stock, where it is known; Bloomington only. */
 export function stockCentreLink(source: string, number: string): string | null {
-  const n = number.trim().replace(/^#/, '');
-  if (!/^\d{1,7}$/.test(n)) return null;
-  if (!/bloomington|bdsc/i.test(source)) return null;
+  const n = stockNumber(number);
+  if (n === null || !/bloomington|bdsc/i.test(source)) return null;
   return `${FLYBASE}/reports/FBst${n.padStart(7, '0')}`;
+}
+
+/** A stock centre's own page for a stock, beside its FlyBase report. */
+export interface CentreLink {
+  /** The centre, as it is named on screen. */
+  centre: string;
+  url: string;
+}
+
+/**
+ * The centres' own lookups, each checked on 26 November 2026. Bloomington and
+ * VDRC answer a search; Kyoto has a page for each stock.
+ */
+const CENTRES: { centre: string; match: RegExp; url: (n: string) => string }[] = [
+  {
+    centre: 'Bloomington',
+    match: /bloomington|bdsc/i,
+    url: (n) => `https://bdsc.indiana.edu/Home/Search?presearch=${n}`,
+  },
+  {
+    centre: 'VDRC',
+    match: /vdrc|vienna/i,
+    url: (n) => `https://shop.vbc.ac.at/vdrc_store/catalogsearch/result/?q=${n}`,
+  },
+  {
+    centre: 'Kyoto',
+    match: /kyoto|dgrc|dggr/i,
+    url: (n) => `https://kyotofly.kit.jp/cgi-bin/stocks/search_res_det.cgi?DB_NUM=1&DG_NUM=${n}`,
+  },
+];
+
+/** The stock centre's own page for this stock, or null when the centre is not known. */
+export function stockCentrePage(source: string, number: string): CentreLink | null {
+  const n = stockNumber(number);
+  if (n === null) return null;
+  const found = CENTRES.find((c) => c.match.test(source));
+  return found ? { centre: found.centre, url: found.url(n) } : null;
+}
+
+/** The DOI or address in a reference, as a link, or null when there is none. */
+export function referenceLink(reference: string): string | null {
+  const text = reference.trim();
+  const doi = /\b(10\.\d{4,9}\/[^\s"<>]+)/.exec(text);
+  if (doi?.[1] !== undefined) return `https://doi.org/${doi[1].replace(/[.,;)]+$/, '')}`;
+  const url = /\bhttps?:\/\/[^\s"<>]+/.exec(text);
+  return url === null ? null : url[0].replace(/[.,;)]+$/, '');
 }
 
 /** What a stock carries, chromosome by chromosome. */

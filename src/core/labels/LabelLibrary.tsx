@@ -1,5 +1,14 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
-import { Folder, FolderPlus, Download, Upload, ArrowRight } from 'lucide-react';
+import {
+  Folder,
+  FolderPlus,
+  Download,
+  Upload,
+  ArrowRight,
+  Copy,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
 import { feedSize, type LabelDesign } from './model';
 import { renderFeed } from './render';
 
@@ -13,6 +22,10 @@ interface Props {
   onImport: (event: ChangeEvent<HTMLInputElement>) => void;
   keepAlignment: boolean;
   onKeepAlignment: (value: boolean) => void;
+  /** Missing where saved labels cannot be deleted. */
+  onDelete?: (design: LabelDesign) => Promise<void>;
+  onRename: (design: LabelDesign, name: string) => Promise<void>;
+  onDuplicate: (design: LabelDesign) => Promise<void>;
 }
 export function LabelLibrary({
   templates,
@@ -24,7 +37,12 @@ export function LabelLibrary({
   onImport,
   keepAlignment,
   onKeepAlignment,
+  onDelete,
+  onRename,
+  onDuplicate,
 }: Props) {
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [newName, setNewName] = useState('');
   const [search, setSearch] = useState('');
   const [folder, setFolder] = useState('*');
   const [filter, setFilter] = useState('all');
@@ -209,6 +227,76 @@ export function LabelLibrary({
                     Open and edit <ArrowRight size={14} />
                   </span>
                 </button>
+                {renaming === d.id ? (
+                  <form
+                    className="label-card-rename"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (newName.trim())
+                        void onRename(d, newName.trim()).then(() => {
+                          setRenaming(null);
+                        });
+                    }}
+                  >
+                    <label>
+                      New name for {d.name}
+                      <input
+                        autoFocus
+                        value={newName}
+                        maxLength={100}
+                        onChange={(e) => {
+                          setNewName(e.target.value);
+                        }}
+                      />
+                    </label>
+                    <button disabled={!newName.trim()}>Save name</button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRenaming(null);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                ) : (
+                  <div className="label-card-actions">
+                    <button
+                      type="button"
+                      aria-label={`Rename ${d.name}`}
+                      onClick={() => {
+                        setRenaming(d.id);
+                        setNewName(d.name);
+                      }}
+                    >
+                      <Pencil size={14} />
+                      Rename
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Duplicate ${d.name}`}
+                      onClick={() => void onDuplicate(d)}
+                    >
+                      <Copy size={14} />
+                      Duplicate
+                    </button>
+                    {onDelete && (
+                      <button
+                        type="button"
+                        className="label-delete-action"
+                        aria-label={`Delete ${d.name}`}
+                        onClick={() =>
+                          void onDelete(d).then(() => {
+                            setSelected((ids) => ids.filter((id) => id !== d.id));
+                          })
+                        }
+                      >
+                        <Trash2 size={14} />
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
               </article>
             ))}
           </div>

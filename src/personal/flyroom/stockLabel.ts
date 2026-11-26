@@ -142,6 +142,21 @@ export function fitGenotype(design: LabelDesign): LabelDesign {
   };
 }
 
+/**
+ * Labels made before, or by hand, with the date typed in: it becomes the
+ * automatic date, so a label printed today carries today.
+ */
+export function withTodaysDate(design: LabelDesign): LabelDesign {
+  return {
+    ...design,
+    elements: design.elements.map((e) =>
+      e.kind === 'text' && /^\s*\d{2}\/\d{2}\/\d{4}\s*$/.test(e.text)
+        ? { ...e, text: '{today}' }
+        : e,
+    ),
+  };
+}
+
 async function savedDesigns(ctx: ModuleContext): Promise<LabelDesign[]> {
   if (!(await ctx.vault.exists(FOLDER))) return [];
   const files = (await ctx.vault.listDir(FOLDER)).filter(
@@ -159,6 +174,76 @@ async function savedDesigns(ctx: ModuleContext): Promise<LabelDesign[]> {
   return designs.filter((d): d is LabelDesign => d !== null);
 }
 
+/** The initials labels are signed with, asked for once and kept in settings. */
+async function labelInitials(ctx: ModuleContext, store: FlyStore): Promise<string | null> {
+  const kept = store.snapshot().settings.initials;
+  if (kept !== '') return kept;
+  const typed = await ctx.app.askText({ title: 'Your initials', label: 'Initials for labels' });
+  if (typed === null || typed.trim() === '') return null;
+  const initials = typed.trim().slice(0, 12);
+  await store.saveInitials(initials);
+  return initials;
+}
+
+/** A stock's short code, given once and kept so labels already printed keep working. */
+async function stockCode(store: FlyStore, stock: Stock): Promise<string> {
+  if (isShortCode(stock.code)) return stock.code;
+  const code = newShortCode();
+  await store.update(stock.path, { code });
+  return code;
+}
+
+/** The fields a vial label fills in for one stock. */
+function labelRow(stock: Stock, initials: string, code: string): Record<string, string> {
+  return {
+    name: stock.name,
+    genotype: labelGenotype(stock.genotype),
+    initials,
+    code,
+    link: appLink('s', code),
+  };
+}
+
+/**
+ * One label carrying a batch: the vial label for each stock picked, ready to
+ * print as a run. The layout comes from the first stock, so every label in the
+ * batch is laid out the same way.
+ */
+export async function makeStockLabels(
+  ctx: ModuleContext,
+  store: FlyStore,
+  stocks: readonly Stock[],
+): Promise<void> {
+  const [first] = stocks;
+  if (!first) throw new Error('Choose at least one stock.');
+  if (stocks.length === 1) return makeStockLabel(ctx, store, first);
+  if (!ctx.views.hasPageView(STUDIO))
+    throw new Error('Turn on Label Studio in Settings, Modules, to make labels.');
+  const initials = await labelInitials(ctx, store);
+  if (initials === null) return;
+  const rows = [];
+  for (const stock of stocks) rows.push(labelRow(stock, initials, await stockCode(store, stock)));
+  const designs = await savedDesigns(ctx);
+  const paper =
+    designs
+      .filter((d) => d.savedAs !== 'printed')
+      .sort((a, b) => (a.savedAt ?? '').localeCompare(b.savedAt ?? ''))
+      .at(-1) ?? null;
+  const [data] = rows;
+  const design: LabelDesign = {
+    ...stockLabelDesign(first, initials, rows[0]?.['code'] ?? '', paper),
+    name: `Vial labels, ${String(stocks.length)} stocks`,
+    ...(data ? { data } : {}),
+    rows,
+  };
+  await ctx.vault.ensureDir(FOLDER);
+  await ctx.vault.writeText(
+    `${FOLDER}/${design.id}.label.json`,
+    JSON.stringify(parseLabelDesign(design), null, 2),
+  );
+  await ctx.app.openView(STUDIO, design.id);
+}
+
 /**
  * Makes a label template for a stock in Label Studio and opens it. A stock
  * that already has one opens that, with its details brought up to date.
@@ -170,31 +255,15 @@ export async function makeStockLabel(
 ): Promise<void> {
   if (!ctx.views.hasPageView(STUDIO))
     throw new Error('Turn on Label Studio in Settings, Modules, to make labels.');
-  let initials = store.snapshot().settings.initials;
-  if (initials === '') {
-    const typed = await ctx.app.askText({ title: 'Your initials', label: 'Initials for labels' });
-    if (typed === null || typed.trim() === '') return;
-    initials = typed.trim().slice(0, 12);
-    await store.saveInitials(initials);
-  }
-  let code = stock.code;
-  if (!isShortCode(code)) {
-    code = newShortCode();
-    await store.update(stock.path, { code });
-  }
+  const initials = await labelInitials(ctx, store);
+  if (initials === null) return;
+  const code = await stockCode(store, stock);
   const designs = await savedDesigns(ctx);
   const existing = designs.find((d) => d.data?.['code'] === code);
   const design = existing
     ? {
-        ...fitGenotype(existing),
-        data: {
-          ...existing.data,
-          name: stock.name,
-          genotype: labelGenotype(stock.genotype),
-          initials,
-          code,
-          link: appLink('s', code),
-        },
+        ...withTodaysDate(fitGenotype(existing)),
+        data: { ...existing.data, ...labelRow(stock, initials, code) },
       }
     : stockLabelDesign(
         stock,

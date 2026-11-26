@@ -362,6 +362,26 @@
   text-align: left;
   padding: 16px;
 }
+/* Rename, duplicate and delete, under each saved label. */
+.label-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.label-card-actions button {
+  flex: 1 1 auto;
+  gap: 4px;
+  padding: 6px 8px;
+  font-size: 0.75rem;
+}
+.label-card-rename {
+  display: grid;
+  gap: 6px;
+}
+.label-card-rename label {
+  font-size: 0.75rem;
+}
+
 .label-library-card img,
 .label-thumbnail-empty {
   width: 100%;

@@ -48,6 +48,14 @@ describe('label geometry and portable templates', () => {
       labelText('{Sample ID} {n} {missing}', { 'Sample ID': 'A<script>', n: 'wrong' }, 7),
     ).toBe('A<script> 7 {missing}');
   });
+  it('fills an empty date field with the day it is printed', () => {
+    expect(labelText('{date}', {}, 1, new Date(2026, 10, 26, 12))).toBe('26/11/2026');
+    // A date that came in with the batch is still the batch's own.
+    expect(labelText('{date}', { date: '01/01/2020' }, 1, new Date(2026, 10, 26, 12))).toBe(
+      '01/01/2020',
+    );
+  });
+
   it('resolves today at print time using the local date and ignores stale imported date fields', () => {
     const template = parseLabelDesign({
       ...newLabelDesign(),

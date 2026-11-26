@@ -378,3 +378,30 @@ test('the standalone phone interface opens without a vault or full BenchWork nav
   await page.getByRole('button', { name: 'Printer settings', exact: true }).first().click();
   await expect(page.getByLabel('Vertical offset (mm)', { exact: true })).toHaveValue('1.25');
 });
+
+test('saved labels can be renamed, duplicated and deleted', async ({ page }) => {
+  await page.goto('/labels.html');
+  await page.getByLabel('Template name', { exact: true }).fill('Vial label');
+  await page.getByRole('button', { name: 'Save template', exact: true }).click();
+  await page.getByRole('button', { name: 'Library', exact: true }).click();
+
+  // A copy to work from, leaving the original alone.
+  await page.getByRole('button', { name: 'Duplicate Vial label', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Open label Vial label copy' })).toBeVisible();
+
+  // Renamed in place.
+  await page.getByRole('button', { name: 'Rename Vial label copy', exact: true }).click();
+  await page.getByLabel('New name for Vial label copy', { exact: true }).fill('Small vial label');
+  await page.getByRole('button', { name: 'Save name', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Open label Small vial label' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open label Vial label copy' })).toHaveCount(0);
+
+  // Deleting asks first, and a no leaves it alone.
+  page.once('dialog', (d) => void d.dismiss());
+  await page.getByRole('button', { name: 'Delete Small vial label', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Open label Small vial label' })).toBeVisible();
+  page.once('dialog', (d) => void d.accept());
+  await page.getByRole('button', { name: 'Delete Small vial label', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Open label Small vial label' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Open label Vial label' })).toBeVisible();
+});

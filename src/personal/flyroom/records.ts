@@ -35,6 +35,8 @@ export interface Stock {
   flybase: string;
   /** Projects and the like, for finding stocks together. */
   tags: string[];
+  /** The paper the line comes from: a citation or a DOI, typed in. */
+  reference: string;
   flipEvery: number | null;
   lastFlipped: string;
   notes: string;
@@ -109,6 +111,7 @@ export function readStock(path: string, data: Record<string, unknown>): Stock {
     flipEvery: Number.isFinite(every) && every > 0 ? Math.round(every) : null,
     lastFlipped: text(data['lastFlipped']).slice(0, 10),
     notes: text(data['notes']),
+    reference: text(data['reference']),
     code: text(data['code']).toUpperCase(),
   };
 }
@@ -222,7 +225,8 @@ const COLUMNS: Record<string, readonly string[]> = {
   location: ['location', 'stock room', 'room', 'where', 'rack'],
   status: ['status', 'health'],
   established: ['date added', 'date established', 'established', 'added', 'date', 'created'],
-  notes: ['notes', 'comment', 'comments', 'description', 'reference'],
+  notes: ['notes', 'comment', 'comments', 'description'],
+  reference: ['reference', 'paper', 'citation', 'doi', 'publication'],
 };
 
 export interface ImportedStock {

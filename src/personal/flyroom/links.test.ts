@@ -4,13 +4,45 @@ import {
   flybaseReport,
   flybaseSearch,
   parseTags,
+  referenceLink,
   stockCentreLink,
+  stockCentrePage,
 } from './links';
 import { DEFAULT_LOOK } from './look';
 import { readStock } from './records';
 import { parseSettings } from './store';
 
 describe('links out', () => {
+  it('sends each stock centre to its own lookup, apart from FlyBase', () => {
+    expect(stockCentrePage('Bloomington', '36559')).toEqual({
+      centre: 'Bloomington',
+      url: 'https://bdsc.indiana.edu/Home/Search?presearch=36559',
+    });
+    expect(stockCentrePage('VDRC Vienna', 'v100158')?.url).toBe(
+      'https://shop.vbc.ac.at/vdrc_store/catalogsearch/result/?q=100158',
+    );
+    expect(stockCentrePage('Kyoto DGRC', '109600')?.url).toBe(
+      'https://kyotofly.kit.jp/cgi-bin/stocks/search_res_det.cgi?DB_NUM=1&DG_NUM=109600',
+    );
+    // A lab's own line, or no number, has no centre to send you to.
+    expect(stockCentrePage('Monnier lab', '12')).toBeNull();
+    expect(stockCentrePage('Bloomington', '')).toBeNull();
+  });
+
+  it('links a reference by its DOI, or by an address if there is one', () => {
+    expect(referenceLink('Smith et al. 2024, doi:10.1038/s41586-024-00001-2')).toBe(
+      'https://doi.org/10.1038/s41586-024-00001-2',
+    );
+    // A full stop ending the sentence is not part of the DOI.
+    expect(referenceLink('See 10.1534/genetics.119.302205.')).toBe(
+      'https://doi.org/10.1534/genetics.119.302205',
+    );
+    expect(referenceLink('https://flybase.org/reports/FBst0036559')).toBe(
+      'https://flybase.org/reports/FBst0036559',
+    );
+    expect(referenceLink('Hanai, unpublished')).toBeNull();
+  });
+
   it('links FlyBase IDs to their page, and nothing else', () => {
     expect(flybaseReport('FBst0093769')).toBe('https://flybase.org/reports/FBst0093769');
     expect(flybaseReport(' FBal0123456 ')).toBe('https://flybase.org/reports/FBal0123456');
