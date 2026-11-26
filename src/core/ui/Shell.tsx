@@ -7,7 +7,7 @@ import { useApp, useAppStore } from './AppStoreContext';
 import { AttachDialog } from './AttachDialog';
 import { ConflictsView } from './ConflictsView';
 import { FirstRunGuide } from './FirstRunGuide';
-import { CommandList, TextPromptDialog } from './ModuleDialogs';
+import { CommandList, RecyclePromptDialog, TextPromptDialog } from './ModuleDialogs';
 import { PackChooser } from './PackChooser';
 import { PageView } from './PageView';
 import { QuickCapture } from './QuickCapture';
@@ -186,6 +186,7 @@ export function Shell({ vault }: { vault: OpenVault }) {
       <QuickCapture />
       {guide !== null ? <FirstRunGuide /> : choosingPack && <PackChooser />}
       <TextPromptDialog />
+      <RecyclePromptDialog />
       <AttachDialog />
       <RecoveryKeyDialog />
     </div>

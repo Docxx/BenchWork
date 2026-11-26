@@ -143,6 +143,7 @@ export function createModuleBridge(store: AppStore, platform: PlatformAdapter): 
       await platform.writeTextAtomic(path, serialisePage(updateProperties(page, changes)));
     },
     askText: (options) => state().askText(options),
+    askToRecycle: (options) => state().askToRecycle(options),
     notify: (message) => {
       store.setState({ sidebarNotice: message });
     },

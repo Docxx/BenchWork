@@ -519,6 +519,7 @@ export function createModuleContext(
       pageProperties: (path) => app().pageProperties(path),
       setPageProperties: (path, changes) => app().setPageProperties(path, changes),
       askText: (options) => app().askText(options),
+      askToRecycle: (options) => app().askToRecycle(options),
       notify: (message) => {
         app().notify(message);
       },

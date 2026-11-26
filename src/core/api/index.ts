@@ -428,6 +428,12 @@ export interface ModuleApp {
   setPageProperties(path: string, changes: Record<string, unknown>): Promise<void>;
   /** Asks the user for a line of text, such as a name. Null if cancelled. */
   askText(options: { title: string; label: string; initial?: string }): Promise<string | null>;
+  /**
+   * Asks the person, in BenchWork's own dialog, whether to move a file to the
+   * Recycle Bin, and moves it if they say yes. Resolves to whether it went.
+   * Modules cannot delete files any other way.
+   */
+  askToRecycle(options: { path: string; name: string }): Promise<boolean>;
   /** Shows a short message. */
   notify(message: string): void;
   /** Plays the timer cue using this device's current theme, volume and sound setting. */

@@ -121,6 +121,22 @@ describe('module page types and commands in the app', () => {
     state().answerText(null);
     expect(await cancelled).toBeNull();
   });
+
+  it('moves a file to the Recycle Bin only after the person says yes', async () => {
+    const { state, ctx, platform } = await openVault();
+    const path = 'LPS model/Data/day7.dataset.yaml';
+    const kept = ctx.app.askToRecycle({ path, name: 'day7' });
+    expect(state().recyclePrompt).toEqual({ path, name: 'day7' });
+    state().answerRecycle(false);
+    expect(await kept).toBe(false);
+    expect(platform.snapshot()[path]).toBeDefined();
+
+    const gone = ctx.app.askToRecycle({ path, name: 'day7' });
+    state().answerRecycle(true);
+    expect(await gone).toBe(true);
+    expect(platform.snapshot()[path]).toBeUndefined();
+    expect(state().recyclePrompt).toBeNull();
+  });
 });
 
 describe('the app as modules see it', () => {

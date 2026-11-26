@@ -1223,6 +1223,10 @@ button.row-menu:first-child {
   color: var(--section-red);
 }
 
+.floating-dialog button.danger {
+  color: var(--section-red);
+}
+
 .menu-colours {
   display: flex;
   flex-wrap: wrap;

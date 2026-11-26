@@ -594,3 +594,36 @@ button.fly-tag-filter[aria-pressed='true'] {
   margin: 0.75rem 0;
   min-width: 0;
 }
+
+/* A stock to read: only what has been filled in. */
+.fly-card dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.6rem 1rem;
+  margin: 0.75rem 0;
+}
+
+.fly-card dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.fly-card dd {
+  margin: 0.1rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.fly-card-carries {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.fly-card-notes {
+  margin: 0.5rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.fly-view button.danger {
+  color: var(--section-red);
+}

@@ -50,6 +50,8 @@ export interface LabelStudioProps {
   workspace: LabelWorkspace;
   transport: LabelBluetoothTransport | null;
   standalone?: boolean;
+  /** A saved design to open at, by id, such as one Fly room has just made. */
+  open?: string | null;
 }
 const BLEED = 2;
 const today = () => new Date().toLocaleDateString('en-GB');
@@ -62,7 +64,12 @@ const kindName = (kind: LabelKind) =>
 function errorText(err: unknown) {
   return err instanceof Error ? err.message : String(err);
 }
-export function LabelStudio({ workspace, transport, standalone = false }: LabelStudioProps) {
+export function LabelStudio({
+  workspace,
+  transport,
+  standalone = false,
+  open = null,
+}: LabelStudioProps) {
   const [design, setDesign] = useState(newLabelDesign);
   const [selected, setSelected] = useState<string | null>(null);
   const [templates, setTemplates] = useState<LabelDesign[]>([]);
@@ -143,9 +150,11 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
           setTemplates(found);
           setFolders(savedFolders);
           const last = [...found].reverse().find((d) => d.savedAs !== 'printed') ?? found.at(-1);
-          if (standalone && last) {
-            setDesign(structuredClone(last));
-            setRow({ ...seed(), ...last.data });
+          const wanted = open === null ? undefined : found.find((d) => d.id === open);
+          const first = wanted ?? (standalone ? last : undefined);
+          if (first) {
+            setDesign(structuredClone(first));
+            setRow({ ...seed(), ...first.data });
           }
         }
       })
@@ -155,7 +164,7 @@ export function LabelStudio({ workspace, transport, standalone = false }: LabelS
     return () => {
       live = false;
     };
-  }, [workspace, standalone]);
+  }, [workspace, standalone, open]);
   useEffect(() => {
     let live = true;
     const sample = Array.from(

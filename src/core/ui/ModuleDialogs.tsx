@@ -60,6 +60,51 @@ function PromptForm({ prompt }: { prompt: TextPrompt }) {
   );
 }
 
+/** A module asking to move a file to the Recycle Bin: nothing goes without a yes here. */
+export function RecyclePromptDialog() {
+  const prompt = useApp((s) => s.recyclePrompt);
+  const answer = useApp((s) => s.answerRecycle);
+  if (prompt === null) return null;
+  return (
+    <div
+      className="floating-dialog confirm"
+      role="alertdialog"
+      aria-label={`Delete ${prompt.name}?`}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          answer(false);
+        }
+      }}
+    >
+      <h2 className="dialog-title">Delete {prompt.name}?</h2>
+      <p>Its file goes to the Recycle Bin, so you can get it back from there.</p>
+      <div className="actions">
+        <button
+          type="button"
+          className="danger"
+          onClick={() => {
+            answer(true);
+          }}
+        >
+          Delete
+        </button>
+        <button
+          type="button"
+          className="quiet"
+          // The safe choice takes focus.
+          autoFocus
+          onClick={() => {
+            answer(false);
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** Every module command, to run by name. Opened with Ctrl+K. */
 export function CommandList({ onClose }: { onClose: () => void }) {
   const commands = useApp((s) => s.commands);

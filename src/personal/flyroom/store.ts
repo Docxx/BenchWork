@@ -29,10 +29,17 @@ export interface FlySettings {
   markers: Marker[];
   timings: Record<Temperature, Timing>;
   look: Look;
+  /** Printed on stock labels, such as RP. */
+  initials: string;
 }
 
 export function defaultSettings(): FlySettings {
-  return { markers: [...DEFAULT_MARKERS], timings: { ...DEFAULT_TIMINGS }, look: DEFAULT_LOOK };
+  return {
+    markers: [...DEFAULT_MARKERS],
+    timings: { ...DEFAULT_TIMINGS },
+    look: DEFAULT_LOOK,
+    initials: '',
+  };
 }
 
 /** Settings as saved, with anything missing or odd back to the default. */
@@ -54,6 +61,7 @@ export function parseSettings(raw: unknown): FlySettings {
     if (markers.length > 0) settings.markers = markers;
   }
   settings.look = parseLook(r['look']);
+  if (typeof r['initials'] === 'string') settings.initials = r['initials'].trim().slice(0, 12);
   const timings = r['timings'];
   if (typeof timings === 'object' && timings !== null) {
     for (const t of TEMPERATURES) {
@@ -206,6 +214,25 @@ export class FlyStore {
     const path = await this.ctx.vault.createRecord(STOCK_FOLDER, safeName(name), STOCK_KIND, data);
     await this.refresh([path]);
     return path;
+  }
+
+  /**
+   * Asks, in BenchWork's own dialog, whether to move a stock's file to the
+   * Recycle Bin. Resolves to whether it went.
+   */
+  async deleteStock(stock: { path: string; name: string }): Promise<boolean> {
+    if (kindOf(stock.path) !== 'stock') throw new Error('This is not a fly stock.');
+    const gone = await this.ctx.app.askToRecycle({ path: stock.path, name: stock.name });
+    if (gone) {
+      this.stocks.delete(stock.path);
+      this.changed();
+    }
+    return gone;
+  }
+
+  /** Remembers the initials printed on stock labels. */
+  async saveInitials(initials: string): Promise<void> {
+    await this.saveSettings({ ...this.snap.settings, initials });
   }
 
   async createCross(name: string, data: Record<string, unknown>): Promise<string> {

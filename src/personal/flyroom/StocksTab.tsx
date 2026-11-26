@@ -1,10 +1,18 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import type { ModuleContext } from '@core/api';
 import { CHROMOSOMES, formatPair, parseGenotype } from './genetics';
 import { GenotypeView } from './GenotypeView';
 import { STOCK_STATUSES, stocksFromCsv, type Stock } from './records';
-import { describe, flybaseReport, flybaseSearch, parseTags, stockCentreLink } from './links';
+import {
+  describe,
+  type Description,
+  flybaseReport,
+  flybaseSearch,
+  parseTags,
+  stockCentreLink,
+} from './links';
 import { addDays } from './schedule';
+import { makeStockLabel } from './stockLabel';
 import { today, useFly, type FlyStore } from './store';
 
 /** A date as people read it. */
@@ -82,18 +90,154 @@ function Saved({
   );
 }
 
+/** Web addresses in text become links; the rest stays as written. */
+function Linked({ text, open }: { text: string; open: (url: string) => void }) {
+  const parts = text.split(/(https?:\/\/[^\s<>"]+[^\s<>".,;:!?)])/);
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? (
+          <a
+            key={i}
+            href={part}
+            onClick={(e) => {
+              e.preventDefault();
+              open(part);
+            }}
+          >
+            {part}
+          </a>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
+
+/** A stock as a card to read: only what has been filled in, with its links. */
+function StockCard({
+  stock,
+  about,
+  report,
+  centre,
+  next,
+  open,
+  onFlipped,
+}: {
+  stock: Stock;
+  about: Description;
+  report: string | null;
+  centre: string | null;
+  next: string | null;
+  open: (url: string) => void;
+  onFlipped: () => void;
+}) {
+  const link = (url: string, label: string) => (
+    <a
+      href={url}
+      onClick={(e) => {
+        e.preventDefault();
+        open(url);
+      }}
+    >
+      {label}
+    </a>
+  );
+  const carried = about.carries.filter((c) => c.alleles.length > 0 || c.balancers.length > 0);
+  const rows: [string, ReactNode][] = [];
+  const add = (label: string, value: ReactNode, filled: boolean) => {
+    if (filled) rows.push([label, value]);
+  };
+  add('Source', stock.source, stock.source !== '');
+  add(
+    'Stock number',
+    centre !== null ? link(centre, `${stock.source || 'Stock'} ${stock.number}`) : stock.number,
+    stock.number !== '',
+  );
+  add(
+    'FlyBase',
+    report !== null ? link(report, stock.flybase) : stock.flybase,
+    stock.flybase !== '',
+  );
+  add(
+    'Carries',
+    <span className="fly-card-carries">
+      {carried.map((c) => (
+        <span key={c.chromosome}>
+          <span className="label">{c.chromosome === 'X' ? 'X' : `Chr ${c.chromosome}`}</span>{' '}
+          {c.alleles.map((a, i) => (
+            <span key={a}>
+              {i > 0 && ', '}
+              {link(flybaseSearch(a), a)}
+            </span>
+          ))}
+          {c.balancers.length > 0 && (
+            <span className="fly-balancer" title="Balancer">
+              {' '}
+              {c.balancers.join(', ')}
+            </span>
+          )}
+        </span>
+      ))}
+    </span>,
+    carried.length > 0,
+  );
+  add('Markers', about.markers.join(', '), about.markers.length > 0);
+  add('Status', stock.status, true);
+  add('Where it is', stock.location, stock.location !== '');
+  add('Tags', stock.tags.join(', '), stock.tags.length > 0);
+  add('Established', dayLabel(stock.established), stock.established !== '');
+  add('Lethal in two copies', stock.lethal.join('; '), stock.lethal.length > 0);
+  add(
+    'Flipping',
+    `Every ${String(stock.flipEvery)} days${stock.lastFlipped !== '' ? `, last ${dayLabel(stock.lastFlipped)}` : ''}`,
+    stock.flipEvery !== null,
+  );
+  add('Label code', stock.code, stock.code !== '');
+  return (
+    <div className="fly-card" aria-label="Stock details">
+      <dl>
+        {rows.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {next !== null && (
+        <p className="flip-line">
+          Next flip {dayLabel(next)}{' '}
+          <button type="button" className="quiet" onClick={onFlipped}>
+            Flipped today
+          </button>
+        </p>
+      )}
+      {stock.notes !== '' && (
+        <p className="fly-card-notes">
+          <Linked text={stock.notes} open={open} />
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** Editing one stock: its genotype chromosome by chromosome, and the rest. */
 export function StockEditor({
   ctx,
   store,
   stock,
   onPlan,
+  onDeleted,
 }: {
   ctx: ModuleContext;
   store: FlyStore;
   stock: Stock;
   onPlan: (stock: Stock, as: 'mother' | 'father') => void;
+  onDeleted: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
   const pairs = parseGenotype(stock.genotype);
   const save = (key: string, value: unknown) =>
     void store.update(stock.path, { [key]: value === '' ? null : value });
@@ -136,209 +280,263 @@ export function StockEditor({
         <button
           type="button"
           className="quiet"
-          title="Opens Label Studio, where this record can fill a label"
-          onClick={() => void ctx.app.openView('labels.studio')}
+          title="Makes a label template for this stock and opens it in Label Studio"
+          onClick={() => {
+            setProblem(null);
+            void makeStockLabel(ctx, store, stock).catch((err: unknown) => {
+              setProblem(err instanceof Error ? err.message : String(err));
+            });
+          }}
         >
-          Print a label
+          Make label
         </button>
         <button type="button" className="quiet" onClick={() => void ctx.app.open(stock.path)}>
           Open file
         </button>
+        <button
+          type="button"
+          aria-pressed={editing}
+          onClick={() => {
+            setEditing(!editing);
+          }}
+        >
+          {editing ? 'Done' : 'Edit'}
+        </button>
+        <button
+          type="button"
+          className="quiet danger"
+          onClick={() => {
+            setProblem(null);
+            void store
+              .deleteStock(stock)
+              .then((gone) => {
+                if (gone) onDeleted();
+              })
+              .catch((err: unknown) => {
+                setProblem(err instanceof Error ? err.message : String(err));
+              });
+          }}
+        >
+          Delete stock
+        </button>
       </div>
-      {stock.code && <p className="hint">Label code {stock.code}</p>}
-      <p className="hint">
-        A slash separates a chromosome&apos;s two copies, as in Sco/CyO; one entry means both are
-        the same.
-      </p>
-      <div className="fly-chromosomes">
-        {CHROMOSOMES.map((c, i) => (
-          <Saved
-            key={c}
-            label={c === 'X' ? 'X chromosome' : `Chromosome ${c}`}
-            value={formatPair(pairs[i] ?? ['+', '+'])}
-            onSave={(v) => {
-              saveChromosome(i, v);
-            }}
-          />
-        ))}
-      </div>
-      <div className="fly-carries" aria-label="What it carries">
-        {about.carries
-          .filter((c) => c.alleles.length > 0 || c.balancers.length > 0)
-          .map((c) => (
-            <div key={c.chromosome} className="fly-carry">
-              <span className="label">{c.chromosome === 'X' ? 'X' : `Chr ${c.chromosome}`}</span>
-              {c.alleles.map((a) => (
-                <button
-                  key={a}
-                  type="button"
-                  className="fly-allele"
-                  title={`Search FlyBase for ${a}`}
-                  onClick={() => {
-                    open(flybaseSearch(a));
-                  }}
-                >
-                  {a}
-                </button>
-              ))}
-              {c.balancers.map((b) => (
-                <span key={b} className="fly-balancer" title="Balancer">
-                  {b}
-                </span>
-              ))}
-            </div>
-          ))}
-        <div className="fly-carry">
-          <span className="label">Markers</span>
-          <span>{about.markers.length > 0 ? about.markers.join(', ') : 'None'}</span>
-        </div>
-        {(report !== null || centre !== null) && (
-          <div className="fly-links">
-            {report !== null && (
-              <button
-                type="button"
-                className="quiet"
-                onClick={() => {
-                  open(report);
-                }}
-              >
-                FlyBase page
-              </button>
-            )}
-            {centre !== null && centre !== report && (
-              <button
-                type="button"
-                className="quiet"
-                onClick={() => {
-                  open(centre);
-                }}
-              >
-                Bloomington {stock.number} on FlyBase
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-      <div className="fly-fields">
-        <Saved
-          label="Source"
-          value={stock.source}
-          hint="Bloomington"
-          onSave={(v) => {
-            save('source', v);
-          }}
-        />
-        <Saved
-          label="Stock number"
-          value={stock.number}
-          hint="5905"
-          onSave={(v) => {
-            save('number', v);
-          }}
-        />
-        <Saved
-          label="FlyBase ID"
-          value={stock.flybase}
-          hint="FBst0093769"
-          onSave={(v) => {
-            save('flybase', v);
-          }}
-        />
-        <Saved
-          label="Tags"
-          value={stock.tags.join(', ')}
-          hint="Immunity, GeneSwitch"
-          onSave={(v) => {
-            const tags = parseTags(v);
-            save('tags', tags.length === 0 ? '' : tags);
-          }}
-        />
-        <Saved
-          label="Where it is"
-          value={stock.location}
-          hint="25 °C rack B"
-          onSave={(v) => {
-            save('location', v);
-          }}
-        />
-        <label className="fly-field">
-          <span className="label">Status</span>
-          <select
-            aria-label="Status"
-            value={stock.status}
-            onChange={(e) => {
-              save('status', e.target.value);
-            }}
-          >
-            {STOCK_STATUSES.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-        </label>
-        <Saved
-          label="Established"
-          type="date"
-          value={stock.established}
-          onSave={(v) => {
-            save('established', v);
-          }}
-        />
-        <Saved
-          label="Lethal in two copies"
-          value={stock.lethal.join('; ')}
-          hint="Myd88[KO]; l(2)x"
-          onSave={(v) => {
-            save(
-              'lethal',
-              v === ''
-                ? ''
-                : v
-                    .split(/[;,]/)
-                    .map((x) => x.trim())
-                    .filter(Boolean),
-            );
-          }}
-        />
-        <Saved
-          label="Flip every (days)"
-          type="number"
-          value={stock.flipEvery === null ? '' : String(stock.flipEvery)}
-          hint="14"
-          onSave={(v) => {
-            save('flipEvery', v === '' ? '' : Number(v));
-          }}
-        />
-        <Saved
-          label="Last flipped"
-          type="date"
-          value={stock.lastFlipped}
-          onSave={(v) => {
-            save('lastFlipped', v);
-          }}
-        />
-      </div>
-      {next !== null && (
-        <p className="flip-line">
-          Next flip {dayLabel(next)}{' '}
-          <button
-            type="button"
-            className="quiet"
-            onClick={() => {
-              save('lastFlipped', today());
-            }}
-          >
-            Flipped today
-          </button>
+      {problem !== null && (
+        <p role="alert" className="hint">
+          {problem}
         </p>
       )}
-      <Saved
-        label="Notes"
-        long
-        value={stock.notes}
-        onSave={(v) => {
-          save('notes', v);
-        }}
-      />
+      {!editing && (
+        <StockCard
+          stock={stock}
+          about={about}
+          report={report}
+          centre={centre}
+          next={next}
+          open={open}
+          onFlipped={() => {
+            save('lastFlipped', today());
+          }}
+        />
+      )}
+      {editing && (
+        <>
+          <p className="hint">
+            A slash separates a chromosome&apos;s two copies, as in Sco/CyO; one entry means both
+            are the same.
+          </p>
+          <div className="fly-chromosomes">
+            {CHROMOSOMES.map((c, i) => (
+              <Saved
+                key={c}
+                label={c === 'X' ? 'X chromosome' : `Chromosome ${c}`}
+                value={formatPair(pairs[i] ?? ['+', '+'])}
+                onSave={(v) => {
+                  saveChromosome(i, v);
+                }}
+              />
+            ))}
+          </div>
+          <div className="fly-carries" aria-label="What it carries">
+            {about.carries
+              .filter((c) => c.alleles.length > 0 || c.balancers.length > 0)
+              .map((c) => (
+                <div key={c.chromosome} className="fly-carry">
+                  <span className="label">
+                    {c.chromosome === 'X' ? 'X' : `Chr ${c.chromosome}`}
+                  </span>
+                  {c.alleles.map((a) => (
+                    <button
+                      key={a}
+                      type="button"
+                      className="fly-allele"
+                      title={`Search FlyBase for ${a}`}
+                      onClick={() => {
+                        open(flybaseSearch(a));
+                      }}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                  {c.balancers.map((b) => (
+                    <span key={b} className="fly-balancer" title="Balancer">
+                      {b}
+                    </span>
+                  ))}
+                </div>
+              ))}
+            <div className="fly-carry">
+              <span className="label">Markers</span>
+              <span>{about.markers.length > 0 ? about.markers.join(', ') : 'None'}</span>
+            </div>
+            {(report !== null || centre !== null) && (
+              <div className="fly-links">
+                {report !== null && (
+                  <button
+                    type="button"
+                    className="quiet"
+                    onClick={() => {
+                      open(report);
+                    }}
+                  >
+                    FlyBase page
+                  </button>
+                )}
+                {centre !== null && centre !== report && (
+                  <button
+                    type="button"
+                    className="quiet"
+                    onClick={() => {
+                      open(centre);
+                    }}
+                  >
+                    Bloomington {stock.number} on FlyBase
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="fly-fields">
+            <Saved
+              label="Source"
+              value={stock.source}
+              hint="Bloomington"
+              onSave={(v) => {
+                save('source', v);
+              }}
+            />
+            <Saved
+              label="Stock number"
+              value={stock.number}
+              hint="5905"
+              onSave={(v) => {
+                save('number', v);
+              }}
+            />
+            <Saved
+              label="FlyBase ID"
+              value={stock.flybase}
+              hint="FBst0093769"
+              onSave={(v) => {
+                save('flybase', v);
+              }}
+            />
+            <Saved
+              label="Tags"
+              value={stock.tags.join(', ')}
+              hint="Immunity, GeneSwitch"
+              onSave={(v) => {
+                const tags = parseTags(v);
+                save('tags', tags.length === 0 ? '' : tags);
+              }}
+            />
+            <Saved
+              label="Where it is"
+              value={stock.location}
+              hint="25 °C rack B"
+              onSave={(v) => {
+                save('location', v);
+              }}
+            />
+            <label className="fly-field">
+              <span className="label">Status</span>
+              <select
+                aria-label="Status"
+                value={stock.status}
+                onChange={(e) => {
+                  save('status', e.target.value);
+                }}
+              >
+                {STOCK_STATUSES.map((s) => (
+                  <option key={s}>{s}</option>
+                ))}
+              </select>
+            </label>
+            <Saved
+              label="Established"
+              type="date"
+              value={stock.established}
+              onSave={(v) => {
+                save('established', v);
+              }}
+            />
+            <Saved
+              label="Lethal in two copies"
+              value={stock.lethal.join('; ')}
+              hint="Myd88[KO]; l(2)x"
+              onSave={(v) => {
+                save(
+                  'lethal',
+                  v === ''
+                    ? ''
+                    : v
+                        .split(/[;,]/)
+                        .map((x) => x.trim())
+                        .filter(Boolean),
+                );
+              }}
+            />
+            <Saved
+              label="Flip every (days)"
+              type="number"
+              value={stock.flipEvery === null ? '' : String(stock.flipEvery)}
+              hint="14"
+              onSave={(v) => {
+                save('flipEvery', v === '' ? '' : Number(v));
+              }}
+            />
+            <Saved
+              label="Last flipped"
+              type="date"
+              value={stock.lastFlipped}
+              onSave={(v) => {
+                save('lastFlipped', v);
+              }}
+            />
+          </div>
+          {next !== null && (
+            <p className="flip-line">
+              Next flip {dayLabel(next)}{' '}
+              <button
+                type="button"
+                className="quiet"
+                onClick={() => {
+                  save('lastFlipped', today());
+                }}
+              >
+                Flipped today
+              </button>
+            </p>
+          )}
+          <Saved
+            label="Notes"
+            long
+            value={stock.notes}
+            onSave={(v) => {
+              save('notes', v);
+            }}
+          />
+        </>
+      )}
     </section>
   );
 }
@@ -488,7 +686,18 @@ export function StocksTab({
           No stock has the label code {labelCode}. It may be in another vault.
         </p>
       )}
-      {current && <StockEditor ctx={ctx} store={store} stock={current} onPlan={onPlan} />}
+      {current && (
+        <StockEditor
+          key={current.path}
+          ctx={ctx}
+          store={store}
+          stock={current}
+          onPlan={onPlan}
+          onDeleted={() => {
+            setOpen(null);
+          }}
+        />
+      )}
       {shown.length === 0 ? (
         <p className="hint">
           {stocks.length === 0 ? 'No stocks yet. Add one, or import a CSV.' : 'Nothing matches.'}

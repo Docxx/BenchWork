@@ -92,10 +92,17 @@ test('tags filter stocks, status changes from the list, and the views change', a
   // A tag, then the list filtered by it.
   await view.getByRole('button', { name: 'Myd88-KO-CyO' }).click();
   const editor = view.getByRole('region', { name: 'Stock Myd88-KO-CyO' });
+  // A stock opens as a card to read; Edit shows the fields.
+  await expect(editor.getByLabel('Tags')).toHaveCount(0);
+  await expect(editor.getByRole('link', { name: 'Bloomington 12345' })).toBeVisible();
+  await expect(editor.getByRole('link', { name: 'Myd88[KO]' })).toBeVisible();
+  await editor.getByRole('button', { name: 'Edit', exact: true }).click();
   await editor.getByLabel('Tags').fill('Immunity, Toll');
   await editor.getByLabel('Tags').press('Enter');
   await expect(editor.getByText('Bloomington 12345 on FlyBase')).toBeVisible();
   await expect(editor.getByRole('button', { name: 'Myd88[KO]' })).toBeVisible();
+  await editor.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(editor.getByText('Immunity, Toll')).toBeVisible();
   await view
     .getByRole('group', { name: 'Show stocks tagged' })
     .getByRole('button', { name: 'Immunity' })
@@ -178,10 +185,53 @@ test('a scanned label link opens its stock', async ({ page }) => {
     window.__benchworkMemory?.openAppLink('benchwork://s/k7m2q9xa');
   });
   const view = page.locator('.fly-view');
-  await expect(view.getByText('Label code K7M2Q9XA')).toBeVisible();
+  await expect(view.getByLabel('Stock details')).toContainText('K7M2Q9XA');
   await expect(view.getByRole('row', { selected: true })).toContainText('OreR');
   await page.evaluate(() => {
     window.__benchworkMemory?.openAppLink('benchwork://s/ZZZZZZZZ');
   });
   await expect(view.getByRole('status')).toContainText('No stock has the label code ZZZZZZZZ');
+});
+
+test('makes a vial label for a stock and deletes a stock after asking', async ({ page }) => {
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('tab', { name: 'Modules', exact: true }).click();
+  await page.getByRole('switch', { name: /Label Studio/ }).click();
+  await page.getByRole('button', { name: 'Fly room', exact: true }).first().click();
+  const view = page.locator('.fly-view');
+  await view.getByLabel('CSV file of stocks').setInputFiles({
+    name: 'stocks.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(CSV),
+  });
+  await expect(view.getByRole('status')).toHaveText('3 stocks added.');
+
+  await view.getByRole('button', { name: 'Myd88-KO-CyO' }).click();
+  const stock = view.getByRole('region', { name: 'Stock Myd88-KO-CyO' });
+  await stock.getByRole('button', { name: 'Make label', exact: true }).click();
+  const prompt = page.getByRole('dialog', { name: 'Your initials' });
+  await prompt.getByLabel('Initials for labels').fill('RP');
+  await prompt.getByLabel('Initials for labels').press('Enter');
+  await expect(page.getByLabel('Template name', { exact: true })).toHaveValue('Myd88-KO-CyO vial');
+  const saved = await page.evaluate(
+    () =>
+      Object.entries(window.__benchworkMemory?.snapshot() ?? {}).find(([p]) =>
+        p.endsWith('.label.json'),
+      )?.[1] ?? '',
+  );
+  expect(saved).toContain('{genotype}');
+  expect(saved).toContain('"initials": "RP"');
+  expect(saved).toMatch(/"link": "benchwork:\/\/s\/[0-9A-Z]{8}"/);
+  expect(await file(page, 'Fly room/Stocks/Myd88-KO-CyO.flystock.yaml')).toMatch(/code: \w{8}/);
+
+  await page.getByRole('button', { name: 'Fly room', exact: true }).first().click();
+  await view.getByRole('button', { name: 'Myd88-KO-CyO' }).click();
+  await stock.getByRole('button', { name: 'Delete stock', exact: true }).click();
+  const ask = page.getByRole('alertdialog', { name: 'Delete Myd88-KO-CyO?' });
+  await ask.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(view.getByRole('button', { name: 'Myd88-KO-CyO' })).toBeVisible();
+  await stock.getByRole('button', { name: 'Delete stock', exact: true }).click();
+  await ask.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(view.getByRole('button', { name: 'Myd88-KO-CyO' })).toHaveCount(0);
+  expect(await file(page, 'Fly room/Stocks/Myd88-KO-CyO.flystock.yaml')).toBeNull();
 });

@@ -12,7 +12,13 @@ export default defineModule({
         icon: createElement(Tags, { size: 18 }),
         hint: 'Templates, QR codes and B3S label printing',
       },
-      render: () => createElement(LabelStudio, { workspace, transport: ctx.labelBluetooth }),
+      render: (param) =>
+        createElement(LabelStudio, {
+          key: param ?? '',
+          workspace,
+          transport: ctx.labelBluetooth,
+          open: param,
+        }),
     });
   },
 });

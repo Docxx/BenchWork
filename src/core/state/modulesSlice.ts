@@ -67,6 +67,10 @@ export interface ModulesSlice {
   /** Shows a text prompt; resolves to the answer, or null if cancelled. */
   askText: (prompt: { title: string; label: string; initial?: string }) => Promise<string | null>;
   answerText: (answer: string | null) => void;
+  /** A module asking to move a file to the Recycle Bin, waiting for the person. */
+  recyclePrompt: { path: string; name: string } | null;
+  askToRecycle: (options: { path: string; name: string }) => Promise<boolean>;
+  answerRecycle: (yes: boolean) => void;
   /** Runs a module's command; a failure becomes a sidebar notice. */
   runCommand: (id: string, target: CommandTarget) => Promise<void>;
   pendingModuleChange: PendingModuleChange | null;
@@ -95,6 +99,7 @@ export interface ModulesSlice {
 export function createModulesSlice(ctx: StoreContext): ModulesSlice {
   const { registry, set, get } = ctx;
   let answer: ((value: string | null) => void) | null = null;
+  let recycleAnswer: ((yes: boolean) => void) | null = null;
 
   async function applyModuleChange(enable: boolean, ids: readonly string[]): Promise<void> {
     if (!enable && !(await get().saveEditors())) return;
@@ -120,10 +125,13 @@ export function createModulesSlice(ctx: StoreContext): ModulesSlice {
     closed: () => {
       answer?.(null);
       answer = null;
+      recycleAnswer?.(false);
+      recycleAnswer = null;
       set({
         pendingModuleChange: null,
         moduleNotice: null,
         textPrompt: null,
+        recyclePrompt: null,
         choosingPack: false,
       });
     },
@@ -157,6 +165,30 @@ export function createModulesSlice(ctx: StoreContext): ModulesSlice {
       return new Promise((resolve) => {
         answer = resolve;
       });
+    },
+
+    recyclePrompt: null,
+
+    askToRecycle: ({ path, name }) => {
+      recycleAnswer?.(false);
+      set({ recyclePrompt: { path, name: name.slice(0, 200) } });
+      return new Promise((resolve) => {
+        recycleAnswer = resolve;
+      });
+    },
+
+    answerRecycle: (yes) => {
+      const resolve = recycleAnswer;
+      const prompt = get().recyclePrompt;
+      recycleAnswer = null;
+      set({ recyclePrompt: null });
+      if (!yes || prompt === null) {
+        resolve?.(false);
+        return;
+      }
+      void get()
+        .recycleItem(prompt.path)
+        .then((done) => resolve?.(done));
     },
 
     answerText: (value) => {
