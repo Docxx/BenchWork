@@ -57,6 +57,22 @@ it('shapes a stock for a phone screen, working out its links here', () => {
   expect(card.referenceUrl).toBe('https://doi.org/10.1073/pnas.1306220110');
 });
 
+it('splits the genotype by chromosome, marking the wild-type ones', () => {
+  const card = stockCard(stock({ genotype: '+ ; Sco/CyO ; TM3/TM6 ; +' }));
+  expect(card.chromosomes).toEqual([
+    { name: 'X', copies: ['+'], plain: true },
+    { name: '2', copies: ['Sco', 'CyO'], plain: false },
+    { name: '3', copies: ['TM3', 'TM6'], plain: false },
+    { name: '4', copies: ['+'], plain: true },
+  ]);
+  // One entry where both copies match, so the phone shows it once.
+  expect(stockCard(stock({ genotype: 'w ; Myd88[KO] ; + ; +' })).chromosomes[1]).toEqual({
+    name: '2',
+    copies: ['Myd88[KO]'],
+    plain: false,
+  });
+});
+
 it('sends only stocks with a label code, and keeps going when one fails', async () => {
   const { ctx, sent } = fakeCards();
   const count = await sendStocks(ctx, [

@@ -4,14 +4,27 @@
  * what belongs on a vial goes, and a stock without a code is never sent.
  */
 import { isShortCode, type ModuleContext } from '@core/api';
+import { CHROMOSOMES, parseGenotype } from './genetics';
 import { stockCentrePage, referenceLink } from './links';
 import type { Stock } from './records';
+
+/** One chromosome of a stock, as the phone lays it out. */
+export interface CardChromosome {
+  /** X, 2, 3 or 4. */
+  name: string;
+  /** Its two copies, or one entry where both are the same. */
+  copies: string[];
+  /** Wild type on both copies: shown faintly, as there is nothing to read. */
+  plain: boolean;
+}
 
 /** A stock as the phone shows it. Kept small: a phone screen, not the vault. */
 export interface StockCard {
   code: string;
   name: string;
   genotype: string;
+  /** The genotype chromosome by chromosome, which is what identifies a line. */
+  chromosomes: CardChromosome[];
   source: string;
   number: string;
   flybase: string;
@@ -30,10 +43,16 @@ export interface StockCard {
 }
 
 export function stockCard(stock: Stock, now = new Date()): StockCard {
+  const pairs = parseGenotype(stock.genotype);
   return {
     code: stock.code,
     name: stock.name,
     genotype: stock.genotype,
+    chromosomes: pairs.map((pair, i) => ({
+      name: CHROMOSOMES[i] ?? String(i),
+      copies: pair[0] === pair[1] ? [pair[0]] : [pair[0], pair[1]],
+      plain: pair[0] === '+' && pair[1] === '+',
+    })),
     source: stock.source,
     number: stock.number,
     flybase: stock.flybase,
