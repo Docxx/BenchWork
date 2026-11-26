@@ -41,3 +41,84 @@ textarea:focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
 }
+
+/* Signing in, and the stock behind a scanned vial. */
+.phone-connect,
+.phone-stock {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  max-width: 34rem;
+  margin: 0 auto;
+}
+
+.phone-connect form,
+.phone-vaults {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.phone-connect label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.phone-connect input {
+  padding: 0.6rem;
+  font-size: 1rem;
+}
+
+.phone-stock header {
+  display: flex;
+}
+
+.phone-stock h1 {
+  margin: 0.4rem 0 0;
+  font-size: 1.4rem;
+}
+
+.phone-genotype {
+  margin: 0;
+  font-family: ui-monospace, 'Roboto Mono', monospace;
+  font-size: 0.95rem;
+}
+
+.phone-stock dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.4rem 1rem;
+  margin: 0.5rem 0 0;
+}
+
+.phone-stock dl > div {
+  display: contents;
+}
+
+.phone-stock dt {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+.phone-stock dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.phone-notes {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.phone-notice {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+}
+
+.phone-signout {
+  margin: 1rem auto;
+  display: block;
+}

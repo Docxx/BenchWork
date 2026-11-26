@@ -1,5 +1,5 @@
 import type { Disposable, ModuleApp, ModuleContext, ModuleLogger } from '../api';
-import type { CardStore } from '../sync/cards';
+import type { CardKind, CardStore } from '../sync/cards';
 import { openPdf } from '../files/pdf';
 import { InkSurface, type SurfaceHooks } from '../ink/surface';
 import { freeName } from '../notebooks/notebookService';
@@ -142,6 +142,12 @@ export function createModuleContext(
       throw new Error('Use a plain storage name');
     return `${id}.${name}`;
   }
+  /** The relay's readable cards, or null when there is no app or no Cloud sync. */
+  function cardStore(): CardStore | null {
+    const bridge = deps.app?.() ?? null;
+    return bridge?.cloudCards?.() ?? null;
+  }
+
   function app(): AppBridge {
     const bridge = deps.app?.() ?? null;
     if (bridge === null) throw new Error('The app is not ready yet');
@@ -284,22 +290,16 @@ export function createModuleContext(
       },
     },
     cards: {
-      available: () => (app().cloudCards?.() ?? null) !== null,
+      // Sending to the phone is a nicety: before the app is ready, or without
+      // Cloud sync, there is simply nowhere to send, and saving carries on.
+      available: () => cardStore() !== null,
       put: async (kind, id, value) => {
-        const store = app().cloudCards?.() ?? null;
-        if (store) await store.put(kind, id, value);
+        await cardStore()?.put(kind, id, value);
       },
-      get: async (kind, id) => {
-        const store = app().cloudCards?.() ?? null;
-        return store ? store.get(kind, id) : null;
-      },
-      list: async (kind, since) => {
-        const store = app().cloudCards?.() ?? null;
-        return store ? store.list(kind, since) : [];
-      },
+      get: async <T>(kind: CardKind, id: string) => (await cardStore()?.get<T>(kind, id)) ?? null,
+      list: async (kind, since) => (await cardStore()?.list(kind, since)) ?? [],
       remove: async (kind, id) => {
-        const store = app().cloudCards?.() ?? null;
-        if (store) await store.remove(kind, id);
+        await cardStore()?.remove(kind, id);
       },
     },
     web: {

@@ -7,9 +7,33 @@ import {
   type ModuleContext,
   type LabelWorkspace,
   type LabelRow,
+  type LabelDesign,
 } from '@core/api';
 /** Fly stocks: the record types a QR code on a label can open. */
 const STOCK_TYPES = ['flystock', 'fly-stock'];
+
+/**
+ * Labels reach the phone through the relay, so there is no pack to export and
+ * share. A phone that has not been connected, or a relay that is not
+ * answering, simply misses this one: the label is saved in the vault either way.
+ */
+async function sendLabel(ctx: ModuleContext, design: LabelDesign): Promise<void> {
+  if (!ctx.cards.available() || design.savedAs === 'printed') return;
+  try {
+    await ctx.cards.put('label', design.id, design);
+  } catch (err) {
+    console.warn('[labels] This label could not be sent to the phone', design.name, err);
+  }
+}
+
+async function dropLabel(ctx: ModuleContext, id: string): Promise<void> {
+  if (!ctx.cards.available()) return;
+  try {
+    await ctx.cards.remove('label', id);
+  } catch (err) {
+    console.warn('[labels] This label could not be taken off the phone', id, err);
+  }
+}
 
 export function labelWorkspace(ctx: ModuleContext): LabelWorkspace {
   /**
@@ -44,6 +68,7 @@ export function labelWorkspace(ctx: ModuleContext): LabelWorkspace {
       const path = `Labels/${validated.id}.label.json`;
       if (await ctx.vault.exists(path)) await ctx.vault.keepSnapshot(path);
       await ctx.vault.writeText(path, JSON.stringify(validated, null, 2));
+      await sendLabel(ctx, validated);
     },
     folders: async () => {
       const path = 'Labels/folders.json';
@@ -68,8 +93,11 @@ export function labelWorkspace(ctx: ModuleContext): LabelWorkspace {
     },
     remove: async (design) => {
       const path = `Labels/${design.id}.label.json`;
-      if (!(await ctx.vault.exists(path))) return true;
-      return ctx.app.askToRecycle({ path, name: `${design.name} label` });
+      const gone = (await ctx.vault.exists(path))
+        ? await ctx.app.askToRecycle({ path, name: `${design.name} label` })
+        : true;
+      if (gone) await dropLabel(ctx, design.id);
+      return gone;
     },
     records: async () => {
       const items = (await ctx.app.items())

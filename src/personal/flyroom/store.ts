@@ -15,6 +15,7 @@ import {
   type ImportedStock,
   type Stock,
 } from './records';
+import { sendStocks } from './phone';
 import { DEFAULT_TIMINGS, TEMPERATURES, type Temperature, type Timing } from './schedule';
 
 /** Today as `YYYY-MM-DD`, in local time. */
@@ -149,6 +150,8 @@ export class FlyStore {
     const paths = (await this.ctx.app.items()).map((i) => i.path).filter((p) => kindOf(p));
     await Promise.all(paths.map((p) => this.read(p)));
     this.changed({ settings, loaded: true });
+    // Catch the phone up on anything changed while it was away.
+    void sendStocks(this.ctx, [...this.stocks.values()]);
   }
 
   async refresh(paths: readonly string[]): Promise<void> {
@@ -156,6 +159,11 @@ export class FlyStore {
     if (records.length === 0) return;
     await Promise.all(records.map((p) => this.read(p)));
     this.changed();
+    // A stock that changed goes to the phone, so a scanned vial is up to date.
+    const changed = records
+      .map((p) => this.stocks.get(p))
+      .filter((s): s is Stock => s !== undefined);
+    if (changed.length > 0) void sendStocks(this.ctx, changed);
   }
 
   private async read(path: string): Promise<void> {

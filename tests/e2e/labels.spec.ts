@@ -405,3 +405,41 @@ test('saved labels can be renamed, duplicated and deleted', async ({ page }) => 
   await expect(page.getByRole('button', { name: 'Open label Small vial label' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Open label Vial label' })).toBeVisible();
 });
+
+test('the phone asks to connect, and shows a scanned stock once it is signed in', async ({
+  page,
+}) => {
+  await page.goto('/labels.html');
+  // Designing never needs an account; connecting is offered, not demanded.
+  await expect(page.getByRole('button', { name: 'Library', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Connect to BenchWork', exact: true }).click();
+  const connect = page.getByRole('region', { name: 'Connect to BenchWork' });
+  await expect(connect.getByLabel('Email')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Back to labels', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Library', exact: true })).toBeVisible();
+
+  // Signed in, with a stock waiting on the relay for the vial we are about to scan.
+  await page.evaluate(() => {
+    localStorage.setItem(
+      'benchwork.label-studio.connection',
+      JSON.stringify({
+        endpoint: 'https://178.62.50.124',
+        certificate: '-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----',
+        protocol: 1,
+        vault: 'test-vault-identity',
+        token: 'device-token',
+        key: 'a'.repeat(44),
+        owner: false,
+        name: 'Phone',
+      }),
+    );
+  });
+  await page.goto('/labels.html?s=K7M2Q9XA');
+  const stock = page.getByRole('region', { name: 'Fly stock' });
+  await expect(stock).toBeVisible();
+  // Without a reachable relay it says so rather than pretending.
+  await expect(stock.getByRole('alert')).toContainText(/Cloud sync|relay|unavailable|unreachable/i);
+  await page.getByRole('button', { name: 'Back to labels' }).click();
+  await expect(page.getByRole('button', { name: 'Library', exact: true })).toBeVisible();
+});
