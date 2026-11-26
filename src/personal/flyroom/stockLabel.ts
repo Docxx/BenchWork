@@ -61,6 +61,7 @@ export function stockLabelDesign(
     ...changes,
   });
   const middle = w - qr - 2;
+  const genotypeTop = 0.8 + pt(13) * 1.2;
   return {
     ...design,
     name: `${stock.name} vial`,
@@ -86,12 +87,15 @@ export function stockLabelDesign(
         size: pt(13),
       }),
       element({
+        // Long genotypes shrink and wrap so that all of it is on the label.
         text: '{genotype}',
         align: 'center',
+        fit: true,
+        lineSpacing: 1.1,
         x: 1,
-        y: 0.8 + pt(13) * 1.25,
+        y: genotypeTop,
         width: middle - 1,
-        height: pt(10) * 1.2,
+        height: h - genotypeTop - pt(9) * 1.2 - 0.4,
         size: pt(10),
       }),
       element({
@@ -119,6 +123,22 @@ export function stockLabelDesign(
         height: qr,
       },
     ],
+  };
+}
+
+/**
+ * Templates made before genotypes shrank to fit: the genotype gets the room
+ * down to the initials and shrinks to fit it.
+ */
+export function fitGenotype(design: LabelDesign): LabelDesign {
+  const bottom = design.height - pt(9) * 1.2 - 0.4;
+  return {
+    ...design,
+    elements: design.elements.map((e) =>
+      e.kind === 'text' && e.text === '{genotype}' && !e.fit
+        ? { ...e, fit: true, lineSpacing: 1.1, height: Math.max(e.height, bottom - e.y) }
+        : e,
+    ),
   };
 }
 
@@ -166,7 +186,7 @@ export async function makeStockLabel(
   const existing = designs.find((d) => d.data?.['code'] === code);
   const design = existing
     ? {
-        ...existing,
+        ...fitGenotype(existing),
         data: {
           ...existing.data,
           name: stock.name,

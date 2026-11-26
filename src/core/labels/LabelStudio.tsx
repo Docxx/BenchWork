@@ -1393,6 +1393,16 @@ export function LabelStudio({
                   <label className="label-check">
                     <input
                       type="checkbox"
+                      checked={active.fit ?? false}
+                      onChange={(e) => {
+                        edit({ fit: e.target.checked });
+                      }}
+                    />
+                    Shrink to fit
+                  </label>
+                  <label className="label-check">
+                    <input
+                      type="checkbox"
                       checked={active.italic ?? false}
                       onChange={(e) => {
                         edit({ italic: e.target.checked });

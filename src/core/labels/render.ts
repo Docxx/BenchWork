@@ -5,6 +5,7 @@ import '@fontsource-variable/inter/wght-italic.css';
 import '@fontsource-variable/source-serif-4';
 import '@fontsource-variable/source-serif-4/wght-italic.css';
 import './fonts.css';
+import { fitText } from './fitText';
 import { drawQr } from './qr';
 import { feedSize, labelText, type LabelDesign, type LabelRow } from './model';
 export const LABEL_DPI = 203;
@@ -50,22 +51,35 @@ export async function renderLabel(
     if (['text', 'qr', 'barcode'].includes(e.kind) && /\{[^{}]+\}/.test(text))
       throw new Error('Fill the missing label data fields before printing.');
     if (e.kind === 'text') {
-      const font = `${e.italic ? 'italic ' : ''}${e.bold ? 'bold ' : ''}${String(e.size)}px ${labelFontFamily(e.font)}`;
-      await document.fonts.load(font, text || 'Aa');
-      ctx.font = font;
+      const fontAt = (size: number) =>
+        `${e.italic ? 'italic ' : ''}${e.bold ? 'bold ' : ''}${String(size)}px ${labelFontFamily(e.font)}`;
+      await document.fonts.load(fontAt(e.size), text || 'Aa');
+      const spacing = e.lineSpacing ?? 1.2;
+      // Shrink to fit: wrap and make smaller until every word is on the label.
+      const { size, lines } = e.fit
+        ? fitText(text, e, e.size, spacing, (s, at) => {
+            ctx.font = fontAt(at);
+            return ctx.measureText(s).width;
+          })
+        : { size: e.size, lines: text.split('\n') };
+      ctx.font = fontAt(size);
       ctx.textBaseline = 'top';
       ctx.textAlign = e.align;
       const x = e.align === 'center' ? e.width / 2 : e.align === 'right' ? e.width : 0;
-      text.split('\n').forEach((line, i) => {
-        const y = i * e.size * (e.lineSpacing ?? 1.2);
+      // Fitted text sits in the middle of its box, top to bottom.
+      const top = e.fit
+        ? Math.max(0, (e.height - ((lines.length - 1) * size * spacing + size)) / 2)
+        : 0;
+      lines.forEach((line, i) => {
+        const y = top + i * size * spacing;
         ctx.fillText(line, x, y, e.width);
         if (e.underline) {
           const width = Math.min(ctx.measureText(line).width, e.width);
           const left = e.align === 'center' ? x - width / 2 : e.align === 'right' ? x - width : x;
-          ctx.lineWidth = Math.max(0.1, e.size / 18);
+          ctx.lineWidth = Math.max(0.1, size / 18);
           ctx.beginPath();
-          ctx.moveTo(left, y + e.size);
-          ctx.lineTo(left + width, y + e.size);
+          ctx.moveTo(left, y + size);
+          ctx.lineTo(left + width, y + size);
           ctx.stroke();
         }
       });

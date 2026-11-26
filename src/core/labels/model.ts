@@ -17,6 +17,8 @@ export interface LabelElement {
   italic?: boolean;
   underline?: boolean;
   lineSpacing?: number;
+  /** Shrink and wrap the text so that all of it fits the box. */
+  fit?: boolean;
 }
 export interface LabelDesign {
   version: 1;
@@ -131,6 +133,7 @@ export function parseLabelDesign(value: unknown): LabelDesign {
           italic: e['italic'] === true,
           underline: e['underline'] === true,
           lineSpacing: n(e['lineSpacing'], 1.2, 0.8, 3),
+          ...(e['fit'] === true ? { fit: true } : {}),
           font: labelFonts.find((f) => f.id === e['font'])?.id ?? 'sans',
           align: e['align'] === 'center' || e['align'] === 'right' ? e['align'] : 'left',
           rotation: [90, 180, 270].includes(Number(e['rotation']))

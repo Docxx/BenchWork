@@ -193,7 +193,7 @@ test('a scanned label link opens its stock', async ({ page }) => {
   await expect(view.getByRole('status')).toContainText('No stock has the label code ZZZZZZZZ');
 });
 
-test('makes a vial label for a stock and deletes a stock after asking', async ({ page }) => {
+test('makes a vial label for a stock and deletes a stock after asking', async ({ page }, info) => {
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('tab', { name: 'Modules', exact: true }).click();
   await page.getByRole('switch', { name: /Label Studio/ }).click();
@@ -223,6 +223,24 @@ test('makes a vial label for a stock and deletes a stock after asking', async ({
   expect(saved).toContain('"initials": "RP"');
   expect(saved).toMatch(/"link": "benchwork:\/\/s\/[0-9A-Z]{8}"/);
   expect(await file(page, 'Fly room/Stocks/Myd88-KO-CyO.flystock.yaml')).toMatch(/code: \w{8}/);
+
+  // Long genotypes shrink and wrap so that all of it prints.
+  await page.getByRole('button', { name: 'Select Text: {genotype}', exact: true }).click();
+  if (
+    (await page
+      .getByRole('button', { name: 'Style and size', exact: true })
+      .getAttribute('aria-pressed')) !== 'true'
+  )
+    await page.getByRole('button', { name: 'Style and size', exact: true }).click();
+  await expect(page.getByLabel('Shrink to fit')).toBeChecked();
+  await page
+    .getByRole('textbox', { name: 'genotype', exact: true })
+    .fill('Dipt2.2-lacZ, Drs-GFP, y w; Dif cn bw');
+  if (!(await page.locator('.label-print-preview').evaluate((el) => el.hasAttribute('open'))))
+    await page.getByText('Print preview', { exact: true }).click();
+  const preview = page.getByRole('img', { name: 'Actual monochrome label print preview' });
+  await expect(preview).toBeVisible();
+  await preview.screenshot({ path: info.outputPath('long-genotype-label.png') });
 
   await page.getByRole('button', { name: 'Fly room', exact: true }).first().click();
   await view.getByRole('button', { name: 'Myd88-KO-CyO' }).click();
