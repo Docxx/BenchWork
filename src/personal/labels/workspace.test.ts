@@ -76,3 +76,65 @@ it('gives each fly stock a lasting short code and link for QR labels', async () 
   expect(again[0]?.code).toBe(fresh?.code);
   handle.dispose();
 });
+
+it('sends labels the phone has not had, once each, and stops when there is no relay', async () => {
+  const platform = new MemoryAdapter({ folders: { 'C:/Vault': {} } });
+  await platform.setVaultRoot('C:/Vault');
+  const sent: { id: string; name: string }[] = [];
+  let available = false;
+  const app = () =>
+    ({
+      cloudCards: () =>
+        available
+          ? {
+              put: (_kind: string, id: string, value: { name: string }) => {
+                sent.push({ id, name: value.name });
+                return Promise.resolve();
+              },
+              get: () => Promise.resolve(null),
+              list: () => Promise.resolve([]),
+              remove: () => Promise.resolve(),
+            }
+          : null,
+    }) as unknown as AppBridge;
+  const handle = createModuleContext(manifest('labels'), {
+    platform,
+    device: 'desktop',
+    contributions: createContributions(),
+    app,
+  });
+  const library = labelWorkspace(handle.ctx);
+
+  // Written straight into the vault, as Fly room's Make label does.
+  const design = { ...newLabelDesign(), name: 'Vial label', savedAt: '2026-11-26T10:00:00.000Z' };
+  await platform.ensureDir('Labels');
+  await platform.writeTextAtomic(`Labels/${design.id}.label.json`, JSON.stringify(design));
+
+  // No relay yet: reading the library sends nothing.
+  await library.list();
+  await vi.waitFor(() => {
+    expect(sent).toEqual([]);
+  });
+
+  // Once the phone is connected, the label goes, and only once.
+  available = true;
+  await library.list();
+  await vi.waitFor(() => {
+    expect(sent.map((s) => s.name)).toEqual(['Vial label']);
+  });
+  await library.list();
+  await library.list();
+  await vi.waitFor(() => {
+    expect(sent).toHaveLength(1);
+  });
+
+  // Changed on the desktop, so it goes again.
+  await platform.writeTextAtomic(
+    `Labels/${design.id}.label.json`,
+    JSON.stringify({ ...design, name: 'Vial label, bigger', savedAt: '2026-11-26T11:00:00.000Z' }),
+  );
+  await library.list();
+  await vi.waitFor(() => {
+    expect(sent.map((s) => s.name)).toEqual(['Vial label', 'Vial label, bigger']);
+  });
+});

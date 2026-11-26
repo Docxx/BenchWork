@@ -35,6 +35,35 @@ async function dropLabel(ctx: ModuleContext, id: string): Promise<void> {
   }
 }
 
+const SENT = 'sent-to-phone';
+
+/**
+ * Labels saved before the phone was connected, or made by Fly room, have
+ * never been sent. Whenever the library is read, anything the phone has not
+ * had yet goes across. What has gone is remembered in the module's own
+ * folder, so this costs one relay call per new or changed label.
+ */
+async function catchUp(ctx: ModuleContext, designs: readonly LabelDesign[]): Promise<void> {
+  if (!ctx.cards.available()) return;
+  try {
+    const raw = await ctx.storage.read(SENT).catch(() => null);
+    const sent: Record<string, string> =
+      raw !== null && typeof raw === 'object' ? (raw as Record<string, string>) : {};
+    let changed = false;
+    for (const design of designs) {
+      if (design.savedAs === 'printed') continue;
+      const mark = design.savedAt ?? '';
+      if (sent[design.id] === mark) continue;
+      await ctx.cards.put('label', design.id, design);
+      sent[design.id] = mark;
+      changed = true;
+    }
+    if (changed) await ctx.storage.write(SENT, sent);
+  } catch (err) {
+    console.warn('[labels] Labels could not be caught up on the phone', err);
+  }
+}
+
 export function labelWorkspace(ctx: ModuleContext): LabelWorkspace {
   /**
    * A fly stock's short code for `{code}` and `{link}`, given once and kept in
@@ -53,7 +82,7 @@ export function labelWorkspace(ctx: ModuleContext): LabelWorkspace {
     list: async () => {
       if (!(await ctx.vault.exists('Labels'))) return [];
       const entries = await ctx.vault.listDir('Labels');
-      return Promise.all(
+      const designs = await Promise.all(
         entries
           .filter((e) => !e.isDir && e.name.endsWith('.label.json'))
           .slice(0, 2000)
@@ -61,6 +90,8 @@ export function labelWorkspace(ctx: ModuleContext): LabelWorkspace {
             parseLabelDesign(JSON.parse(await ctx.vault.readText(`Labels/${e.name}`))),
           ),
       );
+      void catchUp(ctx, designs);
+      return designs;
     },
     save: async (d) => {
       await ctx.vault.ensureDir('Labels');

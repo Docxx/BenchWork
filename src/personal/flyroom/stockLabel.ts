@@ -174,6 +174,19 @@ async function savedDesigns(ctx: ModuleContext): Promise<LabelDesign[]> {
   return designs.filter((d): d is LabelDesign => d !== null);
 }
 
+/**
+ * A label made here goes to the phone as well, so it is there without
+ * exporting a pack. Quiet: the label is saved in the vault either way.
+ */
+async function sendToPhone(ctx: ModuleContext, design: LabelDesign): Promise<void> {
+  if (!ctx.cards.available()) return;
+  try {
+    await ctx.cards.put('label', design.id, design);
+  } catch (err) {
+    console.warn('[flyroom] This label could not be sent to the phone', design.name, err);
+  }
+}
+
 /** The initials labels are signed with, asked for once and kept in settings. */
 async function labelInitials(ctx: ModuleContext, store: FlyStore): Promise<string | null> {
   const kept = store.snapshot().settings.initials;
@@ -237,10 +250,9 @@ export async function makeStockLabels(
     rows,
   };
   await ctx.vault.ensureDir(FOLDER);
-  await ctx.vault.writeText(
-    `${FOLDER}/${design.id}.label.json`,
-    JSON.stringify(parseLabelDesign(design), null, 2),
-  );
+  const saved = parseLabelDesign(design);
+  await ctx.vault.writeText(`${FOLDER}/${design.id}.label.json`, JSON.stringify(saved, null, 2));
+  await sendToPhone(ctx, saved);
   await ctx.app.openView(STUDIO, design.id);
 }
 
@@ -277,6 +289,8 @@ export async function makeStockLabel(
   const path = `${FOLDER}/${design.id}.label.json`;
   await ctx.vault.ensureDir(FOLDER);
   if (existing) await ctx.vault.keepSnapshot(path);
-  await ctx.vault.writeText(path, JSON.stringify(parseLabelDesign(design), null, 2));
+  const saved = parseLabelDesign(design);
+  await ctx.vault.writeText(path, JSON.stringify(saved, null, 2));
+  await sendToPhone(ctx, saved);
   await ctx.app.openView(STUDIO, design.id);
 }
