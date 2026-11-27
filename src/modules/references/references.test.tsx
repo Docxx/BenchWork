@@ -427,6 +427,28 @@ describe('References module', () => {
     expect(keys).toHaveLength(11);
   });
 
+  it('narrows the sidebar list by subject', async () => {
+    const tagged = JSON.stringify([
+      { id: 'a2024', title: 'Repairing cells', keyword: 'Cell repair' },
+      { id: 'b2023', title: 'Imaging flies', tags: [{ tag: 'Imaging' }] },
+    ]);
+    const { store } = await openVault({ 'references/library.json': tagged });
+    render(
+      <AppStoreProvider store={store}>
+        <ModulePanels />
+      </AppStoreProvider>,
+    );
+    await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Library' }));
+    const list = () => screen.getByRole('list', { name: 'References' });
+    expect(within(list()).getAllByRole('listitem')).toHaveLength(2);
+    fireEvent.change(screen.getByLabelText('Reference subject'), {
+      target: { value: 'imaging' },
+    });
+    expect(within(list()).getAllByRole('listitem')).toHaveLength(1);
+    expect(list().textContent).toContain('Imaging flies');
+  });
+
   it('lists the library in the sidebar, and opens a reference’s note from it', async () => {
     const { store, state } = await openVault({ 'references/library.json': LIBRARY });
     render(

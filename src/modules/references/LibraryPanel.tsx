@@ -15,6 +15,13 @@ export const SHOWN = 100;
 export function LibraryPanel({ ctx, library }: { ctx: ModuleContext; library: LibraryState }) {
   const snap = useSyncExternalStore(library.subscribe, library.current);
   const [filter, setFilter] = useState('');
+  const [subject, setSubject] = useState('');
+  const subjects = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const ref of snap.refs.values())
+      for (const label of ref.subjects ?? []) labels.set(label.toLowerCase(), label);
+    return [...labels].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [snap.refs]);
   const [withNotes, setWithNotes] = useState<ReadonlySet<string>>(new Set());
 
   // Which references already have a note; checked again after each reload
@@ -36,7 +43,16 @@ export function LibraryPanel({ ctx, library }: { ctx: ModuleContext; library: Li
   }, [ctx, snap.refs, notesChecked]);
 
   // An empty filter lists the newest; typing narrows it.
-  const rows = useMemo(() => searchLibrary(snap.refs, filter, SHOWN), [snap.refs, filter]);
+  const rows = useMemo(() => {
+    const refs = subject
+      ? new Map(
+          [...snap.refs].filter(([, ref]) =>
+            ref.subjects?.some((s) => s.toLowerCase() === subject),
+          ),
+        )
+      : snap.refs;
+    return searchLibrary(refs, filter, SHOWN);
+  }, [snap.refs, filter, subject]);
 
   if (snap.status === 'missing' || (snap.status === 'error' && snap.count === 0)) {
     return (
@@ -61,6 +77,22 @@ export function LibraryPanel({ ctx, library }: { ctx: ModuleContext; library: Li
           setFilter(e.target.value);
         }}
       />
+      {(subjects.length > 0 || subject) && (
+        <select
+          aria-label="Reference subject"
+          value={subject}
+          onChange={(e) => {
+            setSubject(e.target.value);
+          }}
+        >
+          <option value="">All subjects</option>
+          {subjects.map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </select>
+      )}
       {rows.length === 0 ? (
         <p className="hint">No matching references.</p>
       ) : (
@@ -90,7 +122,7 @@ export function LibraryPanel({ ctx, library }: { ctx: ModuleContext; library: Li
           })}
         </ul>
       )}
-      {snap.count > rows.length && filter.trim() === '' && (
+      {!subject && snap.count > rows.length && filter.trim() === '' && (
         <p className="hint">Showing the {String(rows.length)} newest. Type to find others.</p>
       )}
     </div>
