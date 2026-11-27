@@ -41,3 +41,24 @@ it('keeps research context out of the manuscript export section order', () => {
     ),
   ).toEqual([]);
 });
+
+it('sorts evidence by paper and page, by title, or by subject', async () => {
+  const { sortEvidence } = await import('./EvidenceShelf');
+  const row = (title: string, source: string, heading: string, subjects: string[] = []) => ({
+    title,
+    source,
+    heading,
+    subjects,
+  });
+  const rows = [
+    row('Beta', 'Papers/B.pdf', 'page=2'),
+    row('Alpha', 'Papers/B.pdf', 'page=10', ['Tau']),
+    row('Gamma', 'Papers/A.pdf', 'page=5', ['Ageing']),
+  ];
+  const titles = (sort: 'source' | 'title' | 'subject') =>
+    sortEvidence(rows, sort).map((r) => r.title);
+  expect(titles('source')).toEqual(['Gamma', 'Beta', 'Alpha']);
+  expect(titles('title')).toEqual(['Alpha', 'Beta', 'Gamma']);
+  expect(titles('subject')).toEqual(['Beta', 'Gamma', 'Alpha']);
+  expect(rows[0]?.title).toBe('Beta');
+});

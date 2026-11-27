@@ -175,7 +175,10 @@ export function searchLibrary(
   query: string,
   limit = 50,
 ): CitationChoice[] {
-  const words = fold(query).split(/\s+/).filter(Boolean);
+  const words = fold(query)
+    .replace(/^@/, '')
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
   const scored: { ref: Reference; score: number }[] = [];
   for (const ref of refs.values()) {
     const key = fold(ref.key);
@@ -183,6 +186,9 @@ export function searchLibrary(
     const titleWords = fold([ref.title, ...(ref.subjects ?? [])].join(' ')).split(
       /[^\p{L}\p{N}]+/u,
     );
+    const metadata = fold(
+      [ref.container, ref.doi, ref.url, ...ref.authors.map((a) => a.given)].join(' '),
+    ).split(/[^\p{L}\p{N}]+/u);
     let score = 0;
     let all = true;
     for (const w of words) {
@@ -192,7 +198,7 @@ export function searchLibrary(
       else if (names.some((n) => n.startsWith(w))) score += 2;
       else if (ref.year?.startsWith(w)) score += 2;
       else if (titleWords.some((t) => t.startsWith(w))) score += 1;
-      else if (key.includes(w)) score += 1;
+      else if (key.includes(w) || metadata.some((t) => t.startsWith(w))) score += 1;
       else {
         all = false;
         break;

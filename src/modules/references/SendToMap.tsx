@@ -101,7 +101,13 @@ export function SendToMap({ ctx, entry }: { ctx: ModuleContext; entry: Entry }) 
       if (path) {
         await ctx.vault.writeText(dest, serialiseCanvas(doc));
       } else await ctx.vault.createNew(dest, serialiseCanvas(doc));
+      sessionStorage.setItem('benchwork.focusCanvasCard', JSON.stringify([dest, id]));
       await ctx.app.open(dest);
+      ctx.app.notify(
+        'Added evidence to ' +
+          dest +
+          (parent ? ' beside ' + (parent.text || parent.path || parent.kind) : ' on the board'),
+      );
     } catch (err) {
       setError(String(err));
     } finally {

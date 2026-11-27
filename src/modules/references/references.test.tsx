@@ -86,6 +86,9 @@ describe('the library file', () => {
     const keys = (q: string) => searchLibrary(refs, q).map((c) => c.key);
     expect(keys('smi')).toEqual(['smith2024', 'lee2023']);
     expect(keys('lee 2023')).toEqual(['lee2023']);
+    expect(keys('Alice Neuron')).toEqual(['smith2024']);
+    expect(keys('10.1016/j.neuron.2024.01.001')).toEqual(['smith2024']);
+    expect(keys('@lee2023')).toEqual(['lee2023']);
     expect(keys('tau')).toEqual(['smith2024']);
     expect(keys('nothing')).toEqual([]);
     expect(searchLibrary(refs, '')).toHaveLength(3);

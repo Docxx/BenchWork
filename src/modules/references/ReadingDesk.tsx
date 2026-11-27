@@ -71,7 +71,7 @@ export function ReadingDesk({
         setError(String(err));
       });
   }, [ctx, capture]);
-  const save = async () => {
+  const save = async (returnToPaper = false) => {
     if (!capture || busy) return;
     setBusy(true);
     setError(null);
@@ -84,7 +84,7 @@ export function ReadingDesk({
         ...references,
         [capture.path]: reference.trim(),
       });
-      await saveEvidence(
+      const note = await saveEvidence(
         ctx,
         caption.trim() && capture.figure ? { ...capture, text: caption.trim() } : capture,
         title,
@@ -100,7 +100,12 @@ export function ReadingDesk({
           ),
         ],
         reference,
+        returnToPaper,
       );
+      if (note && returnToPaper)
+        await ctx.app.open(capture.path, {
+          heading: 'page=' + String(capture.page) + '&highlight=' + capture.highlightId,
+        });
     } catch (err) {
       setError(String(err));
     } finally {
@@ -268,7 +273,21 @@ export function ReadingDesk({
             />
           )}
           <button type="button" disabled={busy || !title.trim()} onClick={() => void save()}>
-            {busy ? 'Savingâ€¦' : 'Save evidence note'}
+            {busy ? 'Saving…' : 'Save evidence note'}
+          </button>
+          <button type="button" disabled={busy || !title.trim()} onClick={() => void save(true)}>
+            Save and return to paper
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              void ctx.app.open(capture.path, {
+                heading: 'page=' + String(capture.page) + '&highlight=' + capture.highlightId,
+              })
+            }
+          >
+            Back to paper
           </button>
         </section>
       )}

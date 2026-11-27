@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { ModuleContext } from '@core/api';
 import { searchLibrary, shortLabel } from './library';
 import { openNote, REFERENCE } from './notes';
 import type { LibraryState } from './state';
 import { PaperComparison } from './PaperComparison';
-import { ReferenceDownload } from './ReferenceDownload';
+import { ReferenceDownload, saveReferencePdf } from './ReferenceDownload';
 
 /** At most this many rows; typing narrows the list. */
 export const SHOWN = 100;
@@ -66,6 +66,16 @@ export function LibraryPanel({
   const [activeKey, setActiveKey] = useState<string | null>(null);
 
   const [pdfs, setPdfs] = useState<Record<string, string>>({});
+  const [pdfIndexReady, setPdfIndexReady] = useState(false);
+  const batch = useRef<AbortController | null>(null);
+  useEffect(
+    () => () => {
+      batch.current?.abort();
+    },
+    [ctx],
+  );
+  const [downloading, setDownloading] = useState(false);
+  const [downloadStatus, setDownloadStatus] = useState('');
   const [needsPdf, setNeedsPdf] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [compare, setCompare] = useState(false);
@@ -83,6 +93,7 @@ export function LibraryPanel({
         ),
       );
       if (live && version === current) {
+        setPdfIndexReady(true);
         setPdfs(Object.fromEntries(found.filter((row) => row !== null)));
         setPdfError('');
       }
@@ -107,6 +118,46 @@ export function LibraryPanel({
     };
   }, [ctx, fullPage]);
   const visible = rows.filter((r) => !needsPdf || !pdfs[r.key]);
+
+  async function downloadMissing() {
+    const missing = rows.flatMap((row) => {
+      const ref = snap.refs.get(row.key);
+      return ref && !pdfs[row.key] ? [ref] : [];
+    });
+    const controller = new AbortController();
+    batch.current = controller;
+    let saved = 0;
+    let unavailable = 0;
+    setDownloading(true);
+    try {
+      for (const [index, ref] of missing.entries()) {
+        if (controller.signal.aborted) return;
+        setDownloadStatus(
+          `Checking ${String(index + 1)} of ${String(missing.length)} · ${ref.title || ref.key}`,
+        );
+        const url =
+          ref.pdfUrl ||
+          ref.url ||
+          (ref.doi && (/^https?:/i.test(ref.doi) ? ref.doi : 'https://doi.org/' + ref.doi));
+        if (!url) {
+          unavailable++;
+          continue;
+        }
+        try {
+          const bytes = await ctx.files.downloadPaper(url);
+          controller.signal.throwIfAborted();
+          const path = await saveReferencePdf(ctx, ref, bytes);
+          setPdfs((prev) => ({ ...prev, [ref.key]: path }));
+          saved++;
+        } catch {
+          unavailable++;
+        }
+      }
+      setDownloadStatus(`PDFs saved: ${String(saved)}. Still missing: ${String(unavailable)}.`);
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   if (snap.status === 'missing' || (snap.status === 'error' && snap.count === 0)) {
     return (
@@ -151,6 +202,14 @@ export function LibraryPanel({
       )}
       {fullPage && (
         <div className="actions zotero-filters">
+          <button
+            type="button"
+            disabled={!pdfIndexReady || downloading || !rows.some((r) => !pdfs[r.key])}
+            onClick={() => void downloadMissing()}
+          >
+            Download missing PDFs in results
+          </button>
+          {downloadStatus && <span role="status">{downloadStatus}</span>}
           <label>
             <input
               type="checkbox"
@@ -233,6 +292,7 @@ export function LibraryPanel({
                   ) : (
                     <button
                       type="button"
+                      disabled={downloading}
                       onClick={() => {
                         setActiveKey(row.key);
                       }}

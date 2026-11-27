@@ -25,6 +25,26 @@ export interface Entry {
 }
 const string = (value: unknown) => (typeof value === 'string' ? value : '');
 
+export type EvidenceSort = 'source' | 'title' | 'subject';
+
+/** Evidence in reading order (paper, then page), by title, or by first subject. */
+export function sortEvidence<T extends Pick<Entry, 'title' | 'subjects' | 'source' | 'heading'>>(
+  entries: readonly T[],
+  sort: EvidenceSort,
+): T[] {
+  return [...entries].sort((a, b) => {
+    if (sort === 'title') return a.title.localeCompare(b.title);
+    if (sort === 'subject') {
+      const order = (a.subjects[0] ?? '').localeCompare(b.subjects[0] ?? '');
+      if (order) return order;
+    }
+    return (
+      a.source.localeCompare(b.source) ||
+      a.heading.localeCompare(b.heading, undefined, { numeric: true })
+    );
+  });
+}
+
 export function useEvidence(ctx: ModuleContext) {
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -144,18 +164,22 @@ export function useEvidence(ctx: ModuleContext) {
 
 export function EvidenceShelf({ ctx, library }: { ctx: ModuleContext; library: LibraryState }) {
   const { entries, error } = useEvidence(ctx);
+  const [sort, setSort] = useState<EvidenceSort>('source');
   const [subject, setSubject] = useState('');
   const [sending, setSending] = useState('');
   const snapshot = useSyncExternalStore(library.subscribe, library.current);
   const subjects = new Map<string, string>();
   for (const entry of entries)
     for (const tag of entry.subjects) subjects.set(tag.toLocaleLowerCase(), tag);
-  const visible = entries.filter(
-    (e) =>
-      !subject ||
-      (subject === '*'
-        ? !e.subjects.length
-        : e.subjects.some((t) => t.toLocaleLowerCase() === subject)),
+  const visible = sortEvidence(
+    entries.filter(
+      (e) =>
+        !subject ||
+        (subject === '*'
+          ? !e.subjects.length
+          : e.subjects.some((t) => t.toLocaleLowerCase() === subject)),
+    ),
+    sort,
   );
   return (
     <section aria-label="Evidence and comments">
@@ -177,6 +201,19 @@ export function EvidenceShelf({ ctx, library }: { ctx: ModuleContext; library: L
                 {label}
               </option>
             ))}
+        </select>
+      </label>
+      <label>
+        Sort evidence{' '}
+        <select
+          value={sort}
+          onChange={(e) => {
+            setSort(e.target.value as EvidenceSort);
+          }}
+        >
+          <option value="source">Paper and page</option>
+          <option value="title">Title</option>
+          <option value="subject">Subject</option>
         </select>
       </label>
       {error && <p role="alert">{error}</p>}
