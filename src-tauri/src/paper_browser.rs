@@ -40,42 +40,41 @@ fn check(url: &str) -> Result<tauri::Url, String> {
 }
 
 #[cfg(desktop)]
-pub async fn browse(app: tauri::AppHandle, url: String) -> Result<Vec<u8>, String> {
+mod window {
+    use std::path::PathBuf;
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::{Arc, Mutex};
-    use tauri::webview::DownloadEvent;
-    use tauri::Manager;
+    use tauri::webview::{DownloadEvent, NewWindowFeatures, NewWindowResponse};
+    use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder, Wry};
 
-    const LABEL: &str = "paper-browser";
+    pub const LABEL: &str = "paper-browser";
     type Reply = tokio::sync::oneshot::Sender<Result<Vec<u8>, String>>;
-    fn deliver(reply: &Mutex<Option<Reply>>, result: Result<Vec<u8>, String>) {
-        if let Some(tx) = reply.lock().ok().and_then(|mut r| r.take()) {
-            let _ = tx.send(result);
+
+    /// Shared by the window and any it opens: publishers often open the PDF
+    /// in a new window (a link with target="_blank"), which the webview
+    /// would otherwise block without a word.
+    #[derive(Clone)]
+    pub struct Catch {
+        pub app: AppHandle,
+        pub folder: PathBuf,
+        pub reply: Arc<Mutex<Option<Reply>>>,
+        pub count: Arc<AtomicU32>,
+    }
+
+    impl Catch {
+        pub fn deliver(&self, result: Result<Vec<u8>, String>) {
+            if let Some(tx) = self.reply.lock().ok().and_then(|mut r| r.take()) {
+                let _ = tx.send(result);
+            }
         }
-    }
 
-    let address = check(&url)?;
-    if let Some(old) = app.get_webview_window(LABEL) {
-        let _ = old.destroy();
-    }
-    let folder = app
-        .path()
-        .app_cache_dir()
-        .map_err(|e| e.to_string())?
-        .join("paper-downloads");
-    std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
-
-    let (tx, rx) = tokio::sync::oneshot::channel();
-    let reply = Arc::new(Mutex::new(Some(tx)));
-    let count = Arc::new(AtomicU32::new(0));
-    let on_download = {
-        let reply = reply.clone();
-        let folder = folder.clone();
-        move |_webview, event: DownloadEvent<'_>| {
+        fn download(&self, event: DownloadEvent<'_>) -> bool {
             match event {
                 DownloadEvent::Requested { destination, .. } => {
-                    let n = count.fetch_add(1, Ordering::Relaxed);
-                    *destination = folder.join(format!("{}-{n}.download", std::process::id()));
+                    let n = self.count.fetch_add(1, Ordering::Relaxed);
+                    *destination = self
+                        .folder
+                        .join(format!("{}-{n}.download", std::process::id()));
                 }
                 DownloadEvent::Finished {
                     path: Some(path),
@@ -84,36 +83,86 @@ pub async fn browse(app: tauri::AppHandle, url: String) -> Result<Vec<u8>, Strin
                 } => {
                     let bytes = std::fs::read(&path);
                     let _ = std::fs::remove_file(&path);
-                    if let Some(result) = judge(bytes) {
-                        deliver(&reply, result);
+                    if let Some(result) = super::judge(bytes) {
+                        self.deliver(result);
                     }
                 }
                 _ => {}
             }
             true
         }
-    };
-    let window =
-        tauri::WebviewWindowBuilder::new(&app, LABEL, tauri::WebviewUrl::External(address))
-            .title("BenchWork: get the PDF")
+
+        /// A window for the paper, or for a page the paper's site opens.
+        pub fn builder(&self, label: String, url: Url) -> WebviewWindowBuilder<'_, Wry, AppHandle> {
+            let on_download = self.clone();
+            let on_new = self.clone();
+            WebviewWindowBuilder::new(&self.app, label, WebviewUrl::External(url))
+                .title("BenchWork: get the PDF")
+                .on_download(move |_webview, event| on_download.download(event))
+                .on_new_window(move |url, features| on_new.open(url, features))
+        }
+
+        fn open(&self, url: Url, features: NewWindowFeatures) -> NewWindowResponse<Wry> {
+            let n = self.count.fetch_add(1, Ordering::Relaxed);
+            match self
+                .builder(format!("{LABEL}-{n}"), url)
+                .inner_size(1000.0, 800.0)
+                .window_features(features)
+                .build()
+            {
+                Ok(window) => NewWindowResponse::Create { window },
+                Err(_) => NewWindowResponse::Deny,
+            }
+        }
+
+        /// Closes the paper's window and every window it opened.
+        pub fn close_all(&self) {
+            for (label, window) in self.app.webview_windows() {
+                if label == LABEL || label.starts_with(&format!("{LABEL}-")) {
+                    let _ = window.destroy();
+                }
+            }
+        }
+    }
+
+    pub async fn browse(app: AppHandle, url: String) -> Result<Vec<u8>, String> {
+        let address = super::check(&url)?;
+        let folder = app
+            .path()
+            .app_cache_dir()
+            .map_err(|e| e.to_string())?
+            .join("paper-downloads");
+        std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let catch = Catch {
+            app,
+            folder,
+            reply: Arc::new(Mutex::new(Some(tx))),
+            count: Arc::new(AtomicU32::new(0)),
+        };
+        catch.close_all();
+        let window = catch
+            .builder(LABEL.into(), address)
             .inner_size(1100.0, 850.0)
-            .on_download(on_download)
             .build()
             .map_err(|e| e.to_string())?;
-    {
-        let reply = reply.clone();
-        window.on_window_event(move |event| {
-            if let tauri::WindowEvent::Destroyed = event {
-                deliver(&reply, Err(CLOSED.into()));
-            }
-        });
+        {
+            // Closing the paper's own window cancels; closing one it opened does not.
+            let catch = catch.clone();
+            window.on_window_event(move |event| {
+                if let tauri::WindowEvent::Destroyed = event {
+                    catch.deliver(Err(super::CLOSED.into()));
+                }
+            });
+        }
+        let result = rx.await.unwrap_or_else(|_| Err(super::CLOSED.into()));
+        catch.close_all();
+        result
     }
-    let result = rx.await.unwrap_or_else(|_| Err(CLOSED.into()));
-    if let Some(window) = app.get_webview_window(LABEL) {
-        let _ = window.destroy();
-    }
-    result
 }
+
+#[cfg(desktop)]
+pub use window::browse;
 
 #[cfg(mobile)]
 pub async fn browse(_app: tauri::AppHandle, url: String) -> Result<Vec<u8>, String> {
