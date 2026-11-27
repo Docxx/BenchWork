@@ -326,6 +326,37 @@ describe('References module', () => {
     expect(platform.openedLinks).toContain('https://doi.org/10.1126/sciadv.x');
   });
 
+  it('gets a refused PDF through a browser window, where one is offered', async () => {
+    const { state, platform } = await openVault({
+      'references/library.json': JSON.stringify([
+        { id: 'moreira2025', title: 'Spaceflight reshapes organoids', DOI: '10.1126/sciadv.x' },
+      ]),
+    });
+    platform.downloadPaper = () =>
+      Promise.reject(new Error('HTTP status client error (403 Forbidden) for url (https://a.org)'));
+    const opened: string[] = [];
+    platform.browseForPaper = (url) => {
+      opened.push(url);
+      return Promise.resolve(new TextEncoder().encode('%PDF-1.7 paper'));
+    };
+    const view = state().pageViews.find((v) => v.id === 'references.zoteroLibrary');
+    if (!view) throw new Error('Missing Zotero references page');
+    render(<>{view.render(null)}</>);
+    fireEvent.click(screen.getByRole('button', { name: 'Spaceflight reshapes organoids' }));
+    const details = screen.getByRole('complementary', { name: 'Reference details' });
+    fireEvent.click(within(details).getByRole('button', { name: 'Download PDF' }));
+    fireEvent.click(within(details).getByRole('button', { name: 'Save to Reading' }));
+    await settle();
+    const alert = within(details).getByRole('alert');
+    expect(within(alert).queryByRole('button', { name: 'Open in browser' })).toBeNull();
+    fireEvent.click(within(alert).getByRole('button', { name: 'Get PDF in a browser window' }));
+    await settle();
+    expect(opened).toEqual(['https://doi.org/10.1126/sciadv.x']);
+    expect(within(details).getByRole('button', { name: 'Open PDF' })).toBeDefined();
+    const saved = Object.entries(platform.snapshot()).find(([path]) => path.endsWith('.pdf'));
+    expect(saved?.[0]).toContain('Spaceflight reshapes organoids');
+  });
+
   it('names cited works from the library in the vault', async () => {
     const { provider } = await openVault({ 'references/library.json': LIBRARY });
     expect(provider().describe('smith2024')).toEqual({

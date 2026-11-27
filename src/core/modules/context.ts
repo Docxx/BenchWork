@@ -432,6 +432,21 @@ export function createModuleContext(
       },
     },
     files: {
+      get browseForPaper() {
+        const browse = deps.platform.browseForPaper;
+        if (!browse) return null;
+        return async (url: string) => {
+          const address = new URL(url);
+          if (
+            id !== 'references' ||
+            address.protocol !== 'https:' ||
+            address.username ||
+            address.password
+          )
+            throw new Error('Enter an HTTPS link to the paper.');
+          return browse(address.href);
+        };
+      },
       downloadPaper: async (url) => {
         const address = new URL(url);
         if (

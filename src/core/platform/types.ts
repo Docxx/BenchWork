@@ -71,6 +71,12 @@ export interface PlatformAdapter {
    * offline or when the site answers with an error.
    */
   downloadPaper(url: string): Promise<Uint8Array>;
+  /**
+   * Opens a paper's page in a BenchWork browser window, where the person
+   * downloads the PDF themselves; resolves with that PDF. Null where the
+   * device has no such window (the tablet, for now).
+   */
+  readonly browseForPaper: ((url: string) => Promise<Uint8Array>) | null;
   fetchText(url: string): Promise<string>;
 
   /** Opens a web address in the device's browser. */

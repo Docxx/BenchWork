@@ -93,6 +93,8 @@ architecture is in [SPEC.md](SPEC.md) and feature guides are in `docs/`.
 
 - [ ] Checked on the PC with the real Zotero account: collections, tags, new papers, and old citation keys kept
 - [ ] Checked on the tablet: the library seen through the vault copy, without a key
+- [ ] Checked on the PC: a PDF the publisher refuses, fetched through the browser window after signing in
+- [ ] The browser window on the tablet
 
 ## Phase 8: Apple port
 

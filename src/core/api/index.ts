@@ -257,6 +257,13 @@ export interface CommandTarget {
 
 export interface ModuleFiles {
   downloadPaper(url: string): Promise<Uint8Array>;
+  /**
+   * Opens a paper's page in a BenchWork browser window, where the person
+   * downloads the PDF themselves, signed in as in any browser; resolves with
+   * that PDF. For publishers that refuse downloadPaper. Null where the device
+   * has no such window.
+   */
+  readonly browseForPaper: ((url: string) => Promise<Uint8Array>) | null;
   importFile(source: string, folder: string): Promise<string>;
   importPowerPoint(source: string, folder: string): Promise<ImportedSlides>;
   register(spec: FileHandlerSpec): Disposable;

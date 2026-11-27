@@ -154,8 +154,12 @@ mod tests {
     #[test]
     fn only_programs_and_shortcuts_are_launched() {
         use std::path::Path;
-        assert!(super::is_program(Path::new("C:\\Program Files\\Prism\\prism.exe")));
-        assert!(super::is_program(Path::new("C:\\Users\\Ray\\Desktop\\Fiji.LNK")));
+        assert!(super::is_program(Path::new(
+            "C:\\Program Files\\Prism\\prism.exe"
+        )));
+        assert!(super::is_program(Path::new(
+            "C:\\Users\\Ray\\Desktop\\Fiji.LNK"
+        )));
         assert!(!super::is_program(Path::new("prism.exe")));
         assert!(!super::is_program(Path::new("C:\\notes\\run.bat")));
         assert!(super::launch_program(Path::new("C:\\no\\such\\thing.exe")).is_err());

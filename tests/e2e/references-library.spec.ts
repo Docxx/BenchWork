@@ -155,3 +155,33 @@ test('downloads missing PDFs for matching references and skips saved papers on r
   await expect(library.getByText('PDFs saved: 0. Still missing: 1.')).toBeVisible();
   expect(downloads).toBe(1);
 });
+
+test('gets a PDF the publisher refuses through a browser window', async ({ page }) => {
+  const library = await openLibrary(page, {
+    'references/library.json': JSON.stringify([
+      { id: 'moreira2025', title: 'Spaceflight reshapes organoids', DOI: '10.1126/sciadv.x' },
+    ]),
+  });
+  await page.evaluate(() => {
+    const vault = window.__benchworkMemory;
+    if (!vault) throw new Error('Missing vault');
+    // Fails as the app's download does when a publisher refuses it.
+    vault.downloadPaper = () =>
+      Promise.reject(new Error('HTTP status client error (403 Forbidden) for url (https://x.org)'));
+    // Stands in for the window where the person downloads the PDF.
+    vault.browseForPaper = (url) =>
+      Promise.resolve(new TextEncoder().encode('%PDF-1.7 from ' + url));
+  });
+  await library.getByRole('button', { name: 'Spaceflight reshapes organoids' }).click();
+  const details = library.getByRole('complementary', { name: 'Reference details' });
+  await details.getByRole('button', { name: 'Download PDF' }).click();
+  await details.getByRole('button', { name: 'Save to Reading' }).click();
+  const alert = details.getByRole('alert');
+  await expect(alert).toContainText('would not let BenchWork download this PDF directly');
+  await alert.getByRole('button', { name: 'Get PDF in a browser window' }).click();
+  await expect(details.getByRole('button', { name: 'Open PDF' })).toBeVisible();
+  const files = await page.evaluate(() => window.__benchworkMemory?.snapshot() ?? {});
+  expect(Object.keys(files).some((p) => p.endsWith('Spaceflight reshapes organoids.pdf'))).toBe(
+    true,
+  );
+});

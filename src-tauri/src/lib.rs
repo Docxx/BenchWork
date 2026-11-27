@@ -10,6 +10,7 @@ mod materials;
 mod microsoft;
 mod native_sync;
 mod pandoc;
+mod paper_browser;
 mod path_guard;
 mod programs;
 mod relay;
@@ -855,6 +856,20 @@ async fn download_paper(
     Ok(tauri::ipc::Response::new(bytes))
 }
 
+/// Opens the paper's page in a BenchWork browser window, where the person
+/// downloads the PDF themselves; returns that PDF.
+#[tauri::command]
+async fn browse_for_paper(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    url: String,
+) -> Result<tauri::ipc::Response, String> {
+    main_window(&window).map_err(|e| e.message)?;
+    paper_browser::browse(app, url)
+        .await
+        .map(tauri::ipc::Response::new)
+}
+
 /// Opens a web address in the system's browser.
 #[tauri::command]
 async fn open_web_link(url: String) -> VaultResult<()> {
@@ -1248,6 +1263,7 @@ pub fn run() {
             stop_program,
             open_web_link,
             download_paper,
+            browse_for_paper,
             launch_program,
             open_feedback_email,
             open_vault_file,

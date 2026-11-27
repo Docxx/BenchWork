@@ -10,7 +10,7 @@ import { fullReference, type Reference } from './library';
 export function downloadProblem(message: string): string {
   const status = /\(([45]\d\d)[\s)]/.exec(message)?.[1];
   if (status === '401' || status === '403')
-    return 'The publisher’s site would not let BenchWork download this PDF. Open the paper in your browser, download the PDF there, then choose it below.';
+    return 'The publisher’s site would not let BenchWork download this PDF directly. Get it in a browser window, or download it in your browser and choose it below.';
   if (status === '404')
     return 'There is no PDF at that link. Check the link, or choose a downloaded copy.';
   if (status === '429') return 'The site is busy. Wait a minute and try again.';
@@ -61,18 +61,27 @@ export function ReferenceDownload({
         : ''),
   );
   const [busy, setBusy] = useState(false);
+  const [browsing, setBrowsing] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState('');
-  async function collect(file?: File) {
+  const browse = ctx.files.browseForPaper;
+  const link = url.trim();
+  const canBrowse = browse !== null && /^https:\/\//i.test(link);
+  /** From a file, the link, or a browser window where the person downloads it. */
+  async function collect(source?: File | 'browser') {
     if (busy) return;
     setBusy(true);
+    setBrowsing(source === 'browser');
     setError('');
     try {
-      if (file && file.size > 64 * 1024 * 1024)
+      if (source instanceof File && source.size > 64 * 1024 * 1024)
         throw new Error('The PDF exceeds the reader’s 64 MB limit.');
-      const bytes = file
-        ? new Uint8Array(await file.arrayBuffer())
-        : await ctx.files.downloadPaper(url.trim());
+      const bytes =
+        source instanceof File
+          ? new Uint8Array(await source.arrayBuffer())
+          : source === 'browser' && browse
+            ? await browse(link)
+            : await ctx.files.downloadPaper(link);
       const path = await saveReferencePdf(ctx, reference, bytes);
       setSaved(path);
       onSaved?.(path);
@@ -80,6 +89,7 @@ export function ReferenceDownload({
       setError(downloadProblem(err instanceof Error ? err.message : String(err)));
     } finally {
       setBusy(false);
+      setBrowsing(false);
     }
   }
   if (saved)
@@ -105,9 +115,22 @@ export function ReferenceDownload({
           }}
         />
       </label>
-      <button type="button" disabled={!url.trim()} onClick={() => void collect()}>
-        {busy ? 'Saving…' : 'Save to Reading'}
-      </button>
+      <div className="actions">
+        <button type="button" disabled={!link} onClick={() => void collect()}>
+          {busy && !browsing ? 'Saving…' : 'Save to Reading'}
+        </button>
+        {canBrowse && (
+          <button type="button" onClick={() => void collect('browser')}>
+            Get PDF in a browser window
+          </button>
+        )}
+      </div>
+      {browsing && (
+        <p role="status">
+          Download the PDF in the window that opened, signing in if the site asks. If the PDF opens
+          there, use its download button. BenchWork saves it here and closes the window.
+        </p>
+      )}
       <label>
         Or choose a PDF from this device
         <input
@@ -123,10 +146,16 @@ export function ReferenceDownload({
       {error && (
         <div role="alert" className="reference-download-problem">
           <p>{error}</p>
-          {/^https?:\/\//i.test(url.trim()) && (
-            <button type="button" onClick={() => void ctx.web.open(url.trim())}>
-              Open in browser
+          {canBrowse ? (
+            <button type="button" onClick={() => void collect('browser')}>
+              Get PDF in a browser window
             </button>
+          ) : (
+            /^https?:\/\//i.test(link) && (
+              <button type="button" onClick={() => void ctx.web.open(link)}>
+                Open in browser
+              </button>
+            )
           )}
         </div>
       )}
