@@ -9,6 +9,7 @@ import { AppStoreProvider } from '@core/ui/AppStoreContext';
 import { ModulePanels } from '@core/ui/ModulePanels';
 import { ModulesPanel } from '@core/ui/ModulesPanel';
 import manifestJson from './manifest.json';
+import { downloadProblem } from './ReferenceDownload';
 import {
   findReferences,
   fullReference,
@@ -49,6 +50,23 @@ const LIBRARY = JSON.stringify([
   { id: 'who2020', title: 'Guidance', author: [{ literal: 'WHO' }], issued: { raw: 'May 2020' } },
   { id: 'bad key', title: 'Skipped: keys have no spaces' },
 ]);
+
+describe('a failed PDF download', () => {
+  it('reads as plain words, without the address', () => {
+    expect(
+      downloadProblem('HTTP status client error (403 Forbidden) for url (https://a.org/x)'),
+    ).toContain('would not let BenchWork');
+    expect(downloadProblem('The site answered with an error (404). Try again later.')).toContain(
+      'no PDF at that link',
+    );
+    expect(
+      downloadProblem(
+        'HTTP status server error (503 Service Unavailable) for url (https://a.org/1126)',
+      ),
+    ).toContain('error 503');
+    expect(downloadProblem('Could not reach https://a.org/404/paper.pdf')).toBe('Could not reach');
+  });
+});
 
 describe('the library file', () => {
   const { refs, error } = parseLibrary(LIBRARY);
@@ -279,6 +297,35 @@ describe('References module', () => {
       'https://example.org/fulltext',
     );
   });
+
+  it('explains a download the publisher refuses, and offers the paper in the browser', async () => {
+    const { state, platform } = await openVault({
+      'references/library.json': JSON.stringify([
+        { id: 'moreira2025', title: 'Spaceflight reshapes organoids', DOI: '10.1126/sciadv.x' },
+      ]),
+    });
+    platform.downloadPaper = () =>
+      Promise.reject(
+        new Error(
+          'HTTP status client error (403 Forbidden) for url (https://www.science.org/doi/10.1126/sciadv.x)',
+        ),
+      );
+    const view = state().pageViews.find((v) => v.id === 'references.zoteroLibrary');
+    if (!view) throw new Error('Missing Zotero references page');
+    render(<>{view.render(null)}</>);
+    fireEvent.click(screen.getByRole('button', { name: 'Spaceflight reshapes organoids' }));
+    const details = screen.getByRole('complementary', { name: 'Reference details' });
+    fireEvent.click(within(details).getByRole('button', { name: 'Download PDF' }));
+    fireEvent.click(within(details).getByRole('button', { name: 'Save to Reading' }));
+    await settle();
+    const alert = within(details).getByRole('alert');
+    expect(alert.textContent).toContain('would not let BenchWork download this PDF');
+    expect(alert.textContent).not.toContain('https://');
+    fireEvent.click(within(alert).getByRole('button', { name: 'Open in browser' }));
+    await settle();
+    expect(platform.openedLinks).toContain('https://doi.org/10.1126/sciadv.x');
+  });
+
   it('names cited works from the library in the vault', async () => {
     const { provider } = await openVault({ 'references/library.json': LIBRARY });
     expect(provider().describe('smith2024')).toEqual({

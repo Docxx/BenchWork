@@ -80,6 +80,23 @@
   display: block;
   margin: 0.5rem 0;
 }
+/* Fieldsets are as wide as their widest content unless told otherwise. */
+.reference-download {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.reference-download input[type='url'],
+.reference-download input[type='file'] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-top: 0.25rem;
+}
+.reference-download-problem p {
+  margin: 0.5rem 0;
+}
 
 /* The Zotero library page: collections, table, details. */
 /* Wide: collections | table | details. Medium: the details pinned above the table. Narrow: stacked. */
@@ -298,6 +315,15 @@
   background: color-mix(in srgb, var(--accent) 15%, transparent);
   color: var(--text);
   font-size: 0.75rem;
+}
+.zl-details {
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
+}
+.zl-detail-actions button {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .zl-details h2 {
   margin-top: 0;

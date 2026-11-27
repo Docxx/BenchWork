@@ -3,6 +3,22 @@ import type { ModuleContext } from '@core/api';
 import { filePaper, parsePdfLibrary } from './filePaper';
 import { fullReference, type Reference } from './library';
 
+/**
+ * A failed download in plain words, without the address. Publishers often
+ * refuse downloads that do not come from a signed-in browser.
+ */
+export function downloadProblem(message: string): string {
+  const status = /\(([45]\d\d)[\s)]/.exec(message)?.[1];
+  if (status === '401' || status === '403')
+    return 'The publisher’s site would not let BenchWork download this PDF. Open the paper in your browser, download the PDF there, then choose it below.';
+  if (status === '404')
+    return 'There is no PDF at that link. Check the link, or choose a downloaded copy.';
+  if (status === '429') return 'The site is busy. Wait a minute and try again.';
+  if (status)
+    return `The site could not give the PDF (error ${status}). Try again later, or choose a downloaded copy.`;
+  return message.replace(/\s*\(?https?:\/\/\S+\)?/g, '').trim();
+}
+
 export function referenceFilename(ref: Reference) {
   return [ref.authors[0]?.family, ref.year, ref.title || ref.key].filter(Boolean).join(' - ');
 }
@@ -61,7 +77,7 @@ export function ReferenceDownload({
       setSaved(path);
       onSaved?.(path);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(downloadProblem(err instanceof Error ? err.message : String(err)));
     } finally {
       setBusy(false);
     }
@@ -105,7 +121,14 @@ export function ReferenceDownload({
         />
       </label>
       {error && (
-        <p role="alert">{error} You can paste a direct PDF link or choose a downloaded copy.</p>
+        <div role="alert" className="reference-download-problem">
+          <p>{error}</p>
+          {/^https?:\/\//i.test(url.trim()) && (
+            <button type="button" onClick={() => void ctx.web.open(url.trim())}>
+              Open in browser
+            </button>
+          )}
+        </div>
       )}
     </fieldset>
   );
