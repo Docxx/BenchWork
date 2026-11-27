@@ -216,8 +216,8 @@ test('one reading and writing module downloads, deduplicates and files figure ev
   await page.getByLabel('Figure caption').fill('Panel B, tissue section');
   await page.getByLabel('Citation', { exact: true }).selectOption('figA');
   await page.getByLabel('Your observations').fill('Compare this panel with the other paper.');
-  await page.getByRole('button', { name: 'Save evidence note' }).click();
-  await expect(page.locator('.page-editor')).toContainText('Compare this panel');
+  await page.getByRole('button', { name: 'Save and return to paper' }).click();
+  await expect(page.locator('.pdf-highlight.chosen')).toBeInViewport();
   await desk.click();
   await page.getByRole('button', { name: 'Evidence', exact: true }).click();
   await page.getByRole('combobox', { name: 'Subject', exact: true }).selectOption('inflammation');
@@ -292,16 +292,16 @@ test('compare cited figures, map a finding and quote it at the draft cursor', as
     .getByRole('navigation', { name: 'Reading and writing' })
     .getByRole('button', { name: 'Zotero references' })
     .click();
-  const list = page.getByRole('list', { name: 'References' }).last();
-  await expect(list.getByRole('button', { name: 'Open PDF' })).toBeVisible();
+  const table = page.locator('.zotero-browser').getByRole('table');
+  await expect(table.getByText('PDF', { exact: true })).toBeVisible();
   // Each reference reads as plain text, not filled as a main button.
-  await expect(list.locator('.library-item').first()).toHaveCSS(
+  await expect(table.locator('.zl-title').first()).toHaveCSS(
     'background-color',
     'rgba(0, 0, 0, 0)',
   );
   await page.getByLabel('Needs PDF').check();
-  await expect(list.getByRole('listitem')).toHaveCount(1);
-  await expect(list).toContainText('Second paper');
+  await expect(table.getByRole('row')).toHaveCount(2);
+  await expect(table).toContainText('Second paper');
   await page.getByLabel('Needs PDF').uncheck();
   await page.getByLabel('Compare First paper').check();
   await page.getByLabel('Compare Second paper').check();

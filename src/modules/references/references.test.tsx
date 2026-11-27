@@ -9,7 +9,17 @@ import { AppStoreProvider } from '@core/ui/AppStoreContext';
 import { ModulePanels } from '@core/ui/ModulePanels';
 import { ModulesPanel } from '@core/ui/ModulesPanel';
 import manifestJson from './manifest.json';
-import { fullReference, parseLibrary, searchLibrary, shortLabel } from './library';
+import {
+  findReferences,
+  fullReference,
+  NO_FILTER,
+  parseLibrary,
+  searchLibrary,
+  shortLabel,
+  UNFILED,
+  type LibraryFilter,
+  type LibrarySort,
+} from './library';
 
 // Tests may reach core internals to set the app up; the module itself may not.
 
@@ -100,6 +110,105 @@ describe('the library file', () => {
   });
 });
 
+const ZOTERO_COPY = JSON.stringify({
+  source: 'zotero',
+  userId: '42',
+  version: 3,
+  synced: '2026-11-27T10:00:00.000Z',
+  collections: [
+    { key: 'TH', name: 'Thesis', parent: null },
+    { key: 'C2', name: 'Chapter 2', parent: 'TH' },
+    { key: 'ME', name: 'Methods', parent: null },
+  ],
+  items: [
+    {
+      id: 'Buchon2014-rs',
+      title: 'Immunity in Drosophila',
+      author: [{ family: 'Buchon', given: 'Nicolas' }],
+      issued: { 'date-parts': [[2014]] },
+      'container-title': 'Nature Reviews Immunology',
+      abstract: 'Antimicrobial peptides protect the fly.',
+      'zotero-collections': ['C2'],
+      'zotero-tags': ['review'],
+      'zotero-added': '2025-03-01T00:00:00Z',
+    },
+    {
+      id: 'Kounatidis2017-ab',
+      title: 'NF-kB immunity in the brain determines fly lifespan',
+      author: [{ family: 'Kounatidis', given: 'Ilias' }],
+      issued: { 'date-parts': [[2017]] },
+      'container-title': 'Cell Reports',
+      'zotero-collections': ['TH'],
+      'zotero-added': '2026-01-01T00:00:00Z',
+    },
+    {
+      id: 'Abel2020-cd',
+      title: 'Peptide methods for flies',
+      author: [{ family: 'Abel', given: 'Ann' }],
+      issued: { 'date-parts': [[2020]] },
+      'zotero-collections': ['ME'],
+      'zotero-added': '2024-01-01T00:00:00Z',
+    },
+    {
+      id: 'Loose2010-ef',
+      title: 'Unfiled thing',
+      issued: { 'date-parts': [[2010]] },
+      'container-title': 'Neuron',
+    },
+  ],
+});
+
+describe('finding references on the library page', () => {
+  const { refs, collections } = parseLibrary(ZOTERO_COPY);
+  const find = (
+    filter: Partial<LibraryFilter>,
+    sort: LibrarySort = 'relevance',
+    descending = false,
+  ) =>
+    findReferences(refs, collections, { ...NO_FILTER, ...filter }, sort, descending).map(
+      (r) => r.key,
+    );
+
+  it('filters by collection, sub-collections included, unfiled, tag, years and journal', () => {
+    expect(find({ collection: 'TH' }).sort()).toEqual(['Buchon2014-rs', 'Kounatidis2017-ab']);
+    expect(find({ collection: 'C2' })).toEqual(['Buchon2014-rs']);
+    expect(find({ collection: UNFILED })).toEqual(['Loose2010-ef']);
+    expect(find({ tag: 'review' })).toEqual(['Buchon2014-rs']);
+    expect(find({ yearFrom: '2015', yearTo: '2020' }).sort()).toEqual([
+      'Abel2020-cd',
+      'Kounatidis2017-ab',
+    ]);
+    expect(find({ journal: 'nature rev' })).toEqual(['Buchon2014-rs']);
+  });
+
+  it('finds words in the abstract and journal, ranking titles and authors above them', () => {
+    expect(find({ text: 'antimicrobial' })).toEqual(['Buchon2014-rs']);
+    expect(find({ text: 'cell reports' })).toEqual(['Kounatidis2017-ab']);
+    // "peptide" is in Abel's title but only in Buchon's abstract.
+    expect(find({ text: 'peptide' })).toEqual(['Abel2020-cd', 'Buchon2014-rs']);
+    // The whole phrase in a title counts extra.
+    expect(find({ text: 'fly lifespan' })[0]).toBe('Kounatidis2017-ab');
+  });
+
+  it('sorts by any column either way, newest added first by default, blanks last', () => {
+    expect(find({}, 'added', true)).toEqual([
+      'Kounatidis2017-ab',
+      'Buchon2014-rs',
+      'Abel2020-cd',
+      'Loose2010-ef',
+    ]);
+    expect(find({}, 'author')).toEqual([
+      'Abel2020-cd',
+      'Buchon2014-rs',
+      'Kounatidis2017-ab',
+      'Loose2010-ef',
+    ]);
+    expect(find({}, 'year', true)[0]).toBe('Abel2020-cd');
+    expect(find({}, 'journal').at(-1)).toBe('Abel2020-cd');
+    expect(find({}, 'journal', true).at(-1)).toBe('Abel2020-cd');
+  });
+});
+
 function source(): ModuleSource {
   const result = validateManifest(manifestJson, 'references');
   if (!result.ok) throw new Error(result.errors.join(', '));
@@ -143,7 +252,7 @@ const settle = () =>
   });
 
 describe('References module', () => {
-  it('lists beyond the sidebar limit and offers the selected reference’s PDF attachment', async () => {
+  it('lists beyond the sidebar limit and offers the chosen reference’s PDF attachment', async () => {
     const books = Array.from({ length: 105 }, (_, i) => ({
       id: 'paper' + String(i),
       title: 'Paper ' + String(i),
@@ -155,14 +264,17 @@ describe('References module', () => {
     const view = state().pageViews.find((v) => v.id === 'references.zoteroLibrary');
     if (!view) throw new Error('Missing Zotero references page');
     render(<>{view.render(null)}</>);
-    expect(screen.getAllByRole('listitem')).toHaveLength(105);
-    fireEvent.change(screen.getByLabelText('Reference subject'), {
-      target: { value: 'cell repair' },
-    });
-    expect(screen.getAllByRole('listitem')).toHaveLength(1);
-    expect(screen.getByRole('listitem').textContent).toContain('Paper 104');
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(106);
+    // Keywords and tags in the file show as tags beside the list.
+    const nav = screen.getByRole('navigation', { name: 'Collections' });
+    fireEvent.click(within(nav).getByRole('button', { name: 'Cell repair' }));
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(2);
+    expect(screen.getByRole('table').textContent).toContain('Paper 104');
+    fireEvent.click(within(nav).getByRole('button', { name: /^All references/ }));
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'paper104' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Paper 104' }));
+    const details = screen.getByRole('complementary', { name: 'Reference details' });
+    fireEvent.click(within(details).getByRole('button', { name: 'Download PDF' }));
     expect(screen.getByLabelText<HTMLInputElement>('PDF link').value).toBe(
       'https://example.org/fulltext',
     );
@@ -253,7 +365,7 @@ describe('References module', () => {
     expect(screen.getByRole('status', { name: 'Reference library status' }).textContent).toBe(
       'No file there yet.',
     );
-    expect(screen.getByRole('button', { name: 'Choose library file' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Choose Better BibTeX file' })).toBeDefined();
   });
 
   it('can read a library chosen elsewhere in the vault, and remembers it', async () => {
@@ -268,7 +380,7 @@ describe('References module', () => {
     expect(provider().describe('smith2024')).toBeNull();
 
     platform.queueFilePick(['C:/Vault/Zotero/My library.json']);
-    fireEvent.click(screen.getByRole('button', { name: 'Choose library file' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Choose Better BibTeX file' }));
     await vi.waitFor(() => {
       expect(provider().describe('smith2024')).not.toBeNull();
     });
@@ -290,7 +402,7 @@ describe('References module', () => {
     await settle();
     fireEvent.click(screen.getByText('Configure Reading and writing', { exact: true }));
     platform.queueFilePick(['D:/Elsewhere/library.json']);
-    fireEvent.click(screen.getByRole('button', { name: 'Choose library file' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Choose Better BibTeX file' }));
     await vi.waitFor(() => {
       expect(state().sidebarNotice).toContain('Choose a file inside the vault');
     });
@@ -384,5 +496,75 @@ describe('References module', () => {
     for (const path of Object.keys(before).filter((p) => !p.startsWith('.benchwork'))) {
       expect(after[path]).toBe(before[path]);
     }
+  });
+  it('connects a Zotero account, keeps the key off the vault, and browses by collection', async () => {
+    const key = 'abcdefghijklmnopqrstuvwx';
+    const { store, platform, state } = await openVault({ 'references/library.json': LIBRARY });
+    const api = 'https://api.zotero.org';
+    platform.serveWeb(
+      `${api}/keys/${key}`,
+      JSON.stringify({ userID: 42, username: 'ray', access: { user: { library: true } } }),
+    );
+    platform.serveWeb(
+      `${api}/users/42/collections`,
+      JSON.stringify([
+        { key: 'TH', version: 2, data: { key: 'TH', name: 'Thesis', parentCollection: false } },
+      ]),
+    );
+    const article = (key: string, title: string, family: string, year: number, extra = {}) => ({
+      key,
+      version: 2,
+      data: { key, itemType: 'journalArticle', title, collections: [], tags: [], ...extra },
+      csljson: { id: '42/' + key, title, author: [{ family }], issued: { 'date-parts': [[year]] } },
+    });
+    platform.serveWeb(
+      `${api}/users/42/items`,
+      JSON.stringify([
+        article('Z1', 'Tau spreads in the fly brain', 'Smith', 2024, {
+          DOI: '10.1016/j.neuron.2024.01.001',
+          collections: ['TH'],
+        }),
+        article('Z2', 'A new book', 'Okafor', 2026),
+      ]),
+    );
+    render(
+      <AppStoreProvider store={store}>
+        <ModulesPanel />
+      </AppStoreProvider>,
+    );
+    await settle();
+    fireEvent.click(screen.getByText('Configure Reading and writing', { exact: true }));
+    fireEvent.change(screen.getByLabelText('Zotero key'), { target: { value: key } });
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    await settle();
+    await settle();
+    expect(screen.getByText(/Connected as ray/)).toBeDefined();
+    expect(screen.getByText('references/zotero-library.json')).toBeDefined();
+
+    const files = platform.snapshot();
+    const copy = JSON.parse(files['references/zotero-library.json'] ?? '{}') as {
+      items: { 'citation-key': string }[];
+    };
+    // The old file's key is kept for the same paper; the new one gets its own.
+    expect(copy.items.map((i) => i['citation-key'])).toEqual([
+      'smith2024',
+      expect.stringMatching(/^Okafor2026-[a-z]{2}$/) as string,
+    ]);
+    expect(Object.values(files).join('\n')).not.toContain(key);
+
+    const view = state().pageViews.find((v) => v.id === 'references.zoteroLibrary');
+    if (!view) throw new Error('Missing Zotero references page');
+    render(<>{view.render(null)}</>);
+    await settle();
+    const nav = screen.getByRole('navigation', { name: 'Collections' });
+    fireEvent.click(within(nav).getByRole('button', { name: /Thesis/ }));
+    const table = screen.getByRole('table');
+    expect(within(table).getAllByRole('row')).toHaveLength(2);
+    expect(within(table).getByText('Tau spreads in the fly brain')).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
+    await settle();
+    expect(screen.getByText('references/library.json')).toBeDefined();
+    expect(platform.snapshot()['references/zotero-library.json']).toBeDefined();
   });
 });

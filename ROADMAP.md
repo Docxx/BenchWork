@@ -89,6 +89,11 @@ architecture is in [SPEC.md](SPEC.md) and feature guides are in `docs/`.
 - [x] A scanned vial opens its stock in the label app
 - [ ] Checked in the fly room with real vials
 
+## References: Zotero account and library page
+
+- [ ] Checked on the PC with the real Zotero account: collections, tags, new papers, and old citation keys kept
+- [ ] Checked on the tablet: the library seen through the vault copy, without a key
+
 ## Phase 8: Apple port
 
 - [ ] macOS build (needs a Mac or macOS CI runner)

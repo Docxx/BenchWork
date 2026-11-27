@@ -76,31 +76,254 @@
 .paper-import input {
   min-width: 0;
 }
-.zotero-library .library-list > li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.5rem;
-  border-bottom: 1px solid var(--border);
-  padding: 0.5rem 0;
-}
-.zotero-library .reference-download,
-.zotero-library li > p {
-  grid-column: 1 / -1;
-  min-width: 0;
-  margin: 0;
-}
 .reference-download label {
   display: block;
   margin: 0.5rem 0;
 }
 
-.zotero-library .library-list > li {
-  grid-template-columns: minmax(0, 1fr) auto auto;
+/* The Zotero library page: collections, table, details. */
+/* Wide: collections | table | details. Medium: the details pinned above the table. Narrow: stacked. */
+.zotero-browser {
+  container-type: inline-size;
+  width: 100%;
 }
-.zotero-library input[type='checkbox'] {
+.zl-layout {
+  display: grid;
+  grid-template-columns: minmax(10rem, 13rem) minmax(0, 1fr) minmax(16rem, 21rem);
+  grid-template-areas: 'side main details';
+  align-items: start;
+  gap: 1rem 1.25rem;
+}
+.zl-side {
+  grid-area: side;
+}
+.zl-main {
+  grid-area: main;
+  container-type: inline-size;
+}
+.zl-details {
+  grid-area: details;
+}
+@container (max-width: 68rem) {
+  .zl-layout {
+    grid-template-columns: minmax(10rem, 12rem) minmax(0, 1fr);
+    grid-template-areas:
+      'side details'
+      'side main';
+  }
+  .zotero-browser .zl-details {
+    z-index: 1;
+    top: 0;
+    max-height: 45vh;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+  }
+  .zotero-browser .zl-details:not(:has(article)) {
+    display: none;
+  }
+  .zotero-browser .zl-detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+  }
+}
+@container (max-width: 40rem) {
+  .zl-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'side' 'details' 'main';
+  }
+}
+@container (max-width: 44rem) {
+  .zl-table .zl-col-journal {
+    display: none;
+  }
+}
+.page-view:has(.zotero-browser) {
+  max-width: none;
+}
+.zl-details {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 8rem);
+  overflow: auto;
+}
+.zl-side {
+  display: grid;
+  gap: 2px;
+  font-size: 0.9rem;
+}
+.zl-group {
+  margin: 0.9rem 0 0.2rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+/* Plain buttons, also when first in their row, which would otherwise take the main-button fill. */
+.zl-nav-item,
+.zl-nav-item:first-child,
+.zl-sort,
+.zl-sort:first-child,
+.zl-title,
+.zl-title:first-child,
+.zl-link,
+.zl-link:first-child {
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: 0;
+}
+.zl-nav-item,
+.zl-nav-item:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+}
+.zl-nav-item:hover,
+.zl-nav-item:focus-visible {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.zl-nav-item[aria-pressed='true'] {
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+.zl-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.zl-sync {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 1rem;
+}
+.zl-main {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+}
+.zl-details:not(:has(article)) {
+  color: var(--muted);
+}
+.zl-main input[type='search'] {
+  width: 100%;
+}
+.zl-filters,
+.zl-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+  font-size: 0.9rem;
+}
+.zl-filters input:not([type='checkbox']) {
+  width: 5.5rem;
+}
+.zl-filters input[aria-label='Journal'] {
+  width: 11rem;
+}
+.zl-filters input[type='checkbox'],
+.zl-table input[type='checkbox'] {
   width: auto;
   margin: 0;
+}
+.zl-plain,
+.zl-plain:first-child {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+  padding: 0.35rem 0.8rem;
+}
+.zl-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.zl-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+.zl-table td {
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.zl-table th:nth-child(2) {
+  width: 9.5rem;
+}
+.zl-table th:nth-child(3) {
+  width: 4rem;
+}
+.zl-table th.zl-col-journal {
+  width: 22%;
+}
+.zl-table .zl-pick {
+  width: 2rem;
+}
+.zl-table .zl-files {
+  width: 5.5rem;
+}
+.zl-table tbody tr {
+  cursor: pointer;
+}
+.zl-table tbody tr:hover {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.zl-table tbody tr[aria-selected='true'] {
+  background: var(--accent-soft);
+}
+.zl-title,
+.zl-title:first-child {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.zl-badge {
+  display: inline-block;
+  margin: 0 0.25rem 0.2rem 0;
+  padding: 0 0.35rem;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--text);
+  font-size: 0.75rem;
+}
+.zl-details h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+  line-height: 1.35;
+}
+.zl-details p {
+  margin: 0.4rem 0;
+}
+.zl-journal {
+  font-style: italic;
+}
+.zl-abstract p {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.zl-link,
+.zl-link:first-child {
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.zl-detail-actions {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.8rem;
 }
 .paper-comparison {
   display: grid;
@@ -155,7 +378,8 @@
     position: static;
     max-height: 35vh;
   }
-  .zotero-library .library-list > li {
-    grid-template-columns: minmax(0, 1fr) auto;
+  .zotero-browser .zl-details {
+    position: static;
+    max-height: none;
   }
 }

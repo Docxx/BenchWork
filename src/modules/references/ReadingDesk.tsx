@@ -7,6 +7,8 @@ import { EvidenceShelf, FigureImage, useEvidence } from './EvidenceShelf';
 import { PdfLibrary } from './PdfLibrary';
 import { SendToMap } from './SendToMap';
 import { LibraryPanel } from './LibraryPanel';
+import { LibraryBrowser } from './LibraryBrowser';
+import type { ZoteroConnection } from './zoteroAccount';
 import './reading.css';
 
 export function ReadingDesk({
@@ -15,12 +17,14 @@ export function ReadingDesk({
   param,
   writing,
   sendToMap = false,
+  zotero,
 }: {
   ctx: ModuleContext;
   library: LibraryState;
   param: string | null;
   writing?: string;
   sendToMap?: boolean;
+  zotero?: ZoteroConnection;
 }) {
   const [tab, setTab] = useState(writing !== undefined ? 'Writing' : 'Reading');
   const [reference, setReference] = useState('');
@@ -298,7 +302,12 @@ export function ReadingDesk({
         </section>
       )}
       {tab === 'Evidence' && <EvidenceShelf ctx={ctx} library={library} />}
-      {tab === 'Zotero references' && <LibraryPanel ctx={ctx} library={library} fullPage />}
+      {tab === 'Zotero references' &&
+        (zotero ? (
+          <LibraryBrowser ctx={ctx} library={library} zotero={zotero} />
+        ) : (
+          <LibraryPanel ctx={ctx} library={library} />
+        ))}
       {tab === 'Writing' && <WritingWorkspace ctx={ctx} path={writing || null} combined />}
     </div>
   );

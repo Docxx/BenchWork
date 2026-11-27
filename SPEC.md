@@ -292,4 +292,4 @@ The two biggest risks are sync conflicts and ink responsiveness on tablets; both
 - [x] Tablet vault access: All files access, so the vault is an ordinary folder that Syncthing also writes to (decided 28 Oct 2026); revisit for a store release
 - [x] No separate canvas page type: pen writing goes on free layout pages and in ink blocks (decided 28 Oct 2026)
 - [ ] Licence: undecided; private repo for now
-- [x] Zotero connection: Web API key or local Better BibTeX. Decided 23 Oct 2026: Better BibTeX keeps a CSL JSON export in the vault, which the References module reads
+- [x] Zotero connection: Web API key or local Better BibTeX. Decided 23 Oct 2026: Better BibTeX keeps a CSL JSON export in the vault, which the References module reads. Added 27 Nov 2026: a Zotero Web API key (read only, kept in each device's secure storage) brings in collections, tags and new papers; the module writes them to `references/zotero-library.json` in the vault, keeping existing citation keys, and the Better BibTeX file stays as the fallback

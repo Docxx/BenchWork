@@ -1,6 +1,8 @@
-import { useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import type { ModuleContext } from '@core/api';
 import type { LibraryState } from './state';
+import type { ZoteroConnection } from './zoteroAccount';
+import { ZOTERO_KEYS_PAGE } from './zoteroWeb';
 
 function when(ms: number | null): string {
   if (ms === null) return '';
@@ -17,11 +19,16 @@ function when(ms: number | null): string {
 export function ReferencesSettings({
   ctx,
   library,
+  zotero,
 }: {
   ctx: ModuleContext;
   library: LibraryState;
+  zotero: ZoteroConnection;
 }) {
   const snap = useSyncExternalStore(library.subscribe, library.current);
+  const account = useSyncExternalStore(zotero.subscribe, zotero.current);
+  const [key, setKey] = useState('');
+  const [connecting, setConnecting] = useState(false);
 
   const choose = async () => {
     const [picked] = await ctx.vault.pickFiles({
@@ -39,6 +46,71 @@ export function ReferencesSettings({
 
   return (
     <div className="references-settings">
+      <h3>Zotero account</h3>
+      {account.account ? (
+        <>
+          <p>
+            Connected{account.account.username ? ` as ${account.account.username}` : ''} on this
+            device. {snap.zotero ? 'The library comes from your Zotero account.' : ''}
+          </p>
+          <div className="actions">
+            <button type="button" disabled={account.syncing} onClick={() => void zotero.sync()}>
+              {account.syncing ? 'Syncing…' : 'Sync now'}
+            </button>
+            {!snap.zotero && (
+              <button type="button" onClick={() => void library.useZotero(true)}>
+                Use Zotero account
+              </button>
+            )}
+            <button type="button" onClick={() => void zotero.disconnect()}>
+              Disconnect
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="hint">
+            Brings in your collections, tags and new papers. In Zotero, turn on sync, then make a
+            key with library read access and paste it here. Each device keeps its own key; a device
+            without one still sees the library another device fetched.
+          </p>
+          <form
+            className="actions"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setConnecting(true);
+              zotero
+                .connect(key)
+                .then(() => {
+                  setKey('');
+                })
+                .catch(() => undefined)
+                .finally(() => {
+                  setConnecting(false);
+                });
+            }}
+          >
+            <input
+              type="password"
+              aria-label="Zotero key"
+              placeholder="Zotero key"
+              autoComplete="off"
+              value={key}
+              onChange={(e) => {
+                setKey(e.target.value);
+              }}
+            />
+            <button type="submit" disabled={connecting || key.trim() === ''}>
+              {connecting ? 'Connecting…' : 'Connect'}
+            </button>
+            <button type="button" onClick={() => void ctx.web.open(ZOTERO_KEYS_PAGE)}>
+              Make a key
+            </button>
+          </form>
+        </>
+      )}
+      {account.error && <p role="alert">{account.error}</p>}
+      <h3>Library file</h3>
       <p>
         Library: <span className="path">{snap.path}</span>
       </p>
@@ -50,7 +122,7 @@ export function ReferencesSettings({
         {snap.status === 'error' && `This file could not be used. ${snap.error ?? ''}`}
       </p>
       <button type="button" onClick={() => void choose()}>
-        Choose library file
+        Choose Better BibTeX file
       </button>
       <p className="hint">
         In Zotero with Better BibTeX: right-click your library, choose Export, pick Better CSL JSON,

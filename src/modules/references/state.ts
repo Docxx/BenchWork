@@ -1,5 +1,6 @@
 import type { ModuleContext } from '@core/api';
-import { parseLibrary, type Reference } from './library';
+import { parseLibrary, type Collection, type Reference } from './library';
+import { ZOTERO_LIBRARY } from './zoteroWeb';
 
 /** Where the library file is looked for until another is chosen. */
 export const DEFAULT_LIBRARY = 'references/library.json';
@@ -7,10 +8,17 @@ const SETTINGS_FILE = 'settings.json';
 
 interface Settings {
   libraryPath: string;
+  /** Read the copy of the Zotero account BenchWork keeps, not libraryPath. */
+  zotero?: boolean;
 }
 
 export interface LibrarySnapshot {
   path: string;
+  /** The Better BibTeX file, used when no Zotero account is connected. */
+  filePath: string;
+  /** True when the library is BenchWork's copy of a Zotero account. */
+  zotero: boolean;
+  collections: readonly Collection[];
   /** The references by key; a new map whenever the library is reloaded. */
   refs: ReadonlyMap<string, Reference>;
   /** `missing`: no file there yet; `error`: the file could not be used. */
@@ -33,6 +41,9 @@ export class LibraryState {
   }
   private snapshot: LibrarySnapshot = {
     path: DEFAULT_LIBRARY,
+    filePath: DEFAULT_LIBRARY,
+    zotero: false,
+    collections: [],
     refs: new Map(),
     status: 'loading',
     count: 0,
@@ -68,8 +79,10 @@ export class LibraryState {
     const settings = await this.ctx.storage
       .read<Partial<Settings>>(SETTINGS_FILE)
       .catch(() => null);
-    const path = typeof settings?.libraryPath === 'string' ? settings.libraryPath : DEFAULT_LIBRARY;
-    this.set({ path });
+    const filePath =
+      typeof settings?.libraryPath === 'string' ? settings.libraryPath : DEFAULT_LIBRARY;
+    const zotero = settings?.zotero === true;
+    this.set({ filePath, zotero, path: zotero ? ZOTERO_LIBRARY : filePath });
     this.ctx.vault.watch((change) => {
       if (change.paths.includes(this.snapshot.path)) void this.load();
     });
@@ -82,15 +95,34 @@ export class LibraryState {
 
   /** Uses another file as the library, and remembers it in this vault. */
   async choose(path: string): Promise<void> {
-    await this.ctx.storage.write(SETTINGS_FILE, { libraryPath: path } satisfies Settings);
-    this.set({ path });
+    await this.save(path, this.snapshot.zotero);
+  }
+
+  /** Switches between the Zotero account's copy and the Better BibTeX file. */
+  async useZotero(on: boolean): Promise<void> {
+    await this.save(this.snapshot.filePath, on);
+  }
+
+  private async save(filePath: string, zotero: boolean): Promise<void> {
+    await this.ctx.storage.write(SETTINGS_FILE, {
+      libraryPath: filePath,
+      ...(zotero ? { zotero } : {}),
+    } satisfies Settings);
+    this.set({ filePath, zotero, path: zotero ? ZOTERO_LIBRARY : filePath });
     await this.load();
   }
 
   async load(): Promise<void> {
     const { path } = this.snapshot;
     if (!(await this.ctx.vault.exists(path))) {
-      this.set({ refs: new Map(), status: 'missing', count: 0, modified: null, error: null });
+      this.set({
+        refs: new Map(),
+        collections: [],
+        status: 'missing',
+        count: 0,
+        modified: null,
+        error: null,
+      });
       this.ctx.citations.refresh();
       return;
     }
@@ -107,6 +139,7 @@ export class LibraryState {
       }
       this.set({
         refs: library.refs,
+        collections: library.collections,
         status: library.error === null ? 'ready' : 'error',
         count: library.refs.size,
         modified: info?.modified ?? null,

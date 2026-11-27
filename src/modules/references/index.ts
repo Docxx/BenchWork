@@ -5,9 +5,11 @@ import { OutlineBuilder } from './OutlineBuilder';
 import type { BranchOutline } from '../mind-maps/branchOutline';
 import { DraftEvidence } from './DraftEvidence';
 import { LibraryPanel } from './LibraryPanel';
+import { LibraryBrowser } from './LibraryBrowser';
 import { openNote, referenceType } from './notes';
 import { ReferencesSettings } from './SettingsPanel';
 import { LibraryState } from './state';
+import { ZoteroConnection } from './zoteroAccount';
 import { ReadingDesk, HighlightToMap } from './ReadingDesk';
 import { evidenceType, READING, type CaptureMode } from './evidence';
 import { manuscriptType } from '../manuscript/manuscripts';
@@ -27,6 +29,7 @@ import { BookOpen, Library } from 'lucide-react';
 export default defineModule({
   async activate(ctx) {
     const library = new LibraryState(ctx);
+    const zotero = new ZoteroConnection(ctx, library);
     ctx.views.registerPageView({
       id: 'references.branchOutline',
       title: 'Branch to writing outline',
@@ -38,7 +41,7 @@ export default defineModule({
     ctx.views.registerPageView({
       id: 'references.zoteroLibrary',
       title: 'Zotero references',
-      render: () => createElement(LibraryPanel, { ctx, library, fullPage: true }),
+      render: () => createElement(LibraryBrowser, { ctx, library, zotero }),
       tool: {
         icon: createElement(Library, { size: 18 }),
         hint: 'Browse references and download papers',
@@ -63,7 +66,7 @@ export default defineModule({
       id: 'references.writing',
       title: 'Reading and writing',
       render: (path) =>
-        createElement(ReadingDesk, { ctx, library, param: null, writing: path ?? '' }),
+        createElement(ReadingDesk, { ctx, library, zotero, param: null, writing: path ?? '' }),
     });
     ctx.views.registerPageView({
       id: 'references.overview',
@@ -73,7 +76,7 @@ export default defineModule({
     ctx.views.registerPageView({
       id: READING,
       title: 'Reading and writing',
-      render: (param) => createElement(ReadingDesk, { key: param, ctx, library, param }),
+      render: (param) => createElement(ReadingDesk, { key: param, ctx, library, zotero, param }),
       tool: {
         icon: createElement(BookOpen, { size: 18 }),
         hint: 'PDFs, highlights and linked evidence notes',
@@ -138,6 +141,11 @@ export default defineModule({
       title: 'Reload reference library',
       run: () => library.load(),
     });
+    ctx.commands.register({
+      id: 'references.syncZotero',
+      title: 'Sync Zotero library',
+      run: () => zotero.sync(),
+    });
 
     ctx.views.registerSidebarPanel({
       id: 'references.library',
@@ -151,7 +159,7 @@ export default defineModule({
         createElement(
           Fragment,
           null,
-          createElement(ReferencesSettings, { ctx, library }),
+          createElement(ReferencesSettings, { ctx, library, zotero }),
           createElement(ManuscriptSettings, { ctx }),
         ),
     });

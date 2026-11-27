@@ -1,10 +1,8 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { ModuleContext } from '@core/api';
 import { searchLibrary, shortLabel } from './library';
 import { openNote, REFERENCE } from './notes';
 import type { LibraryState } from './state';
-import { PaperComparison } from './PaperComparison';
-import { ReferenceDownload, saveReferencePdf } from './ReferenceDownload';
 
 /** At most this many rows; typing narrows the list. */
 export const SHOWN = 100;
@@ -14,24 +12,9 @@ export const SHOWN = 100;
  * box to find one. Clicking a reference opens its literature note, making
  * it the first time; references that already have a note are marked.
  */
-export function LibraryPanel({
-  ctx,
-  library,
-  fullPage = false,
-}: {
-  ctx: ModuleContext;
-  library: LibraryState;
-  fullPage?: boolean;
-}) {
+export function LibraryPanel({ ctx, library }: { ctx: ModuleContext; library: LibraryState }) {
   const snap = useSyncExternalStore(library.subscribe, library.current);
   const [filter, setFilter] = useState('');
-  const [subject, setSubject] = useState('');
-  const subjects = useMemo(() => {
-    const labels = new Map<string, string>();
-    for (const ref of snap.refs.values())
-      for (const label of ref.subjects ?? []) labels.set(label.toLowerCase(), label);
-    return [...labels].sort((a, b) => a[1].localeCompare(b[1]));
-  }, [snap.refs]);
   const [withNotes, setWithNotes] = useState<ReadonlySet<string>>(new Set());
 
   // Which references already have a note; checked again after each reload
@@ -53,128 +36,22 @@ export function LibraryPanel({
   }, [ctx, snap.refs, notesChecked]);
 
   // An empty filter lists the newest; typing narrows it.
-  const rows = useMemo(() => {
-    const refs = subject
-      ? new Map(
-          [...snap.refs].filter(([, ref]) =>
-            ref.subjects?.some((s) => s.toLowerCase() === subject),
-          ),
-        )
-      : snap.refs;
-    return searchLibrary(refs, filter, fullPage ? snap.count : SHOWN);
-  }, [snap.refs, snap.count, filter, fullPage, subject]);
-  const [activeKey, setActiveKey] = useState<string | null>(null);
-
-  const [pdfs, setPdfs] = useState<Record<string, string>>({});
-  const [pdfIndexReady, setPdfIndexReady] = useState(false);
-  const batch = useRef<AbortController | null>(null);
-  useEffect(
-    () => () => {
-      batch.current?.abort();
-    },
-    [ctx],
-  );
-  const [downloading, setDownloading] = useState(false);
-  const [downloadStatus, setDownloadStatus] = useState('');
-  const [needsPdf, setNeedsPdf] = useState(false);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [compare, setCompare] = useState(false);
-  const [pdfError, setPdfError] = useState('');
-  useEffect(() => {
-    if (!fullPage) return;
-    let live = true;
-    let version = 0;
-    const refresh = async () => {
-      const current = ++version;
-      const links = await ctx.storage.read<Record<string, string>>('pdf-citations.json');
-      const found = await Promise.all(
-        Object.entries(links ?? {}).map(async ([path, key]) =>
-          (await ctx.vault.exists(path)) ? ([key, path] as const) : null,
-        ),
-      );
-      if (live && version === current) {
-        setPdfIndexReady(true);
-        setPdfs(Object.fromEntries(found.filter((row) => row !== null)));
-        setPdfError('');
-      }
-    };
-    const load = () => {
-      void refresh().catch((err: unknown) => {
-        if (live) setPdfError(String(err));
-      });
-    };
-    const sub = ctx.vault.watch((change) => {
-      if (
-        change.paths.some(
-          (p) => p.endsWith('pdf-citations.json') || p.toLowerCase().endsWith('.pdf'),
-        )
-      )
-        load();
-    });
-    load();
-    return () => {
-      live = false;
-      sub.dispose();
-    };
-  }, [ctx, fullPage]);
-  const visible = rows.filter((r) => !needsPdf || !pdfs[r.key]);
-
-  async function downloadMissing() {
-    const missing = rows.flatMap((row) => {
-      const ref = snap.refs.get(row.key);
-      return ref && !pdfs[row.key] ? [ref] : [];
-    });
-    const controller = new AbortController();
-    batch.current = controller;
-    let saved = 0;
-    let unavailable = 0;
-    setDownloading(true);
-    try {
-      for (const [index, ref] of missing.entries()) {
-        if (controller.signal.aborted) return;
-        setDownloadStatus(
-          `Checking ${String(index + 1)} of ${String(missing.length)} · ${ref.title || ref.key}`,
-        );
-        const url =
-          ref.pdfUrl ||
-          ref.url ||
-          (ref.doi && (/^https?:/i.test(ref.doi) ? ref.doi : 'https://doi.org/' + ref.doi));
-        if (!url) {
-          unavailable++;
-          continue;
-        }
-        try {
-          const bytes = await ctx.files.downloadPaper(url);
-          controller.signal.throwIfAborted();
-          const path = await saveReferencePdf(ctx, ref, bytes);
-          setPdfs((prev) => ({ ...prev, [ref.key]: path }));
-          saved++;
-        } catch {
-          unavailable++;
-        }
-      }
-      setDownloadStatus(`PDFs saved: ${String(saved)}. Still missing: ${String(unavailable)}.`);
-    } finally {
-      setDownloading(false);
-    }
-  }
+  const rows = useMemo(() => searchLibrary(snap.refs, filter, SHOWN), [snap.refs, filter]);
 
   if (snap.status === 'missing' || (snap.status === 'error' && snap.count === 0)) {
     return (
       <p className="hint">
-        No library yet. Choose the file Better BibTeX keeps up to date in Settings &gt; Modules &gt;
-        Reading and writing.
+        No library yet. Connect your Zotero account, or choose the file Better BibTeX keeps up to
+        date, in Settings &gt; Modules &gt; Reading and writing.
       </p>
     );
   }
 
   return (
-    <div className={fullPage ? 'library-panel zotero-library' : 'library-panel'}>
-      {!fullPage && (
-        <button type="button" onClick={() => void ctx.app.openView('references.zoteroLibrary')}>
-          Open Zotero references
-        </button>
-      )}
+    <div className="library-panel">
+      <button type="button" onClick={() => void ctx.app.openView('references.zoteroLibrary')}>
+        Open Zotero references
+      </button>
       <input
         type="search"
         aria-label="Find a reference"
@@ -184,62 +61,11 @@ export function LibraryPanel({
           setFilter(e.target.value);
         }}
       />
-      {(subjects.length > 0 || subject) && (
-        <select
-          aria-label="Reference subject"
-          value={subject}
-          onChange={(e) => {
-            setSubject(e.target.value);
-          }}
-        >
-          <option value="">All subjects</option>
-          {subjects.map(([key, label]) => (
-            <option key={key} value={key}>
-              {label}
-            </option>
-          ))}
-        </select>
-      )}
-      {fullPage && (
-        <div className="actions zotero-filters">
-          <button
-            type="button"
-            disabled={!pdfIndexReady || downloading || !rows.some((r) => !pdfs[r.key])}
-            onClick={() => void downloadMissing()}
-          >
-            Download missing PDFs in results
-          </button>
-          {downloadStatus && <span role="status">{downloadStatus}</span>}
-          <label>
-            <input
-              type="checkbox"
-              checked={needsPdf}
-              onChange={(e) => {
-                setNeedsPdf(e.target.checked);
-              }}
-            />{' '}
-            Needs PDF
-          </label>
-          <button
-            type="button"
-            disabled={selected.length < 2}
-            onClick={() => {
-              setCompare(!compare);
-            }}
-          >
-            {compare ? 'Close comparison' : 'Compare papers'} ({selected.length})
-          </button>
-        </div>
-      )}
-      {pdfError && <p role="alert">{pdfError}</p>}
-      {compare && selected.length >= 2 && (
-        <PaperComparison ctx={ctx} references={selected.flatMap((k) => snap.refs.get(k) ?? [])} />
-      )}
-      {visible.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="hint">No matching references.</p>
       ) : (
         <ul className="library-list" aria-label="References">
-          {visible.map((row) => {
+          {rows.map((row) => {
             const ref = snap.refs.get(row.key);
             return (
               <li key={row.key}>
@@ -259,53 +85,12 @@ export function LibraryPanel({
                   </span>
                   <span className="library-title">{row.detail}</span>
                 </button>
-                {fullPage && (
-                  <label className="compare-paper">
-                    <input
-                      aria-label={'Compare ' + row.detail}
-                      type="checkbox"
-                      checked={selected.includes(row.key)}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setSelected((prev) =>
-                          checked ? [...prev, row.key] : prev.filter((k) => k !== row.key),
-                        );
-                      }}
-                    />{' '}
-                    Compare
-                  </label>
-                )}
-                {fullPage && pdfs[row.key] && (
-                  <button onClick={() => void ctx.app.open(pdfs[row.key] ?? '')}>Open PDF</button>
-                )}
-                {fullPage &&
-                  !pdfs[row.key] &&
-                  ref &&
-                  (activeKey === row.key ? (
-                    <ReferenceDownload
-                      ctx={ctx}
-                      reference={ref}
-                      onSaved={(path) => {
-                        setPdfs((prev) => ({ ...prev, [row.key]: path }));
-                      }}
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={downloading}
-                      onClick={() => {
-                        setActiveKey(row.key);
-                      }}
-                    >
-                      Download PDF
-                    </button>
-                  ))}
               </li>
             );
           })}
         </ul>
       )}
-      {!fullPage && !subject && snap.count > rows.length && filter.trim() === '' && (
+      {snap.count > rows.length && filter.trim() === '' && (
         <p className="hint">Showing the {String(rows.length)} newest. Type to find others.</p>
       )}
     </div>
